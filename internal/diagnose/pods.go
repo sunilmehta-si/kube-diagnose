@@ -95,6 +95,11 @@ func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			pr.severity = Warning
 			return pr
 		}
+		// Caught in the moment between two crashes: the container runs, but it has exited non-zero and been
+		// restarted again and again.
+		if cs.RestartCount >= 2 && (lt.ExitCode != 0 || lt.Reason == "Completed") {
+			return crash(ix, p, cs)
+		}
 	}
 	return nil
 }
@@ -149,9 +154,9 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
 			"Check the registry host name in the image, and that nodes can resolve and reach it (DNS, egress, proxy).", ev...)
 	case reDenied.MatchString(msg):
-		cause := fmt.Sprintf("the registry refused to serve image %s", image)
+		cause := fmt.Sprintf("the registry refused to serve image %s (%s)", image, deniedReason(msg))
 		if strings.Contains(strings.ToLower(msg), "does not exist") {
-			cause = fmt.Sprintf("image %s does not exist, or it is private and the pod has no credentials for it", image)
+			cause = fmt.Sprintf("image %s does not exist, or it is private and the pod has no credentials for it (%s)", image, deniedReason(msg))
 		}
 		fix := "Check the repository name; if it is private, create a docker-registry Secret and list it in imagePullSecrets."
 		if len(p.Spec.ImagePullSecrets) > 0 {
@@ -166,6 +171,17 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	return newProblem(p, cs.Name, "KD100", "Image cannot be pulled", Critical,
 		fmt.Sprintf("image %s cannot be pulled", image), "pull|"+image,
 		"Read the pull error in the evidence; the node's container runtime reported it.", ev...)
+}
+
+// deniedReason quotes how the registry refused, most specific first.
+func deniedReason(msg string) string {
+	low := strings.ToLower(msg)
+	for _, s := range []string{"pull access denied", "403 forbidden", "401 unauthorized", "insufficient_scope", "unauthorized", "access denied", "denied", "403", "401", "forbidden"} {
+		if strings.Contains(low, s) {
+			return "it answered " + s
+		}
+	}
+	return "it refused access"
 }
 
 func registry(image string) string {

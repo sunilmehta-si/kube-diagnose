@@ -7,6 +7,8 @@ import (
 )
 
 // nodeFindings reports nodes that are not ready or under pressure, with the pods on them that it affects.
+// When the snapshot covers some namespaces only, a node is reported only if it runs pods in them: a node problem
+// is cluster-wide, and would otherwise appear in every namespace's diagnosis.
 func nodeFindings(ix *index) []Finding {
 	var out []Finding
 	for _, n := range ix.s.Nodes {
@@ -16,6 +18,9 @@ func nodeFindings(ix *index) []Finding {
 			if p.Spec.NodeName == n.Metadata.Name && p.Status.Phase != "Succeeded" && p.Status.Phase != "Failed" {
 				affects = append(affects, p.Ref())
 			}
+		}
+		if len(ix.s.Namespaces) > 0 && len(affects) == 0 {
+			continue
 		}
 		if c, ok := kube.FindCondition(n.Status.Conditions, "Ready"); ok && c.Status != "True" {
 			cause := fmt.Sprintf("node %s is not ready (%s): %s", n.Metadata.Name, c.Reason, c.Message)

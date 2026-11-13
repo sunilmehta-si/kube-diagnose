@@ -56,10 +56,48 @@ func TestImageRepositoryMissingOrPrivate(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "doesnotexist/web:1": failed to pull and unpack image "docker.io/doesnotexist/web:1": failed to resolve reference "docker.io/doesnotexist/web:1": pull access denied, repository does not exist or may require authorization: server message: insufficient_scope: authorization failed`, 0)}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD102", "Pod shop/web", "does not exist, or it is private")
+	expect(t, f, "KD102", "Pod shop/web", "does not exist, or it is private", "it answered pull access denied")
 	if !strings.Contains(f.Fix, "imagePullSecrets") {
 		t.Errorf("fix should mention imagePullSecrets: %s", f.Fix)
 	}
+}
+
+func TestRegistryAnswers403(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "ghcr.io/acme/missing:1.0.0"
+	waiting(&p, "ErrImagePull", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "ghcr.io/acme/missing:1.0.0": failed to pull and unpack image "ghcr.io/acme/missing:1.0.0": failed to resolve reference "ghcr.io/acme/missing:1.0.0": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Aacme%2Fmissing%3Apull&service=ghcr.io: 403 Forbidden`, 0)}
+	expect(t, only(t, Diagnose(s)), "KD102", "Pod shop/web", "refused to serve image ghcr.io/acme/missing:1.0.0 (it answered 403 forbidden)")
+}
+
+func TestCrashLoopCaughtWhileRunning(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Status.ContainerStatuses[0].RestartCount = 4
+	p.Status.ContainerStatuses[0].LastTerminationState = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 1, Reason: "Error"}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"error: DATABASE_URL is not set"}}}
+	expect(t, only(t, Diagnose(s)), "KD110", "Pod shop/web", "DATABASE_URL")
+
+	p.Status.ContainerStatuses[0].RestartCount = 1 // one restart while running is not yet a loop
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestNodeProblemsInANamespaceScanOnlyWhenTheyRunItsPods(t *testing.T) {
+	s := snap()
+	s.Nodes = append(s.Nodes, node("node-2", "8", "32Gi"))
+	s.Nodes[1].Status.Conditions = append(s.Nodes[1].Status.Conditions, kube.Condition{Type: "DiskPressure", Status: "True", Message: "ephemeral-storage low"})
+	s.Pods = []kube.Pod{pod("web", "")} // on node-1
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("node-2 runs no pod of this namespace: %+v", r.Findings)
+	}
+	s.Namespaces = nil // an all-namespaces scan reports every node
+	expect(t, only(t, Diagnose(s)), "KD191", "Node node-2", "DiskPressure")
 }
 
 func TestRegistryUnreachable(t *testing.T) {
