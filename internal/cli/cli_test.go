@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -195,5 +196,31 @@ func TestVersionAndRules(t *testing.T) {
 	env, _, _, _ = testEnv(nil)
 	if Run([]string{"-h"}, env) != 0 {
 		t.Error("-h exits 0")
+	}
+}
+
+// TestReadmeExampleIsWhatTheCodePrints keeps the README's example output identical to a real run on its snapshot.
+func TestReadmeExampleIsWhatTheCodePrints(t *testing.T) {
+	env, out, errb, _ := testEnv(nil)
+	if code := Run([]string{"--snapshot", "../../testdata/example.snapshot.json", "--color", "never"}, env); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	readme, err := os.ReadFile("../../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(readme), "$ kubectl diagnose -n shop\n"+out.String()+"```") {
+		t.Errorf("README example is stale; the code prints:\n%s", out)
+	}
+}
+
+// TestNoModuleDependencies holds the README's promise that the code uses the standard library only.
+func TestNoModuleDependencies(t *testing.T) {
+	mod, err := os.ReadFile("../../go.mod")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(mod), "require") {
+		t.Error("go.mod has dependencies; the README and SECURITY.md say it has none")
 	}
 }

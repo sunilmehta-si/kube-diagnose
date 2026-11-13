@@ -1,6 +1,7 @@
 package faults
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -145,5 +146,30 @@ func TestEvidenceDoesNotCountForKubeDiagnose(t *testing.T) {
 	s := Scenario{Keywords: [][]string{{"9090"}}}
 	if Judge(s, items).Named {
 		t.Error("a cause that does not name the port must not pass because the evidence quotes it")
+	}
+}
+
+// TestReadmeDescribesTheSuite holds the README's numbers about the fault suite to the scenarios and the runner.
+func TestReadmeDescribesTheSuite(t *testing.T) {
+	ss, err := Load("../../faults")
+	if err != nil {
+		t.Fatal(err)
+	}
+	broken := 0
+	for _, s := range ss {
+		if !s.Healthy() {
+			broken++
+		}
+	}
+	readme, _ := os.ReadFile("../../README.md")
+	for _, want := range []string{fmt.Sprintf("breaks a kind cluster in %d ways", broken), fmt.Sprintf("holds %d broken namespaces and one healthy one", broken),
+		"lets them run for two and a half\nminutes"} {
+		if !strings.Contains(string(readme), want) {
+			t.Errorf("README lacks %q", want)
+		}
+	}
+	runner, _ := os.ReadFile("../../cmd/faultsuite/main.go")
+	if !strings.Contains(string(runner), `fs.Duration("settle", 150*time.Second`) {
+		t.Error("the README's two and a half minutes is faultsuite's default settle time")
 	}
 }

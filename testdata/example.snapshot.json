@@ -1,0 +1,385 @@
+{
+ "schemaVersion": 1,
+ "tool": "kube-diagnose example",
+ "collectedAt": "2026-11-13T10:00:00Z",
+ "context": "kind-example",
+ "serverVersion": "v1.37.0",
+ "namespaces": [
+  "shop"
+ ],
+ "pods": [
+  {
+   "metadata": {
+    "name": "web-7d9c5b-4kq2x",
+    "namespace": "shop",
+    "labels": {
+     "app": "web",
+     "pod-template-hash": "7d9c5b"
+    },
+    "ownerReferences": [
+     {
+      "kind": "ReplicaSet",
+      "name": "web-7d9c5b",
+      "controller": true
+     }
+    ],
+    "creationTimestamp": "2026-11-13T09:40:00Z"
+   },
+   "spec": {
+    "nodeName": "kind-control-plane",
+    "containers": [
+     {
+      "name": "web",
+      "image": "registry.example.com/shop/web:2.3.1",
+      "ports": [
+       {
+        "name": "http",
+        "containerPort": 8080
+       }
+      ],
+      "livenessProbe": {
+       "httpGet": {
+        "path": "/healthz",
+        "port": 9090
+       },
+       "periodSeconds": 5,
+       "failureThreshold": 1
+      }
+     }
+    ]
+   },
+   "status": {
+    "phase": "Running",
+    "conditions": [
+     {
+      "type": "PodScheduled",
+      "status": "True"
+     },
+     {
+      "type": "Ready",
+      "status": "False"
+     }
+    ],
+    "containerStatuses": [
+     {
+      "name": "web",
+      "ready": false,
+      "restartCount": 7,
+      "image": "registry.example.com/shop/web:2.3.1",
+      "state": {
+       "waiting": {
+        "reason": "CrashLoopBackOff",
+        "message": "back-off 2m40s restarting failed container=web pod=web-7d9c5b-4kq2x"
+       }
+      },
+      "lastState": {
+       "terminated": {
+        "exitCode": 143,
+        "reason": "Error",
+        "startedAt": "2026-11-13T09:55:01Z",
+        "finishedAt": "2026-11-13T09:55:12Z"
+       }
+      }
+     }
+    ]
+   }
+  },
+  {
+   "metadata": {
+    "name": "web-7d9c5b-r8m7t",
+    "namespace": "shop",
+    "labels": {
+     "app": "web",
+     "pod-template-hash": "7d9c5b"
+    },
+    "ownerReferences": [
+     {
+      "kind": "ReplicaSet",
+      "name": "web-7d9c5b",
+      "controller": true
+     }
+    ],
+    "creationTimestamp": "2026-11-13T09:40:00Z"
+   },
+   "spec": {
+    "nodeName": "kind-control-plane",
+    "containers": [
+     {
+      "name": "web",
+      "image": "registry.example.com/shop/web:2.3.1",
+      "ports": [
+       {
+        "name": "http",
+        "containerPort": 8080
+       }
+      ],
+      "livenessProbe": {
+       "httpGet": {
+        "path": "/healthz",
+        "port": 9090
+       },
+       "periodSeconds": 5,
+       "failureThreshold": 1
+      }
+     }
+    ]
+   },
+   "status": {
+    "phase": "Running",
+    "conditions": [
+     {
+      "type": "PodScheduled",
+      "status": "True"
+     },
+     {
+      "type": "Ready",
+      "status": "False"
+     }
+    ],
+    "containerStatuses": [
+     {
+      "name": "web",
+      "ready": false,
+      "restartCount": 7,
+      "image": "registry.example.com/shop/web:2.3.1",
+      "state": {
+       "waiting": {
+        "reason": "CrashLoopBackOff",
+        "message": "back-off 2m40s restarting failed container=web pod=web-7d9c5b-r8m7t"
+       }
+      },
+      "lastState": {
+       "terminated": {
+        "exitCode": 143,
+        "reason": "Error",
+        "startedAt": "2026-11-13T09:55:01Z",
+        "finishedAt": "2026-11-13T09:55:12Z"
+       }
+      }
+     }
+    ]
+   }
+  }
+ ],
+ "events": [
+  {
+   "metadata": {
+    "name": "web-7d9c5b-4kq2x.Unhealthy",
+    "namespace": "shop"
+   },
+   "involvedObject": {
+    "kind": "Pod",
+    "namespace": "shop",
+    "name": "web-7d9c5b-4kq2x",
+    "fieldPath": "spec.containers{web}"
+   },
+   "reason": "Unhealthy",
+   "message": "Liveness probe failed: Get \"http://10.244.0.12:9090/healthz\": dial tcp 10.244.0.12:9090: connect: connection refused",
+   "type": "Warning",
+   "count": 8,
+   "lastTimestamp": "2026-11-13T09:58:00Z"
+  },
+  {
+   "metadata": {
+    "name": "web-7d9c5b-4kq2x.Killing",
+    "namespace": "shop"
+   },
+   "involvedObject": {
+    "kind": "Pod",
+    "namespace": "shop",
+    "name": "web-7d9c5b-4kq2x",
+    "fieldPath": "spec.containers{web}"
+   },
+   "reason": "Killing",
+   "message": "Container web failed liveness probe, will be restarted",
+   "type": "Warning",
+   "count": 7,
+   "lastTimestamp": "2026-11-13T09:58:00Z"
+  },
+  {
+   "metadata": {
+    "name": "web-7d9c5b-r8m7t.Unhealthy",
+    "namespace": "shop"
+   },
+   "involvedObject": {
+    "kind": "Pod",
+    "namespace": "shop",
+    "name": "web-7d9c5b-r8m7t",
+    "fieldPath": "spec.containers{web}"
+   },
+   "reason": "Unhealthy",
+   "message": "Liveness probe failed: Get \"http://10.244.0.12:9090/healthz\": dial tcp 10.244.0.12:9090: connect: connection refused",
+   "type": "Warning",
+   "count": 8,
+   "lastTimestamp": "2026-11-13T09:58:00Z"
+  },
+  {
+   "metadata": {
+    "name": "web-7d9c5b-r8m7t.Killing",
+    "namespace": "shop"
+   },
+   "involvedObject": {
+    "kind": "Pod",
+    "namespace": "shop",
+    "name": "web-7d9c5b-r8m7t",
+    "fieldPath": "spec.containers{web}"
+   },
+   "reason": "Killing",
+   "message": "Container web failed liveness probe, will be restarted",
+   "type": "Warning",
+   "count": 7,
+   "lastTimestamp": "2026-11-13T09:58:00Z"
+  }
+ ],
+ "nodes": [
+  {
+   "metadata": {
+    "name": "kind-control-plane"
+   },
+   "spec": {},
+   "status": {
+    "conditions": [
+     {
+      "type": "Ready",
+      "status": "True"
+     }
+    ],
+    "allocatable": {
+     "cpu": "4",
+     "memory": "16Gi",
+     "pods": "110"
+    }
+   }
+  }
+ ],
+ "services": [
+  {
+   "metadata": {
+    "name": "web",
+    "namespace": "shop"
+   },
+   "spec": {
+    "type": "ClusterIP",
+    "selector": {
+     "app": "web"
+    },
+    "ports": [
+     {
+      "port": 80,
+      "targetPort": "http"
+     }
+    ]
+   }
+  }
+ ],
+ "endpointSlices": [
+  {
+   "metadata": {
+    "name": "web-x1",
+    "namespace": "shop",
+    "labels": {
+     "kubernetes.io/service-name": "web"
+    }
+   },
+   "endpoints": [],
+   "ports": []
+  }
+ ],
+ "workloads": [
+  {
+   "kind": "Deployment",
+   "metadata": {
+    "name": "web",
+    "namespace": "shop"
+   },
+   "spec": {
+    "replicas": 2,
+    "selector": {
+     "matchLabels": {
+      "app": "web"
+     }
+    },
+    "template": {
+     "metadata": {
+      "labels": {
+       "app": "web"
+      }
+     },
+     "spec": {
+      "containers": []
+     }
+    }
+   },
+   "status": {
+    "replicas": 2,
+    "readyReplicas": 0
+   }
+  },
+  {
+   "kind": "ReplicaSet",
+   "metadata": {
+    "name": "web-7d9c5b",
+    "namespace": "shop",
+    "ownerReferences": [
+     {
+      "kind": "Deployment",
+      "name": "web",
+      "controller": true
+     }
+    ]
+   },
+   "spec": {
+    "replicas": 2,
+    "template": {
+     "metadata": {},
+     "spec": {
+      "containers": []
+     }
+    }
+   },
+   "status": {
+    "replicas": 2,
+    "readyReplicas": 0
+   }
+  }
+ ],
+ "jobs": [],
+ "persistentVolumeClaims": [],
+ "persistentVolumes": [],
+ "storageClasses": [],
+ "networkPolicies": [],
+ "resourceQuotas": [],
+ "serviceAccounts": [],
+ "configMaps": [],
+ "secrets": [],
+ "logs": [
+  {
+   "pod": {
+    "kind": "Pod",
+    "namespace": "shop",
+    "name": "web-7d9c5b-4kq2x"
+   },
+   "container": "web",
+   "previous": true,
+   "lines": [
+    "listening on :8080",
+    "GET / 200",
+    "received SIGTERM, shutting down"
+   ]
+  },
+  {
+   "pod": {
+    "kind": "Pod",
+    "namespace": "shop",
+    "name": "web-7d9c5b-r8m7t"
+   },
+   "container": "web",
+   "previous": true,
+   "lines": [
+    "listening on :8080",
+    "GET / 200",
+    "received SIGTERM, shutting down"
+   ]
+  }
+ ]
+}

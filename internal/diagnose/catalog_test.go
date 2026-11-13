@@ -79,3 +79,13 @@ func TestRulesDocIsCurrent(t *testing.T) {
 		t.Fatalf("docs/rules.md is stale: run make docs")
 	}
 }
+
+func TestReadmeCountsTheRules(t *testing.T) {
+	readme, err := os.ReadFile("../../README.md")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(readme), fmt.Sprintf("It knows %d rules", len(Rules))) {
+		t.Errorf("README should say it knows %d rules", len(Rules))
+	}
+}

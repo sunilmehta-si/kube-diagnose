@@ -125,7 +125,7 @@ func fromProblems(ix *index, owner kube.Ref, probs []*problem) Finding {
 			f.Severity = Warning
 		}
 		if owner.Kind != "Pod" {
-			f.Cause += fmt.Sprintf(" (%s has %d of %d replicas ready)", owner.Kind, ready, desired)
+			f.Cause += fmt.Sprintf("; %s %s has %d of %d replicas ready", owner.Kind, owner.Name, ready, desired)
 		}
 	}
 	return f
