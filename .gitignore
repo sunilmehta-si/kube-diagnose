@@ -1,0 +1,15 @@
+# Build output
+/bin/
+/dist/
+/kube-diagnose
+/kubectl-diagnose
+
+# Test and fault-suite scratch
+/.faults/
+*.out
+coverage.*
+
+# Snapshots hold object names, labels and log lines from a cluster; keep them out of git unless meant as fixtures
+*.snapshot.json
+*.snapshot.json.gz
+!testdata/**
