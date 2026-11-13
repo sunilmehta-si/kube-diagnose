@@ -1,0 +1,199 @@
+package cli
+
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"path/filepath"
+	"strings"
+	"testing"
+	"time"
+
+	"github.com/sunilmehta-si/kube-diagnose/internal/collect"
+	"github.com/sunilmehta-si/kube-diagnose/internal/snapshot"
+)
+
+// fakeKubectl answers from a table keyed by "verb resource", and records every call.
+type fakeKubectl struct {
+	context string
+	answers map[string]string
+	calls   *[][]string
+}
+
+func (f fakeKubectl) Run(_ context.Context, args ...string) ([]byte, error) {
+	if err := collect.CheckReadOnly(args); err != nil {
+		return nil, err
+	}
+	*f.calls = append(*f.calls, append([]string{"@" + f.context}, args...))
+	key := args[0]
+	if len(args) > 1 {
+		key += " " + args[1]
+	}
+	if out, ok := f.answers[key]; ok {
+		return []byte(out), nil
+	}
+	return []byte(`{"items":[]}`), nil
+}
+
+const brokenPods = `{"items":[{"metadata":{"name":"web-1","namespace":"shop","labels":{"app":"web"}},
+ "spec":{"containers":[{"name":"web","image":"registry.example.com/web:9.9.9"}]},
+ "status":{"phase":"Pending","conditions":[{"type":"PodScheduled","status":"True"}],
+  "containerStatuses":[{"name":"web","ready":false,"restartCount":0,
+   "state":{"waiting":{"reason":"ImagePullBackOff","message":"Back-off pulling image"}}}]}}]}`
+
+const brokenEvents = `{"items":[{"metadata":{"name":"e1","namespace":"shop"},
+ "involvedObject":{"kind":"Pod","namespace":"shop","name":"web-1"},"reason":"Failed","type":"Warning","count":4,
+ "lastTimestamp":"2026-11-13T09:58:00Z",
+ "message":"Failed to pull image \"registry.example.com/web:9.9.9\": rpc error: code = NotFound desc = failed to resolve reference \"registry.example.com/web:9.9.9\": not found"}]}`
+
+func testEnv(answers map[string]string) (Env, *bytes.Buffer, *bytes.Buffer, *[][]string) {
+	var out, errb bytes.Buffer
+	calls := &[][]string{}
+	return Env{Stdout: &out, Stderr: &errb, Getenv: func(string) string { return "" },
+		Now:     func() time.Time { return time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC) },
+		Kubectl: func(c string) collect.Runner { return fakeKubectl{context: c, answers: answers, calls: calls} }}, &out, &errb, calls
+}
+
+func broken() map[string]string {
+	return map[string]string{"config view": "shop", "config current-context": "kind-faults", "get pods": brokenPods, "get events": brokenEvents}
+}
+
+func TestScanUsesTheContextsNamespace(t *testing.T) {
+	env, out, _, calls := testEnv(broken())
+	if code := Run(nil, env); code != 0 {
+		t.Fatalf("exit %d", code)
+	}
+	got := out.String()
+	for _, want := range []string{"namespace shop", "1 problem: 1 critical.", "Image does not exist", "KD101", "Pod shop/web-1",
+		"$ kubectl get events -n shop", "Fix: Correct the image tag"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("output lacks %q:\n%s", want, got)
+		}
+	}
+	if strings.Contains(got, "\x1b[") {
+		t.Error("no colour when stdout is not a terminal")
+	}
+	for _, c := range *calls {
+		if c[1] == "get" && c[2] == "pods" && strings.Join(c[len(c)-2:], " ") != "-n shop" {
+			t.Errorf("pods not read from the context's namespace: %v", c)
+		}
+	}
+}
+
+func TestScanDefaultsToDefaultNamespaceAndHonoursFlags(t *testing.T) {
+	a := broken()
+	delete(a, "config view")
+	env, _, _, calls := testEnv(a)
+	Run([]string{"--context", "staging"}, env)
+	var sawDefault bool
+	for _, c := range *calls {
+		if c[0] != "@staging" {
+			t.Errorf("--context not passed through: %v", c)
+		}
+		if c[1] == "get" && c[2] == "pods" && c[len(c)-1] == "default" {
+			sawDefault = true
+		}
+	}
+	if !sawDefault {
+		t.Error("with no namespace in the context, the default namespace is read")
+	}
+	env, _, _, calls = testEnv(a)
+	Run([]string{"-A"}, env)
+	for _, c := range *calls {
+		if c[1] == "config" && c[2] == "view" {
+			t.Error("-A needs no namespace lookup")
+		}
+	}
+}
+
+func TestOutputsAndFailOn(t *testing.T) {
+	env, out, _, _ := testEnv(broken())
+	if code := Run([]string{"-n", "shop", "-o", "json", "--fail-on", "critical"}, env); code != 1 {
+		t.Errorf("--fail-on critical with a critical finding: exit %d", code)
+	}
+	var r struct {
+		Findings []struct {
+			Rule, Severity string
+			Evidence       []struct{ Command string }
+		}
+	}
+	if err := json.Unmarshal(out.Bytes(), &r); err != nil || len(r.Findings) != 1 || r.Findings[0].Severity != "critical" {
+		t.Fatalf("json: %v %s", err, out)
+	}
+	env, out, _, _ = testEnv(broken())
+	Run([]string{"-n", "shop", "-o", "markdown"}, env)
+	if !strings.Contains(out.String(), "### 1. Image does not exist (`KD101`, critical)") || !strings.Contains(out.String(), "```sh") {
+		t.Errorf("markdown:\n%s", out)
+	}
+	env, out, _, _ = testEnv(broken())
+	env.IsTTY = true
+	Run([]string{"-n", "shop"}, env)
+	if !strings.Contains(out.String(), "\x1b[31;1mCRITICAL") {
+		t.Error("colour on a terminal")
+	}
+	env, _, _, _ = testEnv(map[string]string{})
+	if code := Run([]string{"-n", "shop", "--fail-on", "warning"}, env); code != 0 {
+		t.Errorf("no findings: exit %d", code)
+	}
+}
+
+func TestRecordThenDiagnoseTheSnapshot(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shop.snapshot.json.gz")
+	env, _, errb, _ := testEnv(broken())
+	if code := Run([]string{"record", "-n", "shop", "-o", path}, env); code != 0 {
+		t.Fatalf("record: exit %d: %s", code, errb)
+	}
+	s, err := snapshot.Read(path)
+	if err != nil || s.Context != "kind-faults" || len(s.Pods) != 1 || s.Tool != "kube-diagnose dev" {
+		t.Fatalf("snapshot %v %+v", err, s)
+	}
+	offline, out, _, calls := testEnv(nil)
+	if code := Run([]string{"--snapshot", path}, offline); code != 0 || !strings.Contains(out.String(), "KD101") {
+		t.Fatalf("snapshot scan: exit %d\n%s", code, out)
+	}
+	if len(*calls) != 0 {
+		t.Errorf("a snapshot scan must not run kubectl: %v", *calls)
+	}
+}
+
+func TestUsageErrors(t *testing.T) {
+	for _, args := range [][]string{
+		{"--output", "yaml"}, {"--fail-on", "info"}, {"--snapshot", "x.json", "-n", "shop"}, {"extra"},
+		{"record", "-n", "shop"}, {"rules", "KD999"}, {"--no-such-flag"},
+	} {
+		env, _, _, _ := testEnv(broken())
+		if code := Run(args, env); code != 2 {
+			t.Errorf("%v: exit %d; want 2", args, code)
+		}
+	}
+	env, _, errb, _ := testEnv(map[string]string{})
+	env.Kubectl = func(string) collect.Runner { return unreachable{} }
+	if code := Run([]string{"-n", "shop"}, env); code != 2 || !strings.Contains(errb.String(), "cannot read the cluster") {
+		t.Errorf("unreachable cluster: exit %d %s", code, errb)
+	}
+}
+
+type unreachable struct{}
+
+func (unreachable) Run(context.Context, ...string) ([]byte, error) {
+	return nil, &collect.CommandError{Message: "The connection to the server localhost:8080 was refused"}
+}
+
+func TestVersionAndRules(t *testing.T) {
+	env, out, _, _ := testEnv(nil)
+	if Run([]string{"version"}, env) != 0 || out.String() != "kube-diagnose dev\n" {
+		t.Errorf("version: %q", out)
+	}
+	env, out, _, _ = testEnv(nil)
+	if Run([]string{"rules"}, env) != 0 || !strings.Contains(out.String(), "KD160  critical  Service selects no pods") {
+		t.Errorf("rules:\n%s", out)
+	}
+	env, out, _, _ = testEnv(nil)
+	if Run([]string{"rules", "kd163"}, env) != 0 || !strings.Contains(out.String(), "NetworkPolicy blocks all traffic") {
+		t.Errorf("rules kd163:\n%s", out)
+	}
+	env, _, _, _ = testEnv(nil)
+	if Run([]string{"-h"}, env) != 0 {
+		t.Error("-h exits 0")
+	}
+}

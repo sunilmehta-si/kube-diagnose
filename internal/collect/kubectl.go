@@ -19,8 +19,11 @@ type Runner interface {
 // ErrNotReadOnly is returned for any kubectl command outside the read-only allowlist.
 var ErrNotReadOnly = errors.New("refusing a kubectl command that is not read-only")
 
-// CheckReadOnly allows `kubectl get`, `kubectl logs`, `kubectl version` and `kubectl config current-context`, and
-// nothing else. Every kubectl call goes through it, so kube-diagnose cannot change a cluster or a kubeconfig even if
+// CurrentNamespace is the one `kubectl config view` the collector runs: it prints the current context's namespace.
+const CurrentNamespace = "config view --minify -o jsonpath={..namespace}"
+
+// CheckReadOnly allows `kubectl get`, `kubectl logs`, `kubectl version`, `kubectl config current-context` and the
+// CurrentNamespace lookup, and nothing else. Every kubectl call goes through it, so kube-diagnose cannot change a cluster or a kubeconfig even if
 // a bug builds the wrong arguments.
 func CheckReadOnly(args []string) error {
 	if len(args) == 0 {
@@ -40,7 +43,7 @@ func CheckReadOnly(args []string) error {
 	case "get", "logs", "version":
 		return nil
 	case "config":
-		if len(args) == 2 && args[1] == "current-context" {
+		if len(args) == 2 && args[1] == "current-context" || strings.Join(args, " ") == CurrentNamespace {
 			return nil
 		}
 	}
@@ -58,7 +61,8 @@ func (k Kubectl) Run(ctx context.Context, args ...string) ([]byte, error) {
 		return nil, err
 	}
 	full := append([]string{}, args...)
-	if k.Context != "" && args[0] != "config" {
+	// The namespace lookup takes --context too, so it reads that context's namespace; current-context does not.
+	if k.Context != "" && !(args[0] == "config" && args[1] == "current-context") {
 		full = append(full, "--context", k.Context)
 	}
 	bin := k.Path

@@ -14,7 +14,7 @@ import (
 func TestCheckReadOnly(t *testing.T) {
 	ok := [][]string{
 		{"get", "pods", "-o", "json", "-A"}, {"logs", "web-1", "-n", "shop", "-c", "web", "--tail=20", "--previous"},
-		{"version", "-o", "json"}, {"config", "current-context"},
+		{"version", "-o", "json"}, {"config", "current-context"}, strings.Fields(CurrentNamespace),
 	}
 	for _, a := range ok {
 		if err := CheckReadOnly(a); err != nil {
@@ -28,6 +28,7 @@ func TestCheckReadOnly(t *testing.T) {
 		{"taint", "nodes", "n1", "k=v:NoSchedule"}, {"create", "ns", "x"}, {"replace", "-f", "x"}, {"set", "image", "x"},
 		{"debug", "x"}, {"cp", "x:/a", "b"}, {"port-forward", "x", "80"}, {"proxy"}, {"auth", "reconcile"},
 		{"config", "use-context", "prod"}, {"config", "set-context", "x"}, {"config", "current-context", "extra"},
+		{"config", "view", "--raw"}, {"config", "view", "--minify", "-o", "jsonpath={.users}"},
 		{"get", "pods", "-w"}, {"get", "pods", "--watch"}, {"get", "--raw", "/api"}, {"get", "-f", "x.yaml"},
 		{"logs", "x", "-f"}, {"logs", "x", "--follow"}, {"get", "-k", "dir"}, {"get", "pods", "--watch-only=true"},
 	}
