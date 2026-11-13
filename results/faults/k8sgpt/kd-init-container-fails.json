@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-init-container-fails/web",
+      "error": [
+        {
+          "Text": "Deployment kd-init-container-fails/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-init-container-fails",
+              "Masked": "NXZnRCVCKDVjNmdLSFYqUzZSJFl5eUg="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Yyls"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-init-container-fails/web-845dc8755d-2hgtq",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=2 container=wait-for-db pod=web-845dc8755d-2hgtq",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

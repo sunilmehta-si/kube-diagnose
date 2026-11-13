@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-insufficient-cpu/web",
+      "error": [
+        {
+          "Text": "Deployment kd-insufficient-cpu/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-insufficient-cpu",
+              "Masked": "QmlHY0wlQVQwPjZsMVQ+M1hJQg=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "P2Rf"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-insufficient-cpu/web-84467bd69f-qjqb6",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

@@ -202,14 +202,14 @@ func TestVersionAndRules(t *testing.T) {
 // TestReadmeExampleIsWhatTheCodePrints keeps the README's example output identical to a real run on its snapshot.
 func TestReadmeExampleIsWhatTheCodePrints(t *testing.T) {
 	env, out, errb, _ := testEnv(nil)
-	if code := Run([]string{"--snapshot", "../../testdata/example.snapshot.json", "--color", "never"}, env); code != 0 {
+	if code := Run([]string{"--snapshot", "../../testdata/faults/kd-liveness-wrong-port.snapshot.json.gz", "--color", "never"}, env); code != 0 {
 		t.Fatalf("exit %d: %s", code, errb)
 	}
 	readme, err := os.ReadFile("../../README.md")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(string(readme), "$ kubectl diagnose -n shop\n"+out.String()+"```") {
+	if !strings.Contains(string(readme), "$ kubectl diagnose -n kd-liveness-wrong-port\n"+out.String()+"```") {
 		t.Errorf("README example is stale; the code prints:\n%s", out)
 	}
 }

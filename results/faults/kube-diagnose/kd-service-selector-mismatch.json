@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-selector-mismatch"
+  ],
+  "collectedAt": "2026-11-13 08:08 UTC",
+  "findings": [
+    {
+      "rule": "KD160",
+      "title": "Service selects no pods",
+      "severity": "critical",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-selector-mismatch",
+        "name": "web"
+      },
+      "cause": "Service web selects pods with app=web, and no pod in namespace kd-service-selector-mismatch has those labels (the closest are app=webapp)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-selector-mismatch",
+            "name": "web"
+          },
+          "what": "Service selects pods with app=web",
+          "command": "kubectl get service web -n kd-service-selector-mismatch -o jsonpath='{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-selector-mismatch",
+            "name": "*"
+          },
+          "what": "the closest labels on pods in the namespace are app=webapp",
+          "command": "kubectl get pods -n kd-service-selector-mismatch --show-labels"
+        }
+      ],
+      "fix": "Change the Service's selector from app=web to match the pods (app=webapp), or relabel the pods."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

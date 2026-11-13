@@ -1,0 +1,47 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-command-not-found"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD114",
+      "title": "Command not found in the image",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-command-not-found",
+        "name": "web"
+      },
+      "cause": "container web runs \"webserver --port 8080\", which is not in image docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-command-not-found",
+            "name": "web-855c99bf89-px8pv"
+          },
+          "what": "container web did not start",
+          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"webserver\": executable file not found in $PATH",
+          "command": "kubectl get pod web-855c99bf89-px8pv -n kd-command-not-found -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
+        }
+      ],
+      "fix": "Correct the command (or the image's entrypoint): use a path that exists in the image.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-command-not-found",
+          "name": "web-855c99bf89-px8pv"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

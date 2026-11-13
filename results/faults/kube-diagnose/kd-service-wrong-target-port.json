@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-wrong-target-port"
+  ],
+  "collectedAt": "2026-11-13 08:08 UTC",
+  "findings": [
+    {
+      "rule": "KD164",
+      "title": "Service targets a port the pods do not declare",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-wrong-target-port",
+        "name": "web"
+      },
+      "cause": "Service web sends port 80 to port 80 on its pods, but they declare only port 8080; if nothing listens on 80, every connection fails",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-wrong-target-port",
+            "name": "web"
+          },
+          "what": "Service port 80 has targetPort 80",
+          "command": "kubectl get service web -n kd-service-wrong-target-port -o jsonpath='{.spec.ports}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-wrong-target-port",
+            "name": "web-59c4f75cc7-47b2f"
+          },
+          "what": "the selected pods declare port 8080",
+          "command": "kubectl get pod web-59c4f75cc7-47b2f -n kd-service-wrong-target-port -o jsonpath='{.spec.containers[*].ports}'"
+        }
+      ],
+      "fix": "Set targetPort to the port the app listens on (the pods declare 8080), or declare the port in the pod spec if 80 is right."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

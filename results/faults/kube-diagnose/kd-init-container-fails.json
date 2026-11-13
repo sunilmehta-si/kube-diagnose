@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-init-container-fails"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD115",
+      "title": "Init container fails",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-init-container-fails",
+        "name": "web"
+      },
+      "cause": "container wait-for-db exits with code 2 (misused shell builtin or bad arguments); its log says: \"FATAL: cannot reach db:5432\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-container-fails",
+            "name": "web-845dc8755d-2hgtq"
+          },
+          "what": "container wait-for-db exited with code 2 (Error), restarted 4 times",
+          "command": "kubectl get pod web-845dc8755d-2hgtq -n kd-init-container-fails -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-container-fails",
+            "name": "web-845dc8755d-2hgtq"
+          },
+          "what": "last lines of container wait-for-db's log (current run)",
+          "detail": "FATAL: cannot reach db:5432",
+          "command": "kubectl logs web-845dc8755d-2hgtq -n kd-init-container-fails -c wait-for-db --tail=20"
+        }
+      ],
+      "fix": "Fix what the init container's log reports; the app containers start only after every init container succeeds.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-init-container-fails",
+          "name": "web-845dc8755d-2hgtq"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

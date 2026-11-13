@@ -1,0 +1,69 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 4,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-readiness-failing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-readiness-failing/web has 2 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readiness-failing",
+              "Masked": "LGlhMHN1M3RkejVnZjR3ZVM4bDQ="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "MjVI"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Service",
+      "name": "kd-readiness-failing/web",
+      "error": [
+        {
+          "Text": "Service has not ready endpoints, pods: [Pod/web-ff6bfb896-pq9dx Pod/web-ff6bfb896-pr8vf], expected 2",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-readiness-failing/web-ff6bfb896-pq9dx",
+      "error": [
+        {
+          "Text": "Readiness probe failed: HTTP probe failed with statuscode: 404",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-readiness-failing/web-ff6bfb896-pr8vf",
+      "error": [
+        {
+          "Text": "Readiness probe failed: HTTP probe failed with statuscode: 404",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-exec-format-error/web",
+      "error": [
+        {
+          "Text": "Deployment kd-exec-format-error/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-exec-format-error",
+              "Masked": "SlZAfTJXfCdpPlQ6eiVJRz4qbyk="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "KChJ"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-exec-format-error/web-5b987f687b-zzb6t",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-5b987f687b-zzb6t",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

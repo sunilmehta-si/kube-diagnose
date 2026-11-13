@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Pod",
+      "name": "kd-job-backoff/report-6qp24",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=3 container=report pod=report-6qp24",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-job-backoff/report-lxs48",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=3 container=report pod=report-lxs48",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-job-backoff/report",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-job-backoff",
+              "Masked": "ZlJPVzI3UUh5RGZLRSo="
+            },
+            {
+              "Unmasked": "report",
+              "Masked": "XjUzek43"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

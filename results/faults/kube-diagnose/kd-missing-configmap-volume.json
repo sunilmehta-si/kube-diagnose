@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-missing-configmap-volume"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD130",
+      "title": "ConfigMap does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-missing-configmap-volume",
+        "name": "web"
+      },
+      "cause": "a volume of the pod needs ConfigMap nginx-conf, which does not exist in namespace kd-missing-configmap-volume; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-missing-configmap-volume",
+            "name": "web-6cfc54975f-flmsz"
+          },
+          "what": "event FailedMount (9 times)",
+          "detail": "MountVolume.SetUp failed for volume \"config\" : configmap \"nginx-conf\" not found",
+          "command": "kubectl get events -n kd-missing-configmap-volume --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cfc54975f-flmsz"
+        },
+        {
+          "object": {
+            "kind": "ConfigMap",
+            "namespace": "kd-missing-configmap-volume",
+            "name": "nginx-conf"
+          },
+          "what": "there is no ConfigMap nginx-conf in namespace kd-missing-configmap-volume",
+          "command": "kubectl get configmap nginx-conf -n kd-missing-configmap-volume"
+        }
+      ],
+      "fix": "Create ConfigMap nginx-conf in namespace kd-missing-configmap-volume, or correct the name the pod refers to.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-missing-configmap-volume",
+          "name": "web-6cfc54975f-flmsz"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

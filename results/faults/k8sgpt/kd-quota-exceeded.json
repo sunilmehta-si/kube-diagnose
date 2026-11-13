@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-quota-exceeded/web",
+      "error": [
+        {
+          "Text": "Deployment kd-quota-exceeded/web has 3 replicas but 1 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-quota-exceeded",
+              "Masked": "VSEjWExeQW9sd2diOyVkIWg="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Rk5j"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-quota-exceeded/web-54b9bbc47f",
+      "error": [
+        {
+          "Text": "pods \"web-54b9bbc47f-dsg9h\" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=1, limited: pods=1",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

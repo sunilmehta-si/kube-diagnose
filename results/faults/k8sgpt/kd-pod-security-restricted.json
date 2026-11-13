@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pod-security-restricted/web",
+      "error": [
+        {
+          "Text": "Deployment kd-pod-security-restricted/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pod-security-restricted",
+              "Masked": "ImEvaGw7MmhBSz0mYjp8LldENHlCPTM8Q3Q="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "VlNB"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-pod-security-restricted/web-54b9bbc47f",
+      "error": [
+        {
+          "Text": "pods \"web-54b9bbc47f-98fgh\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-pod-security-restricted/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

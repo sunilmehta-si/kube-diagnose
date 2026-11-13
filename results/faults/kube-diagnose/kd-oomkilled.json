@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-oomkilled"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD111",
+      "title": "Container runs out of memory",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-oomkilled",
+        "name": "web"
+      },
+      "cause": "container web uses more than its 32Mi memory limit and is killed (OOMKilled); Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-oomkilled",
+            "name": "web-6f499f987f-zwx5q"
+          },
+          "what": "container web exited with code 137 (OOMKilled), restarted 5 times",
+          "command": "kubectl get pod web-6f499f987f-zwx5q -n kd-oomkilled -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-oomkilled",
+            "name": "web-6f499f987f-zwx5q"
+          },
+          "what": "container web has memory limit 32Mi",
+          "command": "kubectl get pod web-6f499f987f-zwx5q -n kd-oomkilled -o jsonpath='{.spec.containers[?(@.name==\"web\")].resources.limits.memory}'"
+        }
+      ],
+      "fix": "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-oomkilled",
+          "name": "web-6f499f987f-zwx5q"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

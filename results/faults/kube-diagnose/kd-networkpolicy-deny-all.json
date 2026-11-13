@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-deny-all"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD163",
+      "title": "NetworkPolicy blocks all traffic to a Service",
+      "severity": "warning",
+      "object": {
+        "kind": "NetworkPolicy",
+        "namespace": "kd-networkpolicy-deny-all",
+        "name": "default-deny"
+      },
+      "cause": "NetworkPolicy default-deny selects every pod behind Service web and allows no ingress, so nothing can connect to it",
+      "evidence": [
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-deny-all",
+            "name": "default-deny"
+          },
+          "what": "NetworkPolicy selects pods with any labels (every pod in the namespace) and has no ingress rules",
+          "command": "kubectl get networkpolicy default-deny -n kd-networkpolicy-deny-all -o jsonpath='{.spec}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-networkpolicy-deny-all",
+            "name": "web"
+          },
+          "what": "Service web has 1 ready pods, all selected by ingress policies with no rules",
+          "command": "kubectl get networkpolicies -n kd-networkpolicy-deny-all"
+        }
+      ],
+      "fix": "Add an ingress rule that allows the Service's clients (by namespace or pod labels and port) to a NetworkPolicy that selects these pods, if web is not meant to be closed.",
+      "affects": [
+        {
+          "kind": "Service",
+          "namespace": "kd-networkpolicy-deny-all",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

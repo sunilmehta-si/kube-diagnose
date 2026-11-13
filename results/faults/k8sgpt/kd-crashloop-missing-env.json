@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-crashloop-missing-env/web",
+      "error": [
+        {
+          "Text": "Deployment kd-crashloop-missing-env/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-crashloop-missing-env",
+              "Masked": "QXRQZFEjT2NtIi98MS90T3ooMTZ0JiRe"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "b01M"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-crashloop-missing-env/web-dbf954cc7-mwv2g",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-dbf954cc7-mwv2g",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

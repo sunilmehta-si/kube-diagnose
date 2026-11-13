@@ -1,0 +1,15 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-healthy"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pod-security-restricted"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD172",
+      "title": "Pod Security admission rejects the pods",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-pod-security-restricted",
+        "name": "web"
+      },
+      "cause": "Deployment kd-pod-security-restricted/web cannot create pods: they violate the namespace's PodSecurity level restricted:latest (violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.c…)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ReplicaSet",
+            "namespace": "kd-pod-security-restricted",
+            "name": "web-54b9bbc47f"
+          },
+          "what": "event FailedCreate (7 times)",
+          "detail": "(combined from similar events): Error creating: pods \"web-54b9bbc47f-872qh\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
+          "command": "kubectl get events -n kd-pod-security-restricted --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-54b9bbc47f"
+        },
+        {
+          "object": {
+            "kind": "Namespace",
+            "name": "kd-pod-security-restricted"
+          },
+          "what": "namespace PodSecurity labels",
+          "command": "kubectl get namespace kd-pod-security-restricted --show-labels"
+        }
+      ],
+      "fix": "Change the pod spec to meet the level (the message lists each violation), or relax the namespace's pod-security.kubernetes.io/enforce label if that is intended."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

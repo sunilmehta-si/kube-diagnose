@@ -7,29 +7,30 @@ object to change, the evidence the answer rests on, and for each piece of eviden
 that shows it to you. It never changes anything: every kubectl command it runs is `get`, `logs` or `version`.
 
 ```text
-$ kubectl diagnose -n shop
-kube-diagnose · context kind-example · namespace shop · 2026-11-13 10:00 UTC
-1 problem: 1 critical.
+$ kubectl diagnose -n kd-liveness-wrong-port
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-13 08:07 UTC
+1 problem: 1 warning.
 
-1. CRITICAL  Liveness probe kills the container  KD112
-   Deployment shop/web
-   Cause: container web fails its liveness probe (GET /healthz on port 9090, but the container
-          declares port 8080), so the kubelet restarts it (7 restarts); Deployment web has 0 of 2
-          replicas ready
+1. WARNING  Liveness probe kills the container  KD112
+   Deployment kd-liveness-wrong-port/web
+   Cause: container web fails its liveness probe (GET / on port 9090, but the container declares
+          port 8080), so the kubelet restarts it (4 restarts); Deployment web has 1 of 1 replicas
+          ready
    Evidence:
-     [1] Pod shop/web-7d9c5b-4kq2x: event Unhealthy (8 times)
-         │ Liveness probe failed: Get "http://10.244.0.12:9090/healthz": dial tcp 10.244.0.12:9090: connect: connection refused
-         $ kubectl get events -n shop --field-selector involvedObject.kind=Pod,involvedObject.name=web-7d9c5b-4kq2x
-     [2] Pod shop/web-7d9c5b-4kq2x: event Killing (7 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-2rc49: event Unhealthy (5 times)
+         │ Liveness probe failed: Get "http://10.244.0.14:9090/": dial tcp 10.244.0.14:9090: connect: connection refused
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-2rc49
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-2rc49: event Killing (5 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n shop --field-selector involvedObject.kind=Pod,involvedObject.name=web-7d9c5b-4kq2x
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-2rc49
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pods web-7d9c5b-4kq2x, web-7d9c5b-r8m7t; Service web
+   Affects: Pod web-67fbcb44db-2rc49
 ```
 
-That example is [`testdata/example.snapshot.json`](testdata/example.snapshot.json), a recording of a Deployment whose
-liveness probe checks the wrong port; a test keeps this block identical to what the code prints for it.
+That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
+wrong port, on kind ([`testdata/faults`](testdata/faults)). It is a warning because, at that moment, the server was up
+between two kills. A test keeps this block identical to what the code prints for that recording.
 
 ## What it does differently
 
@@ -108,6 +109,53 @@ judged on its titles and causes only, not on the evidence, which quotes the clus
 healthy namespace count as false alarms. The workflow's summary shows the table for each run; `hack/faults.sh` runs
 the same suite on any machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any
 kubeconfig context that is not kind-*.
+
+The run committed in [`results/faults`](results/faults) ([run 43390276254](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/43390276254),
+13 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
+
+| Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
+|---|---|---|---|---|
+| kube-diagnose | 23 of 23 (exact rule and object: 23) | 23 | 0 | 0 |
+| k8sgpt | 14 of 23 | 4 | 0 | 31 |
+| holmesgpt | not run | | | |
+
+| Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
+|---|---|---|---|---|
+| bad-image-tag | A Deployment's image tag does not exist. | ✅ | ☑️ | – |
+| command-not-found | The container's command is not in the image. | ✅ | ☑️ | – |
+| crashloop-missing-env | The app exits because an environment variable it needs is not set. | ✅ | ❌ | – |
+| exec-format-error | The image is built for arm64 and the node is amd64 (CI's runners are amd64). | ✅ | ❌ | – |
+| healthy | Control: a working Deployment and Service. Every finding here is a false alarm. | ✅ quiet | ✅ quiet | – |
+| init-container-fails | An init container fails, so the app never starts. | ✅ | ❌ | – |
+| insufficient-cpu | A pod requests more CPU than any node has. | ✅ | ✅ | – |
+| job-backoff | A Job's container fails until the Job hits its backoff limit. | ✅ | ❌ | – |
+| liveness-wrong-port | The liveness probe checks a port nothing listens on, so the kubelet keeps restarting a healthy server. | ✅ | ❌ | – |
+| missing-configmap-env | A container's envFrom names a ConfigMap that does not exist. | ✅ | ☑️ | – |
+| missing-configmap-volume | A volume mounts a ConfigMap that does not exist, so the pod never starts. | ✅ | ☑️ | – |
+| missing-repository | A Deployment's image is in a repository that does not exist; the registry answers 403 denied. | ✅ | ☑️ | – |
+| missing-secret-key | A container reads a key the Secret does not have. | ✅ | ☑️ | – |
+| missing-serviceaccount | Pods run as a ServiceAccount that does not exist, so none is created. | ✅ | ☑️ | – |
+| networkpolicy-deny-all | A default-deny NetworkPolicy shuts off a Service's pods. | ✅ | ❌ | – |
+| node-selector | A pod's nodeSelector matches no node. | ✅ | ❌ | – |
+| oomkilled | A container uses more memory than its limit. | ✅ | ✅ | – |
+| pod-security-restricted | The namespace enforces the restricted Pod Security level and the pods do not meet it. | ✅ | ☑️ | – |
+| pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ☑️ | – |
+| quota-exceeded | A ResourceQuota allows one pod and the Deployment wants three. | ✅ | ✅ | – |
+| readiness-failing | The readiness probe asks for a path the server does not have, so the pods never get traffic. | ✅ | ☑️ | – |
+| service-port-name | A Service's targetPort names a port the container does not declare. | ✅ | ❌ | – |
+| service-selector-mismatch | A Service selects app=web while its pods are labelled app=webapp. | ✅ | ✅ | – |
+| service-wrong-target-port | A Service sends traffic to port 80, but the container listens on 8080. | ✅ | ❌ | – |
+
+✅ named the root cause in its first finding · ☑️ named it, but not first · ❌ did not name it · ⚠️ N: N false alarms · – not run
+
+k8sgpt reports what each of its analyzers sees: the symptom where kube-diagnose names the cause behind it. For the
+crash it said the container ended with exitCode=1, not that the log says DATABASE_URL is not set; for the node
+selector it quoted the scheduler's message, not which label no node has; and for the liveness probe on the wrong
+port and the deny-all NetworkPolicy its default analyzers reported nothing (its NetworkPolicy analyzer is not on by
+default). The first run of this suite, before a fix,
+caught kube-diagnose missing 4 of the 23: containers that had just exited, which the kubelet had not yet marked as
+crash-looping. Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make test` replays all of
+them through the current code.
 
 ## How it works
 

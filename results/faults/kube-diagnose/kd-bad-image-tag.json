@@ -1,0 +1,62 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-bad-image-tag"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD101",
+      "title": "Image does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-bad-image-tag",
+        "name": "web"
+      },
+      "cause": "image docker.io/library/busybox:0.0.0-kube-diagnose-missing does not exist in its registry (the tag or digest is not there); Deployment web has 0 of 2 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-bad-image-tag",
+            "name": "web-6847787ffb-6glcw"
+          },
+          "what": "container web is waiting: ImagePullBackOff",
+          "detail": "Back-off pulling image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
+          "command": "kubectl get pod web-6847787ffb-6glcw -n kd-bad-image-tag -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-bad-image-tag",
+            "name": "web-6847787ffb-6glcw"
+          },
+          "what": "event Failed (4 times)",
+          "detail": "Failed to pull image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
+          "command": "kubectl get events -n kd-bad-image-tag --field-selector involvedObject.kind=Pod,involvedObject.name=web-6847787ffb-6glcw"
+        }
+      ],
+      "fix": "Correct the image tag or digest, or push that tag to the registry.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-bad-image-tag",
+          "name": "web-6847787ffb-6glcw"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-bad-image-tag",
+          "name": "web-6847787ffb-h5d9v"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

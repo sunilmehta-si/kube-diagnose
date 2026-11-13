@@ -1,0 +1,66 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-readiness-failing"
+  ],
+  "collectedAt": "2026-11-13 08:08 UTC",
+  "findings": [
+    {
+      "rule": "KD120",
+      "title": "Readiness probe failing",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-readiness-failing",
+        "name": "web"
+      },
+      "cause": "container web runs but fails its readiness probe (GET /ready on port http), so it gets no traffic; Deployment web has 0 of 2 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readiness-failing",
+            "name": "web-ff6bfb896-pq9dx"
+          },
+          "what": "event Unhealthy (25 times)",
+          "detail": "Readiness probe failed: HTTP probe failed with statuscode: 404",
+          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-pq9dx"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readiness-failing",
+            "name": "web-ff6bfb896-pq9dx"
+          },
+          "what": "container web is running but not ready",
+          "command": "kubectl get pod web-ff6bfb896-pq9dx -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+        }
+      ],
+      "fix": "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-readiness-failing",
+          "name": "web-ff6bfb896-pq9dx"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-readiness-failing",
+          "name": "web-ff6bfb896-pr8vf"
+        },
+        {
+          "kind": "Service",
+          "namespace": "kd-readiness-failing",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

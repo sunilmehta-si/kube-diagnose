@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-port-name"
+  ],
+  "collectedAt": "2026-11-13 08:08 UTC",
+  "findings": [
+    {
+      "rule": "KD161",
+      "title": "Service targets a port the pods do not have",
+      "severity": "critical",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-port-name",
+        "name": "web"
+      },
+      "cause": "Service web sends traffic to the named port \"web\", which no selected pod declares (they have named ports http (8080)), so it has no endpoints",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-port-name",
+            "name": "web"
+          },
+          "what": "Service port 80 targets the named port \"web\"",
+          "command": "kubectl get service web -n kd-service-port-name -o jsonpath='{.spec.ports}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-port-name",
+            "name": "web-59c4f75cc7-ns5gj"
+          },
+          "what": "the selected pods declare named ports http (8080)",
+          "command": "kubectl get pod web-59c4f75cc7-ns5gj -n kd-service-port-name -o jsonpath='{.spec.containers[*].ports}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-port-name",
+            "name": "web"
+          },
+          "what": "Service has 1 ready endpoints although 1 of its pods are ready",
+          "command": "kubectl get endpointslices -n kd-service-port-name -l kubernetes.io/service-name=web"
+        }
+      ],
+      "fix": "Set the Service's targetPort to a port the pods declare, or name the container port \"web\"."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

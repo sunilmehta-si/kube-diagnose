@@ -1,0 +1,61 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-job-backoff"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD110",
+      "title": "Container fails",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-job-backoff",
+        "name": "report"
+      },
+      "cause": "container report exited with code 3 (the app reported an error); its log says: \"error: report source is empty\"",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-job-backoff",
+            "name": "report-6qp24"
+          },
+          "what": "container report exited with code 3 (Error)",
+          "command": "kubectl get pod report-6qp24 -n kd-job-backoff -o jsonpath='{.status.containerStatuses[?(@.name==\"report\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-job-backoff",
+            "name": "report-6qp24"
+          },
+          "what": "last lines of container report's log (current run)",
+          "detail": "error: report source is empty",
+          "command": "kubectl logs report-6qp24 -n kd-job-backoff -c report --tail=20"
+        }
+      ],
+      "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-job-backoff",
+          "name": "report-6qp24"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-job-backoff",
+          "name": "report-lxs48"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

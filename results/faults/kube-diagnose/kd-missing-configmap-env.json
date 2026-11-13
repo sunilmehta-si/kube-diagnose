@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-missing-configmap-env"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD130",
+      "title": "ConfigMap does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-missing-configmap-env",
+        "name": "web"
+      },
+      "cause": "container web needs ConfigMap app-config, which does not exist in namespace kd-missing-configmap-env; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-missing-configmap-env",
+            "name": "web-797b746fc4-xtthg"
+          },
+          "what": "container web is waiting: CreateContainerConfigError",
+          "detail": "configmap \"app-config\" not found",
+          "command": "kubectl get pod web-797b746fc4-xtthg -n kd-missing-configmap-env -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+        },
+        {
+          "object": {
+            "kind": "ConfigMap",
+            "namespace": "kd-missing-configmap-env",
+            "name": "app-config"
+          },
+          "what": "there is no ConfigMap app-config in namespace kd-missing-configmap-env",
+          "command": "kubectl get configmap app-config -n kd-missing-configmap-env"
+        }
+      ],
+      "fix": "Create ConfigMap app-config in namespace kd-missing-configmap-env, or correct the name the pod refers to.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-missing-configmap-env",
+          "name": "web-797b746fc4-xtthg"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

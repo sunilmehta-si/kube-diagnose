@@ -1,0 +1,63 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pvc-missing-storageclass"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD150",
+      "title": "StorageClass does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pvc-missing-storageclass",
+        "name": "data"
+      },
+      "cause": "PersistentVolumeClaim data asks for StorageClass fast-ssd, which does not exist (the cluster has standard (default))",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-missing-storageclass",
+            "name": "data"
+          },
+          "what": "PersistentVolumeClaim is Pending",
+          "command": "kubectl get pvc data -n kd-pvc-missing-storageclass -o jsonpath='{.status.phase}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-missing-storageclass",
+            "name": "data"
+          },
+          "what": "claim asks for storageClassName fast-ssd",
+          "command": "kubectl get pvc data -n kd-pvc-missing-storageclass -o jsonpath='{.spec.storageClassName}'"
+        },
+        {
+          "object": {
+            "kind": "StorageClass",
+            "name": "fast-ssd"
+          },
+          "what": "no StorageClass is named fast-ssd; the cluster has standard (default)",
+          "command": "kubectl get storageclasses"
+        }
+      ],
+      "fix": "Set storageClassName to a class that exists, or create StorageClass fast-ssd. A claim's class cannot be changed: recreate the claim.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pvc-missing-storageclass",
+          "name": "web-689b97894-tvph9"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

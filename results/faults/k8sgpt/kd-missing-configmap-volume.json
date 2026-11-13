@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-missing-configmap-volume/web",
+      "error": [
+        {
+          "Text": "Deployment kd-missing-configmap-volume/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-missing-configmap-volume",
+              "Masked": "YVQtWHVpdXU8djBOMGRNP1gxPXJ6U3wwbHNB"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Vi1k"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-missing-configmap-volume/web-6cfc54975f-flmsz",
+      "error": [
+        {
+          "Text": "MountVolume.SetUp failed for volume \"config\" : configmap \"nginx-conf\" not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

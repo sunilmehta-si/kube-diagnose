@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-missing-configmap-env/web",
+      "error": [
+        {
+          "Text": "Deployment kd-missing-configmap-env/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-missing-configmap-env",
+              "Masked": "PkpLJkpydylXckV1YiokNFRxQU4mZHNI"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "PzlA"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-missing-configmap-env/web-797b746fc4-xtthg",
+      "error": [
+        {
+          "Text": "configmap \"app-config\" not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

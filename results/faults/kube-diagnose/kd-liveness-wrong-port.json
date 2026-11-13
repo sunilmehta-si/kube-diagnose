@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-liveness-wrong-port"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD112",
+      "title": "Liveness probe kills the container",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-liveness-wrong-port",
+        "name": "web"
+      },
+      "cause": "container web fails its liveness probe (GET / on port 9090, but the container declares port 8080), so the kubelet restarts it (4 restarts); Deployment web has 1 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-liveness-wrong-port",
+            "name": "web-67fbcb44db-2rc49"
+          },
+          "what": "event Unhealthy (5 times)",
+          "detail": "Liveness probe failed: Get \"http://10.244.0.14:9090/\": dial tcp 10.244.0.14:9090: connect: connection refused",
+          "command": "kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-2rc49"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-liveness-wrong-port",
+            "name": "web-67fbcb44db-2rc49"
+          },
+          "what": "event Killing (5 times)",
+          "detail": "Container web failed liveness probe, will be restarted",
+          "command": "kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-2rc49"
+        }
+      ],
+      "fix": "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-liveness-wrong-port",
+          "name": "web-67fbcb44db-2rc49"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

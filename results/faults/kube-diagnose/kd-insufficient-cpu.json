@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-insufficient-cpu"
+  ],
+  "collectedAt": "2026-11-13 08:07 UTC",
+  "findings": [
+    {
+      "rule": "KD140",
+      "title": "No node has enough cpu",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-insufficient-cpu",
+        "name": "web"
+      },
+      "cause": "the pod requests 64 cpu, more than any node can offer (the largest, kd-faults-control-plane, has 4 allocatable); Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-insufficient-cpu",
+            "name": "web-84467bd69f-qjqb6"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod web-84467bd69f-qjqb6 -n kd-insufficient-cpu -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-insufficient-cpu",
+            "name": "web-84467bd69f-qjqb6"
+          },
+          "what": "pod requests 64 cpu",
+          "command": "kubectl get pod web-84467bd69f-qjqb6 -n kd-insufficient-cpu -o jsonpath='{.spec.containers[*].resources.requests}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "kd-faults-control-plane"
+          },
+          "what": "the largest node, kd-faults-control-plane, has 4 cpu allocatable",
+          "command": "kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.allocatable.cpu"
+        }
+      ],
+      "fix": "Lower the pod's cpu request below 4, or add a node with more cpu.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-insufficient-cpu",
+          "name": "web-84467bd69f-qjqb6"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

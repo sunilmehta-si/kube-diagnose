@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Service",
+      "name": "kd-service-selector-mismatch/web",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=web",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "app",
+              "Masked": "Zkd2"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Zy0i"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

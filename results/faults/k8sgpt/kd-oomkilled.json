@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-oomkilled/web",
+      "error": [
+        {
+          "Text": "Deployment kd-oomkilled/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-oomkilled",
+              "Masked": "TnAqV1A1OlY+XTF4"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "cFlz"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-oomkilled/web-6f499f987f-zwx5q",
+      "error": [
+        {
+          "Text": "the termination reason is OOMKilled exitCode=137 container=web pod=web-6f499f987f-zwx5q",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}
