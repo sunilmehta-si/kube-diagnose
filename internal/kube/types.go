@@ -1,0 +1,643 @@
+// Package kube holds the parts of Kubernetes objects that kube-diagnose reads, decoded from `kubectl get -o json`.
+// Only the fields a rule uses are declared; everything else in the API response is ignored.
+package kube
+
+import (
+	"encoding/json"
+	"strconv"
+	"time"
+)
+
+// Ref names one object. Namespace is empty for cluster-scoped kinds.
+type Ref struct {
+	Kind      string `json:"kind"`
+	Namespace string `json:"namespace,omitempty"`
+	Name      string `json:"name"`
+}
+
+func (r Ref) String() string {
+	if r.Namespace == "" {
+		return r.Kind + " " + r.Name
+	}
+	return r.Kind + " " + r.Namespace + "/" + r.Name
+}
+
+type OwnerReference struct {
+	Kind       string `json:"kind"`
+	Name       string `json:"name"`
+	Controller *bool  `json:"controller,omitempty"`
+}
+
+type ObjectMeta struct {
+	Name              string            `json:"name"`
+	Namespace         string            `json:"namespace,omitempty"`
+	UID               string            `json:"uid,omitempty"`
+	Labels            map[string]string `json:"labels,omitempty"`
+	Annotations       map[string]string `json:"annotations,omitempty"`
+	OwnerReferences   []OwnerReference  `json:"ownerReferences,omitempty"`
+	CreationTimestamp time.Time         `json:"creationTimestamp"`
+	DeletionTimestamp *time.Time        `json:"deletionTimestamp,omitempty"`
+}
+
+// Controller returns the owner that controls the object, if any.
+func (m ObjectMeta) Controller() (OwnerReference, bool) {
+	for _, o := range m.OwnerReferences {
+		if o.Controller != nil && *o.Controller {
+			return o, true
+		}
+	}
+	return OwnerReference{}, false
+}
+
+type Condition struct {
+	Type               string    `json:"type"`
+	Status             string    `json:"status"`
+	Reason             string    `json:"reason,omitempty"`
+	Message            string    `json:"message,omitempty"`
+	LastTransitionTime time.Time `json:"lastTransitionTime"`
+}
+
+// FindCondition returns the condition of the given type.
+func FindCondition(cs []Condition, typ string) (Condition, bool) {
+	for _, c := range cs {
+		if c.Type == typ {
+			return c, true
+		}
+	}
+	return Condition{}, false
+}
+
+// IntOrString is a port or a named port, as the API writes it: a JSON number or a string.
+type IntOrString struct {
+	Int    int32
+	Str    string
+	IsName bool
+}
+
+func (v *IntOrString) UnmarshalJSON(b []byte) error {
+	if len(b) > 0 && b[0] == '"' {
+		var s string
+		if err := json.Unmarshal(b, &s); err != nil {
+			return err
+		}
+		if n, err := strconv.Atoi(s); err == nil {
+			v.Int = int32(n)
+			return nil
+		}
+		v.Str, v.IsName = s, true
+		return nil
+	}
+	return json.Unmarshal(b, &v.Int)
+}
+
+func (v IntOrString) MarshalJSON() ([]byte, error) {
+	if v.IsName {
+		return json.Marshal(v.Str)
+	}
+	return json.Marshal(v.Int)
+}
+
+func (v IntOrString) String() string {
+	if v.IsName {
+		return v.Str
+	}
+	return strconv.Itoa(int(v.Int))
+}
+
+type LabelSelectorRequirement struct {
+	Key      string   `json:"key"`
+	Operator string   `json:"operator"`
+	Values   []string `json:"values,omitempty"`
+}
+
+type LabelSelector struct {
+	MatchLabels      map[string]string          `json:"matchLabels,omitempty"`
+	MatchExpressions []LabelSelectorRequirement `json:"matchExpressions,omitempty"`
+}
+
+// ---- Pods ----
+
+type ContainerPort struct {
+	Name          string `json:"name,omitempty"`
+	ContainerPort int32  `json:"containerPort"`
+	Protocol      string `json:"protocol,omitempty"`
+}
+
+type KeyRef struct {
+	Name     string `json:"name"`
+	Key      string `json:"key"`
+	Optional *bool  `json:"optional,omitempty"`
+}
+
+type EnvVarSource struct {
+	ConfigMapKeyRef *KeyRef `json:"configMapKeyRef,omitempty"`
+	SecretKeyRef    *KeyRef `json:"secretKeyRef,omitempty"`
+}
+
+type EnvVar struct {
+	Name      string        `json:"name"`
+	Value     string        `json:"value,omitempty"`
+	ValueFrom *EnvVarSource `json:"valueFrom,omitempty"`
+}
+
+type NameRef struct {
+	Name     string `json:"name"`
+	Optional *bool  `json:"optional,omitempty"`
+}
+
+type EnvFromSource struct {
+	ConfigMapRef *NameRef `json:"configMapRef,omitempty"`
+	SecretRef    *NameRef `json:"secretRef,omitempty"`
+}
+
+type Resources struct {
+	Requests map[string]string `json:"requests,omitempty"`
+	Limits   map[string]string `json:"limits,omitempty"`
+}
+
+type HTTPGetAction struct {
+	Path string      `json:"path,omitempty"`
+	Port IntOrString `json:"port"`
+}
+
+type TCPSocketAction struct {
+	Port IntOrString `json:"port"`
+}
+
+type ExecAction struct {
+	Command []string `json:"command,omitempty"`
+}
+
+type Probe struct {
+	HTTPGet             *HTTPGetAction   `json:"httpGet,omitempty"`
+	TCPSocket           *TCPSocketAction `json:"tcpSocket,omitempty"`
+	Exec                *ExecAction      `json:"exec,omitempty"`
+	InitialDelaySeconds int32            `json:"initialDelaySeconds,omitempty"`
+	PeriodSeconds       int32            `json:"periodSeconds,omitempty"`
+	TimeoutSeconds      int32            `json:"timeoutSeconds,omitempty"`
+	FailureThreshold    int32            `json:"failureThreshold,omitempty"`
+}
+
+type Container struct {
+	Name           string          `json:"name"`
+	Image          string          `json:"image"`
+	Command        []string        `json:"command,omitempty"`
+	Args           []string        `json:"args,omitempty"`
+	Ports          []ContainerPort `json:"ports,omitempty"`
+	Env            []EnvVar        `json:"env,omitempty"`
+	EnvFrom        []EnvFromSource `json:"envFrom,omitempty"`
+	Resources      Resources       `json:"resources,omitempty"`
+	LivenessProbe  *Probe          `json:"livenessProbe,omitempty"`
+	ReadinessProbe *Probe          `json:"readinessProbe,omitempty"`
+	StartupProbe   *Probe          `json:"startupProbe,omitempty"`
+}
+
+type KeyToPath struct {
+	Key string `json:"key"`
+}
+
+type ConfigMapVolumeSource struct {
+	Name     string      `json:"name"`
+	Items    []KeyToPath `json:"items,omitempty"`
+	Optional *bool       `json:"optional,omitempty"`
+}
+
+type SecretVolumeSource struct {
+	SecretName string      `json:"secretName"`
+	Items      []KeyToPath `json:"items,omitempty"`
+	Optional   *bool       `json:"optional,omitempty"`
+}
+
+type PVCVolumeSource struct {
+	ClaimName string `json:"claimName"`
+}
+
+type ProjectedSource struct {
+	ConfigMap *ConfigMapVolumeSource `json:"configMap,omitempty"`
+	Secret    *struct {
+		Name     string      `json:"name"`
+		Items    []KeyToPath `json:"items,omitempty"`
+		Optional *bool       `json:"optional,omitempty"`
+	} `json:"secret,omitempty"`
+}
+
+type ProjectedVolumeSource struct {
+	Sources []ProjectedSource `json:"sources,omitempty"`
+}
+
+type Volume struct {
+	Name                  string                 `json:"name"`
+	ConfigMap             *ConfigMapVolumeSource `json:"configMap,omitempty"`
+	Secret                *SecretVolumeSource    `json:"secret,omitempty"`
+	PersistentVolumeClaim *PVCVolumeSource       `json:"persistentVolumeClaim,omitempty"`
+	Projected             *ProjectedVolumeSource `json:"projected,omitempty"`
+}
+
+type Toleration struct {
+	Key      string `json:"key,omitempty"`
+	Operator string `json:"operator,omitempty"`
+	Value    string `json:"value,omitempty"`
+	Effect   string `json:"effect,omitempty"`
+}
+
+type LocalObjectReference struct {
+	Name string `json:"name"`
+}
+
+type PodSpec struct {
+	NodeName           string                 `json:"nodeName,omitempty"`
+	NodeSelector       map[string]string      `json:"nodeSelector,omitempty"`
+	ServiceAccountName string                 `json:"serviceAccountName,omitempty"`
+	InitContainers     []Container            `json:"initContainers,omitempty"`
+	Containers         []Container            `json:"containers"`
+	Volumes            []Volume               `json:"volumes,omitempty"`
+	Tolerations        []Toleration           `json:"tolerations,omitempty"`
+	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
+	Affinity           json.RawMessage        `json:"affinity,omitempty"`
+	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+}
+
+type ContainerStateWaiting struct {
+	Reason  string `json:"reason,omitempty"`
+	Message string `json:"message,omitempty"`
+}
+
+type ContainerStateRunning struct {
+	StartedAt time.Time `json:"startedAt"`
+}
+
+type ContainerStateTerminated struct {
+	ExitCode   int32     `json:"exitCode"`
+	Signal     int32     `json:"signal,omitempty"`
+	Reason     string    `json:"reason,omitempty"`
+	Message    string    `json:"message,omitempty"`
+	StartedAt  time.Time `json:"startedAt"`
+	FinishedAt time.Time `json:"finishedAt"`
+}
+
+type ContainerState struct {
+	Waiting    *ContainerStateWaiting    `json:"waiting,omitempty"`
+	Running    *ContainerStateRunning    `json:"running,omitempty"`
+	Terminated *ContainerStateTerminated `json:"terminated,omitempty"`
+}
+
+type ContainerStatus struct {
+	Name                 string         `json:"name"`
+	Ready                bool           `json:"ready"`
+	Started              *bool          `json:"started,omitempty"`
+	RestartCount         int32          `json:"restartCount"`
+	Image                string         `json:"image"`
+	State                ContainerState `json:"state"`
+	LastTerminationState ContainerState `json:"lastState"`
+}
+
+type PodStatus struct {
+	Phase                 string            `json:"phase,omitempty"`
+	Reason                string            `json:"reason,omitempty"`
+	Message               string            `json:"message,omitempty"`
+	Conditions            []Condition       `json:"conditions,omitempty"`
+	InitContainerStatuses []ContainerStatus `json:"initContainerStatuses,omitempty"`
+	ContainerStatuses     []ContainerStatus `json:"containerStatuses,omitempty"`
+	StartTime             *time.Time        `json:"startTime,omitempty"`
+}
+
+type Pod struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     PodSpec    `json:"spec"`
+	Status   PodStatus  `json:"status"`
+}
+
+func (p Pod) Ref() Ref {
+	return Ref{Kind: "Pod", Namespace: p.Metadata.Namespace, Name: p.Metadata.Name}
+}
+
+// Ready reports whether the pod's Ready condition is True.
+func (p Pod) Ready() bool {
+	c, ok := FindCondition(p.Status.Conditions, "Ready")
+	return ok && c.Status == "True"
+}
+
+// ---- Events ----
+
+type EventSeries struct {
+	Count            int32     `json:"count"`
+	LastObservedTime time.Time `json:"lastObservedTime"`
+}
+
+type Event struct {
+	Metadata       ObjectMeta `json:"metadata"`
+	InvolvedObject struct {
+		Kind      string `json:"kind"`
+		Namespace string `json:"namespace,omitempty"`
+		Name      string `json:"name"`
+		UID       string `json:"uid,omitempty"`
+		FieldPath string `json:"fieldPath,omitempty"`
+	} `json:"involvedObject"`
+	Reason         string       `json:"reason,omitempty"`
+	Message        string       `json:"message,omitempty"`
+	Type           string       `json:"type,omitempty"`
+	Count          int32        `json:"count,omitempty"`
+	FirstTimestamp *time.Time   `json:"firstTimestamp,omitempty"`
+	LastTimestamp  *time.Time   `json:"lastTimestamp,omitempty"`
+	EventTime      *time.Time   `json:"eventTime,omitempty"`
+	Series         *EventSeries `json:"series,omitempty"`
+}
+
+// Last is when the event was last seen, from whichever timestamp the reporter filled in.
+func (e Event) Last() time.Time {
+	switch {
+	case e.Series != nil && !e.Series.LastObservedTime.IsZero():
+		return e.Series.LastObservedTime
+	case e.LastTimestamp != nil && !e.LastTimestamp.IsZero():
+		return *e.LastTimestamp
+	case e.EventTime != nil && !e.EventTime.IsZero():
+		return *e.EventTime
+	case e.FirstTimestamp != nil:
+		return *e.FirstTimestamp
+	}
+	return e.Metadata.CreationTimestamp
+}
+
+// Times is how often the event happened.
+func (e Event) Times() int32 {
+	if e.Series != nil && e.Series.Count > 0 {
+		return e.Series.Count
+	}
+	if e.Count > 0 {
+		return e.Count
+	}
+	return 1
+}
+
+// ---- Nodes ----
+
+type Taint struct {
+	Key    string `json:"key"`
+	Value  string `json:"value,omitempty"`
+	Effect string `json:"effect"`
+}
+
+type Node struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Taints        []Taint `json:"taints,omitempty"`
+		Unschedulable bool    `json:"unschedulable,omitempty"`
+	} `json:"spec"`
+	Status struct {
+		Conditions  []Condition       `json:"conditions,omitempty"`
+		Allocatable map[string]string `json:"allocatable,omitempty"`
+		Capacity    map[string]string `json:"capacity,omitempty"`
+	} `json:"status"`
+}
+
+// ---- Services and endpoints ----
+
+type ServicePort struct {
+	Name       string      `json:"name,omitempty"`
+	Port       int32       `json:"port"`
+	TargetPort IntOrString `json:"targetPort"`
+	Protocol   string      `json:"protocol,omitempty"`
+}
+
+type Service struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Type         string            `json:"type,omitempty"`
+		Selector     map[string]string `json:"selector,omitempty"`
+		Ports        []ServicePort     `json:"ports,omitempty"`
+		ClusterIP    string            `json:"clusterIP,omitempty"`
+		ExternalName string            `json:"externalName,omitempty"`
+	} `json:"spec"`
+}
+
+func (s Service) Ref() Ref {
+	return Ref{Kind: "Service", Namespace: s.Metadata.Namespace, Name: s.Metadata.Name}
+}
+
+type EndpointConditions struct {
+	Ready       *bool `json:"ready,omitempty"`
+	Serving     *bool `json:"serving,omitempty"`
+	Terminating *bool `json:"terminating,omitempty"`
+}
+
+type Endpoint struct {
+	Addresses  []string           `json:"addresses"`
+	Conditions EndpointConditions `json:"conditions"`
+	TargetRef  *struct {
+		Kind      string `json:"kind"`
+		Namespace string `json:"namespace,omitempty"`
+		Name      string `json:"name"`
+	} `json:"targetRef,omitempty"`
+}
+
+type EndpointSlice struct {
+	Metadata  ObjectMeta `json:"metadata"`
+	Endpoints []Endpoint `json:"endpoints"`
+	Ports     []struct {
+		Name *string `json:"name,omitempty"`
+		Port *int32  `json:"port,omitempty"`
+	} `json:"ports"`
+}
+
+// ServiceName is the Service the slice belongs to.
+func (e EndpointSlice) ServiceName() string { return e.Metadata.Labels["kubernetes.io/service-name"] }
+
+// ---- Workloads ----
+
+type PodTemplate struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     PodSpec    `json:"spec"`
+}
+
+type WorkloadStatus struct {
+	Replicas               int32       `json:"replicas,omitempty"`
+	ReadyReplicas          int32       `json:"readyReplicas,omitempty"`
+	AvailableReplicas      int32       `json:"availableReplicas,omitempty"`
+	UpdatedReplicas        int32       `json:"updatedReplicas,omitempty"`
+	UnavailableReplicas    int32       `json:"unavailableReplicas,omitempty"`
+	DesiredNumberScheduled int32       `json:"desiredNumberScheduled,omitempty"`
+	NumberReady            int32       `json:"numberReady,omitempty"`
+	NumberUnavailable      int32       `json:"numberUnavailable,omitempty"`
+	Conditions             []Condition `json:"conditions,omitempty"`
+}
+
+// Workload is a Deployment, ReplicaSet, StatefulSet or DaemonSet: the parts they share.
+type Workload struct {
+	Kind     string     `json:"kind"`
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Replicas *int32         `json:"replicas,omitempty"`
+		Selector *LabelSelector `json:"selector,omitempty"`
+		Template PodTemplate    `json:"template"`
+	} `json:"spec"`
+	Status WorkloadStatus `json:"status"`
+}
+
+func (w Workload) Ref() Ref {
+	return Ref{Kind: w.Kind, Namespace: w.Metadata.Namespace, Name: w.Metadata.Name}
+}
+
+// Desired is the number of replicas the workload asks for (DaemonSets: the nodes it should run on).
+func (w Workload) Desired() int32 {
+	if w.Kind == "DaemonSet" {
+		return w.Status.DesiredNumberScheduled
+	}
+	if w.Spec.Replicas == nil {
+		return 1
+	}
+	return *w.Spec.Replicas
+}
+
+// Ready is the number of ready replicas.
+func (w Workload) Ready() int32 {
+	if w.Kind == "DaemonSet" {
+		return w.Status.NumberReady
+	}
+	return w.Status.ReadyReplicas
+}
+
+type Job struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		BackoffLimit          *int32      `json:"backoffLimit,omitempty"`
+		Completions           *int32      `json:"completions,omitempty"`
+		ActiveDeadlineSeconds *int64      `json:"activeDeadlineSeconds,omitempty"`
+		Template              PodTemplate `json:"template"`
+	} `json:"spec"`
+	Status struct {
+		Active     int32       `json:"active,omitempty"`
+		Succeeded  int32       `json:"succeeded,omitempty"`
+		Failed     int32       `json:"failed,omitempty"`
+		Conditions []Condition `json:"conditions,omitempty"`
+	} `json:"status"`
+}
+
+func (j Job) Ref() Ref {
+	return Ref{Kind: "Job", Namespace: j.Metadata.Namespace, Name: j.Metadata.Name}
+}
+
+// ---- Storage ----
+
+type PersistentVolumeClaim struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		StorageClassName *string  `json:"storageClassName,omitempty"`
+		AccessModes      []string `json:"accessModes,omitempty"`
+		VolumeName       string   `json:"volumeName,omitempty"`
+		Resources        struct {
+			Requests map[string]string `json:"requests,omitempty"`
+		} `json:"resources,omitempty"`
+	} `json:"spec"`
+	Status struct {
+		Phase string `json:"phase,omitempty"`
+	} `json:"status"`
+}
+
+func (p PersistentVolumeClaim) Ref() Ref {
+	return Ref{Kind: "PersistentVolumeClaim", Namespace: p.Metadata.Namespace, Name: p.Metadata.Name}
+}
+
+type StorageClass struct {
+	Metadata          ObjectMeta `json:"metadata"`
+	Provisioner       string     `json:"provisioner"`
+	VolumeBindingMode string     `json:"volumeBindingMode,omitempty"`
+}
+
+// IsDefault reports whether the class is marked as the cluster default.
+func (s StorageClass) IsDefault() bool {
+	return s.Metadata.Annotations["storageclass.kubernetes.io/is-default-class"] == "true"
+}
+
+type PersistentVolume struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		StorageClassName string            `json:"storageClassName,omitempty"`
+		Capacity         map[string]string `json:"capacity,omitempty"`
+		AccessModes      []string          `json:"accessModes,omitempty"`
+		ClaimRef         *struct {
+			Namespace string `json:"namespace"`
+			Name      string `json:"name"`
+		} `json:"claimRef,omitempty"`
+	} `json:"spec"`
+	Status struct {
+		Phase string `json:"phase,omitempty"`
+	} `json:"status"`
+}
+
+// ---- Policy and quota ----
+
+type NetworkPolicyPeer struct {
+	PodSelector       *LabelSelector `json:"podSelector,omitempty"`
+	NamespaceSelector *LabelSelector `json:"namespaceSelector,omitempty"`
+	IPBlock           *struct {
+		CIDR string `json:"cidr"`
+	} `json:"ipBlock,omitempty"`
+}
+
+type NetworkPolicyRule struct {
+	From  []NetworkPolicyPeer `json:"from,omitempty"`
+	To    []NetworkPolicyPeer `json:"to,omitempty"`
+	Ports []struct {
+		Port *IntOrString `json:"port,omitempty"`
+	} `json:"ports,omitempty"`
+}
+
+type NetworkPolicy struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		PodSelector LabelSelector       `json:"podSelector"`
+		PolicyTypes []string            `json:"policyTypes,omitempty"`
+		Ingress     []NetworkPolicyRule `json:"ingress,omitempty"`
+		Egress      []NetworkPolicyRule `json:"egress,omitempty"`
+	} `json:"spec"`
+}
+
+// AppliesToIngress reports whether the policy restricts ingress, following the API's defaulting: a policy with no
+// policyTypes restricts ingress, and egress too when it has egress rules.
+func (n NetworkPolicy) AppliesToIngress() bool {
+	if len(n.Spec.PolicyTypes) == 0 {
+		return true
+	}
+	for _, t := range n.Spec.PolicyTypes {
+		if t == "Ingress" {
+			return true
+		}
+	}
+	return false
+}
+
+type ResourceQuota struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Status   struct {
+		Hard map[string]string `json:"hard,omitempty"`
+		Used map[string]string `json:"used,omitempty"`
+	} `json:"status"`
+}
+
+type ServiceAccount struct {
+	Metadata ObjectMeta `json:"metadata"`
+}
+
+// KeySet is a ConfigMap or Secret reduced to its name and key names. kube-diagnose never reads values: the
+// collector asks kubectl for key names only, so Secret data never reaches this process.
+type KeySet struct {
+	Namespace string   `json:"namespace"`
+	Name      string   `json:"name"`
+	Type      string   `json:"type,omitempty"`
+	Keys      []string `json:"keys"`
+}
+
+// Has reports whether the key exists.
+func (k KeySet) Has(key string) bool {
+	for _, x := range k.Keys {
+		if x == key {
+			return true
+		}
+	}
+	return false
+}
+
+// List is the shape of `kubectl get <kind> -o json`.
+type List[T any] struct {
+	Items []T `json:"items"`
+}
