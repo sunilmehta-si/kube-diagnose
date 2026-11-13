@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-command-not-found",
+  "description": "The container's command is not in the image.",
+  "rule": "KD114",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "webserver"
+    ],
+    [
+      "not found",
+      "executable",
+      "not in image"
+    ]
+  ]
+}

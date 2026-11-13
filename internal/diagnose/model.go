@@ -4,6 +4,8 @@
 package diagnose
 
 import (
+	"fmt"
+
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 	"github.com/sunilmehta-si/kube-diagnose/internal/snapshot"
 )
@@ -21,6 +23,16 @@ func (s Severity) String() string {
 }
 
 func (s Severity) MarshalText() ([]byte, error) { return []byte(s.String()), nil }
+
+func (s *Severity) UnmarshalText(b []byte) error {
+	for i, name := range [...]string{"critical", "warning", "info"} {
+		if string(b) == name {
+			*s = Severity(i)
+			return nil
+		}
+	}
+	return fmt.Errorf("unknown severity %q", b)
+}
 
 // Evidence is one observed fact a finding rests on.
 type Evidence struct {

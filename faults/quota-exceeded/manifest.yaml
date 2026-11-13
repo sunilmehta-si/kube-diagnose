@@ -1,0 +1,36 @@
+# A ResourceQuota allows one pod and the Deployment wants three.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-quota-exceeded
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: pod-limit
+  namespace: kd-quota-exceeded
+spec:
+  hard:
+    pods: "1"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-quota-exceeded
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]

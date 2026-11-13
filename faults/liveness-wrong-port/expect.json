@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-liveness-wrong-port",
+  "description": "The liveness probe checks a port nothing listens on, so the kubelet keeps restarting a healthy server.",
+  "rule": "KD112",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "liveness"
+    ],
+    [
+      "9090"
+    ]
+  ]
+}

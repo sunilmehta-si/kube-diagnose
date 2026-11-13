@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-init-container-fails",
+  "description": "An init container fails, so the app never starts.",
+  "rule": "KD115",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "db:5432"
+    ]
+  ]
+}

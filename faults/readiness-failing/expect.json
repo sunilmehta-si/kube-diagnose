@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-readiness-failing",
+  "description": "The readiness probe asks for a path the server does not have, so the pods never get traffic.",
+  "rule": "KD120",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "readiness"
+    ],
+    [
+      "404",
+      "/ready"
+    ]
+  ]
+}

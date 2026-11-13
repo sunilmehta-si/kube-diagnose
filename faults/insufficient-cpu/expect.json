@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-insufficient-cpu",
+  "description": "A pod requests more CPU than any node has.",
+  "rule": "KD140",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "cpu"
+    ],
+    [
+      "insufficient",
+      "enough",
+      "too little",
+      "more than"
+    ]
+  ]
+}

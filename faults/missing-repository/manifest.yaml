@@ -1,0 +1,27 @@
+# A Deployment's image is in a repository that does not exist. It is under this project's own ghcr.io namespace, so
+# nobody else can publish an image there; the registry answers 403 denied, as registries do for missing or private repositories.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-missing-repository
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-missing-repository
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0
+          command: ["sleep", "3600"]

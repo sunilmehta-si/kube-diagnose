@@ -1,0 +1,36 @@
+# The liveness probe checks a port nothing listens on, so the kubelet keeps restarting a healthy server.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-liveness-wrong-port
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-liveness-wrong-port
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 9090
+            initialDelaySeconds: 2
+            periodSeconds: 3
+            failureThreshold: 1

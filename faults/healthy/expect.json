@@ -1,0 +1,7 @@
+{
+  "namespace": "kd-healthy",
+  "description": "Control: a working Deployment and Service. Every finding here is a false alarm.",
+  "rule": "",
+  "object": "",
+  "keywords": []
+}

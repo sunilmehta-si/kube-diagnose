@@ -1,0 +1,12 @@
+{
+  "namespace": "kd-exec-format-error",
+  "description": "The image is built for arm64 and the node is amd64 (CI's runners are amd64).",
+  "rule": "KD113",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "exec format",
+      "architecture"
+    ]
+  ]
+}

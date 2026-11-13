@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-missing-configmap-volume",
+  "description": "A volume mounts a ConfigMap that does not exist, so the pod never starts.",
+  "rule": "KD130",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "nginx-conf"
+    ]
+  ]
+}

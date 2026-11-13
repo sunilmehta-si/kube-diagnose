@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-networkpolicy-deny-all",
+  "description": "A default-deny NetworkPolicy shuts off a Service's pods.",
+  "rule": "KD163",
+  "object": "NetworkPolicy/default-deny",
+  "keywords": [
+    [
+      "networkpolicy",
+      "network policy"
+    ],
+    [
+      "deny",
+      "block",
+      "no ingress",
+      "allows no"
+    ]
+  ]
+}

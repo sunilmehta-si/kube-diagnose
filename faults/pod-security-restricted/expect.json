@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-pod-security-restricted",
+  "description": "The namespace enforces the restricted Pod Security level and the pods do not meet it.",
+  "rule": "KD172",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "podsecurity",
+      "pod security"
+    ],
+    [
+      "restricted"
+    ]
+  ]
+}

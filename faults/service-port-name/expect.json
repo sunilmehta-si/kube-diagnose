@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-service-port-name",
+  "description": "A Service's targetPort names a port the container does not declare.",
+  "rule": "KD161",
+  "object": "Service/web",
+  "keywords": [
+    [
+      "targetport",
+      "named port",
+      "port \"web\"",
+      "port web"
+    ]
+  ]
+}

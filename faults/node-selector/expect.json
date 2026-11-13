@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-node-selector",
+  "description": "A pod's nodeSelector matches no node.",
+  "rule": "KD141",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "disktype"
+    ]
+  ]
+}

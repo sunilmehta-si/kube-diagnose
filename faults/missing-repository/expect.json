@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-missing-repository",
+  "description": "A Deployment's image is in a repository that does not exist; the registry answers 403 denied.",
+  "rule": "KD102",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "kube-diagnose-missing"
+    ],
+    [
+      "denied",
+      "403",
+      "forbidden",
+      "authoriz",
+      "does not exist"
+    ]
+  ]
+}

@@ -1,0 +1,6 @@
+# agentic-code-review-tool settings. faults/ holds Kubernetes manifests that are broken on purpose (wrong ports,
+# missing ConfigMaps, images for another architecture, workloads that violate Pod Security): they are the test
+# cases for kube-diagnose and the tools it is compared with, so they are not reviewed as deployable manifests.
+fail_on: high
+exclude:
+  - "faults/*"

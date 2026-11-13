@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-missing-configmap-env",
+  "description": "A container's envFrom names a ConfigMap that does not exist.",
+  "rule": "KD130",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "app-config"
+    ],
+    [
+      "not found",
+      "does not exist",
+      "missing"
+    ]
+  ]
+}

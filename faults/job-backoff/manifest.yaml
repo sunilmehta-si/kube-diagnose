@@ -1,0 +1,21 @@
+# A Job's container fails until the Job hits its backoff limit.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-job-backoff
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: report
+  namespace: kd-job-backoff
+spec:
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: report
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo 'error: report source is empty' >&2; exit 3"]

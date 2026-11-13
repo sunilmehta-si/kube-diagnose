@@ -1,0 +1,64 @@
+name: faults
+
+# Breaks a kind cluster in every way faults/ describes, runs kube-diagnose and k8sgpt on each broken namespace, and
+# scores whether each named the root cause. HolmesGPT needs a model and a key, so it runs only when started by hand
+# with a model, and only if the repository has that provider's key as a secret.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "41 4 * * 1"
+  workflow_dispatch:
+    inputs:
+      holmes_model:
+        description: "Model for HolmesGPT (LiteLLM name, e.g. anthropic/<model>); empty skips HolmesGPT"
+        required: false
+        default: ""
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+concurrency:
+  group: faults-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  faults:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          check-latest: false
+      - name: Break a kind cluster and score each tool
+        env:
+          HOLMES_MODEL: ${{ inputs.holmes_model }}
+          ANTHROPIC_API_KEY: ${{ inputs.holmes_model != '' && secrets.ANTHROPIC_API_KEY || '' }}
+          OPENAI_API_KEY: ${{ inputs.holmes_model != '' && secrets.OPENAI_API_KEY || '' }}
+        run: hack/faults.sh
+      - name: Results
+        if: always()
+        run: |
+          if [ -f .faults/results.md ]; then
+            { echo "## Fault suite"; echo; cat .faults/results.md; } >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: faults
+          path: |
+            .faults/results
+            .faults/results.md
+            .faults/results.json
+            .faults/snapshots
+          if-no-files-found: ignore
+          retention-days: 90

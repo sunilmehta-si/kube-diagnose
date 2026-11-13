@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-bad-image-tag",
+  "description": "A Deployment's image tag does not exist.",
+  "rule": "KD101",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "0.0.0-kube-diagnose-missing"
+    ],
+    [
+      "not found",
+      "does not exist",
+      "manifest unknown"
+    ]
+  ]
+}

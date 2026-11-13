@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-missing-secret-key",
+  "description": "A container reads a key the Secret does not have.",
+  "rule": "KD132",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "password"
+    ],
+    [
+      "db"
+    ]
+  ]
+}

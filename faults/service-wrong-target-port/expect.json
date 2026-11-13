@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-service-wrong-target-port",
+  "description": "A Service sends traffic to port 80, but the container listens on 8080.",
+  "rule": "KD164",
+  "object": "Service/web",
+  "keywords": [
+    [
+      "8080"
+    ],
+    [
+      "targetport",
+      "target port",
+      "to port 80"
+    ]
+  ]
+}

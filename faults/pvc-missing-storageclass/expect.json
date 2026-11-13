@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-pvc-missing-storageclass",
+  "description": "A claim asks for a StorageClass that does not exist, and the pod waits for it.",
+  "rule": "KD150",
+  "object": "PersistentVolumeClaim/data",
+  "keywords": [
+    [
+      "fast-ssd"
+    ]
+  ]
+}

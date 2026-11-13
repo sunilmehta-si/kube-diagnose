@@ -1,0 +1,13 @@
+{
+  "namespace": "kd-oomkilled",
+  "description": "A container uses more memory than its limit.",
+  "rule": "KD111",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "oom",
+      "out of memory",
+      "memory limit"
+    ]
+  ]
+}

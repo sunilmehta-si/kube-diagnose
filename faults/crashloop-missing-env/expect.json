@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-crashloop-missing-env",
+  "description": "The app exits because an environment variable it needs is not set.",
+  "rule": "KD110",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "DATABASE_URL"
+    ]
+  ]
+}

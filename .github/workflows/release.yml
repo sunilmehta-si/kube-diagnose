@@ -1,0 +1,56 @@
+name: release
+
+# Runs when a version tag is pushed: builds the binaries from the tagged commit, attests their provenance, and
+# publishes them on the tag's release page. Each archive holds kube-diagnose and kubectl-diagnose (the same binary,
+# named for kubectl's plugin lookup).
+on:
+  push:
+    tags: ["v*"]
+
+defaults:
+  run:
+    shell: bash
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write      # create the release
+      id-token: write      # sign the provenance attestations
+      attestations: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+          check-latest: false
+      - name: Test
+        run: make test
+      - name: Build every platform
+        run: make dist VERSION="$GITHUB_REF_NAME"
+      - name: Attest the binaries' provenance
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
+        with:
+          subject-path: dist/kube-diagnose-*.tar.gz
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes=$(mktemp)
+          {
+            echo "Verify a download: \`gh attestation verify kube-diagnose-${GITHUB_REF_NAME}-linux-amd64.tar.gz --repo ${GITHUB_REPOSITORY}\`"
+            echo
+            echo "See the [CHANGELOG](CHANGELOG.md) for what changed."
+          } > "$notes"
+          if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" dist/kube-diagnose-*.tar.gz dist/checksums.txt --clobber
+          else
+            gh release create "$GITHUB_REF_NAME" dist/kube-diagnose-*.tar.gz dist/checksums.txt --verify-tag \
+              --title "$GITHUB_REF_NAME" --notes-file "$notes"
+          fi

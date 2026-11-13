@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-service-selector-mismatch",
+  "description": "A Service selects app=web while its pods are labelled app=webapp.",
+  "rule": "KD160",
+  "object": "Service/web",
+  "keywords": [
+    [
+      "app=web",
+      "app: web"
+    ],
+    [
+      "selector",
+      "no pod",
+      "endpoints",
+      "selects"
+    ]
+  ]
+}

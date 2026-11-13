@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-missing-serviceaccount",
+  "description": "Pods run as a ServiceAccount that does not exist, so none is created.",
+  "rule": "KD171",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "web-sa"
+    ],
+    [
+      "service account",
+      "serviceaccount"
+    ]
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-job-backoff",
+  "description": "A Job's container fails until the Job hits its backoff limit.",
+  "rule": "KD110",
+  "object": "Job/report",
+  "keywords": [
+    [
+      "report source is empty"
+    ]
+  ]
+}

@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-quota-exceeded",
+  "description": "A ResourceQuota allows one pod and the Deployment wants three.",
+  "rule": "KD170",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "quota"
+    ],
+    [
+      "exceeded",
+      "used up"
+    ]
+  ]
+}

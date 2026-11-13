@@ -1,0 +1,26 @@
+# The app exits because an environment variable it needs is not set.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-crashloop-missing-env
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-crashloop-missing-env
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo starting web; echo 'error: DATABASE_URL is not set' >&2; exit 1"]
