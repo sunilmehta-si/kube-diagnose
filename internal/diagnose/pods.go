@@ -75,13 +75,15 @@ func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			return crash(ix, p, cs)
 		}
 	}
-	if t := cs.State.Terminated; t != nil && t.ExitCode != 0 && p.Status.Phase == "Failed" {
-		return crash(ix, p, cs) // a Job pod that ran once and failed
-	}
 	if t := cs.State.Terminated; t != nil && t.Reason == "StartError" {
 		if pr := startError(ix, p, cs, t.Message); pr != nil {
 			return pr
 		}
+	}
+	// Exited just now: a Job's pod that failed, or a container caught between its exit and the kubelet's back-off,
+	// before the state reads CrashLoopBackOff.
+	if t := cs.State.Terminated; t != nil && (t.ExitCode != 0 || t.Reason == "OOMKilled") && (p.Status.Phase == "Failed" || cs.RestartCount > 0) {
+		return crash(ix, p, cs)
 	}
 	// Running now, but killed before: out of memory or by its liveness probe, again and again.
 	if lt := cs.LastTerminationState.Terminated; lt != nil && cs.RestartCount > 0 && cs.State.Running != nil {
@@ -412,10 +414,7 @@ func execFormat(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem {
 }
 
 func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
-	t := cs.LastTerminationState.Terminated
-	if t == nil {
-		t = cs.State.Terminated
-	}
+	t := lastExit(cs)
 	if t == nil {
 		return newProblem(p, cs.Name, "KD110", "Container keeps crashing", Critical,
 			fmt.Sprintf("container %s keeps crashing", cs.Name), "crash|?", "Read the container's logs.", waitingEvidence(p, cs))
@@ -472,6 +471,15 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	return newProblem(p, cs.Name, rule, title, Critical, cause, "exit|"+strconv.Itoa(int(t.ExitCode)), fix, ev...)
 }
 
+// lastExit is the container's most recent termination: the current state when it has just exited, else the last
+// one recorded.
+func lastExit(cs kube.ContainerStatus) *kube.ContainerStateTerminated {
+	if cs.State.Terminated != nil {
+		return cs.State.Terminated
+	}
+	return cs.LastTerminationState.Terminated
+}
+
 func terminatedEvidence(p kube.Pod, cs kube.ContainerStatus, t *kube.ContainerStateTerminated) Evidence {
 	what := fmt.Sprintf("container %s exited with code %d", cs.Name, t.ExitCode)
 	if t.Reason != "" {
@@ -481,7 +489,7 @@ func terminatedEvidence(p kube.Pod, cs kube.ContainerStatus, t *kube.ContainerSt
 		what += fmt.Sprintf(", restarted %d times", cs.RestartCount)
 	}
 	field := "lastState.terminated"
-	if cs.LastTerminationState.Terminated == nil {
+	if cs.State.Terminated != nil {
 		field = "state.terminated"
 	}
 	return Evidence{Object: p.Ref(), What: what, Detail: t.Message, Command: cmdContainerState(p, cs.Name, field)}
@@ -549,10 +557,7 @@ func clip(s string, n int) string {
 }
 
 func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
-	t := cs.LastTerminationState.Terminated
-	if t == nil {
-		t = cs.State.Terminated
-	}
+	t := lastExit(cs)
 	c, _ := containerSpec(p, cs.Name)
 	limit := c.Resources.Limits["memory"]
 	cause := fmt.Sprintf("container %s uses more memory than its limit and is killed (OOMKilled)", cs.Name)

@@ -190,10 +190,12 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 		for _, c := range statuses {
 			crashed := c.LastTerminationState.Terminated != nil && c.LastTerminationState.Terminated.ExitCode != 0
 			failedNow := c.State.Terminated != nil && c.State.Terminated.ExitCode != 0
-			if c.RestartCount > 0 || crashed {
-				wants = append(wants, want{p, c.Name, c.LastTerminationState.Terminated != nil})
-			} else if failedNow {
+			// A container that has just exited is the run that failed: its log is the current one. Otherwise the
+			// failed run is the previous instance.
+			if failedNow {
 				wants = append(wants, want{p, c.Name, false})
+			} else if c.RestartCount > 0 || crashed {
+				wants = append(wants, want{p, c.Name, c.LastTerminationState.Terminated != nil})
 			}
 		}
 	}
@@ -203,10 +205,16 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 			return
 		}
 		args := []string{"logs", w.pod.Metadata.Name, "-n", w.pod.Metadata.Namespace, "-c", w.container, fmt.Sprintf("--tail=%d", lines)}
-		if w.previous {
-			args = append(args, "--previous")
+		previous := w.previous
+		b, err := readLog(ctx, r, args, previous)
+		if err == nil && unretrievable(b) {
+			// The kubelet keeps one dead instance's log; when that is the other one, read it instead.
+			previous = !previous
+			b, err = readLog(ctx, r, args, previous)
+			if err == nil && unretrievable(b) {
+				err = fmt.Errorf("kubectl logs %s -c %s: %s", w.pod.Metadata.Name, w.container, firstLine(string(b)))
+			}
 		}
-		b, err := r.Run(ctx, args...)
 		if err != nil {
 			if ctx.Err() != nil {
 				return
@@ -215,7 +223,7 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 				Error: firstLine(err.Error())})
 			continue
 		}
-		l := snapshot.Log{Pod: w.pod.Ref(), Container: w.container, Previous: w.previous, Lines: []string{}}
+		l := snapshot.Log{Pod: w.pod.Ref(), Container: w.container, Previous: previous, Lines: []string{}}
 		for _, line := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {
 			line = ansi.ReplaceAllString(strings.TrimRight(line, "\r"), "")
 			if len(line) > 400 {
@@ -227,6 +235,18 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 		}
 		s.Logs = append(s.Logs, l)
 	}
+}
+
+func readLog(ctx context.Context, r Runner, args []string, previous bool) ([]byte, error) {
+	if previous {
+		args = append(append([]string{}, args...), "--previous")
+	}
+	return r.Run(ctx, args...)
+}
+
+// unretrievable reports whether kubectl printed the kubelet's note that a container's log is gone instead of a log.
+func unretrievable(b []byte) bool {
+	return bytes.HasPrefix(bytes.TrimSpace(b), []byte("unable to retrieve container logs"))
 }
 
 func firstLine(s string) string {

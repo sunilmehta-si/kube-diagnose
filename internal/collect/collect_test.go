@@ -180,3 +180,53 @@ func TestSnapshotRoundTrip(t *testing.T) {
 		t.Error("a future schema should be refused")
 	}
 }
+
+// TestLogsOfAJustExitedContainer reads the current log (the run that failed), and falls back to the other instance
+// when the kubelet says a log is gone, as it did for every crashed container in the fault suite's first run.
+func TestLogsOfAJustExitedContainer(t *testing.T) {
+	exited := strings.Replace(pods, `"state":{"waiting":{"reason":"CrashLoopBackOff"}}`, `"state":{"terminated":{"exitCode":1,"reason":"Error"}}`, 1)
+	f := &fake{answers: map[string]string{"get pods": exited, "logs web-1 web": "error: DATABASE_URL is not set\n"}}
+	s, err := Collect(context.Background(), f, Options{AllNamespaces: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Logs) != 1 || s.Logs[0].Previous || s.Logs[0].Lines[0] != "error: DATABASE_URL is not set" {
+		t.Errorf("logs %+v", s.Logs)
+	}
+	for _, c := range f.calls {
+		if c[0] == "logs" && c[len(c)-1] == "--previous" {
+			t.Errorf("a just-exited container's log is the current one: %v", c)
+		}
+	}
+
+	gone := &goneLog{fake: fake{answers: map[string]string{"get pods": pods}}}
+	s, err = Collect(context.Background(), gone, Options{AllNamespaces: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Logs) != 1 || s.Logs[0].Previous || s.Logs[0].Lines[0] != "the current run's log" {
+		t.Errorf("fallback: %+v", s.Logs)
+	}
+
+	gone.always = true
+	s, _ = Collect(context.Background(), gone, Options{AllNamespaces: true})
+	if len(s.Logs) != 0 || len(s.Gaps) != 1 || !strings.Contains(s.Gaps[0].Error, "unable to retrieve") {
+		t.Errorf("both gone: logs %+v gaps %+v", s.Logs, s.Gaps)
+	}
+}
+
+// goneLog answers --previous with the kubelet's note that the log is gone, and the current log normally (or never).
+type goneLog struct {
+	fake
+	always bool
+}
+
+func (g *goneLog) Run(ctx context.Context, args ...string) ([]byte, error) {
+	if args[0] == "logs" {
+		if args[len(args)-1] == "--previous" || g.always {
+			return []byte("unable to retrieve container logs for containerd://81d11b66\n"), nil
+		}
+		return []byte("the current run's log\n"), nil
+	}
+	return g.fake.Run(ctx, args...)
+}

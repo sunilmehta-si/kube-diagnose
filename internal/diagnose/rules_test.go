@@ -500,3 +500,61 @@ func TestAbsenceIsNotClaimedWhenTheListWasNotRead(t *testing.T) {
 		t.Errorf("without the ConfigMap list, the kubelet's message is the only evidence: %+v", f.Evidence)
 	}
 }
+
+// TestJustExitedContainers covers the moment between a container's exit and the kubelet's back-off: the state is
+// terminated, the pod phase still Running or Pending. The fault suite's first run on kind caught all four of these.
+func TestJustExitedContainers(t *testing.T) {
+	exited := func(p *kube.Pod, code int32, reason string) {
+		notReady(p)
+		p.Status.ContainerStatuses[0].RestartCount = 4
+		term := &kube.ContainerStateTerminated{ExitCode: code, Reason: reason}
+		p.Status.ContainerStatuses[0].State = kube.ContainerState{Terminated: term}
+		p.Status.ContainerStatuses[0].LastTerminationState = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: code, Reason: reason}}
+	}
+	s := snap()
+	p := pod("web", "")
+	exited(&p, 1, "Error")
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Lines: []string{"starting web", "error: DATABASE_URL is not set"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "Pod shop/web", "DATABASE_URL")
+	if !strings.Contains(f.Evidence[0].Command, "state.terminated") || strings.Contains(f.Evidence[1].Command, "--previous") {
+		t.Errorf("a container that just exited is described by its current state and log: %+v", f.Evidence)
+	}
+
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Lines: []string{"unable to retrieve container logs for containerd://81d11b66"}}}
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "unable to retrieve") || len(f.Evidence) != 1 {
+		t.Errorf("the kubelet's note that a log is gone is not the app's log: %s", f.Cause)
+	}
+
+	p = pod("web", "")
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "32Mi"}
+	exited(&p, 137, "OOMKilled")
+	s.Pods, s.Logs = []kube.Pod{p}, nil
+	expect(t, only(t, Diagnose(s)), "KD111", "Pod shop/web", "32Mi memory limit")
+
+	p = pod("web", "")
+	exited(&p, 255, "Error")
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Lines: []string{"exec /bin/sleep: exec format error"}}}
+	expect(t, only(t, Diagnose(s)), "KD113", "Pod shop/web", "another CPU architecture")
+
+	p = pod("web", "")
+	p.Status.Phase = "Pending"
+	p.Spec.InitContainers = []kube.Container{{Name: "wait-for-db", Image: "busybox"}}
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "wait-for-db", RestartCount: 4,
+		State: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 2, Reason: "Error"}}}}
+	notReady(&p)
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "PodInitializing"}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "wait-for-db", Lines: []string{"FATAL: cannot reach db:5432"}}}
+	expect(t, only(t, Diagnose(s)), "KD115", "Pod shop/web", "db:5432")
+
+	p = pod("web", "")
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 1}}
+	notReady(&p)
+	s.Pods, s.Logs = []kube.Pod{p}, nil
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a first exit with no restart yet is not a crash loop: %+v", r.Findings)
+	}
+}

@@ -68,6 +68,9 @@ func newIndex(s *snapshot.Snapshot) *index {
 		ix.classes[s.StorageClasses[i].Metadata.Name] = &s.StorageClasses[i]
 	}
 	for _, l := range s.Logs {
+		if len(l.Lines) > 0 && strings.HasPrefix(l.Lines[0], "unable to retrieve container logs") {
+			continue // the kubelet's note that the log is gone, not something the app printed
+		}
 		k := logKey{l.Pod.Namespace, l.Pod.Name, l.Container}
 		if old, ok := ix.logs[k]; !ok || (l.Previous && !old.Previous) {
 			ix.logs[k] = l
