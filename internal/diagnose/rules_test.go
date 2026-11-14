@@ -784,3 +784,31 @@ func TestPodWaitsForAMissingScheduler(t *testing.T) {
 		t.Errorf("default scheduler: %+v", r.Findings)
 	}
 }
+
+func hpa(name string, conditions ...kube.Condition) kube.HorizontalPodAutoscaler {
+	var h kube.HorizontalPodAutoscaler
+	h.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
+	h.Spec.ScaleTargetRef.Kind, h.Spec.ScaleTargetRef.Name = "Deployment", "web"
+	h.Spec.MaxReplicas = 5
+	h.Status.Conditions = conditions
+	return h
+}
+
+func TestHPACannotReadMetrics(t *testing.T) {
+	s := snap()
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web", kube.Condition{Type: "ScalingActive", Status: "False", Reason: "FailedGetResourceMetric",
+		Message: "the HPA was unable to compute the replica count: failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server could not find the requested resource (get pods.metrics.k8s.io)"})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD176", "HorizontalPodAutoscaler shop/web", "metrics API (metrics-server) is not answering")
+	if f.Severity != Warning || f.Affects[0].Name != "web" {
+		t.Errorf("%+v", f)
+	}
+
+	s.HPAs[0].Status.Conditions[0].Message = "the HPA was unable to compute the replica count: failed to get cpu utilization: missing request for cpu in container web of Pod web-6f9c-x2k4f"
+	expect(t, only(t, Diagnose(s)), "KD176", "HorizontalPodAutoscaler shop/web", "container web sets no cpu request")
+
+	s.HPAs[0].Status.Conditions[0] = kube.Condition{Type: "ScalingActive", Status: "True", Reason: "ValidMetricFound"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("working HPA: %+v", r.Findings)
+	}
+}
