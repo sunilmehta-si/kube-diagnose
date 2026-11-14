@@ -52,6 +52,7 @@ type Snapshot struct {
 	Workloads       []kube.Workload                `json:"workloads"`
 	Jobs            []kube.Job                     `json:"jobs"`
 	HPAs            []kube.HorizontalPodAutoscaler `json:"horizontalPodAutoscalers"`
+	PDBs            []kube.PodDisruptionBudget     `json:"podDisruptionBudgets"`
 	PVCs            []kube.PersistentVolumeClaim   `json:"persistentVolumeClaims"`
 	PVs             []kube.PersistentVolume        `json:"persistentVolumes"`
 	StorageClasses  []kube.StorageClass            `json:"storageClasses"`

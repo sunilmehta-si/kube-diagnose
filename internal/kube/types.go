@@ -548,6 +548,25 @@ func (h HorizontalPodAutoscaler) Ref() Ref {
 	return Ref{Kind: "HorizontalPodAutoscaler", Namespace: h.Metadata.Namespace, Name: h.Metadata.Name}
 }
 
+type PodDisruptionBudget struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		MinAvailable   *IntOrString   `json:"minAvailable,omitempty"`
+		MaxUnavailable *IntOrString   `json:"maxUnavailable,omitempty"`
+		Selector       *LabelSelector `json:"selector,omitempty"`
+	} `json:"spec"`
+	Status struct {
+		DisruptionsAllowed int32 `json:"disruptionsAllowed"`
+		CurrentHealthy     int32 `json:"currentHealthy"`
+		DesiredHealthy     int32 `json:"desiredHealthy"`
+		ExpectedPods       int32 `json:"expectedPods"`
+	} `json:"status"`
+}
+
+func (p PodDisruptionBudget) Ref() Ref {
+	return Ref{Kind: "PodDisruptionBudget", Namespace: p.Metadata.Namespace, Name: p.Metadata.Name}
+}
+
 // ---- Storage ----
 
 type PersistentVolumeClaim struct {
