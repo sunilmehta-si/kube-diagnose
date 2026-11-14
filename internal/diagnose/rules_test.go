@@ -938,3 +938,20 @@ func TestIngressClassMissing(t *testing.T) {
 		t.Errorf("unread class list: %+v", r.Findings)
 	}
 }
+
+// TestPostStartHookFailsWithTheBareKubeletEvent uses the events Kubernetes 1.37 wrote in the fault suite: the event
+// says only "PostStartHook failed", so the hook is named from the pod spec.
+func TestPostStartHookFailsWithTheBareKubeletEvent(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Lifecycle = &kube.Lifecycle{PostStart: &kube.LifecycleHandler{Exec: &kube.ExecAction{Command: []string{"sh", "-c", "/opt/warm-cache.sh"}}}}
+	crashed(&p, 137, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	e1 := event("Pod", "web", "FailedPostStartHook", "PostStartHook failed", 0)
+	e1.InvolvedObject.FieldPath = "spec.containers{web}"
+	e2 := event("Pod", "web", "Killing", "FailedPostStartHook", 0)
+	e2.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e1, e2}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD116", "Pod shop/web", "postStart hook (sh -c /opt/warm-cache.sh) fails")
+}
