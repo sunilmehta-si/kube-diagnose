@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-runasnonroot-root-image",
+  "description": "The pod requires a non-root user and the image runs as root, so the container is never created.",
+  "rule": "KD117",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "runasnonroot",
+      "non-root"
+    ],
+    [
+      "root"
+    ]
+  ]
+}
