@@ -753,3 +753,11 @@ func TestLimitRangeRejects(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD174", "Deployment shop/web", "maximum memory usage per Container is 512Mi, but limit is 1Gi; minimum cpu usage per Container is 100m, but request is 50m")
 }
+
+func TestPriorityClassMissing(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	s.Workloads[1].Status.Replicas = 0
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate", `Error creating: pods "web-rs-" is forbidden: no PriorityClass with name business-critical was found`, 0)}
+	expect(t, only(t, Diagnose(s)), "KD175", "Deployment shop/web", "PriorityClass business-critical, which does not exist")
+}

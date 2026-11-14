@@ -9,12 +9,13 @@ import (
 )
 
 var (
-	reQuota      = regexp.MustCompile(`exceeded quota: ([^,]+), requested: ([^,]+(?:,[^,:]+)*), used: ([^,]+(?:,[^,:]+)*), limited: (.+)$`)
-	reQuotaM     = regexp.MustCompile(`must specify ([^ ]+)`)
-	reLimitRange = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
-	reSA         = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
-	reWebhk      = regexp.MustCompile(`admission webhook "([^"]+)" denied the request`)
-	rePSA        = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
+	reQuota         = regexp.MustCompile(`exceeded quota: ([^,]+), requested: ([^,]+(?:,[^,:]+)*), used: ([^,]+(?:,[^,:]+)*), limited: (.+)$`)
+	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
+	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
+	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
+	reSA            = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
+	reWebhk         = regexp.MustCompile(`admission webhook "([^"]+)" denied the request`)
+	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
 )
 
 // controllerFindings reads why a controller cannot create its pods, from its FailedCreate events: quota,
@@ -80,6 +81,13 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: ns, Name: "*"},
 			What: "the namespace's LimitRanges", Command: "kubectl get limitranges -n " + ns + " -o yaml"})
 		f.Fix = "Set the containers' requests and limits inside the LimitRange's minimum and maximum, or change the LimitRange."
+	case rePriorityClass.MatchString(msg):
+		pc := rePriorityClass.FindStringSubmatch(msg)[1]
+		f.Rule, f.Title = "KD175", "PriorityClass does not exist"
+		f.Cause = fmt.Sprintf("%s cannot create pods: they name PriorityClass %s, which does not exist", owner, pc)
+		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "PriorityClass", Name: pc},
+			What: "the cluster's PriorityClasses", Command: "kubectl get priorityclasses"})
+		f.Fix = fmt.Sprintf("Create PriorityClass %s, or set priorityClassName to one that exists (or remove it).", pc)
 	case reSA.MatchString(msg):
 		sa := reSA.FindStringSubmatch(msg)[1]
 		f.Rule, f.Title = "KD171", "ServiceAccount does not exist"

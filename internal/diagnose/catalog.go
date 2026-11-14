@@ -57,6 +57,7 @@ var Rules = []Rule{
 	{"KD172", "Pod Security admission rejects the pods", Critical, "Pods violate the namespace's Pod Security level and are rejected; each violation is quoted.", "The FailedCreate event and the namespace's pod-security labels."},
 	{"KD173", "Admission webhook rejects the pods", Critical, "An admission webhook denies the controller's pods.", "The FailedCreate event naming the webhook."},
 	{"KD174", "LimitRange rejects the pods", Critical, "A controller cannot create pods because their requests or limits fall outside the namespace LimitRange's minimum, maximum or limit-to-request ratio.", "The controller's FailedCreate event quoting each violated bound."},
+	{"KD175", "PriorityClass does not exist", Critical, "A controller cannot create pods because their priorityClassName names a PriorityClass that does not exist.", "The controller's FailedCreate event."},
 	{"KD179", "Controller cannot create pods", Critical, "A controller's FailedCreate event for a reason KD170-KD173 do not cover.", "The FailedCreate event."},
 	{"KD180", "Job failed", Critical, "A Job failed (backoff limit or deadline) and no pod is left to show why.", "The Job's Failed condition."},
 	{"KD181", "Deployment rollout stalled", Warning, "A Deployment passed its progress deadline and no pod finding explains it.", "The Progressing condition with ProgressDeadlineExceeded."},
