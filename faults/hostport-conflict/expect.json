@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-hostport-conflict",
+  "description": "Two replicas ask for the same hostPort on a one-node cluster, so the second is never scheduled.",
+  "rule": "KD145",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "hostport"
+    ],
+    [
+      "8081"
+    ]
+  ]
+}

@@ -558,3 +558,383 @@ func TestJustExitedContainers(t *testing.T) {
 		t.Errorf("a first exit with no restart yet is not a crash loop: %+v", r.Findings)
 	}
 }
+
+func TestRegistryRateLimit(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "docker.io/library/nginx:1.29"
+	waiting(&p, "ErrImagePull", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "docker.io/library/nginx:1.29": failed to pull and unpack image "docker.io/library/nginx:1.29": failed to copy: httpReadSeeker: failed open: unexpected status code https://registry-1.docker.io/v2/library/nginx/manifests/sha256:4f1d: 429 Too Many Requests - Server message: toomanyrequests: You have reached your unauthenticated pull rate limit. https://www.docker.com/increase-rate-limit`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD105", "Pod shop/web", "rate-limiting pulls of image docker.io/library/nginx:1.29")
+	if !strings.Contains(f.Fix, "imagePullSecrets") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestImagePullSecretMissing(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "ghcr.io/acme/web:2.0"
+	p.Spec.ImagePullSecrets = []kube.LocalObjectReference{{Name: "ghcr-creds"}}
+	waiting(&p, "ImagePullBackOff", "")
+	s.Pods = []kube.Pod{p}
+	s.Secrets = []kube.KeySet{keys("shop", "default-token", "token")}
+	s.Events = []kube.Event{
+		event("Pod", "web", "Failed", `Failed to pull image "ghcr.io/acme/web:2.0": failed to resolve reference "ghcr.io/acme/web:2.0": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token: 401 Unauthorized`, 0),
+		event("Pod", "web", "FailedToRetrieveImagePullSecret", "Unable to retrieve some image pull secrets (ghcr-creds); attempting to pull the image may not succeed.", time.Minute),
+	}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD106", "Pod shop/web", "imagePullSecret ghcr-creds, which does not exist")
+	if len(f.Evidence) != 4 {
+		t.Errorf("evidence: %+v", f.Evidence)
+	}
+
+	s.Secrets = append(s.Secrets, kube.KeySet{Namespace: "shop", Name: "ghcr-creds", Type: "kubernetes.io/dockerconfigjson", Keys: []string{".dockerconfigjson"}})
+	expect(t, only(t, Diagnose(s)), "KD102", "Pod shop/web", "it answered 401 unauthorized")
+
+	s.Gaps = []snapshot.Gap{{Resource: "secrets", Error: "forbidden"}}
+	s.Secrets = nil
+	expect(t, only(t, Diagnose(s)), "KD102", "Pod shop/web", "refused")
+}
+
+func TestImagePullSecretWrongType(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "ghcr.io/acme/web:2.0"
+	p.Spec.ImagePullSecrets = []kube.LocalObjectReference{{Name: "ghcr-creds"}}
+	waiting(&p, "ErrImagePull", "")
+	s.Pods = []kube.Pod{p}
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "ghcr-creds", Type: "Opaque", Keys: []string{"password", "username"}}}
+	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "ghcr.io/acme/web:2.0": failed to authorize: 403 Forbidden`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD107", "Pod shop/web", "imagePullSecret ghcr-creds has type Opaque")
+	if !strings.Contains(f.Evidence[len(f.Evidence)-1].What, "keys password, username") {
+		t.Errorf("evidence: %+v", f.Evidence)
+	}
+}
+
+func TestPostStartHookFails(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	crashed(&p, 137, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	e1 := event("Pod", "web", "FailedPostStartHook", `Exec lifecycle hook ([sh -c /opt/warm-cache.sh]) for Container "web" in Pod "web_shop(5f1c)" failed - error: command 'sh -c /opt/warm-cache.sh' exited with 127: sh: /opt/warm-cache.sh: not found, message: "sh: /opt/warm-cache.sh: not found\n"`, 0)
+	e1.InvolvedObject.FieldPath = "spec.containers{web}"
+	e2 := event("Pod", "web", "FailedPostStartHook", "PostStartHook failed", 0)
+	e2.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e1, e2}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD116", "Pod shop/web", "postStart hook fails", "/opt/warm-cache.sh: not found")
+}
+
+func TestRunAsNonRootWithARootImage(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "nginx:1.29"
+	waiting(&p, "CreateContainerConfigError", `container has runAsNonRoot and image will run as root (pod: "web_shop(5f1c)", container: web)`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD117", "Pod shop/web", "must run as a non-root user (runAsNonRoot), but image nginx:1.29 runs as root")
+
+	waiting(&p, "CreateContainerConfigError", `container has runAsNonRoot and image has non-numeric user (appuser), cannot verify user is non-root (pod: "web_shop(5f1c)", container: web)`)
+	s.Pods = []kube.Pod{p}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD117", "Pod shop/web", `names its user "appuser"`)
+	if !strings.Contains(f.Fix, "numeric UID of appuser") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestReadOnlyRootFilesystem(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	ro := true
+	p.Spec.Containers[0].SecurityContext = &kube.SecurityContext{ReadOnlyRootFilesystem: &ro}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{
+		"/docker-entrypoint.sh: Configuration complete; ready for start up",
+		`nginx: [emerg] mkdir() "/var/cache/nginx/client_temp" failed (30: Read-only file system)`}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD118", "Pod shop/web", "read-only root filesystem")
+	if !strings.Contains(f.Fix, "/var/cache/nginx/client_temp") {
+		t.Errorf("fix should name the path: %s", f.Fix)
+	}
+
+	s.Logs[0].Lines = []string{"mkdir: can't create directory '/data/cache': Read-only file system"}
+	if f = only(t, Diagnose(s)); !strings.Contains(f.Fix, "emptyDir at /data/cache") {
+		t.Errorf("busybox message: %s", f.Fix)
+	}
+
+	p.Spec.Containers[0].SecurityContext = nil // the same log without the setting is an ordinary crash
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD110", "Pod shop/web", "Read-only file system")
+}
+
+func TestEvictions(t *testing.T) {
+	evict := func(msg string) *snapshot.Snapshot {
+		s := snap()
+		p := pod("web", "")
+		p.Status.Phase, p.Status.Reason, p.Status.Message = "Failed", "Evicted", msg
+		s.Pods = []kube.Pod{p}
+		return s
+	}
+	expect(t, only(t, Diagnose(evict(`Container web exceeded its local ephemeral storage limit "500Mi". `))), "KD193", "Pod shop/web",
+		"container web was evicted for writing more to its local disk than its 500Mi ephemeral-storage limit")
+	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi."))), "KD193", "Pod shop/web", "limit (1Gi)")
+	expect(t, only(t, Diagnose(evict("The node was low on resource: ephemeral-storage. Threshold quantity: 3Gi, available: 1Gi. Container web was using 2Gi, request is 0, has larger consumption of ephemeral-storage. "))),
+		"KD192", "Pod shop/web", "the node ran low on ephemeral-storage")
+}
+
+func unschedulablePod(msg string) kube.Pod {
+	p := pod("web", "")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable", Message: msg}}
+	p.Status.ContainerStatuses = nil
+	return p
+}
+
+func TestUnschedulableSpreadAndAffinity(t *testing.T) {
+	s := snap()
+	s.Pods = []kube.Pod{unschedulablePod("0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web", "1 node fails its topology spread constraints")
+	s.Pods = []kube.Pod{unschedulablePod("0/3 nodes are available: 3 node(s) didn't match pod anti-affinity rules. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod.")}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web", "3 nodes fail its pod anti-affinity rules")
+	s.Pods = []kube.Pod{unschedulablePod("0/2 nodes are available: 2 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.")}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web", "lack the label the constraint's topologyKey names")
+}
+
+func TestUnschedulableHostPort(t *testing.T) {
+	s := snap()
+	p := unschedulablePod("0/1 nodes are available: 1 node(s) didn't have free ports for the requested pod ports. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 8080, HostPort: 80}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD145", "Pod shop/web", "1 node has hostPort 80 in use already")
+}
+
+func TestUnschedulableVolumeNodeAffinity(t *testing.T) {
+	s := snap()
+	p := unschedulablePod("0/3 nodes are available: 1 Insufficient memory, 2 node(s) had volume node affinity conflict. preemption: 0/3 nodes are available: 1 No preemption victims found for incoming pod, 2 Preemption is not helpful for scheduling.")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.VolumeName = "pvc-7f3a"
+	pvc.Status.Phase = "Bound"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD154", "Pod shop/web", "2 nodes are outside the node or zone that volume pvc-7f3a (claim data) is pinned to", "1 node has too little free memory")
+}
+
+func TestMultiAttach(t *testing.T) {
+	s := snap()
+	p := pod("db", "")
+	p.Status.Phase = "Pending"
+	waiting(&p, "ContainerCreating", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "db", "FailedAttachVolume", `Multi-Attach error for volume "pvc-7f3a" Volume is already used by pod(s) db-5c9f-old, exclusively attached to one node and can't be attached to another`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD155", "Pod shop/db", "volume pvc-7f3a can be attached to one node at a time and is still in use by pod db-5c9f-old")
+	if !strings.Contains(f.Fix, "Recreate") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Events = []kube.Event{event("Pod", "db", "FailedAttachVolume", `Multi-Attach error for volume "pvc-7f3a" Volume is already exclusively attached to one node and can't be attached to another`, 0)}
+	expect(t, only(t, Diagnose(s)), "KD155", "Pod shop/db", "still attached elsewhere")
+}
+
+func TestLimitRangeRejects(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	s.Workloads[1].Status.Replicas = 0
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate", `Error creating: pods "web-rs-8kq2v" is forbidden: [maximum memory usage per Container is 512Mi, but limit is 1Gi, minimum cpu usage per Container is 100m, but request is 50m]`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD174", "Deployment shop/web", "maximum memory usage per Container is 512Mi, but limit is 1Gi; minimum cpu usage per Container is 100m, but request is 50m")
+}
+
+func TestPriorityClassMissing(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	s.Workloads[1].Status.Replicas = 0
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate", `Error creating: pods "web-rs-" is forbidden: no PriorityClass with name business-critical was found`, 0)}
+	expect(t, only(t, Diagnose(s)), "KD175", "Deployment shop/web", "PriorityClass business-critical, which does not exist")
+}
+
+func TestPodWaitsForAMissingScheduler(t *testing.T) {
+	s := snap()
+	p := pod("train", "")
+	p.Spec.NodeName, p.Spec.SchedulerName = "", "volcano"
+	p.Status.Phase, p.Status.Conditions, p.Status.ContainerStatuses = "Pending", nil, nil
+	p.Metadata.CreationTimestamp = t0.Add(-10 * time.Minute)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD148", "Pod shop/train", "asks for scheduler volcano and no scheduler has looked at it in 10m0s")
+
+	p.Metadata.CreationTimestamp = t0.Add(-30 * time.Second) // too new to tell
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("young pod: %+v", r.Findings)
+	}
+	p.Metadata.CreationTimestamp = t0.Add(-10 * time.Minute)
+	p.Spec.SchedulerName = "default-scheduler"
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("default scheduler: %+v", r.Findings)
+	}
+}
+
+func hpa(name string, conditions ...kube.Condition) kube.HorizontalPodAutoscaler {
+	var h kube.HorizontalPodAutoscaler
+	h.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
+	h.Spec.ScaleTargetRef.Kind, h.Spec.ScaleTargetRef.Name = "Deployment", "web"
+	h.Spec.MaxReplicas = 5
+	h.Status.Conditions = conditions
+	return h
+}
+
+func TestHPACannotReadMetrics(t *testing.T) {
+	s := snap()
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web", kube.Condition{Type: "ScalingActive", Status: "False", Reason: "FailedGetResourceMetric",
+		Message: "the HPA was unable to compute the replica count: failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server could not find the requested resource (get pods.metrics.k8s.io)"})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD176", "HorizontalPodAutoscaler shop/web", "metrics API (metrics-server) is not answering")
+	if f.Severity != Warning || f.Affects[0].Name != "web" {
+		t.Errorf("%+v", f)
+	}
+
+	s.HPAs[0].Status.Conditions[0].Message = "the HPA was unable to compute the replica count: failed to get cpu utilization: missing request for cpu in container web of Pod web-6f9c-x2k4f"
+	expect(t, only(t, Diagnose(s)), "KD176", "HorizontalPodAutoscaler shop/web", "container web sets no cpu request")
+
+	s.HPAs[0].Status.Conditions[0] = kube.Condition{Type: "ScalingActive", Status: "True", Reason: "ValidMetricFound"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("working HPA: %+v", r.Findings)
+	}
+}
+
+func TestHPAHeldAtMaximum(t *testing.T) {
+	s := snap()
+	h := hpa("web", kube.Condition{Type: "ScalingActive", Status: "True", Reason: "ValidMetricFound"},
+		kube.Condition{Type: "ScalingLimited", Status: "True", Reason: "TooManyReplicas", Message: "the desired replica count is more than the maximum replica count"})
+	h.Status.CurrentReplicas = 5
+	s.HPAs = []kube.HorizontalPodAutoscaler{h}
+	expect(t, only(t, Diagnose(s)), "KD177", "HorizontalPodAutoscaler shop/web", "maxReplicas of 5, so the workload runs at 5 replicas")
+}
+
+func TestHPATargetMissing(t *testing.T) {
+	s := snap()
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web", kube.Condition{Type: "AbleToScale", Status: "False", Reason: "FailedGetScale",
+		Message: `the HPA controller was unable to get the target's current scale: deployments.apps "web" not found`})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD178", "HorizontalPodAutoscaler shop/web", "scales Deployment web, which does not exist")
+	if len(f.Evidence) != 2 || f.Evidence[1].Command != "kubectl get deployment web -n shop" {
+		t.Errorf("evidence %+v", f.Evidence)
+	}
+}
+
+func TestPDBAllowsNoDisruptions(t *testing.T) {
+	s := snap()
+	var b kube.PodDisruptionBudget
+	b.Metadata = kube.ObjectMeta{Name: "web", Namespace: "shop"}
+	b.Spec.MinAvailable = &kube.IntOrString{Int: 2}
+	b.Status.DisruptionsAllowed, b.Status.CurrentHealthy, b.Status.DesiredHealthy, b.Status.ExpectedPods = 0, 2, 2, 2
+	s.PDBs = []kube.PodDisruptionBudget{b}
+	expect(t, only(t, Diagnose(s)), "KD185", "PodDisruptionBudget shop/web", "allows 0 disruptions with all 2 of its pods healthy (minAvailable 2)")
+
+	s.PDBs[0].Status.CurrentHealthy = 1 // at zero because a pod is unhealthy: that pod is the problem
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	s.PDBs[0].Status.CurrentHealthy, s.PDBs[0].Status.DisruptionsAllowed = 2, 1
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func ingress(name, svc string, port int32, portName string) kube.Ingress {
+	var ing kube.Ingress
+	ing.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
+	b := &kube.IngressServiceBackend{Name: svc}
+	b.Port.Number, b.Port.Name = port, portName
+	rule := kube.IngressRule{Host: "shop.example.com"}
+	rule.HTTP = &struct {
+		Paths []kube.HTTPIngressPath `json:"paths"`
+	}{Paths: []kube.HTTPIngressPath{{Path: "/api", Backend: kube.IngressBackend{Service: b}}}}
+	ing.Spec.Rules = []kube.IngressRule{rule}
+	return ing
+}
+
+// defaultIngressClass gives the cluster an IngressClass marked default, so backend tests have a served Ingress.
+func defaultIngressClass(s *snapshot.Snapshot) {
+	s.IngressClasses = []kube.IngressClass{{Metadata: kube.ObjectMeta{Name: "nginx",
+		Annotations: map[string]string{"ingressclass.kubernetes.io/is-default-class": "true"}}}}
+}
+
+func TestIngressBackendServiceMissing(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	s.Pods = []kube.Pod{pod("web", "")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Ingresses = []kube.Ingress{ingress("shop", "web-api", 80, "")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD165", "Ingress shop/shop", "Service web-api (for shop.example.com/api), which does not exist")
+
+	s.Ingresses = []kube.Ingress{ingress("shop", "web", 80, "")}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestIngressBackendPortMissing(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	s.Pods = []kube.Pod{pod("web", "")}
+	svc := service("web", map[string]string{"app": "web"}, named("http"))
+	svc.Spec.Ports[0].Name = "http"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Ingresses = []kube.Ingress{ingress("shop", "web", 8080, "")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD166", "Ingress shop/shop", "port 8080 of Service web (for shop.example.com/api), which has ports http (80)")
+
+	s.Ingresses = []kube.Ingress{ingress("shop", "web", 0, "https")}
+	expect(t, only(t, Diagnose(s)), "KD166", "Ingress shop/shop", `port "https" of Service web`)
+
+	s.Ingresses = []kube.Ingress{ingress("shop", "web", 0, "http")}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestIngressClassMissing(t *testing.T) {
+	s := snap()
+	s.Pods = []kube.Pod{pod("web", "")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	ing := ingress("shop", "web", 80, "")
+	class := "nginx-internal"
+	ing.Spec.IngressClassName = &class
+	s.Ingresses = []kube.Ingress{ing}
+	s.IngressClasses = []kube.IngressClass{{Metadata: kube.ObjectMeta{Name: "nginx"}}}
+	expect(t, only(t, Diagnose(s)), "KD167", "Ingress shop/shop", "asks for IngressClass nginx-internal, which does not exist (the cluster has nginx)")
+
+	s.Ingresses[0].Spec.IngressClassName = nil
+	expect(t, only(t, Diagnose(s)), "KD167", "Ingress shop/shop", "names no IngressClass and none is marked default")
+
+	s.IngressClasses[0].Metadata.Annotations = map[string]string{"ingressclass.kubernetes.io/is-default-class": "true"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("default class: %+v", r.Findings)
+	}
+	s.IngressClasses = nil
+	s.Ingresses[0].Metadata.Annotations = map[string]string{"kubernetes.io/ingress.class": "nginx"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("legacy annotation: %+v", r.Findings)
+	}
+	s.Ingresses[0].Metadata.Annotations = nil
+	s.Gaps = []snapshot.Gap{{Resource: "ingressclasses.networking.k8s.io", Error: "forbidden"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("unread class list: %+v", r.Findings)
+	}
+}

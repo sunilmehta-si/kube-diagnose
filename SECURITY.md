@@ -19,7 +19,10 @@ Fixes go into the latest release only.
   types and key names only. kubectl receives the objects; kube-diagnose sees the keys.
 - **Snapshots and reports name your namespaces, pods and images, and quote event messages and log lines.** Log
   lines can hold anything an app prints. Snapshots are written readable by their owner only; treat them and the
-  reports like the cluster data they came from before you share them.
+  reports like the cluster data they came from before you share them. `record --redact` replaces every name,
+  label value, image repository and IP address with a pseudonym keyed by a random secret that is not kept, drops
+  the context name and removes logs. Key names of ConfigMaps and Secrets, event reasons and Kubernetes versions are
+  kept; review a redacted snapshot before posting it publicly.
 - **Untrusted input.** A snapshot file is parsed as data; a newer snapshot schema is refused rather than misread.
   Evidence commands in a report are built from object names the API server accepted, quoted for the shell.
 

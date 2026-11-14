@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-pull-secret-wrong-type",
+  "description": "A private image is pulled with an imagePullSecret of type Opaque, which the kubelet ignores.",
+  "rule": "KD107",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "ghcr-creds"
+    ],
+    [
+      "type"
+    ]
+  ]
+}

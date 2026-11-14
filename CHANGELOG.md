@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Added
+- 21 rules, 62 in all (`docs/rules.md`):
+  - images: registry rate limits (KD105), pull secrets that do not exist (KD106) or are not of type
+    `kubernetes.io/dockerconfigjson` (KD107);
+  - containers: failing postStart hooks (KD116), runAsNonRoot with an image that runs as root or names a
+    non-numeric user (KD117), writes to a read-only root filesystem with the path named (KD118), eviction for
+    exceeding an ephemeral-storage limit (KD193), and evictions for node pressure name the resource (KD192);
+  - scheduling: unsatisfiable topology spread or pod (anti-)affinity (KD144), host ports taken on every node
+    (KD145), pods waiting for a scheduler that is not running (KD148), volumes pinned to a zone or node the pod
+    cannot use (KD154);
+  - volumes: ReadWriteOnce volumes still attached to another node (KD155);
+  - admission: LimitRange (KD174) and missing PriorityClass (KD175) rejections;
+  - HorizontalPodAutoscalers that cannot read their metrics (KD176), are held at maxReplicas (KD177), or target a
+    workload that does not exist (KD178);
+  - PodDisruptionBudgets that allow no disruptions while every pod is healthy (KD185);
+  - Ingresses whose backend Service does not exist (KD165), whose backend port the Service lacks (KD166), or that no
+    controller serves (KD167).
+- The snapshot holds HorizontalPodAutoscalers, PodDisruptionBudgets, Ingresses and IngressClasses, and containers'
+  securityContext, host ports and the pod's schedulerName.
+- 17 fault scenarios, 40 broken namespaces in all, for the new rules that a one-node kind cluster can reproduce.
+- `record --redact`: names, label values, image repositories and IP addresses become pseudonyms, and the context
+  name and logs are dropped, so a snapshot can be attached to a public issue; it diagnoses to the same causes.
+
+## [0.1.0] - 2026-11-13
+
 The first version: find why Kubernetes workloads are broken, with the evidence for each cause.
 
 ### Added

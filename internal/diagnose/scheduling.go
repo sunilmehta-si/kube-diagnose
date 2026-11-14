@@ -154,6 +154,64 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 				Command: `kubectl get nodes -o custom-columns=NAME:.metadata.name,UNSCHEDULABLE:.spec.unschedulable`}), cause
 	case strings.Contains(r.text, "PersistentVolumeClaim") || strings.Contains(r.text, "persistentvolumeclaim"):
 		return pvcBlocked(ix, p, r.text), "it waits for a PersistentVolumeClaim"
+	case strings.Contains(r.text, "topology spread constraints") || strings.Contains(r.text, "pod affinity rules") ||
+		strings.Contains(r.text, "pod anti-affinity rules"):
+		what := "its pod anti-affinity rules"
+		switch {
+		case strings.Contains(r.text, "topology spread"):
+			what = "its topology spread constraints"
+		case strings.Contains(r.text, "pod affinity rules"):
+			what = "its pod affinity rules"
+		}
+		cause := fmt.Sprintf("%s %s", nodesVerb(r.nodes, "fails", "fail"), what)
+		if strings.Contains(r.text, "missing required label") {
+			cause += " (they lack the label the constraint's topologyKey names)"
+		}
+		return newProblem(p, "", "KD144", "Pod spread or affinity rules cannot be met", Critical,
+			"no node can run the pod: "+cause, "spread|"+what,
+			"Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count.",
+			Evidence{Object: p.Ref(), What: "pod scheduling constraints",
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}")}), cause
+	case strings.Contains(r.text, "volume node affinity conflict"):
+		var vols []string
+		var ev []Evidence
+		for _, v := range p.Spec.Volumes {
+			if v.PersistentVolumeClaim == nil {
+				continue
+			}
+			if pvc, ok := ix.pvcs[nsName{p.Metadata.Namespace, v.PersistentVolumeClaim.ClaimName}]; ok && pvc.Spec.VolumeName != "" {
+				vols = append(vols, fmt.Sprintf("%s (claim %s)", pvc.Spec.VolumeName, pvc.Metadata.Name))
+				ev = append(ev, Evidence{Object: kube.Ref{Kind: "PersistentVolume", Name: pvc.Spec.VolumeName},
+					What:    fmt.Sprintf("claim %s is bound to PersistentVolume %s", pvc.Metadata.Name, pvc.Spec.VolumeName),
+					Command: cmdGet("pv", "", pvc.Spec.VolumeName, "{.spec.nodeAffinity}")})
+			}
+		}
+		cause := nodesVerb(r.nodes, "is", "are") + " outside the node or zone the pod's volume is pinned to"
+		if len(vols) > 0 {
+			cause = fmt.Sprintf("%s outside the node or zone that volume %s is pinned to", nodesVerb(r.nodes, "is", "are"), strings.Join(vols, ", "))
+		}
+		return newProblem(p, "", "KD154", "Volume is pinned to a node or zone the pod cannot use", Critical,
+			"no node can run the pod: "+cause, "volaffinity|"+strings.Join(vols, ","),
+			"Make a node in the volume's zone available to the pod (capacity, taints, nodeSelector), or use a StorageClass with volumeBindingMode: WaitForFirstConsumer so new volumes are created where the pod can run.",
+			ev...), cause
+	case strings.Contains(r.text, "didn't have free ports"):
+		var ports []string
+		for _, c := range p.Spec.Containers {
+			for _, cp := range c.Ports {
+				if cp.HostPort != 0 {
+					ports = append(ports, strconv.Itoa(int(cp.HostPort)))
+				}
+			}
+		}
+		cause := nodesVerb(r.nodes, "has", "have") + " the pod's hostPort in use already"
+		if len(ports) > 0 {
+			cause = fmt.Sprintf("%s hostPort %s in use already", nodesVerb(r.nodes, "has", "have"), strings.Join(ports, ", "))
+		}
+		return newProblem(p, "", "KD145", "Host port is taken on every node", Critical, "no node can run the pod: "+cause,
+			"hostport|"+strings.Join(ports, ","),
+			"Drop hostPort and reach the pod through a Service, or run at most one such pod per node (a DaemonSet, or fewer replicas than nodes).",
+			Evidence{Object: p.Ref(), What: "pod requests host ports " + strings.Join(ports, ", "),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.containers[*].ports}")}), cause
 	case r.text == "Too many pods":
 		return insufficient(ix, p, "pods", r.nodes)
 	}

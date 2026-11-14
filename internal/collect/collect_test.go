@@ -84,13 +84,17 @@ const pods = `{"items":[
 func TestCollect(t *testing.T) {
 	f := &fake{
 		answers: map[string]string{
-			"config current-context": "kind-faults\n",
-			"version -o":             `{"serverVersion":{"gitVersion":"v1.37.0"}}`,
-			"get pods":               pods,
-			"get deployments.apps":   `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"replicas":2}}]}`,
-			"get configmaps":         "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
-			"get secrets":            "shop\tdb\tOpaque\tpassword,user,\n",
-			"logs web-1 web":         "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
+			"config current-context":                   "kind-faults\n",
+			"version -o":                               `{"serverVersion":{"gitVersion":"v1.37.0"}}`,
+			"get pods":                                 pods,
+			"get deployments.apps":                     `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"replicas":2}}]}`,
+			"get ingresses.networking.k8s.io":          `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"ingressClassName":"nginx","rules":[{"host":"shop.example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"web","port":{"number":80}}}}]}}]}}]}`,
+			"get ingressclasses.networking.k8s.io":     `{"items":[{"metadata":{"name":"nginx","annotations":{"ingressclass.kubernetes.io/is-default-class":"true"}},"spec":{"controller":"k8s.io/ingress-nginx"}}]}`,
+			"get poddisruptionbudgets.policy":          `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"minAvailable":"100%"},"status":{"disruptionsAllowed":0,"currentHealthy":2,"desiredHealthy":2,"expectedPods":2}}]}`,
+			"get horizontalpodautoscalers.autoscaling": `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"scaleTargetRef":{"kind":"Deployment","name":"web"},"maxReplicas":5},"status":{"conditions":[{"type":"ScalingActive","status":"False","reason":"FailedGetResourceMetric"}]}}]}`,
+			"get configmaps":                           "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
+			"get secrets":                              "shop\tdb\tOpaque\tpassword,user,\n",
+			"logs web-1 web":                           "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
 		},
 		errs: map[string]error{
 			"get nodes": &CommandError{Args: []string{"get", "nodes"}, Message: `Error from server (Forbidden): nodes is forbidden: User "dev" cannot list resource "nodes"`},
@@ -103,6 +107,16 @@ func TestCollect(t *testing.T) {
 	}
 	if s.Context != "kind-faults" || s.ServerVersion != "v1.37.0" || !s.CollectedAt.Equal(at) || s.Namespaces[0] != "shop" {
 		t.Errorf("header: %+v", s)
+	}
+	if len(s.Ingresses) != 1 || s.Ingresses[0].Spec.Rules[0].HTTP.Paths[0].Backend.Service.Port.Number != 80 ||
+		len(s.IngressClasses) != 1 || !s.IngressClasses[0].IsDefault() {
+		t.Errorf("ingresses %+v classes %+v", s.Ingresses, s.IngressClasses)
+	}
+	if len(s.PDBs) != 1 || s.PDBs[0].Spec.MinAvailable.Str != "100%" || s.PDBs[0].Status.ExpectedPods != 2 {
+		t.Errorf("pdbs %+v", s.PDBs)
+	}
+	if len(s.HPAs) != 1 || s.HPAs[0].Spec.MaxReplicas != 5 || s.HPAs[0].Spec.ScaleTargetRef.Name != "web" {
+		t.Errorf("hpas %+v", s.HPAs)
 	}
 	if len(s.Pods) != 2 || len(s.Workloads) != 1 || s.Workloads[0].Kind != "Deployment" {
 		t.Errorf("pods %d workloads %+v", len(s.Pods), s.Workloads)
@@ -123,7 +137,7 @@ func TestCollect(t *testing.T) {
 		if c[0] == "get" && c[1] == "secrets" && !strings.HasPrefix(c[3], "go-template=") {
 			t.Errorf("secrets must be read as key names only: %v", c)
 		}
-		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" &&
+		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" &&
 			!(c[len(c)-2] == "-n" && c[len(c)-1] == "shop") {
 			t.Errorf("namespaced read not scoped to the namespace: %v", c)
 		}

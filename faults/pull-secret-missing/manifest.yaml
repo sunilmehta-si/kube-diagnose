@@ -1,0 +1,28 @@
+# A private image is pulled with an imagePullSecret that does not exist.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pull-secret-missing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-pull-secret-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      imagePullSecrets:
+        - name: ghcr-creds
+      containers:
+        - name: web
+          image: ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0
+          command: ["sleep", "3600"]

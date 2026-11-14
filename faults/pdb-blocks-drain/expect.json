@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-pdb-blocks-drain",
+  "description": "A PodDisruptionBudget keeps 1 of 1 replica available, so draining its node never finishes.",
+  "rule": "KD185",
+  "object": "PodDisruptionBudget/web",
+  "keywords": [
+    [
+      "disruption"
+    ],
+    [
+      "0 disruptions"
+    ]
+  ]
+}

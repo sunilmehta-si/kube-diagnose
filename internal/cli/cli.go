@@ -54,6 +54,7 @@ Usage:
   kube-diagnose -A                        diagnose every namespace
   kube-diagnose --snapshot s.json.gz      diagnose a recorded snapshot instead of a cluster
   kube-diagnose record -n shop -o s.json.gz   save what it reads, to diagnose later or elsewhere
+  kube-diagnose record -n shop --redact -o s.json.gz   the same with names replaced, to share in an issue
   kube-diagnose rules [KD101]             list the rules, or explain one
   kube-diagnose version
 
@@ -195,6 +196,7 @@ func record(args []string, env Env) int {
 	sf.register(fs)
 	out := fs.String("output", "", "file to write; a name ending in .gz is gzipped")
 	fs.StringVar(out, "o", "", "shorthand for --output")
+	redact := fs.Bool("redact", false, "replace names, images and IP addresses with pseudonyms and drop logs, for sharing")
 	if err := fs.Parse(args); err != nil {
 		return parseExit(err)
 	}
@@ -203,6 +205,9 @@ func record(args []string, env Env) int {
 		return 2
 	}
 	s, err := sf.collect(env)
+	if err == nil && *redact {
+		s, err = snapshot.Redact(s)
+	}
 	if err == nil {
 		err = snapshot.Write(*out, s)
 	}

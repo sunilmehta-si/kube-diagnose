@@ -120,6 +120,7 @@ type LabelSelector struct {
 type ContainerPort struct {
 	Name          string `json:"name,omitempty"`
 	ContainerPort int32  `json:"containerPort"`
+	HostPort      int32  `json:"hostPort,omitempty"`
 	Protocol      string `json:"protocol,omitempty"`
 }
 
@@ -178,18 +179,25 @@ type Probe struct {
 	FailureThreshold    int32            `json:"failureThreshold,omitempty"`
 }
 
+type SecurityContext struct {
+	ReadOnlyRootFilesystem *bool  `json:"readOnlyRootFilesystem,omitempty"`
+	RunAsNonRoot           *bool  `json:"runAsNonRoot,omitempty"`
+	RunAsUser              *int64 `json:"runAsUser,omitempty"`
+}
+
 type Container struct {
-	Name           string          `json:"name"`
-	Image          string          `json:"image"`
-	Command        []string        `json:"command,omitempty"`
-	Args           []string        `json:"args,omitempty"`
-	Ports          []ContainerPort `json:"ports,omitempty"`
-	Env            []EnvVar        `json:"env,omitempty"`
-	EnvFrom        []EnvFromSource `json:"envFrom,omitempty"`
-	Resources      Resources       `json:"resources,omitempty"`
-	LivenessProbe  *Probe          `json:"livenessProbe,omitempty"`
-	ReadinessProbe *Probe          `json:"readinessProbe,omitempty"`
-	StartupProbe   *Probe          `json:"startupProbe,omitempty"`
+	Name            string           `json:"name"`
+	Image           string           `json:"image"`
+	Command         []string         `json:"command,omitempty"`
+	Args            []string         `json:"args,omitempty"`
+	Ports           []ContainerPort  `json:"ports,omitempty"`
+	Env             []EnvVar         `json:"env,omitempty"`
+	EnvFrom         []EnvFromSource  `json:"envFrom,omitempty"`
+	Resources       Resources        `json:"resources,omitempty"`
+	LivenessProbe   *Probe           `json:"livenessProbe,omitempty"`
+	ReadinessProbe  *Probe           `json:"readinessProbe,omitempty"`
+	StartupProbe    *Probe           `json:"startupProbe,omitempty"`
+	SecurityContext *SecurityContext `json:"securityContext,omitempty"`
 }
 
 type KeyToPath struct {
@@ -246,6 +254,7 @@ type LocalObjectReference struct {
 
 type PodSpec struct {
 	NodeName           string                 `json:"nodeName,omitempty"`
+	SchedulerName      string                 `json:"schedulerName,omitempty"`
 	NodeSelector       map[string]string      `json:"nodeSelector,omitempty"`
 	ServiceAccountName string                 `json:"serviceAccountName,omitempty"`
 	InitContainers     []Container            `json:"initContainers,omitempty"`
@@ -442,6 +451,55 @@ type EndpointSlice struct {
 // ServiceName is the Service the slice belongs to.
 func (e EndpointSlice) ServiceName() string { return e.Metadata.Labels["kubernetes.io/service-name"] }
 
+type IngressServiceBackend struct {
+	Name string `json:"name"`
+	Port struct {
+		Name   string `json:"name,omitempty"`
+		Number int32  `json:"number,omitempty"`
+	} `json:"port"`
+}
+
+type IngressBackend struct {
+	Service *IngressServiceBackend `json:"service,omitempty"`
+}
+
+type HTTPIngressPath struct {
+	Path    string         `json:"path,omitempty"`
+	Backend IngressBackend `json:"backend"`
+}
+
+type IngressRule struct {
+	Host string `json:"host,omitempty"`
+	HTTP *struct {
+		Paths []HTTPIngressPath `json:"paths"`
+	} `json:"http,omitempty"`
+}
+
+type Ingress struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		IngressClassName *string         `json:"ingressClassName,omitempty"`
+		DefaultBackend   *IngressBackend `json:"defaultBackend,omitempty"`
+		Rules            []IngressRule   `json:"rules,omitempty"`
+	} `json:"spec"`
+}
+
+func (i Ingress) Ref() Ref {
+	return Ref{Kind: "Ingress", Namespace: i.Metadata.Namespace, Name: i.Metadata.Name}
+}
+
+type IngressClass struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Controller string `json:"controller"`
+	} `json:"spec"`
+}
+
+// IsDefault reports whether the class is marked as the cluster default.
+func (c IngressClass) IsDefault() bool {
+	return c.Metadata.Annotations["ingressclass.kubernetes.io/is-default-class"] == "true"
+}
+
 // ---- Workloads ----
 
 type PodTemplate struct {
@@ -514,6 +572,48 @@ type Job struct {
 
 func (j Job) Ref() Ref {
 	return Ref{Kind: "Job", Namespace: j.Metadata.Namespace, Name: j.Metadata.Name}
+}
+
+// ---- Autoscaling ----
+
+type HorizontalPodAutoscaler struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ScaleTargetRef struct {
+			Kind string `json:"kind"`
+			Name string `json:"name"`
+		} `json:"scaleTargetRef"`
+		MinReplicas *int32 `json:"minReplicas,omitempty"`
+		MaxReplicas int32  `json:"maxReplicas"`
+	} `json:"spec"`
+	Status struct {
+		CurrentReplicas int32       `json:"currentReplicas,omitempty"`
+		DesiredReplicas int32       `json:"desiredReplicas,omitempty"`
+		Conditions      []Condition `json:"conditions,omitempty"`
+	} `json:"status"`
+}
+
+func (h HorizontalPodAutoscaler) Ref() Ref {
+	return Ref{Kind: "HorizontalPodAutoscaler", Namespace: h.Metadata.Namespace, Name: h.Metadata.Name}
+}
+
+type PodDisruptionBudget struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		MinAvailable   *IntOrString   `json:"minAvailable,omitempty"`
+		MaxUnavailable *IntOrString   `json:"maxUnavailable,omitempty"`
+		Selector       *LabelSelector `json:"selector,omitempty"`
+	} `json:"spec"`
+	Status struct {
+		DisruptionsAllowed int32 `json:"disruptionsAllowed"`
+		CurrentHealthy     int32 `json:"currentHealthy"`
+		DesiredHealthy     int32 `json:"desiredHealthy"`
+		ExpectedPods       int32 `json:"expectedPods"`
+	} `json:"status"`
+}
+
+func (p PodDisruptionBudget) Ref() Ref {
+	return Ref{Kind: "PodDisruptionBudget", Namespace: p.Metadata.Namespace, Name: p.Metadata.Name}
 }
 
 // ---- Storage ----

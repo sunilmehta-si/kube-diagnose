@@ -22,7 +22,7 @@ uses; a test fails if a command outside the allowlist appears in the evidence.
 |---|---|
 | `internal/kube` | the fields of Kubernetes objects the rules read, quantities, label selectors |
 | `internal/collect` | runs kubectl, read-only by construction, into a snapshot |
-| `internal/snapshot` | the snapshot format |
+| `internal/snapshot` | the snapshot format, and redaction for sharing one |
 | `internal/diagnose` | the rules, the order they run in, grouping by owner, the rule catalogue |
 | `internal/report` | text, Markdown and JSON output |
 | `internal/cli` | the command line |

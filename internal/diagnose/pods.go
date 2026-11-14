@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 	"github.com/sunilmehta-si/kube-diagnose/internal/snapshot"
@@ -38,6 +39,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
 		return unschedulable(ix, p, c)
 	}
+	if pr := unclaimed(ix, p); pr != nil {
+		return pr
+	}
 	if pr := mountProblem(ix, p); pr != nil {
 		return pr
 	}
@@ -53,6 +57,32 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	return nil
+}
+
+// unclaimedAfter is how long a pod may wait before a scheduler that never looked at it is reported.
+const unclaimedAfter = 2 * time.Minute
+
+// unclaimed finds a pod that no scheduler has looked at: Pending, on no node, with no PodScheduled condition, and
+// asking for a scheduler other than the default. That scheduler is not running or does not watch the namespace.
+func unclaimed(ix *index, p kube.Pod) *problem {
+	name := p.Spec.SchedulerName
+	if p.Status.Phase != "Pending" || p.Spec.NodeName != "" || name == "" || name == "default-scheduler" {
+		return nil
+	}
+	if _, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok {
+		return nil
+	}
+	age := ix.s.CollectedAt.Sub(p.Metadata.CreationTimestamp)
+	if p.Metadata.CreationTimestamp.IsZero() || age < unclaimedAfter {
+		return nil
+	}
+	return newProblem(p, "", "KD148", "Pod waits for a scheduler that is not running", Critical,
+		fmt.Sprintf("the pod asks for scheduler %s and no scheduler has looked at it in %s; %s is not running, or does not handle this namespace", name, age.Round(time.Minute), name),
+		"scheduler|"+name, fmt.Sprintf("Install or start %s (and check its logs and the namespaces it watches), or remove schedulerName to use the default scheduler.", name),
+		Evidence{Object: p.Ref(), What: "pod asks for scheduler " + name + " and has no PodScheduled condition",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.schedulerName}{\"\\n\"}{.status.conditions}")},
+		Evidence{Object: kube.Ref{Kind: "Pod", Name: "*"}, What: "scheduler pods in the cluster",
+			Command: "kubectl get pods -A -o wide | grep -i sched"})
 }
 
 func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -134,9 +164,10 @@ func eventEvidence(r kube.Ref, e kube.Event) Evidence {
 // ---- image pulls ----
 
 var (
-	reNotFound = regexp.MustCompile(`(?i)\bnot found\b|manifest unknown|NotFound|no such manifest|name unknown`)
-	reDenied   = regexp.MustCompile(`(?i)unauthorized|authentication required|access denied|denied:|insufficient_scope|\b40[13]\b|forbidden`)
-	reNetwork  = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
+	reNotFound  = regexp.MustCompile(`(?i)\bnot found\b|manifest unknown|NotFound|no such manifest|name unknown`)
+	reDenied    = regexp.MustCompile(`(?i)unauthorized|authentication required|access denied|denied:|insufficient_scope|\b40[13]\b|forbidden`)
+	reRateLimit = regexp.MustCompile(`(?i)toomanyrequests|429 too many requests|pull rate limit`)
+	reNetwork   = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
 )
 
 func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -151,11 +182,18 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		}
 	}
 	switch {
+	case reRateLimit.MatchString(msg):
+		return newProblem(p, cs.Name, "KD105", "Registry rate-limits the image pull", Critical,
+			fmt.Sprintf("the registry is rate-limiting pulls of image %s (it answered 429 Too Many Requests)", image), "ratelimit|"+registry(image),
+			"Pull with credentials (an account raises the limit; list a docker-registry Secret in imagePullSecrets), or mirror the image to a registry you control.", ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
 			"Check the registry host name in the image, and that nodes can resolve and reach it (DNS, egress, proxy).", ev...)
 	case reDenied.MatchString(msg):
+		if pr := pullSecretProblem(ix, p, cs, image, ev); pr != nil {
+			return pr
+		}
 		cause := fmt.Sprintf("the registry refused to serve image %s (%s)", image, deniedReason(msg))
 		if strings.Contains(strings.ToLower(msg), "does not exist") {
 			cause = fmt.Sprintf("image %s does not exist, or it is private and the pod has no credentials for it (%s)", image, deniedReason(msg))
@@ -173,6 +211,39 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	return newProblem(p, cs.Name, "KD100", "Image cannot be pulled", Critical,
 		fmt.Sprintf("image %s cannot be pulled", image), "pull|"+image,
 		"Read the pull error in the evidence; the node's container runtime reported it.", ev...)
+}
+
+// pullSecretProblem finds an imagePullSecrets entry that names a Secret that does not exist, the usual reason a
+// registry refuses a pod that was meant to have credentials.
+func pullSecretProblem(ix *index, p kube.Pod, cs kube.ContainerStatus, image string, ev []Evidence) *problem {
+	if !ix.read("secrets") {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	for _, ref := range p.Spec.ImagePullSecrets {
+		if sec, ok := ix.secrets[nsName{ns, ref.Name}]; ok {
+			if sec.Type == "kubernetes.io/dockerconfigjson" || sec.Type == "kubernetes.io/dockercfg" {
+				continue
+			}
+			// The kubelet reads registry credentials only from these two Secret types and skips any other.
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "Secret", Namespace: ns, Name: ref.Name},
+				What:    fmt.Sprintf("Secret %s has type %s and keys %s", ref.Name, sec.Type, strings.Join(sec.Keys, ", ")),
+				Command: cmdGet("secret", ns, ref.Name, "{.type}")})
+			return newProblem(p, cs.Name, "KD107", "Image pull secret has the wrong type", Critical,
+				fmt.Sprintf("imagePullSecret %s has type %s; the kubelet reads registry credentials only from kubernetes.io/dockerconfigjson Secrets, so image %s was pulled without them", ref.Name, sec.Type, image),
+				"pullsecrettype|"+ref.Name, fmt.Sprintf("Recreate %s with kubectl create secret docker-registry, which sets the type and the .dockerconfigjson key.", ref.Name), ev...)
+		}
+		for _, e := range ix.eventsFor(p.Ref(), "FailedToRetrieveImagePullSecret") {
+			ev = append(ev, eventEvidence(p.Ref(), e))
+			break
+		}
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Secret", Namespace: ns, Name: ref.Name},
+			What: fmt.Sprintf("there is no Secret %s in namespace %s", ref.Name, ns), Command: cmdGet("secret", ns, ref.Name, "")})
+		return newProblem(p, cs.Name, "KD106", "Image pull secret does not exist", Critical,
+			fmt.Sprintf("the pod pulls image %s with imagePullSecret %s, which does not exist in namespace %s, so the registry sees no credentials", image, ref.Name, ns),
+			"pullsecret|"+ref.Name, fmt.Sprintf("Create the docker-registry Secret %s in namespace %s (kubectl create secret docker-registry), or correct imagePullSecrets.", ref.Name, ns), ev...)
+	}
+	return nil
 }
 
 // deniedReason quotes how the registry refused, most specific first.
@@ -196,8 +267,9 @@ func registry(image string) string {
 // ---- configuration ----
 
 var (
-	reMissingObject = regexp.MustCompile(`(configmap|secret) "([^"]+)" not found`)
-	reMissingKey    = regexp.MustCompile(`couldn't find key (\S+) in (ConfigMap|Secret) ([^/\s]+)/(\S+)`)
+	reMissingObject  = regexp.MustCompile(`(configmap|secret) "([^"]+)" not found`)
+	reNonNumericUser = regexp.MustCompile(`image has non-numeric user \(([^)]+)\)`)
+	reMissingKey     = regexp.MustCompile(`couldn't find key (\S+) in (ConfigMap|Secret) ([^/\s]+)/(\S+)`)
 )
 
 func configError(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -205,6 +277,16 @@ func configError(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	ev := []Evidence{waitingEvidence(p, cs)}
 	if m := reMissingKey.FindStringSubmatch(msg); m != nil {
 		return missingKey(ix, p, cs.Name, m[2], m[4], m[1], ev)
+	}
+	if strings.Contains(msg, "container has runAsNonRoot and image") {
+		image := imageOf(p, cs)
+		cause := fmt.Sprintf("container %s must run as a non-root user (runAsNonRoot), but image %s runs as root", cs.Name, image)
+		fix := "Set securityContext.runAsUser to a non-zero UID the image supports, or use an image built to run as a non-root user."
+		if m := reNonNumericUser.FindStringSubmatch(msg); m != nil {
+			cause = fmt.Sprintf("container %s must run as a non-root user (runAsNonRoot), and image %s names its user %q, which the kubelet cannot check is not root", cs.Name, image, m[1])
+			fix = fmt.Sprintf("Set securityContext.runAsUser to the numeric UID of %s, or build the image with USER set to a number.", m[1])
+		}
+		return newProblem(p, cs.Name, "KD117", "Image runs as root but the pod requires non-root", Critical, cause, "nonroot|"+image, fix, ev...)
 	}
 	if m := reMissingObject.FindStringSubmatch(msg); m != nil {
 		return missingObject(ix, p, cs.Name, m[1], m[2], ev)
@@ -324,6 +406,7 @@ func missingKey(ix *index, p kube.Pod, container, kind, name, key string, ev []E
 }
 
 var (
+	reMultiAttach = regexp.MustCompile(`Multi-Attach error for volume "([^"]+)"(?: Volume is already used by pod\(s\) ([^\s,]+))?`)
 	reMountCM     = regexp.MustCompile(`configmap "([^"]+)" not found`)
 	reMountSecret = regexp.MustCompile(`secret "([^"]+)" not found`)
 	reMountKey    = regexp.MustCompile(`references non-existent (config|secret) key: (\S+)`)
@@ -333,6 +416,20 @@ var (
 func mountProblem(ix *index, p kube.Pod) *problem {
 	if p.Status.Phase != "Pending" {
 		return nil
+	}
+	for _, e := range ix.eventsFor(p.Ref(), "FailedAttachVolume") {
+		m := reMultiAttach.FindStringSubmatch(e.Message)
+		if m == nil {
+			continue
+		}
+		cause := fmt.Sprintf("volume %s can be attached to one node at a time and is still attached elsewhere", m[1])
+		if m[2] != "" {
+			cause = fmt.Sprintf("volume %s can be attached to one node at a time and is still in use by pod %s on another node", m[1], m[2])
+		}
+		return newProblem(p, "", "KD155", "Volume is attached to another node", Critical, cause, "multiattach|"+m[1],
+			"Let the other pod stop first (use the Recreate strategy for single-replica Deployments with ReadWriteOnce volumes, or a StatefulSet), or use a ReadWriteMany volume. If the other node is gone, check its VolumeAttachment.",
+			eventEvidence(p.Ref(), e), Evidence{Object: kube.Ref{Kind: "VolumeAttachment", Name: "*"}, What: "volume attachments",
+				Command: "kubectl get volumeattachments"})
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "FailedMount") {
 		ev := []Evidence{eventEvidence(p.Ref(), e)}
@@ -433,12 +530,18 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			return execFormat(p, cs, append([]Evidence{terminatedEvidence(p, cs, t)}, logEvidence(p, cs.Name, log)))
 		}
 	}
+	if pr := hookFailed(ix, p, cs); pr != nil {
+		return pr
+	}
 	if (t.ExitCode == 137 || t.ExitCode == 143) && probeKilled(ix, p, cs.Name) != nil {
 		return livenessKilled(ix, p, cs)
 	}
 	ev := []Evidence{terminatedEvidence(p, cs, t)}
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
+	}
+	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
+		return pr
 	}
 	title, rule := "Container keeps crashing", "KD110"
 	what := "exits"
@@ -507,6 +610,62 @@ func logEvidence(p kube.Pod, container string, l snapshot.Log) Evidence {
 	}
 	return Evidence{Object: p.Ref(), What: fmt.Sprintf("last lines of container %s's log (%s)", container, run),
 		Detail: strings.Join(lines, "\n"), Command: cmdLogs(p, container, l.Previous)}
+}
+
+var reReadOnlyPath = regexp.MustCompile(`(?i)['"]?(/[^'":\s]*)['"]?:?(?: [^:]*)?: read-only file system`)
+
+// readOnlyRoot finds a container with a read-only root filesystem that exits because it writes to it.
+func readOnlyRoot(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	if c.SecurityContext == nil || c.SecurityContext.ReadOnlyRootFilesystem == nil || !*c.SecurityContext.ReadOnlyRootFilesystem {
+		return nil
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !strings.Contains(strings.ToLower(lines[i]), "read-only file system") {
+			continue
+		}
+		path := ""
+		if m := reReadOnlyPath.FindStringSubmatch(lines[i]); m != nil {
+			path = m[1]
+		}
+		cause := fmt.Sprintf("container %s has a read-only root filesystem and exits because it writes to it: %q", cs.Name, clip(lines[i], 160))
+		fix := "Mount a writable volume (an emptyDir) at the directory the container writes to, or point the app at one."
+		if path != "" {
+			fix = fmt.Sprintf("Mount an emptyDir at %s (or its parent directory), or point the app at a writable volume.", path)
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s sets readOnlyRootFilesystem: true", cs.Name),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].securityContext}`, cs.Name))})
+		return newProblem(p, cs.Name, "KD118", "Container writes to its read-only root filesystem", Critical, cause, "readonly|"+path, fix, ev...)
+	}
+	return nil
+}
+
+// hookFailed finds a container that the kubelet killed because its postStart hook failed. Such a container exits
+// with 137 and crash-loops like any other, and the hook's failure is only in the pod's events.
+func hookFailed(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	var ev []Evidence
+	var detail string
+	for _, e := range ix.eventsFor(p.Ref(), "FailedPostStartHook") {
+		if !mentionsContainer(e, cs.Name) && !strings.Contains(e.Message, `Container "`+cs.Name+`"`) {
+			continue
+		}
+		ev = append(ev, eventEvidence(p.Ref(), e))
+		if detail == "" && strings.Contains(e.Message, "failed - error:") {
+			detail = e.Message[strings.Index(e.Message, "failed - error:")+len("failed - error: "):]
+		}
+		if len(ev) == 2 {
+			break
+		}
+	}
+	if len(ev) == 0 {
+		return nil
+	}
+	cause := fmt.Sprintf("container %s's postStart hook fails, so the kubelet kills the container each time it starts", cs.Name)
+	if detail != "" {
+		cause += ": " + clip(detail, 200)
+	}
+	return newProblem(p, cs.Name, "KD116", "Lifecycle hook fails", Critical, cause, "poststart|"+cs.Name,
+		"Fix the postStart hook's command or HTTP target so it succeeds, or remove the hook; the container cannot run while it fails.", ev...)
 }
 
 func exitMeaning(code int32) string {
@@ -678,11 +837,30 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	return nil
 }
 
+var (
+	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?$)`)
+	reNodeLow        = regexp.MustCompile(`The node was low on resource: ([a-z.-]+)`)
+)
+
 func evicted(p kube.Pod) *problem {
+	msg := p.Status.Message
+	ev := []Evidence{{Object: p.Ref(), What: "pod status is Failed, reason Evicted", Detail: msg,
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.status.message}")}}
+	if m := reEphemeralLimit.FindStringSubmatch(msg); m != nil {
+		cause := fmt.Sprintf("the pod was evicted for writing more to its local disk than its ephemeral-storage limit (%s)", m[3])
+		if m[1] != "" {
+			cause = fmt.Sprintf("container %s was evicted for writing more to its local disk than its %s ephemeral-storage limit", m[1], m[2])
+		}
+		return &problem{rule: "KD193", title: "Container exceeded its ephemeral storage limit", severity: Warning, pod: p,
+			cause: cause, key: "KD193|" + m[1], evidence: ev,
+			fix: "Raise the container's ephemeral-storage limit, or move what it writes (logs, caches, scratch files) to a volume."}
+	}
+	cause := "the node evicted the pod: " + msg
+	if m := reNodeLow.FindStringSubmatch(msg); m != nil {
+		cause = fmt.Sprintf("the node ran low on %s and evicted the pod: %s", m[1], clip(msg, 200))
+	}
 	return &problem{rule: "KD192", title: "Pod was evicted", severity: Warning, pod: p,
-		cause: "the node evicted the pod: " + p.Status.Message, key: "KD192|" + p.Status.Message,
-		evidence: []Evidence{{Object: p.Ref(), What: "pod status is Failed, reason Evicted", Detail: p.Status.Message,
-			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.status.message}")}},
+		cause: cause, key: "KD192|" + msg, evidence: ev,
 		fix: "Set requests close to real use (pods over their requests are evicted first) and check the node's disk and memory pressure; delete evicted pods once handled."}
 }
 

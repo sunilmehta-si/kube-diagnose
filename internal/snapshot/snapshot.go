@@ -44,23 +44,27 @@ type Snapshot struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 	Redacted   bool     `json:"redacted,omitempty"`
 
-	Pods            []kube.Pod                   `json:"pods"`
-	Events          []kube.Event                 `json:"events"`
-	Nodes           []kube.Node                  `json:"nodes"`
-	Services        []kube.Service               `json:"services"`
-	EndpointSlices  []kube.EndpointSlice         `json:"endpointSlices"`
-	Workloads       []kube.Workload              `json:"workloads"`
-	Jobs            []kube.Job                   `json:"jobs"`
-	PVCs            []kube.PersistentVolumeClaim `json:"persistentVolumeClaims"`
-	PVs             []kube.PersistentVolume      `json:"persistentVolumes"`
-	StorageClasses  []kube.StorageClass          `json:"storageClasses"`
-	NetworkPolicies []kube.NetworkPolicy         `json:"networkPolicies"`
-	ResourceQuotas  []kube.ResourceQuota         `json:"resourceQuotas"`
-	ServiceAccounts []kube.ServiceAccount        `json:"serviceAccounts"`
-	ConfigMaps      []kube.KeySet                `json:"configMaps"`
-	Secrets         []kube.KeySet                `json:"secrets"`
-	Logs            []Log                        `json:"logs"`
-	Gaps            []Gap                        `json:"gaps,omitempty"`
+	Pods            []kube.Pod                     `json:"pods"`
+	Events          []kube.Event                   `json:"events"`
+	Nodes           []kube.Node                    `json:"nodes"`
+	Services        []kube.Service                 `json:"services"`
+	EndpointSlices  []kube.EndpointSlice           `json:"endpointSlices"`
+	Ingresses       []kube.Ingress                 `json:"ingresses"`
+	IngressClasses  []kube.IngressClass            `json:"ingressClasses"`
+	Workloads       []kube.Workload                `json:"workloads"`
+	Jobs            []kube.Job                     `json:"jobs"`
+	HPAs            []kube.HorizontalPodAutoscaler `json:"horizontalPodAutoscalers"`
+	PDBs            []kube.PodDisruptionBudget     `json:"podDisruptionBudgets"`
+	PVCs            []kube.PersistentVolumeClaim   `json:"persistentVolumeClaims"`
+	PVs             []kube.PersistentVolume        `json:"persistentVolumes"`
+	StorageClasses  []kube.StorageClass            `json:"storageClasses"`
+	NetworkPolicies []kube.NetworkPolicy           `json:"networkPolicies"`
+	ResourceQuotas  []kube.ResourceQuota           `json:"resourceQuotas"`
+	ServiceAccounts []kube.ServiceAccount          `json:"serviceAccounts"`
+	ConfigMaps      []kube.KeySet                  `json:"configMaps"`
+	Secrets         []kube.KeySet                  `json:"secrets"`
+	Logs            []Log                          `json:"logs"`
+	Gaps            []Gap                          `json:"gaps,omitempty"`
 }
 
 // Read loads a snapshot written by Write; a name ending in .gz is gunzipped.

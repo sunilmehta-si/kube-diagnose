@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-hpa-no-metrics",
+  "description": "An HPA scales on CPU utilization in a cluster without a metrics API, so it never scales.",
+  "rule": "KD176",
+  "object": "HorizontalPodAutoscaler/web",
+  "keywords": [
+    [
+      "metrics"
+    ]
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-poststart-hook-fails",
+  "description": "A postStart hook runs a script that is not in the image, so the kubelet kills the container each time it starts.",
+  "rule": "KD116",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "poststart"
+    ],
+    [
+      "warm-cache"
+    ]
+  ]
+}
