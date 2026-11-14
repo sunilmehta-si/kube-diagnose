@@ -474,6 +474,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			return execFormat(p, cs, append([]Evidence{terminatedEvidence(p, cs, t)}, logEvidence(p, cs.Name, log)))
 		}
 	}
+	if pr := hookFailed(ix, p, cs); pr != nil {
+		return pr
+	}
 	if (t.ExitCode == 137 || t.ExitCode == 143) && probeKilled(ix, p, cs.Name) != nil {
 		return livenessKilled(ix, p, cs)
 	}
@@ -548,6 +551,34 @@ func logEvidence(p kube.Pod, container string, l snapshot.Log) Evidence {
 	}
 	return Evidence{Object: p.Ref(), What: fmt.Sprintf("last lines of container %s's log (%s)", container, run),
 		Detail: strings.Join(lines, "\n"), Command: cmdLogs(p, container, l.Previous)}
+}
+
+// hookFailed finds a container that the kubelet killed because its postStart hook failed. Such a container exits
+// with 137 and crash-loops like any other, and the hook's failure is only in the pod's events.
+func hookFailed(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	var ev []Evidence
+	var detail string
+	for _, e := range ix.eventsFor(p.Ref(), "FailedPostStartHook") {
+		if !mentionsContainer(e, cs.Name) && !strings.Contains(e.Message, `Container "`+cs.Name+`"`) {
+			continue
+		}
+		ev = append(ev, eventEvidence(p.Ref(), e))
+		if detail == "" && strings.Contains(e.Message, "failed - error:") {
+			detail = e.Message[strings.Index(e.Message, "failed - error:")+len("failed - error: "):]
+		}
+		if len(ev) == 2 {
+			break
+		}
+	}
+	if len(ev) == 0 {
+		return nil
+	}
+	cause := fmt.Sprintf("container %s's postStart hook fails, so the kubelet kills the container each time it starts", cs.Name)
+	if detail != "" {
+		cause += ": " + clip(detail, 200)
+	}
+	return newProblem(p, cs.Name, "KD116", "Lifecycle hook fails", Critical, cause, "poststart|"+cs.Name,
+		"Fix the postStart hook's command or HTTP target so it succeeds, or remove the hook; the container cannot run while it fails.", ev...)
 }
 
 func exitMeaning(code int32) string {

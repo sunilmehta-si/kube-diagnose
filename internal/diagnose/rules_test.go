@@ -614,3 +614,17 @@ func TestImagePullSecretWrongType(t *testing.T) {
 		t.Errorf("evidence: %+v", f.Evidence)
 	}
 }
+
+func TestPostStartHookFails(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	crashed(&p, 137, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	e1 := event("Pod", "web", "FailedPostStartHook", `Exec lifecycle hook ([sh -c /opt/warm-cache.sh]) for Container "web" in Pod "web_shop(5f1c)" failed - error: command 'sh -c /opt/warm-cache.sh' exited with 127: sh: /opt/warm-cache.sh: not found, message: "sh: /opt/warm-cache.sh: not found\n"`, 0)
+	e1.InvolvedObject.FieldPath = "spec.containers{web}"
+	e2 := event("Pod", "web", "FailedPostStartHook", "PostStartHook failed", 0)
+	e2.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e1, e2}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD116", "Pod shop/web", "postStart hook fails", "/opt/warm-cache.sh: not found")
+}
