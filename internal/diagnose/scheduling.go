@@ -154,6 +154,24 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 				Command: `kubectl get nodes -o custom-columns=NAME:.metadata.name,UNSCHEDULABLE:.spec.unschedulable`}), cause
 	case strings.Contains(r.text, "PersistentVolumeClaim") || strings.Contains(r.text, "persistentvolumeclaim"):
 		return pvcBlocked(ix, p, r.text), "it waits for a PersistentVolumeClaim"
+	case strings.Contains(r.text, "topology spread constraints") || strings.Contains(r.text, "pod affinity rules") ||
+		strings.Contains(r.text, "pod anti-affinity rules"):
+		what := "its pod anti-affinity rules"
+		switch {
+		case strings.Contains(r.text, "topology spread"):
+			what = "its topology spread constraints"
+		case strings.Contains(r.text, "pod affinity rules"):
+			what = "its pod affinity rules"
+		}
+		cause := fmt.Sprintf("%s %s", nodesVerb(r.nodes, "fails", "fail"), what)
+		if strings.Contains(r.text, "missing required label") {
+			cause += " (they lack the label the constraint's topologyKey names)"
+		}
+		return newProblem(p, "", "KD144", "Pod spread or affinity rules cannot be met", Critical,
+			"no node can run the pod: "+cause, "spread|"+what,
+			"Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count.",
+			Evidence{Object: p.Ref(), What: "pod scheduling constraints",
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}")}), cause
 	case r.text == "Too many pods":
 		return insufficient(ix, p, "pods", r.nodes)
 	}

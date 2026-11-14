@@ -687,3 +687,22 @@ func TestEvictions(t *testing.T) {
 	expect(t, only(t, Diagnose(evict("The node was low on resource: ephemeral-storage. Threshold quantity: 3Gi, available: 1Gi. Container web was using 2Gi, request is 0, has larger consumption of ephemeral-storage. "))),
 		"KD192", "Pod shop/web", "the node ran low on ephemeral-storage")
 }
+
+func unschedulablePod(msg string) kube.Pod {
+	p := pod("web", "")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable", Message: msg}}
+	p.Status.ContainerStatuses = nil
+	return p
+}
+
+func TestUnschedulableSpreadAndAffinity(t *testing.T) {
+	s := snap()
+	s.Pods = []kube.Pod{unschedulablePod("0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web", "1 node fails its topology spread constraints")
+	s.Pods = []kube.Pod{unschedulablePod("0/3 nodes are available: 3 node(s) didn't match pod anti-affinity rules. preemption: 0/3 nodes are available: 3 No preemption victims found for incoming pod.")}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web", "3 nodes fail its pod anti-affinity rules")
+	s.Pods = []kube.Pod{unschedulablePod("0/2 nodes are available: 2 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.")}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web", "lack the label the constraint's topologyKey names")
+}
