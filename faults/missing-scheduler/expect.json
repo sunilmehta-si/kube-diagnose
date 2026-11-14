@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-missing-scheduler",
+  "description": "Pods name a scheduler (volcano) that is not installed, so nothing ever schedules them.",
+  "rule": "KD148",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "volcano"
+    ],
+    [
+      "scheduler"
+    ]
+  ]
+}
