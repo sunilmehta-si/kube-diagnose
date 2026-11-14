@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-pod-anti-affinity",
+  "description": "Two replicas require different nodes (pod anti-affinity) on a one-node cluster, so the second is never scheduled.",
+  "rule": "KD144",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "anti-affinity"
+    ]
+  ]
+}
