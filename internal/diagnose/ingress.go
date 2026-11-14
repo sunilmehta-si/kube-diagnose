@@ -48,6 +48,9 @@ func ingressFindings(ix *index) []Finding {
 	}
 	var out []Finding
 	for _, ing := range ix.s.Ingresses {
+		if f := ingressClassMissing(ix, ing); f != nil {
+			out = append(out, *f)
+		}
 		ns := ing.Metadata.Namespace
 		missing := map[string][]string{} // Service -> routes
 		var badPorts []string
@@ -110,4 +113,47 @@ func servicePortMatches(svc kube.Service, b *kube.IngressServiceBackend) (string
 		want = strconv.Quote(b.Port.Name)
 	}
 	return want, "ports " + strings.Join(have, ", "), false
+}
+
+// ingressClassMissing finds an Ingress that no controller will serve: its ingressClassName names a class the
+// cluster does not have, or it names none and no class is marked default. The legacy kubernetes.io/ingress.class
+// annotation is still honoured by some controllers, so an Ingress that carries it is left alone.
+func ingressClassMissing(ix *index, ing kube.Ingress) *Finding {
+	if !ix.read("ingressclasses.networking.k8s.io") || ing.Metadata.Annotations["kubernetes.io/ingress.class"] != "" {
+		return nil
+	}
+	var names []string
+	def := ""
+	for _, c := range ix.s.IngressClasses {
+		n := c.Metadata.Name
+		if c.IsDefault() {
+			def = n
+			n += " (default)"
+		}
+		names = append(names, n)
+	}
+	have := "the cluster has no IngressClasses"
+	if len(names) > 0 {
+		sort.Strings(names)
+		have = "the cluster has " + strings.Join(names, ", ")
+	}
+	var cause string
+	switch name := ing.Spec.IngressClassName; {
+	case name != nil && *name != "":
+		for _, c := range ix.s.IngressClasses {
+			if c.Metadata.Name == *name {
+				return nil
+			}
+		}
+		cause = fmt.Sprintf("Ingress %s asks for IngressClass %s, which does not exist (%s), so no controller serves it", ing.Metadata.Name, *name, have)
+	case def == "":
+		cause = fmt.Sprintf("Ingress %s names no IngressClass and none is marked default (%s), so no controller serves it", ing.Metadata.Name, have)
+	default:
+		return nil
+	}
+	return &Finding{Rule: "KD167", Title: "Ingress has no controller", Severity: Critical, Object: ing.Ref(), Cause: cause,
+		Evidence: []Evidence{
+			{Object: ing.Ref(), What: "Ingress class", Command: cmdGet("ingress", ing.Metadata.Namespace, ing.Metadata.Name, "{.spec.ingressClassName}")},
+			{Object: kube.Ref{Kind: "IngressClass", Name: "*"}, What: have, Command: "kubectl get ingressclasses"}},
+		Fix: "Set ingressClassName to an installed class, or install the ingress controller the class belongs to (and mark one class default if Ingresses omit it)."}
 }

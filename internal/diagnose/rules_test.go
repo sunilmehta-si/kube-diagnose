@@ -865,8 +865,15 @@ func ingress(name, svc string, port int32, portName string) kube.Ingress {
 	return ing
 }
 
+// defaultIngressClass gives the cluster an IngressClass marked default, so backend tests have a served Ingress.
+func defaultIngressClass(s *snapshot.Snapshot) {
+	s.IngressClasses = []kube.IngressClass{{Metadata: kube.ObjectMeta{Name: "nginx",
+		Annotations: map[string]string{"ingressclass.kubernetes.io/is-default-class": "true"}}}}
+}
+
 func TestIngressBackendServiceMissing(t *testing.T) {
 	s := snap()
+	defaultIngressClass(s)
 	s.Pods = []kube.Pod{pod("web", "")}
 	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
 	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
@@ -882,6 +889,7 @@ func TestIngressBackendServiceMissing(t *testing.T) {
 
 func TestIngressBackendPortMissing(t *testing.T) {
 	s := snap()
+	defaultIngressClass(s)
 	s.Pods = []kube.Pod{pod("web", "")}
 	svc := service("web", map[string]string{"app": "web"}, named("http"))
 	svc.Spec.Ports[0].Name = "http"
@@ -897,5 +905,36 @@ func TestIngressBackendPortMissing(t *testing.T) {
 	s.Ingresses = []kube.Ingress{ingress("shop", "web", 0, "http")}
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestIngressClassMissing(t *testing.T) {
+	s := snap()
+	s.Pods = []kube.Pod{pod("web", "")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	ing := ingress("shop", "web", 80, "")
+	class := "nginx-internal"
+	ing.Spec.IngressClassName = &class
+	s.Ingresses = []kube.Ingress{ing}
+	s.IngressClasses = []kube.IngressClass{{Metadata: kube.ObjectMeta{Name: "nginx"}}}
+	expect(t, only(t, Diagnose(s)), "KD167", "Ingress shop/shop", "asks for IngressClass nginx-internal, which does not exist (the cluster has nginx)")
+
+	s.Ingresses[0].Spec.IngressClassName = nil
+	expect(t, only(t, Diagnose(s)), "KD167", "Ingress shop/shop", "names no IngressClass and none is marked default")
+
+	s.IngressClasses[0].Metadata.Annotations = map[string]string{"ingressclass.kubernetes.io/is-default-class": "true"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("default class: %+v", r.Findings)
+	}
+	s.IngressClasses = nil
+	s.Ingresses[0].Metadata.Annotations = map[string]string{"kubernetes.io/ingress.class": "nginx"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("legacy annotation: %+v", r.Findings)
+	}
+	s.Ingresses[0].Metadata.Annotations = nil
+	s.Gaps = []snapshot.Gap{{Resource: "ingressclasses.networking.k8s.io", Error: "forbidden"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("unread class list: %+v", r.Findings)
 	}
 }
