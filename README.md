@@ -49,12 +49,15 @@ between two kills. A test keeps this block identical to what the code prints for
 - **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 40 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 62 rules ([docs/rules.md](docs/rules.md)): images that do not exist or cannot be pulled, crashes (with the
-exit code explained and the log line that reads like the error quoted), out-of-memory kills, probes on the wrong port,
-missing ConfigMaps, Secrets and keys, pods no node can take (with the request and the largest node's capacity),
-claims for StorageClasses that do not exist, Services that select nothing or target a port the pods do not have,
-NetworkPolicies that shut a Service off, exhausted quotas, missing ServiceAccounts, Pod Security and webhook
-rejections, failed Jobs, and nodes that are not ready.
+It knows 62 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled or are rate-limited,
+pull secrets that are missing or of the wrong type, crashes (with the exit code explained and the log line that reads
+like the error quoted), out-of-memory kills, probes on the wrong port, failing lifecycle hooks, runAsNonRoot with a
+root image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys, pods no node can take (with
+the request and the largest node's capacity, or the spread rule, host port, volume zone or missing scheduler that
+stops them), volumes still attached to another node, claims for StorageClasses that do not exist, Services and
+Ingresses that send traffic nowhere, NetworkPolicies that shut a Service off, exhausted quotas, LimitRange,
+PriorityClass, ServiceAccount, Pod Security and webhook rejections, HPAs that cannot scale, PodDisruptionBudgets that
+block drains, evictions, failed Jobs, and nodes that are not ready.
 
 ## Install
 
