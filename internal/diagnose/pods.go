@@ -376,6 +376,7 @@ func missingKey(ix *index, p kube.Pod, container, kind, name, key string, ev []E
 }
 
 var (
+	reMultiAttach = regexp.MustCompile(`Multi-Attach error for volume "([^"]+)"(?: Volume is already used by pod\(s\) ([^\s,]+))?`)
 	reMountCM     = regexp.MustCompile(`configmap "([^"]+)" not found`)
 	reMountSecret = regexp.MustCompile(`secret "([^"]+)" not found`)
 	reMountKey    = regexp.MustCompile(`references non-existent (config|secret) key: (\S+)`)
@@ -385,6 +386,20 @@ var (
 func mountProblem(ix *index, p kube.Pod) *problem {
 	if p.Status.Phase != "Pending" {
 		return nil
+	}
+	for _, e := range ix.eventsFor(p.Ref(), "FailedAttachVolume") {
+		m := reMultiAttach.FindStringSubmatch(e.Message)
+		if m == nil {
+			continue
+		}
+		cause := fmt.Sprintf("volume %s can be attached to one node at a time and is still attached elsewhere", m[1])
+		if m[2] != "" {
+			cause = fmt.Sprintf("volume %s can be attached to one node at a time and is still in use by pod %s on another node", m[1], m[2])
+		}
+		return newProblem(p, "", "KD155", "Volume is attached to another node", Critical, cause, "multiattach|"+m[1],
+			"Let the other pod stop first (use the Recreate strategy for single-replica Deployments with ReadWriteOnce volumes, or a StatefulSet), or use a ReadWriteMany volume. If the other node is gone, check its VolumeAttachment.",
+			eventEvidence(p.Ref(), e), Evidence{Object: kube.Ref{Kind: "VolumeAttachment", Name: "*"}, What: "volume attachments",
+				Command: "kubectl get volumeattachments"})
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "FailedMount") {
 		ev := []Evidence{eventEvidence(p.Ref(), e)}

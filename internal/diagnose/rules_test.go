@@ -728,3 +728,19 @@ func TestUnschedulableVolumeNodeAffinity(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD154", "Pod shop/web", "2 nodes are outside the node or zone that volume pvc-7f3a (claim data) is pinned to", "1 node has too little free memory")
 }
+
+func TestMultiAttach(t *testing.T) {
+	s := snap()
+	p := pod("db", "")
+	p.Status.Phase = "Pending"
+	waiting(&p, "ContainerCreating", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "db", "FailedAttachVolume", `Multi-Attach error for volume "pvc-7f3a" Volume is already used by pod(s) db-5c9f-old, exclusively attached to one node and can't be attached to another`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD155", "Pod shop/db", "volume pvc-7f3a can be attached to one node at a time and is still in use by pod db-5c9f-old")
+	if !strings.Contains(f.Fix, "Recreate") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Events = []kube.Event{event("Pod", "db", "FailedAttachVolume", `Multi-Attach error for volume "pvc-7f3a" Volume is already exclusively attached to one node and can't be attached to another`, 0)}
+	expect(t, only(t, Diagnose(s)), "KD155", "Pod shop/db", "still attached elsewhere")
+}
