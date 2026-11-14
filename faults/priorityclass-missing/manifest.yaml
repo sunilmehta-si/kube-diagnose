@@ -1,0 +1,27 @@
+# Pods name a PriorityClass that does not exist, so none is created.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-priorityclass-missing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-priorityclass-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      priorityClassName: business-critical
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]

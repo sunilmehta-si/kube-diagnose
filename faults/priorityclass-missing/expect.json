@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-priorityclass-missing",
+  "description": "Pods name a PriorityClass that does not exist, so none is created.",
+  "rule": "KD175",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "business-critical"
+    ],
+    [
+      "priorityclass"
+    ]
+  ]
+}
