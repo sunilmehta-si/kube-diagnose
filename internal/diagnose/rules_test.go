@@ -714,3 +714,17 @@ func TestUnschedulableHostPort(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD145", "Pod shop/web", "1 node has hostPort 80 in use already")
 }
+
+func TestUnschedulableVolumeNodeAffinity(t *testing.T) {
+	s := snap()
+	p := unschedulablePod("0/3 nodes are available: 1 Insufficient memory, 2 node(s) had volume node affinity conflict. preemption: 0/3 nodes are available: 1 No preemption victims found for incoming pod, 2 Preemption is not helpful for scheduling.")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.VolumeName = "pvc-7f3a"
+	pvc.Status.Phase = "Bound"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD154", "Pod shop/web", "2 nodes are outside the node or zone that volume pvc-7f3a (claim data) is pinned to", "1 node has too little free memory")
+}

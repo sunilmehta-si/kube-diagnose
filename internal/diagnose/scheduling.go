@@ -172,6 +172,28 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 			"Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count.",
 			Evidence{Object: p.Ref(), What: "pod scheduling constraints",
 				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}")}), cause
+	case strings.Contains(r.text, "volume node affinity conflict"):
+		var vols []string
+		var ev []Evidence
+		for _, v := range p.Spec.Volumes {
+			if v.PersistentVolumeClaim == nil {
+				continue
+			}
+			if pvc, ok := ix.pvcs[nsName{p.Metadata.Namespace, v.PersistentVolumeClaim.ClaimName}]; ok && pvc.Spec.VolumeName != "" {
+				vols = append(vols, fmt.Sprintf("%s (claim %s)", pvc.Spec.VolumeName, pvc.Metadata.Name))
+				ev = append(ev, Evidence{Object: kube.Ref{Kind: "PersistentVolume", Name: pvc.Spec.VolumeName},
+					What:    fmt.Sprintf("claim %s is bound to PersistentVolume %s", pvc.Metadata.Name, pvc.Spec.VolumeName),
+					Command: cmdGet("pv", "", pvc.Spec.VolumeName, "{.spec.nodeAffinity}")})
+			}
+		}
+		cause := nodesVerb(r.nodes, "is", "are") + " outside the node or zone the pod's volume is pinned to"
+		if len(vols) > 0 {
+			cause = fmt.Sprintf("%s outside the node or zone that volume %s is pinned to", nodesVerb(r.nodes, "is", "are"), strings.Join(vols, ", "))
+		}
+		return newProblem(p, "", "KD154", "Volume is pinned to a node or zone the pod cannot use", Critical,
+			"no node can run the pod: "+cause, "volaffinity|"+strings.Join(vols, ","),
+			"Make a node in the volume's zone available to the pod (capacity, taints, nodeSelector), or use a StorageClass with volumeBindingMode: WaitForFirstConsumer so new volumes are created where the pod can run.",
+			ev...), cause
 	case strings.Contains(r.text, "didn't have free ports"):
 		var ports []string
 		for _, c := range p.Spec.Containers {
