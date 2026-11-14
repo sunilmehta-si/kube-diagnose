@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -222,5 +223,27 @@ func TestNoModuleDependencies(t *testing.T) {
 	}
 	if strings.Contains(string(mod), "require") {
 		t.Error("go.mod has dependencies; the README and SECURITY.md say it has none")
+	}
+}
+
+func TestRecordRedacted(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "shop.snapshot.json.gz")
+	env, _, errb, _ := testEnv(broken())
+	if code := Run([]string{"record", "-n", "shop", "--redact", "-o", path}, env); code != 0 {
+		t.Fatalf("exit %d: %s", code, errb)
+	}
+	s, err := snapshot.Read(path)
+	if err != nil || !s.Redacted || s.Context != "" {
+		t.Fatalf("%v %+v", err, s)
+	}
+	text := fmt.Sprint(s.Pods, s.Events)
+	for _, gone := range []string{"web-1", "registry.example.com/web", "kind-faults"} {
+		if strings.Contains(text, gone) {
+			t.Errorf("%q survived redaction", gone)
+		}
+	}
+	offline, out, _, _ := testEnv(nil)
+	if Run([]string{"--snapshot", path}, offline) != 0 || !strings.Contains(out.String(), "KD101") {
+		t.Errorf("redacted snapshot should diagnose the same: %s", out)
 	}
 }
