@@ -120,6 +120,7 @@ type LabelSelector struct {
 type ContainerPort struct {
 	Name          string `json:"name,omitempty"`
 	ContainerPort int32  `json:"containerPort"`
+	HostPort      int32  `json:"hostPort,omitempty"`
 	Protocol      string `json:"protocol,omitempty"`
 }
 

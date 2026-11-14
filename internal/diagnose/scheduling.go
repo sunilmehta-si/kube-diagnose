@@ -172,6 +172,24 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 			"Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count.",
 			Evidence{Object: p.Ref(), What: "pod scheduling constraints",
 				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}")}), cause
+	case strings.Contains(r.text, "didn't have free ports"):
+		var ports []string
+		for _, c := range p.Spec.Containers {
+			for _, cp := range c.Ports {
+				if cp.HostPort != 0 {
+					ports = append(ports, strconv.Itoa(int(cp.HostPort)))
+				}
+			}
+		}
+		cause := nodesVerb(r.nodes, "has", "have") + " the pod's hostPort in use already"
+		if len(ports) > 0 {
+			cause = fmt.Sprintf("%s hostPort %s in use already", nodesVerb(r.nodes, "has", "have"), strings.Join(ports, ", "))
+		}
+		return newProblem(p, "", "KD145", "Host port is taken on every node", Critical, "no node can run the pod: "+cause,
+			"hostport|"+strings.Join(ports, ","),
+			"Drop hostPort and reach the pod through a Service, or run at most one such pod per node (a DaemonSet, or fewer replicas than nodes).",
+			Evidence{Object: p.Ref(), What: "pod requests host ports " + strings.Join(ports, ", "),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.containers[*].ports}")}), cause
 	case r.text == "Too many pods":
 		return insufficient(ix, p, "pods", r.nodes)
 	}

@@ -49,7 +49,7 @@ between two kills. A test keeps this block identical to what the code prints for
 - **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 23 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 49 rules ([docs/rules.md](docs/rules.md)): images that do not exist or cannot be pulled, crashes (with the
+It knows 50 rules ([docs/rules.md](docs/rules.md)): images that do not exist or cannot be pulled, crashes (with the
 exit code explained and the log line that reads like the error quoted), out-of-memory kills, probes on the wrong port,
 missing ConfigMaps, Secrets and keys, pods no node can take (with the request and the largest node's capacity),
 claims for StorageClasses that do not exist, Services that select nothing or target a port the pods do not have,

@@ -706,3 +706,11 @@ func TestUnschedulableSpreadAndAffinity(t *testing.T) {
 	s.Pods = []kube.Pod{unschedulablePod("0/2 nodes are available: 2 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.")}
 	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web", "lack the label the constraint's topologyKey names")
 }
+
+func TestUnschedulableHostPort(t *testing.T) {
+	s := snap()
+	p := unschedulablePod("0/1 nodes are available: 1 node(s) didn't have free ports for the requested pod ports. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 8080, HostPort: 80}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD145", "Pod shop/web", "1 node has hostPort 80 in use already")
+}
