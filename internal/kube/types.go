@@ -463,20 +463,24 @@ type IngressBackend struct {
 	Service *IngressServiceBackend `json:"service,omitempty"`
 }
 
+type HTTPIngressPath struct {
+	Path    string         `json:"path,omitempty"`
+	Backend IngressBackend `json:"backend"`
+}
+
+type IngressRule struct {
+	Host string `json:"host,omitempty"`
+	HTTP *struct {
+		Paths []HTTPIngressPath `json:"paths"`
+	} `json:"http,omitempty"`
+}
+
 type Ingress struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
 		IngressClassName *string         `json:"ingressClassName,omitempty"`
 		DefaultBackend   *IngressBackend `json:"defaultBackend,omitempty"`
-		Rules            []struct {
-			Host string `json:"host,omitempty"`
-			HTTP *struct {
-				Paths []struct {
-					Path    string         `json:"path,omitempty"`
-					Backend IngressBackend `json:"backend"`
-				} `json:"paths"`
-			} `json:"http,omitempty"`
-		} `json:"rules,omitempty"`
+		Rules            []IngressRule   `json:"rules,omitempty"`
 	} `json:"spec"`
 }
 

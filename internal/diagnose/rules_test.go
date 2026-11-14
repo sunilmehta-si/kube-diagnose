@@ -857,26 +857,11 @@ func ingress(name, svc string, port int32, portName string) kube.Ingress {
 	ing.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
 	b := &kube.IngressServiceBackend{Name: svc}
 	b.Port.Number, b.Port.Name = port, portName
-	ing.Spec.Rules = make([]struct {
-		Host string `json:"host,omitempty"`
-		HTTP *struct {
-			Paths []struct {
-				Path    string              `json:"path,omitempty"`
-				Backend kube.IngressBackend `json:"backend"`
-			} `json:"paths"`
-		} `json:"http,omitempty"`
-	}, 1)
-	ing.Spec.Rules[0].Host = "shop.example.com"
-	ing.Spec.Rules[0].HTTP = &struct {
-		Paths []struct {
-			Path    string              `json:"path,omitempty"`
-			Backend kube.IngressBackend `json:"backend"`
-		} `json:"paths"`
-	}{}
-	ing.Spec.Rules[0].HTTP.Paths = append(ing.Spec.Rules[0].HTTP.Paths, struct {
-		Path    string              `json:"path,omitempty"`
-		Backend kube.IngressBackend `json:"backend"`
-	}{Path: "/api", Backend: kube.IngressBackend{Service: b}})
+	rule := kube.IngressRule{Host: "shop.example.com"}
+	rule.HTTP = &struct {
+		Paths []kube.HTTPIngressPath `json:"paths"`
+	}{Paths: []kube.HTTPIngressPath{{Path: "/api", Backend: kube.IngressBackend{Service: b}}}}
+	ing.Spec.Rules = []kube.IngressRule{rule}
 	return ing
 }
 
