@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-ingress-class-missing",
+  "description": "An Ingress asks for an IngressClass that does not exist, so no controller serves it.",
+  "rule": "KD167",
+  "object": "Ingress/web",
+  "keywords": [
+    [
+      "nginx-internal"
+    ]
+  ]
+}
