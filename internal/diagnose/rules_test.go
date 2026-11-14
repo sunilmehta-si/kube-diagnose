@@ -812,3 +812,12 @@ func TestHPACannotReadMetrics(t *testing.T) {
 		t.Errorf("working HPA: %+v", r.Findings)
 	}
 }
+
+func TestHPAHeldAtMaximum(t *testing.T) {
+	s := snap()
+	h := hpa("web", kube.Condition{Type: "ScalingActive", Status: "True", Reason: "ValidMetricFound"},
+		kube.Condition{Type: "ScalingLimited", Status: "True", Reason: "TooManyReplicas", Message: "the desired replica count is more than the maximum replica count"})
+	h.Status.CurrentReplicas = 5
+	s.HPAs = []kube.HorizontalPodAutoscaler{h}
+	expect(t, only(t, Diagnose(s)), "KD177", "HorizontalPodAutoscaler shop/web", "maxReplicas of 5, so the workload runs at 5 replicas")
+}

@@ -17,6 +17,8 @@ func hpaFindings(ix *index) []Finding {
 	for _, h := range ix.s.HPAs {
 		if f := hpaMetrics(h); f != nil {
 			out = append(out, *f)
+		} else if f := hpaAtMax(h); f != nil {
+			out = append(out, *f)
 		}
 	}
 	return out
@@ -54,4 +56,20 @@ func hpaMetrics(h kube.HorizontalPodAutoscaler) *Finding {
 		f.Fix = "Check that the metric the HPA names exists and that its adapter (metrics-server, prometheus-adapter, KEDA) serves it."
 	}
 	return f
+}
+
+// hpaAtMax finds an HPA that computes more replicas than maxReplicas allows, so the workload runs short.
+func hpaAtMax(h kube.HorizontalPodAutoscaler) *Finding {
+	c, ok := kube.FindCondition(h.Status.Conditions, "ScalingLimited")
+	if !ok || c.Status != "True" || c.Reason != "TooManyReplicas" {
+		return nil
+	}
+	ev := hpaCondition(h, "ScalingLimited")
+	ev.What, ev.Detail = "ScalingLimited is True, reason TooManyReplicas", c.Message
+	target := h.Spec.ScaleTargetRef.Kind + " " + h.Spec.ScaleTargetRef.Name
+	return &Finding{Rule: "KD177", Title: "HPA is held at its maximum", Severity: Warning, Object: h.Ref(),
+		Cause: fmt.Sprintf("HPA %s wants more replicas of %s than its maxReplicas of %d, so the workload runs at %d replicas under more load than its target",
+			h.Metadata.Name, target, h.Spec.MaxReplicas, h.Status.CurrentReplicas),
+		Evidence: []Evidence{ev}, Fix: "Raise maxReplicas if the cluster has room, or lower the per-replica load (a higher target, faster replicas).",
+		Affects: []kube.Ref{{Kind: h.Spec.ScaleTargetRef.Kind, Namespace: h.Metadata.Namespace, Name: h.Spec.ScaleTargetRef.Name}}}
 }
