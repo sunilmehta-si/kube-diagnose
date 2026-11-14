@@ -84,6 +84,7 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		func() error { return list(ctx, r, s, "events", ns, scope, &s.Events) },
 		func() error { return list(ctx, r, s, "services", ns, scope, &s.Services) },
 		func() error { return list(ctx, r, s, "endpointslices.discovery.k8s.io", ns, scope, &s.EndpointSlices) },
+		func() error { return list(ctx, r, s, "ingresses.networking.k8s.io", ns, scope, &s.Ingresses) },
 		func() error { return workloads(ctx, r, s, ns, scope) },
 		func() error { return list(ctx, r, s, "jobs.batch", ns, scope, &s.Jobs) },
 		func() error { return list(ctx, r, s, "horizontalpodautoscalers.autoscaling", ns, scope, &s.HPAs) },
@@ -98,6 +99,7 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		func() error { return keys(ctx, r, s, "secrets", ns, scope, secretKeys, &s.Secrets) },
 		func() error { return list(ctx, r, s, "nodes", "", nil, &s.Nodes) },
 		func() error { return list(ctx, r, s, "storageclasses.storage.k8s.io", "", nil, &s.StorageClasses) },
+		func() error { return list(ctx, r, s, "ingressclasses.networking.k8s.io", "", nil, &s.IngressClasses) },
 		func() error { return list(ctx, r, s, "persistentvolumes", "", nil, &s.PVs) },
 	}
 	for _, step := range steps {

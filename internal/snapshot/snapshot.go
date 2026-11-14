@@ -49,6 +49,8 @@ type Snapshot struct {
 	Nodes           []kube.Node                    `json:"nodes"`
 	Services        []kube.Service                 `json:"services"`
 	EndpointSlices  []kube.EndpointSlice           `json:"endpointSlices"`
+	Ingresses       []kube.Ingress                 `json:"ingresses"`
+	IngressClasses  []kube.IngressClass            `json:"ingressClasses"`
 	Workloads       []kube.Workload                `json:"workloads"`
 	Jobs            []kube.Job                     `json:"jobs"`
 	HPAs            []kube.HorizontalPodAutoscaler `json:"horizontalPodAutoscalers"`

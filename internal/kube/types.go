@@ -451,6 +451,51 @@ type EndpointSlice struct {
 // ServiceName is the Service the slice belongs to.
 func (e EndpointSlice) ServiceName() string { return e.Metadata.Labels["kubernetes.io/service-name"] }
 
+type IngressServiceBackend struct {
+	Name string `json:"name"`
+	Port struct {
+		Name   string `json:"name,omitempty"`
+		Number int32  `json:"number,omitempty"`
+	} `json:"port"`
+}
+
+type IngressBackend struct {
+	Service *IngressServiceBackend `json:"service,omitempty"`
+}
+
+type Ingress struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		IngressClassName *string         `json:"ingressClassName,omitempty"`
+		DefaultBackend   *IngressBackend `json:"defaultBackend,omitempty"`
+		Rules            []struct {
+			Host string `json:"host,omitempty"`
+			HTTP *struct {
+				Paths []struct {
+					Path    string         `json:"path,omitempty"`
+					Backend IngressBackend `json:"backend"`
+				} `json:"paths"`
+			} `json:"http,omitempty"`
+		} `json:"rules,omitempty"`
+	} `json:"spec"`
+}
+
+func (i Ingress) Ref() Ref {
+	return Ref{Kind: "Ingress", Namespace: i.Metadata.Namespace, Name: i.Metadata.Name}
+}
+
+type IngressClass struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Controller string `json:"controller"`
+	} `json:"spec"`
+}
+
+// IsDefault reports whether the class is marked as the cluster default.
+func (c IngressClass) IsDefault() bool {
+	return c.Metadata.Annotations["ingressclass.kubernetes.io/is-default-class"] == "true"
+}
+
 // ---- Workloads ----
 
 type PodTemplate struct {
