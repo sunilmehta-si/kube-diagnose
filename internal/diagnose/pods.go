@@ -237,8 +237,9 @@ func registry(image string) string {
 // ---- configuration ----
 
 var (
-	reMissingObject = regexp.MustCompile(`(configmap|secret) "([^"]+)" not found`)
-	reMissingKey    = regexp.MustCompile(`couldn't find key (\S+) in (ConfigMap|Secret) ([^/\s]+)/(\S+)`)
+	reMissingObject  = regexp.MustCompile(`(configmap|secret) "([^"]+)" not found`)
+	reNonNumericUser = regexp.MustCompile(`image has non-numeric user \(([^)]+)\)`)
+	reMissingKey     = regexp.MustCompile(`couldn't find key (\S+) in (ConfigMap|Secret) ([^/\s]+)/(\S+)`)
 )
 
 func configError(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -246,6 +247,16 @@ func configError(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	ev := []Evidence{waitingEvidence(p, cs)}
 	if m := reMissingKey.FindStringSubmatch(msg); m != nil {
 		return missingKey(ix, p, cs.Name, m[2], m[4], m[1], ev)
+	}
+	if strings.Contains(msg, "container has runAsNonRoot and image") {
+		image := imageOf(p, cs)
+		cause := fmt.Sprintf("container %s must run as a non-root user (runAsNonRoot), but image %s runs as root", cs.Name, image)
+		fix := "Set securityContext.runAsUser to a non-zero UID the image supports, or use an image built to run as a non-root user."
+		if m := reNonNumericUser.FindStringSubmatch(msg); m != nil {
+			cause = fmt.Sprintf("container %s must run as a non-root user (runAsNonRoot), and image %s names its user %q, which the kubelet cannot check is not root", cs.Name, image, m[1])
+			fix = fmt.Sprintf("Set securityContext.runAsUser to the numeric UID of %s, or build the image with USER set to a number.", m[1])
+		}
+		return newProblem(p, cs.Name, "KD117", "Image runs as root but the pod requires non-root", Critical, cause, "nonroot|"+image, fix, ev...)
 	}
 	if m := reMissingObject.FindStringSubmatch(msg); m != nil {
 		return missingObject(ix, p, cs.Name, m[1], m[2], ev)

@@ -628,3 +628,21 @@ func TestPostStartHookFails(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD116", "Pod shop/web", "postStart hook fails", "/opt/warm-cache.sh: not found")
 }
+
+func TestRunAsNonRootWithARootImage(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "nginx:1.29"
+	waiting(&p, "CreateContainerConfigError", `container has runAsNonRoot and image will run as root (pod: "web_shop(5f1c)", container: web)`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD117", "Pod shop/web", "must run as a non-root user (runAsNonRoot), but image nginx:1.29 runs as root")
+
+	waiting(&p, "CreateContainerConfigError", `container has runAsNonRoot and image has non-numeric user (appuser), cannot verify user is non-root (pod: "web_shop(5f1c)", container: web)`)
+	s.Pods = []kube.Pod{p}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD117", "Pod shop/web", `names its user "appuser"`)
+	if !strings.Contains(f.Fix, "numeric UID of appuser") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
