@@ -191,8 +191,17 @@ func pullSecretProblem(ix *index, p kube.Pod, cs kube.ContainerStatus, image str
 	}
 	ns := p.Metadata.Namespace
 	for _, ref := range p.Spec.ImagePullSecrets {
-		if _, ok := ix.secrets[nsName{ns, ref.Name}]; ok {
-			continue
+		if sec, ok := ix.secrets[nsName{ns, ref.Name}]; ok {
+			if sec.Type == "kubernetes.io/dockerconfigjson" || sec.Type == "kubernetes.io/dockercfg" {
+				continue
+			}
+			// The kubelet reads registry credentials only from these two Secret types and skips any other.
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "Secret", Namespace: ns, Name: ref.Name},
+				What:    fmt.Sprintf("Secret %s has type %s and keys %s", ref.Name, sec.Type, strings.Join(sec.Keys, ", ")),
+				Command: cmdGet("secret", ns, ref.Name, "{.type}")})
+			return newProblem(p, cs.Name, "KD107", "Image pull secret has the wrong type", Critical,
+				fmt.Sprintf("imagePullSecret %s has type %s; the kubelet reads registry credentials only from kubernetes.io/dockerconfigjson Secrets, so image %s was pulled without them", ref.Name, sec.Type, image),
+				"pullsecrettype|"+ref.Name, fmt.Sprintf("Recreate %s with kubectl create secret docker-registry, which sets the type and the .dockerconfigjson key.", ref.Name), ev...)
 		}
 		for _, e := range ix.eventsFor(p.Ref(), "FailedToRetrieveImagePullSecret") {
 			ev = append(ev, eventEvidence(p.Ref(), e))

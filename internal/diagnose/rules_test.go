@@ -598,3 +598,19 @@ func TestImagePullSecretMissing(t *testing.T) {
 	s.Secrets = nil
 	expect(t, only(t, Diagnose(s)), "KD102", "Pod shop/web", "refused")
 }
+
+func TestImagePullSecretWrongType(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "ghcr.io/acme/web:2.0"
+	p.Spec.ImagePullSecrets = []kube.LocalObjectReference{{Name: "ghcr-creds"}}
+	waiting(&p, "ErrImagePull", "")
+	s.Pods = []kube.Pod{p}
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "ghcr-creds", Type: "Opaque", Keys: []string{"password", "username"}}}
+	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "ghcr.io/acme/web:2.0": failed to authorize: 403 Forbidden`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD107", "Pod shop/web", "imagePullSecret ghcr-creds has type Opaque")
+	if !strings.Contains(f.Evidence[len(f.Evidence)-1].What, "keys password, username") {
+		t.Errorf("evidence: %+v", f.Evidence)
+	}
+}
