@@ -558,3 +558,17 @@ func TestJustExitedContainers(t *testing.T) {
 		t.Errorf("a first exit with no restart yet is not a crash loop: %+v", r.Findings)
 	}
 }
+
+func TestRegistryRateLimit(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "docker.io/library/nginx:1.29"
+	waiting(&p, "ErrImagePull", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "docker.io/library/nginx:1.29": failed to pull and unpack image "docker.io/library/nginx:1.29": failed to copy: httpReadSeeker: failed open: unexpected status code https://registry-1.docker.io/v2/library/nginx/manifests/sha256:4f1d: 429 Too Many Requests - Server message: toomanyrequests: You have reached your unauthenticated pull rate limit. https://www.docker.com/increase-rate-limit`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD105", "Pod shop/web", "rate-limiting pulls of image docker.io/library/nginx:1.29")
+	if !strings.Contains(f.Fix, "imagePullSecrets") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}

@@ -134,9 +134,10 @@ func eventEvidence(r kube.Ref, e kube.Event) Evidence {
 // ---- image pulls ----
 
 var (
-	reNotFound = regexp.MustCompile(`(?i)\bnot found\b|manifest unknown|NotFound|no such manifest|name unknown`)
-	reDenied   = regexp.MustCompile(`(?i)unauthorized|authentication required|access denied|denied:|insufficient_scope|\b40[13]\b|forbidden`)
-	reNetwork  = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
+	reNotFound  = regexp.MustCompile(`(?i)\bnot found\b|manifest unknown|NotFound|no such manifest|name unknown`)
+	reDenied    = regexp.MustCompile(`(?i)unauthorized|authentication required|access denied|denied:|insufficient_scope|\b40[13]\b|forbidden`)
+	reRateLimit = regexp.MustCompile(`(?i)toomanyrequests|429 too many requests|pull rate limit`)
+	reNetwork   = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
 )
 
 func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -151,6 +152,10 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		}
 	}
 	switch {
+	case reRateLimit.MatchString(msg):
+		return newProblem(p, cs.Name, "KD105", "Registry rate-limits the image pull", Critical,
+			fmt.Sprintf("the registry is rate-limiting pulls of image %s (it answered 429 Too Many Requests)", image), "ratelimit|"+registry(image),
+			"Pull with credentials (an account raises the limit; list a docker-registry Secret in imagePullSecrets), or mirror the image to a registry you control.", ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
