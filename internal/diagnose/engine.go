@@ -77,6 +77,7 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	// Services: root causes of their own, and Services left without endpoints by a pod problem.
 	svcFindings, blocked := serviceFindings(ix)
 	r.Findings = append(r.Findings, svcFindings...)
+	r.Findings = append(r.Findings, ingressFindings(ix)...)
 	for _, svc := range sortedRefs(blocked) {
 		attached := false
 		for _, pod := range blocked[svc] {
