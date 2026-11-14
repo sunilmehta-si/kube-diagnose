@@ -525,6 +525,29 @@ func (j Job) Ref() Ref {
 	return Ref{Kind: "Job", Namespace: j.Metadata.Namespace, Name: j.Metadata.Name}
 }
 
+// ---- Autoscaling ----
+
+type HorizontalPodAutoscaler struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ScaleTargetRef struct {
+			Kind string `json:"kind"`
+			Name string `json:"name"`
+		} `json:"scaleTargetRef"`
+		MinReplicas *int32 `json:"minReplicas,omitempty"`
+		MaxReplicas int32  `json:"maxReplicas"`
+	} `json:"spec"`
+	Status struct {
+		CurrentReplicas int32       `json:"currentReplicas,omitempty"`
+		DesiredReplicas int32       `json:"desiredReplicas,omitempty"`
+		Conditions      []Condition `json:"conditions,omitempty"`
+	} `json:"status"`
+}
+
+func (h HorizontalPodAutoscaler) Ref() Ref {
+	return Ref{Kind: "HorizontalPodAutoscaler", Namespace: h.Metadata.Namespace, Name: h.Metadata.Name}
+}
+
 // ---- Storage ----
 
 type PersistentVolumeClaim struct {

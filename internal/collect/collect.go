@@ -86,6 +86,7 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		func() error { return list(ctx, r, s, "endpointslices.discovery.k8s.io", ns, scope, &s.EndpointSlices) },
 		func() error { return workloads(ctx, r, s, ns, scope) },
 		func() error { return list(ctx, r, s, "jobs.batch", ns, scope, &s.Jobs) },
+		func() error { return list(ctx, r, s, "horizontalpodautoscalers.autoscaling", ns, scope, &s.HPAs) },
 		func() error { return list(ctx, r, s, "persistentvolumeclaims", ns, scope, &s.PVCs) },
 		func() error {
 			return list(ctx, r, s, "networkpolicies.networking.k8s.io", ns, scope, &s.NetworkPolicies)

@@ -88,9 +88,10 @@ func TestCollect(t *testing.T) {
 			"version -o":             `{"serverVersion":{"gitVersion":"v1.37.0"}}`,
 			"get pods":               pods,
 			"get deployments.apps":   `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"replicas":2}}]}`,
-			"get configmaps":         "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
-			"get secrets":            "shop\tdb\tOpaque\tpassword,user,\n",
-			"logs web-1 web":         "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
+			"get horizontalpodautoscalers.autoscaling": `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"scaleTargetRef":{"kind":"Deployment","name":"web"},"maxReplicas":5},"status":{"conditions":[{"type":"ScalingActive","status":"False","reason":"FailedGetResourceMetric"}]}}]}`,
+			"get configmaps": "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
+			"get secrets":    "shop\tdb\tOpaque\tpassword,user,\n",
+			"logs web-1 web": "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
 		},
 		errs: map[string]error{
 			"get nodes": &CommandError{Args: []string{"get", "nodes"}, Message: `Error from server (Forbidden): nodes is forbidden: User "dev" cannot list resource "nodes"`},
@@ -103,6 +104,9 @@ func TestCollect(t *testing.T) {
 	}
 	if s.Context != "kind-faults" || s.ServerVersion != "v1.37.0" || !s.CollectedAt.Equal(at) || s.Namespaces[0] != "shop" {
 		t.Errorf("header: %+v", s)
+	}
+	if len(s.HPAs) != 1 || s.HPAs[0].Spec.MaxReplicas != 5 || s.HPAs[0].Spec.ScaleTargetRef.Name != "web" {
+		t.Errorf("hpas %+v", s.HPAs)
 	}
 	if len(s.Pods) != 2 || len(s.Workloads) != 1 || s.Workloads[0].Kind != "Deployment" {
 		t.Errorf("pods %d workloads %+v", len(s.Pods), s.Workloads)
