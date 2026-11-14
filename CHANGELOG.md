@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-11-13
+
 The first version: find why Kubernetes workloads are broken, with the evidence for each cause.
 
 ### Added
