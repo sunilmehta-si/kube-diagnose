@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+- `record --redact`: names, label values, image repositories and IP addresses become pseudonyms, and the context
+  name and logs are dropped, so a snapshot can be attached to a public issue; it diagnoses to the same causes.
+
 ## [0.1.0] - 2026-11-13
 
 The first version: find why Kubernetes workloads are broken, with the evidence for each cause.

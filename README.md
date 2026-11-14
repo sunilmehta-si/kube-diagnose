@@ -88,7 +88,10 @@ and PersistentVolumes in the cluster, and to read pod logs. With less, it diagno
 it could not read.
 
 A snapshot holds object names, labels, event messages and log lines (never Secret or ConfigMap values) and is
-written readable by you only; treat it like the cluster data it came from.
+written readable by you only; treat it like the cluster data it came from. To share one in an issue, record it with
+`--redact`: names, label values, image repositories and IP addresses become pseudonyms, the context name and the
+logs are dropped, and the redacted snapshot still diagnoses to the same causes (crash causes that only a log line
+shows are lost with the logs).
 
 ## The fault suite
 
