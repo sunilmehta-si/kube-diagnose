@@ -1,0 +1,39 @@
+# A private image is pulled with an imagePullSecret of type Opaque, which the kubelet ignores.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pull-secret-wrong-type
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ghcr-creds
+  namespace: kd-pull-secret-wrong-type
+type: Opaque
+stringData:
+  username: kube-diagnose
+  password: not-a-real-token
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-pull-secret-wrong-type
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      imagePullSecrets:
+        - name: ghcr-creds
+      containers:
+        - name: web
+          image: ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0
+          command: ["sleep", "3600"]
