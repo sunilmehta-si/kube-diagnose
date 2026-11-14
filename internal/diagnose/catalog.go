@@ -57,7 +57,8 @@ var Rules = []Rule{
 	{"KD181", "Deployment rollout stalled", Warning, "A Deployment passed its progress deadline and no pod finding explains it.", "The Progressing condition with ProgressDeadlineExceeded."},
 	{"KD190", "Node is not ready", Critical, "A node's Ready condition is False or Unknown; the pods on it are listed.", "The node's Ready condition."},
 	{"KD191", "Node is under pressure", Warning, "A node reports MemoryPressure, DiskPressure, PIDPressure or NetworkUnavailable.", "The node's condition."},
-	{"KD192", "Pod was evicted", Warning, "The kubelet evicted a pod, usually for node pressure.", "The pod's Evicted status and message."},
+	{"KD192", "Pod was evicted", Warning, "The kubelet evicted a pod, usually because the node ran low on memory or disk; the resource is named.", "The pod's Evicted status and message."},
+	{"KD193", "Container exceeded its ephemeral storage limit", Warning, "The kubelet evicted a pod because a container, or the pod as a whole, wrote more to local disk than its ephemeral-storage limit.", "The pod's Evicted status and message."},
 }
 
 // RuleByID finds a rule.

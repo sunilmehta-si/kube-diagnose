@@ -672,3 +672,18 @@ func TestReadOnlyRootFilesystem(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD110", "Pod shop/web", "Read-only file system")
 }
+
+func TestEvictions(t *testing.T) {
+	evict := func(msg string) *snapshot.Snapshot {
+		s := snap()
+		p := pod("web", "")
+		p.Status.Phase, p.Status.Reason, p.Status.Message = "Failed", "Evicted", msg
+		s.Pods = []kube.Pod{p}
+		return s
+	}
+	expect(t, only(t, Diagnose(evict(`Container web exceeded its local ephemeral storage limit "500Mi". `))), "KD193", "Pod shop/web",
+		"container web was evicted for writing more to its local disk than its 500Mi ephemeral-storage limit")
+	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi."))), "KD193", "Pod shop/web", "limit (1Gi)")
+	expect(t, only(t, Diagnose(evict("The node was low on resource: ephemeral-storage. Threshold quantity: 3Gi, available: 1Gi. Container web was using 2Gi, request is 0, has larger consumption of ephemeral-storage. "))),
+		"KD192", "Pod shop/web", "the node ran low on ephemeral-storage")
+}

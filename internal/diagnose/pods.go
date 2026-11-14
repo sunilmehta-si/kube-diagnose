@@ -792,11 +792,30 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	return nil
 }
 
+var (
+	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?$)`)
+	reNodeLow        = regexp.MustCompile(`The node was low on resource: ([a-z.-]+)`)
+)
+
 func evicted(p kube.Pod) *problem {
+	msg := p.Status.Message
+	ev := []Evidence{{Object: p.Ref(), What: "pod status is Failed, reason Evicted", Detail: msg,
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.status.message}")}}
+	if m := reEphemeralLimit.FindStringSubmatch(msg); m != nil {
+		cause := fmt.Sprintf("the pod was evicted for writing more to its local disk than its ephemeral-storage limit (%s)", m[3])
+		if m[1] != "" {
+			cause = fmt.Sprintf("container %s was evicted for writing more to its local disk than its %s ephemeral-storage limit", m[1], m[2])
+		}
+		return &problem{rule: "KD193", title: "Container exceeded its ephemeral storage limit", severity: Warning, pod: p,
+			cause: cause, key: "KD193|" + m[1], evidence: ev,
+			fix: "Raise the container's ephemeral-storage limit, or move what it writes (logs, caches, scratch files) to a volume."}
+	}
+	cause := "the node evicted the pod: " + msg
+	if m := reNodeLow.FindStringSubmatch(msg); m != nil {
+		cause = fmt.Sprintf("the node ran low on %s and evicted the pod: %s", m[1], clip(msg, 200))
+	}
 	return &problem{rule: "KD192", title: "Pod was evicted", severity: Warning, pod: p,
-		cause: "the node evicted the pod: " + p.Status.Message, key: "KD192|" + p.Status.Message,
-		evidence: []Evidence{{Object: p.Ref(), What: "pod status is Failed, reason Evicted", Detail: p.Status.Message,
-			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.status.message}")}},
+		cause: cause, key: "KD192|" + msg, evidence: ev,
 		fix: "Set requests close to real use (pods over their requests are evicted first) and check the node's disk and memory pressure; delete evicted pods once handled."}
 }
 

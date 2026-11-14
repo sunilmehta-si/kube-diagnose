@@ -50,4 +50,5 @@ Every finding names one of these rules. IDs are stable: a rule is retired, never
 | KD181 | Deployment rollout stalled | warning | A Deployment passed its progress deadline and no pod finding explains it. | The Progressing condition with ProgressDeadlineExceeded. |
 | KD190 | Node is not ready | critical | A node's Ready condition is False or Unknown; the pods on it are listed. | The node's Ready condition. |
 | KD191 | Node is under pressure | warning | A node reports MemoryPressure, DiskPressure, PIDPressure or NetworkUnavailable. | The node's condition. |
-| KD192 | Pod was evicted | warning | The kubelet evicted a pod, usually for node pressure. | The pod's Evicted status and message. |
+| KD192 | Pod was evicted | warning | The kubelet evicted a pod, usually because the node ran low on memory or disk; the resource is named. | The pod's Evicted status and message. |
+| KD193 | Container exceeded its ephemeral storage limit | warning | The kubelet evicted a pod because a container, or the pod as a whole, wrote more to local disk than its ephemeral-storage limit. | The pod's Evicted status and message. |
