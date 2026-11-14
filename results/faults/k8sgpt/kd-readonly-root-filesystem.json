@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-readonly-root-filesystem/web",
+      "error": [
+        {
+          "Text": "Deployment kd-readonly-root-filesystem/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readonly-root-filesystem",
+              "Masked": "b1VlcCtJdmF9V0p0IUxKKTRSWXRfRGJaWmhX"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "MGxh"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-readonly-root-filesystem/web-5ff6c69c94-tg4nc",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-5ff6c69c94-tg4nc",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

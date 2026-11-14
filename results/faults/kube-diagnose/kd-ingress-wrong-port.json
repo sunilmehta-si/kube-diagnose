@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-ingress-wrong-port"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD166",
+      "title": "Ingress sends traffic to a port the Service does not have",
+      "severity": "critical",
+      "object": {
+        "kind": "Ingress",
+        "namespace": "kd-ingress-wrong-port",
+        "name": "web"
+      },
+      "cause": "Ingress web sends traffic to port 8080 of Service web (for shop.example.com/), which has ports http (80), so the controller has no endpoints for it and answers with an error (usually 503)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-wrong-port",
+            "name": "web"
+          },
+          "what": "Ingress backends",
+          "command": "kubectl get ingress web -n kd-ingress-wrong-port -o jsonpath='{.spec}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-ingress-wrong-port",
+            "name": "web"
+          },
+          "what": "Service web has ports http (80)",
+          "command": "kubectl get service web -n kd-ingress-wrong-port -o jsonpath='{.spec.ports}'"
+        }
+      ],
+      "fix": "Set the Ingress backend's port to a port the Service exposes (its port number, or its port name), not the container's targetPort."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

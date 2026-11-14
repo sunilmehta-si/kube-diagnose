@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-ingress-missing-service"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD165",
+      "title": "Ingress sends traffic to a Service that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Ingress",
+        "namespace": "kd-ingress-missing-service",
+        "name": "web"
+      },
+      "cause": "Ingress web sends traffic to Service web-api (for shop.example.com/), which does not exist in namespace kd-ingress-missing-service, so the controller answers those requests with an error (usually 503)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-missing-service",
+            "name": "web"
+          },
+          "what": "Ingress backends",
+          "command": "kubectl get ingress web -n kd-ingress-missing-service -o jsonpath='{.spec}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-ingress-missing-service",
+            "name": "web-api"
+          },
+          "what": "there is no Service web-api in namespace kd-ingress-missing-service",
+          "command": "kubectl get service web-api -n kd-ingress-missing-service"
+        }
+      ],
+      "fix": "Correct the backend Service name in the Ingress, or create the Service."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

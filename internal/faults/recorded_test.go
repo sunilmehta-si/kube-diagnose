@@ -97,15 +97,17 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 		}
 		return strings.Join(all, "\n"), len(items)
 	}
-	crash, _ := text("kd-crashloop-missing-env")
-	if !strings.Contains(crash, "exitCode=1") || strings.Contains(crash, "DATABASE_URL") {
-		t.Errorf("crash: %s", crash)
+	for ns, cause := range map[string]string{"kd-crashloop-missing-env": "DATABASE_URL", "kd-liveness-wrong-port": "9090"} {
+		got, _ := text(ns)
+		if !strings.Contains(got, "the last termination reason is Error") || strings.Contains(got, cause) {
+			t.Errorf("%s: %s", ns, got)
+		}
 	}
 	sel, _ := text("kd-node-selector")
 	if !strings.Contains(sel, "didn't match Pod's node affinity/selector") || strings.Contains(sel, "disktype") {
 		t.Errorf("node selector: %s", sel)
 	}
-	for _, ns := range []string{"kd-liveness-wrong-port", "kd-networkpolicy-deny-all"} {
+	for _, ns := range []string{"kd-networkpolicy-deny-all"} {
 		if _, n := text(ns); n != 0 {
 			t.Errorf("%s: k8sgpt reported %d results; the README says none", ns, n)
 		}

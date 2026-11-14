@@ -1,0 +1,47 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-ingress-class-missing"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD167",
+      "title": "Ingress has no controller",
+      "severity": "critical",
+      "object": {
+        "kind": "Ingress",
+        "namespace": "kd-ingress-class-missing",
+        "name": "web"
+      },
+      "cause": "Ingress web asks for IngressClass nginx-internal, which does not exist (the cluster has kd-faults), so no controller serves it",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-class-missing",
+            "name": "web"
+          },
+          "what": "Ingress class",
+          "command": "kubectl get ingress web -n kd-ingress-class-missing -o jsonpath='{.spec.ingressClassName}'"
+        },
+        {
+          "object": {
+            "kind": "IngressClass",
+            "name": "*"
+          },
+          "what": "the cluster has kd-faults",
+          "command": "kubectl get ingressclasses"
+        }
+      ],
+      "fix": "Set ingressClassName to an installed class, or install the ingress controller the class belongs to (and mark one class default if Ingresses omit it)."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

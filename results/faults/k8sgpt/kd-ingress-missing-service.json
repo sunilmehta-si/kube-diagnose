@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Ingress",
+      "name": "kd-ingress-missing-service/web",
+      "error": [
+        {
+          "Text": "Ingress uses the service kd-ingress-missing-service/web-api which does not exist.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-ingress-missing-service",
+              "Masked": "KClnZ3MwZzIhZV5PPlZlJntwX2c0XlpfYjc="
+            },
+            {
+              "Unmasked": "web-api",
+              "Masked": "ZTA6K1leJQ=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

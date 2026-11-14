@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-command-not-found"
   ],
-  "collectedAt": "2026-11-13 08:07 UTC",
+  "collectedAt": "2026-11-14 09:05 UTC",
   "findings": [
     {
       "rule": "KD114",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-not-found",
-            "name": "web-855c99bf89-px8pv"
+            "name": "web-855c99bf89-mkkp8"
           },
           "what": "container web did not start",
           "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"webserver\": executable file not found in $PATH",
-          "command": "kubectl get pod web-855c99bf89-px8pv -n kd-command-not-found -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
+          "command": "kubectl get pod web-855c99bf89-mkkp8 -n kd-command-not-found -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
         }
       ],
       "fix": "Correct the command (or the image's entrypoint): use a path that exists in the image.",
@@ -33,7 +33,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-command-not-found",
-          "name": "web-855c99bf89-px8pv"
+          "name": "web-855c99bf89-mkkp8"
         }
       ]
     }

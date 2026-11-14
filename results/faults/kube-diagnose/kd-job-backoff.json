@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-backoff"
   ],
-  "collectedAt": "2026-11-13 08:07 UTC",
+  "collectedAt": "2026-11-14 09:06 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-backoff",
-            "name": "report-6qp24"
+            "name": "report-4bkvj"
           },
           "what": "container report exited with code 3 (Error)",
-          "command": "kubectl get pod report-6qp24 -n kd-job-backoff -o jsonpath='{.status.containerStatuses[?(@.name==\"report\")].state.terminated}'"
+          "command": "kubectl get pod report-4bkvj -n kd-job-backoff -o jsonpath='{.status.containerStatuses[?(@.name==\"report\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-backoff",
-            "name": "report-6qp24"
+            "name": "report-4bkvj"
           },
           "what": "last lines of container report's log (current run)",
           "detail": "error: report source is empty",
-          "command": "kubectl logs report-6qp24 -n kd-job-backoff -c report --tail=20"
+          "command": "kubectl logs report-4bkvj -n kd-job-backoff -c report --tail=20"
         }
       ],
       "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
@@ -42,12 +42,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-job-backoff",
-          "name": "report-6qp24"
+          "name": "report-4bkvj"
         },
         {
           "kind": "Pod",
           "namespace": "kd-job-backoff",
-          "name": "report-lxs48"
+          "name": "report-qvv7b"
         }
       ]
     }

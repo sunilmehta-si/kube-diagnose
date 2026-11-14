@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-priorityclass-missing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-priorityclass-missing/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-priorityclass-missing",
+              "Masked": "dTo6V21fZUVpUFpRWyk+UHVXWmxSIWRl"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "KS1k"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-priorityclass-missing/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-priorityclass-missing/web-55fb7dbd6f",
+      "error": [
+        {
+          "Text": "pods \"web-55fb7dbd6f-\" is forbidden: no PriorityClass with name business-critical was found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

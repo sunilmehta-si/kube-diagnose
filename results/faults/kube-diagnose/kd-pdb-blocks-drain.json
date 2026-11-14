@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pdb-blocks-drain"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD185",
+      "title": "PodDisruptionBudget allows no disruptions",
+      "severity": "warning",
+      "object": {
+        "kind": "PodDisruptionBudget",
+        "namespace": "kd-pdb-blocks-drain",
+        "name": "web"
+      },
+      "cause": "PodDisruptionBudget web allows 0 disruptions with all 1 of its pods healthy (minAvailable 1), so evicting any of them, as a node drain or cluster upgrade does, waits forever",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PodDisruptionBudget",
+            "namespace": "kd-pdb-blocks-drain",
+            "name": "web"
+          },
+          "what": "disruptionsAllowed 0, currentHealthy 1, desiredHealthy 1, expectedPods 1",
+          "command": "kubectl get pdb web -n kd-pdb-blocks-drain -o jsonpath='{.spec}{\"\\n\"}{.status}'"
+        }
+      ],
+      "fix": "Allow at least one disruption: lower minAvailable below the replica count, set maxUnavailable to 1 or more, or run more replicas."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

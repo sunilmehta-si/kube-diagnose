@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pod-anti-affinity/web",
+      "error": [
+        {
+          "Text": "Deployment kd-pod-anti-affinity/web has 2 replicas but 1 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pod-anti-affinity",
+              "Masked": "MCpaWWpRaEpeTFp9QlJ9USFpTDo="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "SDEz"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pod-anti-affinity/web-769478f8ff-76fsn",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

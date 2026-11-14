@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-missing-repository"
   ],
-  "collectedAt": "2026-11-13 08:07 UTC",
+  "collectedAt": "2026-11-14 09:06 UTC",
   "findings": [
     {
       "rule": "KD102",
@@ -21,21 +21,21 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-repository",
-            "name": "web-ffc979654-bftkf"
+            "name": "web-ffc979654-nhqds"
           },
           "what": "container web is waiting: ImagePullBackOff",
           "detail": "Back-off pulling image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": ErrImagePull: failed to pull and unpack image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to resolve reference \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Asunilmehta-si%2Fkube-diagnose-missing%3Apull\u0026service=ghcr.io: 403 Forbidden",
-          "command": "kubectl get pod web-ffc979654-bftkf -n kd-missing-repository -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "command": "kubectl get pod web-ffc979654-nhqds -n kd-missing-repository -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-repository",
-            "name": "web-ffc979654-bftkf"
+            "name": "web-ffc979654-nhqds"
           },
-          "what": "event Failed (4 times)",
+          "what": "event Failed (5 times)",
           "detail": "Failed to pull image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to pull and unpack image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to resolve reference \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Asunilmehta-si%2Fkube-diagnose-missing%3Apull\u0026service=ghcr.io: 403 Forbidden",
-          "command": "kubectl get events -n kd-missing-repository --field-selector involvedObject.kind=Pod,involvedObject.name=web-ffc979654-bftkf"
+          "command": "kubectl get events -n kd-missing-repository --field-selector involvedObject.kind=Pod,involvedObject.name=web-ffc979654-nhqds"
         }
       ],
       "fix": "Check the repository name; if it is private, create a docker-registry Secret and list it in imagePullSecrets.",
@@ -43,7 +43,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-missing-repository",
-          "name": "web-ffc979654-bftkf"
+          "name": "web-ffc979654-nhqds"
         }
       ]
     }

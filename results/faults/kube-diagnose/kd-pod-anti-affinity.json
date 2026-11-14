@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pod-anti-affinity"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD144",
+      "title": "Pod spread or affinity rules cannot be met",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-pod-anti-affinity",
+        "name": "web"
+      },
+      "cause": "no node can run the pod: 1 node fails its pod anti-affinity rules; Deployment web has 1 of 2 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pod-anti-affinity",
+            "name": "web-769478f8ff-76fsn"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
+          "command": "kubectl get pod web-769478f8ff-76fsn -n kd-pod-anti-affinity -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pod-anti-affinity",
+            "name": "web-769478f8ff-76fsn"
+          },
+          "what": "pod scheduling constraints",
+          "command": "kubectl get pod web-769478f8ff-76fsn -n kd-pod-anti-affinity -o jsonpath='{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}'"
+        }
+      ],
+      "fix": "Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pod-anti-affinity",
+          "name": "web-769478f8ff-76fsn"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

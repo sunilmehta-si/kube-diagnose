@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hpa-target-missing"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD178",
+      "title": "HPA targets a workload that does not exist",
+      "severity": "warning",
+      "object": {
+        "kind": "HorizontalPodAutoscaler",
+        "namespace": "kd-hpa-target-missing",
+        "name": "web"
+      },
+      "cause": "HPA web scales Deployment web-api, which does not exist in namespace kd-hpa-target-missing, so it scales nothing",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-target-missing",
+            "name": "web"
+          },
+          "what": "AbleToScale is False, reason FailedGetScale",
+          "detail": "the HPA controller was unable to get the target's current scale: deployments.apps \"web-api\" not found",
+          "command": "kubectl get hpa web -n kd-hpa-target-missing -o jsonpath='{.status.conditions[?(@.type==\"AbleToScale\")]}'"
+        },
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-hpa-target-missing",
+            "name": "web-api"
+          },
+          "what": "there is no Deployment web-api in namespace kd-hpa-target-missing",
+          "command": "kubectl get deployment web-api -n kd-hpa-target-missing"
+        }
+      ],
+      "fix": "Correct scaleTargetRef to the workload's kind and name, or delete the HPA if the workload is gone."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

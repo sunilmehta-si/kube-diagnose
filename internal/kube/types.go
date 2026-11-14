@@ -179,6 +179,16 @@ type Probe struct {
 	FailureThreshold    int32            `json:"failureThreshold,omitempty"`
 }
 
+type LifecycleHandler struct {
+	Exec    *ExecAction    `json:"exec,omitempty"`
+	HTTPGet *HTTPGetAction `json:"httpGet,omitempty"`
+}
+
+type Lifecycle struct {
+	PostStart *LifecycleHandler `json:"postStart,omitempty"`
+	PreStop   *LifecycleHandler `json:"preStop,omitempty"`
+}
+
 type SecurityContext struct {
 	ReadOnlyRootFilesystem *bool  `json:"readOnlyRootFilesystem,omitempty"`
 	RunAsNonRoot           *bool  `json:"runAsNonRoot,omitempty"`
@@ -198,6 +208,7 @@ type Container struct {
 	ReadinessProbe  *Probe           `json:"readinessProbe,omitempty"`
 	StartupProbe    *Probe           `json:"startupProbe,omitempty"`
 	SecurityContext *SecurityContext `json:"securityContext,omitempty"`
+	Lifecycle       *Lifecycle       `json:"lifecycle,omitempty"`
 }
 
 type KeyToPath struct {

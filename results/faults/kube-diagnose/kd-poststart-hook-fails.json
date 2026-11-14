@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-poststart-hook-fails"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD116",
+      "title": "Lifecycle hook fails",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-poststart-hook-fails",
+        "name": "web"
+      },
+      "cause": "container web's postStart hook (sh -c /opt/warm-cache.sh) fails, so the kubelet kills the container each time it starts; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-poststart-hook-fails",
+            "name": "web-657885869b-75szk"
+          },
+          "what": "event FailedPostStartHook (5 times)",
+          "detail": "PostStartHook failed",
+          "command": "kubectl get events -n kd-poststart-hook-fails --field-selector involvedObject.kind=Pod,involvedObject.name=web-657885869b-75szk"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-poststart-hook-fails",
+            "name": "web-657885869b-75szk"
+          },
+          "what": "container web's postStart hook",
+          "command": "kubectl get pod web-657885869b-75szk -n kd-poststart-hook-fails -o jsonpath='{.spec.containers[?(@.name==\"web\")].lifecycle.postStart}'"
+        }
+      ],
+      "fix": "Fix the postStart hook's command or HTTP target so it succeeds, or remove the hook; the container cannot run while it fails.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-poststart-hook-fails",
+          "name": "web-657885869b-75szk"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

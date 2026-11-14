@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-priorityclass-missing"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD175",
+      "title": "PriorityClass does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-priorityclass-missing",
+        "name": "web"
+      },
+      "cause": "Deployment kd-priorityclass-missing/web cannot create pods: they name PriorityClass business-critical, which does not exist",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ReplicaSet",
+            "namespace": "kd-priorityclass-missing",
+            "name": "web-55fb7dbd6f"
+          },
+          "what": "event FailedCreate (16 times)",
+          "detail": "Error creating: pods \"web-55fb7dbd6f-\" is forbidden: no PriorityClass with name business-critical was found",
+          "command": "kubectl get events -n kd-priorityclass-missing --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-55fb7dbd6f"
+        },
+        {
+          "object": {
+            "kind": "PriorityClass",
+            "name": "business-critical"
+          },
+          "what": "the cluster's PriorityClasses",
+          "command": "kubectl get priorityclasses"
+        }
+      ],
+      "fix": "Create PriorityClass business-critical, or set priorityClassName to one that exists (or remove it)."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-exec-format-error"
   ],
-  "collectedAt": "2026-11-13 08:07 UTC",
+  "collectedAt": "2026-11-14 09:05 UTC",
   "findings": [
     {
       "rule": "KD113",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-exec-format-error",
-            "name": "web-5b987f687b-zzb6t"
+            "name": "web-5b987f687b-kfg4j"
           },
-          "what": "container web exited with code 255 (Error), restarted 4 times",
-          "command": "kubectl get pod web-5b987f687b-zzb6t -n kd-exec-format-error -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 255 (Error), restarted 5 times",
+          "command": "kubectl get pod web-5b987f687b-kfg4j -n kd-exec-format-error -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-exec-format-error",
-            "name": "web-5b987f687b-zzb6t"
+            "name": "web-5b987f687b-kfg4j"
           },
-          "what": "last lines of container web's log (run that exited)",
+          "what": "last lines of container web's log (current run)",
           "detail": "exec /bin/sleep: exec format error",
-          "command": "kubectl logs web-5b987f687b-zzb6t -n kd-exec-format-error -c web --tail=20 --previous"
+          "command": "kubectl logs web-5b987f687b-kfg4j -n kd-exec-format-error -c web --tail=20"
         }
       ],
       "fix": "Use a multi-architecture image, or one built for the node's architecture (kubernetes.io/arch).",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-exec-format-error",
-          "name": "web-5b987f687b-zzb6t"
+          "name": "web-5b987f687b-kfg4j"
         }
       ]
     }

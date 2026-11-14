@@ -661,6 +661,15 @@ func hookFailed(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return nil
 	}
 	cause := fmt.Sprintf("container %s's postStart hook fails, so the kubelet kills the container each time it starts", cs.Name)
+	if c, ok := containerSpec(p, cs.Name); ok && c.Lifecycle != nil && c.Lifecycle.PostStart != nil {
+		if h := c.Lifecycle.PostStart; h.Exec != nil {
+			cause = fmt.Sprintf("container %s's postStart hook (%s) fails, so the kubelet kills the container each time it starts", cs.Name, strings.Join(h.Exec.Command, " "))
+		} else if h.HTTPGet != nil {
+			cause = fmt.Sprintf("container %s's postStart hook (GET %s on port %s) fails, so the kubelet kills the container each time it starts", cs.Name, orSlash(h.HTTPGet.Path), h.HTTPGet.Port)
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's postStart hook", cs.Name),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].lifecycle.postStart}`, cs.Name))})
+	}
 	if detail != "" {
 		cause += ": " + clip(detail, 200)
 	}
@@ -838,7 +847,7 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 }
 
 var (
-	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?$)`)
+	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?\s*$)`)
 	reNodeLow        = regexp.MustCompile(`The node was low on resource: ([a-z.-]+)`)
 )
 

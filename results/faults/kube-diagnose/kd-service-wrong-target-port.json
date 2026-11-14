@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-wrong-target-port"
   ],
-  "collectedAt": "2026-11-13 08:08 UTC",
+  "collectedAt": "2026-11-14 09:07 UTC",
   "findings": [
     {
       "rule": "KD164",
@@ -30,10 +30,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-wrong-target-port",
-            "name": "web-59c4f75cc7-47b2f"
+            "name": "web-59c4f75cc7-n5rw5"
           },
           "what": "the selected pods declare port 8080",
-          "command": "kubectl get pod web-59c4f75cc7-47b2f -n kd-service-wrong-target-port -o jsonpath='{.spec.containers[*].ports}'"
+          "command": "kubectl get pod web-59c4f75cc7-n5rw5 -n kd-service-wrong-target-port -o jsonpath='{.spec.containers[*].ports}'"
         }
       ],
       "fix": "Set targetPort to the port the app listens on (the pods declare 8080), or declare the port in the pod spec if 80 is right."

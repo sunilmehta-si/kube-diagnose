@@ -684,6 +684,8 @@ func TestEvictions(t *testing.T) {
 	expect(t, only(t, Diagnose(evict(`Container web exceeded its local ephemeral storage limit "500Mi". `))), "KD193", "Pod shop/web",
 		"container web was evicted for writing more to its local disk than its 500Mi ephemeral-storage limit")
 	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi."))), "KD193", "Pod shop/web", "limit (1Gi)")
+	// The kubelet's message ends with a space, as recorded on Kubernetes 1.37 in the fault suite.
+	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. "))), "KD193", "Pod shop/web", "limit (10Mi)")
 	expect(t, only(t, Diagnose(evict("The node was low on resource: ephemeral-storage. Threshold quantity: 3Gi, available: 1Gi. Container web was using 2Gi, request is 0, has larger consumption of ephemeral-storage. "))),
 		"KD192", "Pod shop/web", "the node ran low on ephemeral-storage")
 }
@@ -937,4 +939,21 @@ func TestIngressClassMissing(t *testing.T) {
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("unread class list: %+v", r.Findings)
 	}
+}
+
+// TestPostStartHookFailsWithTheBareKubeletEvent uses the events Kubernetes 1.37 wrote in the fault suite: the event
+// says only "PostStartHook failed", so the hook is named from the pod spec.
+func TestPostStartHookFailsWithTheBareKubeletEvent(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Lifecycle = &kube.Lifecycle{PostStart: &kube.LifecycleHandler{Exec: &kube.ExecAction{Command: []string{"sh", "-c", "/opt/warm-cache.sh"}}}}
+	crashed(&p, 137, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	e1 := event("Pod", "web", "FailedPostStartHook", "PostStartHook failed", 0)
+	e1.InvolvedObject.FieldPath = "spec.containers{web}"
+	e2 := event("Pod", "web", "Killing", "FailedPostStartHook", 0)
+	e2.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e1, e2}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD116", "Pod shop/web", "postStart hook (sh -c /opt/warm-cache.sh) fails")
 }

@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-readonly-root-filesystem"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD118",
+      "title": "Container writes to its read-only root filesystem",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-readonly-root-filesystem",
+        "name": "web"
+      },
+      "cause": "container web has a read-only root filesystem and exits because it writes to it: \"mkdir: can't create directory '/cache': Read-only file system\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readonly-root-filesystem",
+            "name": "web-5ff6c69c94-tg4nc"
+          },
+          "what": "container web exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-5ff6c69c94-tg4nc -n kd-readonly-root-filesystem -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readonly-root-filesystem",
+            "name": "web-5ff6c69c94-tg4nc"
+          },
+          "what": "last lines of container web's log (current run)",
+          "detail": "mkdir: can't create directory '/cache': Read-only file system",
+          "command": "kubectl logs web-5ff6c69c94-tg4nc -n kd-readonly-root-filesystem -c web --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readonly-root-filesystem",
+            "name": "web-5ff6c69c94-tg4nc"
+          },
+          "what": "container web sets readOnlyRootFilesystem: true",
+          "command": "kubectl get pod web-5ff6c69c94-tg4nc -n kd-readonly-root-filesystem -o jsonpath='{.spec.containers[?(@.name==\"web\")].securityContext}'"
+        }
+      ],
+      "fix": "Mount an emptyDir at /cache (or its parent directory), or point the app at a writable volume.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-readonly-root-filesystem",
+          "name": "web-5ff6c69c94-tg4nc"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}
