@@ -646,3 +646,29 @@ func TestRunAsNonRootWithARootImage(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestReadOnlyRootFilesystem(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	ro := true
+	p.Spec.Containers[0].SecurityContext = &kube.SecurityContext{ReadOnlyRootFilesystem: &ro}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{
+		"/docker-entrypoint.sh: Configuration complete; ready for start up",
+		`nginx: [emerg] mkdir() "/var/cache/nginx/client_temp" failed (30: Read-only file system)`}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD118", "Pod shop/web", "read-only root filesystem")
+	if !strings.Contains(f.Fix, "/var/cache/nginx/client_temp") {
+		t.Errorf("fix should name the path: %s", f.Fix)
+	}
+
+	s.Logs[0].Lines = []string{"mkdir: can't create directory '/data/cache': Read-only file system"}
+	if f = only(t, Diagnose(s)); !strings.Contains(f.Fix, "emptyDir at /data/cache") {
+		t.Errorf("busybox message: %s", f.Fix)
+	}
+
+	p.Spec.Containers[0].SecurityContext = nil // the same log without the setting is an ordinary crash
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD110", "Pod shop/web", "Read-only file system")
+}

@@ -495,6 +495,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
 	}
+	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	title, rule := "Container keeps crashing", "KD110"
 	what := "exits"
 	if isInit(p, cs.Name) {
@@ -562,6 +565,34 @@ func logEvidence(p kube.Pod, container string, l snapshot.Log) Evidence {
 	}
 	return Evidence{Object: p.Ref(), What: fmt.Sprintf("last lines of container %s's log (%s)", container, run),
 		Detail: strings.Join(lines, "\n"), Command: cmdLogs(p, container, l.Previous)}
+}
+
+var reReadOnlyPath = regexp.MustCompile(`(?i)['"]?(/[^'":\s]*)['"]?:?(?: [^:]*)?: read-only file system`)
+
+// readOnlyRoot finds a container with a read-only root filesystem that exits because it writes to it.
+func readOnlyRoot(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	if c.SecurityContext == nil || c.SecurityContext.ReadOnlyRootFilesystem == nil || !*c.SecurityContext.ReadOnlyRootFilesystem {
+		return nil
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !strings.Contains(strings.ToLower(lines[i]), "read-only file system") {
+			continue
+		}
+		path := ""
+		if m := reReadOnlyPath.FindStringSubmatch(lines[i]); m != nil {
+			path = m[1]
+		}
+		cause := fmt.Sprintf("container %s has a read-only root filesystem and exits because it writes to it: %q", cs.Name, clip(lines[i], 160))
+		fix := "Mount a writable volume (an emptyDir) at the directory the container writes to, or point the app at one."
+		if path != "" {
+			fix = fmt.Sprintf("Mount an emptyDir at %s (or its parent directory), or point the app at a writable volume.", path)
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s sets readOnlyRootFilesystem: true", cs.Name),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].securityContext}`, cs.Name))})
+		return newProblem(p, cs.Name, "KD118", "Container writes to its read-only root filesystem", Critical, cause, "readonly|"+path, fix, ev...)
+	}
+	return nil
 }
 
 // hookFailed finds a container that the kubelet killed because its postStart hook failed. Such a container exits

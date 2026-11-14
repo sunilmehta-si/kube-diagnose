@@ -178,18 +178,25 @@ type Probe struct {
 	FailureThreshold    int32            `json:"failureThreshold,omitempty"`
 }
 
+type SecurityContext struct {
+	ReadOnlyRootFilesystem *bool  `json:"readOnlyRootFilesystem,omitempty"`
+	RunAsNonRoot           *bool  `json:"runAsNonRoot,omitempty"`
+	RunAsUser              *int64 `json:"runAsUser,omitempty"`
+}
+
 type Container struct {
-	Name           string          `json:"name"`
-	Image          string          `json:"image"`
-	Command        []string        `json:"command,omitempty"`
-	Args           []string        `json:"args,omitempty"`
-	Ports          []ContainerPort `json:"ports,omitempty"`
-	Env            []EnvVar        `json:"env,omitempty"`
-	EnvFrom        []EnvFromSource `json:"envFrom,omitempty"`
-	Resources      Resources       `json:"resources,omitempty"`
-	LivenessProbe  *Probe          `json:"livenessProbe,omitempty"`
-	ReadinessProbe *Probe          `json:"readinessProbe,omitempty"`
-	StartupProbe   *Probe          `json:"startupProbe,omitempty"`
+	Name            string           `json:"name"`
+	Image           string           `json:"image"`
+	Command         []string         `json:"command,omitempty"`
+	Args            []string         `json:"args,omitempty"`
+	Ports           []ContainerPort  `json:"ports,omitempty"`
+	Env             []EnvVar         `json:"env,omitempty"`
+	EnvFrom         []EnvFromSource  `json:"envFrom,omitempty"`
+	Resources       Resources        `json:"resources,omitempty"`
+	LivenessProbe   *Probe           `json:"livenessProbe,omitempty"`
+	ReadinessProbe  *Probe           `json:"readinessProbe,omitempty"`
+	StartupProbe    *Probe           `json:"startupProbe,omitempty"`
+	SecurityContext *SecurityContext `json:"securityContext,omitempty"`
 }
 
 type KeyToPath struct {
