@@ -1,0 +1,30 @@
+# Two replicas ask for the same hostPort on a one-node cluster, so the second is never scheduled.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-hostport-conflict
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-hostport-conflict
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+          ports:
+            - name: http
+              containerPort: 8080
+              hostPort: 8081
