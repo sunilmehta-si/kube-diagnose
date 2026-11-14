@@ -684,6 +684,8 @@ func TestEvictions(t *testing.T) {
 	expect(t, only(t, Diagnose(evict(`Container web exceeded its local ephemeral storage limit "500Mi". `))), "KD193", "Pod shop/web",
 		"container web was evicted for writing more to its local disk than its 500Mi ephemeral-storage limit")
 	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi."))), "KD193", "Pod shop/web", "limit (1Gi)")
+	// The kubelet's message ends with a space, as recorded on Kubernetes 1.37 in the fault suite.
+	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. "))), "KD193", "Pod shop/web", "limit (10Mi)")
 	expect(t, only(t, Diagnose(evict("The node was low on resource: ephemeral-storage. Threshold quantity: 3Gi, available: 1Gi. Container web was using 2Gi, request is 0, has larger consumption of ephemeral-storage. "))),
 		"KD192", "Pod shop/web", "the node ran low on ephemeral-storage")
 }

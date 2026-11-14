@@ -847,7 +847,7 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 }
 
 var (
-	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?$)`)
+	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?\s*$)`)
 	reNodeLow        = regexp.MustCompile(`The node was low on resource: ([a-z.-]+)`)
 )
 
