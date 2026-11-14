@@ -58,6 +58,7 @@ Every finding names one of these rules. IDs are stable: a rule is retired, never
 | KD179 | Controller cannot create pods | critical | A controller's FailedCreate event for a reason KD170-KD173 do not cover. | The FailedCreate event. |
 | KD180 | Job failed | critical | A Job failed (backoff limit or deadline) and no pod is left to show why. | The Job's Failed condition. |
 | KD181 | Deployment rollout stalled | warning | A Deployment passed its progress deadline and no pod finding explains it. | The Progressing condition with ProgressDeadlineExceeded. |
+| KD185 | PodDisruptionBudget allows no disruptions | warning | A PodDisruptionBudget allows 0 disruptions while every pod it covers is healthy (minAvailable equal to the replica count, or maxUnavailable 0), so node drains and cluster upgrades wait on it forever. | The budget's spec and status. |
 | KD190 | Node is not ready | critical | A node's Ready condition is False or Unknown; the pods on it are listed. | The node's Ready condition. |
 | KD191 | Node is under pressure | warning | A node reports MemoryPressure, DiskPressure, PIDPressure or NetworkUnavailable. | The node's condition. |
 | KD192 | Pod was evicted | warning | The kubelet evicted a pod, usually because the node ran low on memory or disk; the resource is named. | The pod's Evicted status and message. |

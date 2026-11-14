@@ -832,3 +832,22 @@ func TestHPATargetMissing(t *testing.T) {
 		t.Errorf("evidence %+v", f.Evidence)
 	}
 }
+
+func TestPDBAllowsNoDisruptions(t *testing.T) {
+	s := snap()
+	var b kube.PodDisruptionBudget
+	b.Metadata = kube.ObjectMeta{Name: "web", Namespace: "shop"}
+	b.Spec.MinAvailable = &kube.IntOrString{Int: 2}
+	b.Status.DisruptionsAllowed, b.Status.CurrentHealthy, b.Status.DesiredHealthy, b.Status.ExpectedPods = 0, 2, 2, 2
+	s.PDBs = []kube.PodDisruptionBudget{b}
+	expect(t, only(t, Diagnose(s)), "KD185", "PodDisruptionBudget shop/web", "allows 0 disruptions with all 2 of its pods healthy (minAvailable 2)")
+
+	s.PDBs[0].Status.CurrentHealthy = 1 // at zero because a pod is unhealthy: that pod is the problem
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	s.PDBs[0].Status.CurrentHealthy, s.PDBs[0].Status.DisruptionsAllowed = 2, 1
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
