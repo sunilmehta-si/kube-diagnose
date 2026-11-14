@@ -761,3 +761,26 @@ func TestPriorityClassMissing(t *testing.T) {
 	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate", `Error creating: pods "web-rs-" is forbidden: no PriorityClass with name business-critical was found`, 0)}
 	expect(t, only(t, Diagnose(s)), "KD175", "Deployment shop/web", "PriorityClass business-critical, which does not exist")
 }
+
+func TestPodWaitsForAMissingScheduler(t *testing.T) {
+	s := snap()
+	p := pod("train", "")
+	p.Spec.NodeName, p.Spec.SchedulerName = "", "volcano"
+	p.Status.Phase, p.Status.Conditions, p.Status.ContainerStatuses = "Pending", nil, nil
+	p.Metadata.CreationTimestamp = t0.Add(-10 * time.Minute)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD148", "Pod shop/train", "asks for scheduler volcano and no scheduler has looked at it in 10m0s")
+
+	p.Metadata.CreationTimestamp = t0.Add(-30 * time.Second) // too new to tell
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("young pod: %+v", r.Findings)
+	}
+	p.Metadata.CreationTimestamp = t0.Add(-10 * time.Minute)
+	p.Spec.SchedulerName = "default-scheduler"
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("default scheduler: %+v", r.Findings)
+	}
+}

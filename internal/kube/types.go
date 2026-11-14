@@ -254,6 +254,7 @@ type LocalObjectReference struct {
 
 type PodSpec struct {
 	NodeName           string                 `json:"nodeName,omitempty"`
+	SchedulerName      string                 `json:"schedulerName,omitempty"`
 	NodeSelector       map[string]string      `json:"nodeSelector,omitempty"`
 	ServiceAccountName string                 `json:"serviceAccountName,omitempty"`
 	InitContainers     []Container            `json:"initContainers,omitempty"`

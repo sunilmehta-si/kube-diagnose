@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 	"github.com/sunilmehta-si/kube-diagnose/internal/snapshot"
@@ -38,6 +39,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
 		return unschedulable(ix, p, c)
 	}
+	if pr := unclaimed(ix, p); pr != nil {
+		return pr
+	}
 	if pr := mountProblem(ix, p); pr != nil {
 		return pr
 	}
@@ -53,6 +57,32 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	return nil
+}
+
+// unclaimedAfter is how long a pod may wait before a scheduler that never looked at it is reported.
+const unclaimedAfter = 2 * time.Minute
+
+// unclaimed finds a pod that no scheduler has looked at: Pending, on no node, with no PodScheduled condition, and
+// asking for a scheduler other than the default. That scheduler is not running or does not watch the namespace.
+func unclaimed(ix *index, p kube.Pod) *problem {
+	name := p.Spec.SchedulerName
+	if p.Status.Phase != "Pending" || p.Spec.NodeName != "" || name == "" || name == "default-scheduler" {
+		return nil
+	}
+	if _, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok {
+		return nil
+	}
+	age := ix.s.CollectedAt.Sub(p.Metadata.CreationTimestamp)
+	if p.Metadata.CreationTimestamp.IsZero() || age < unclaimedAfter {
+		return nil
+	}
+	return newProblem(p, "", "KD148", "Pod waits for a scheduler that is not running", Critical,
+		fmt.Sprintf("the pod asks for scheduler %s and no scheduler has looked at it in %s; %s is not running, or does not handle this namespace", name, age.Round(time.Minute), name),
+		"scheduler|"+name, fmt.Sprintf("Install or start %s (and check its logs and the namespaces it watches), or remove schedulerName to use the default scheduler.", name),
+		Evidence{Object: p.Ref(), What: "pod asks for scheduler " + name + " and has no PodScheduled condition",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.schedulerName}{\"\\n\"}{.status.conditions}")},
+		Evidence{Object: kube.Ref{Kind: "Pod", Name: "*"}, What: "scheduler pods in the cluster",
+			Command: "kubectl get pods -A -o wide | grep -i sched"})
 }
 
 func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
