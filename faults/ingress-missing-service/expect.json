@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-ingress-missing-service",
+  "description": "An Ingress sends traffic to a Service that does not exist.",
+  "rule": "KD165",
+  "object": "Ingress/web",
+  "keywords": [
+    [
+      "web-api"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}
