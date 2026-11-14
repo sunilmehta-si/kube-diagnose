@@ -1,0 +1,38 @@
+# A PodDisruptionBudget keeps 1 of 1 replica available, so draining its node never finishes.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pdb-blocks-drain
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-pdb-blocks-drain
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web
+  namespace: kd-pdb-blocks-drain
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app: web
