@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-pull-secret-missing",
+  "description": "A private image is pulled with an imagePullSecret that does not exist.",
+  "rule": "KD106",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "ghcr-creds"
+    ],
+    [
+      "does not exist",
+      "not found",
+      "missing"
+    ]
+  ]
+}
