@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-ephemeral-storage-limit",
+  "description": "A container writes 50 MiB to its local disk with a 10 MiB ephemeral-storage limit and is evicted.",
+  "rule": "KD193",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "ephemeral"
+    ],
+    [
+      "limit"
+    ]
+  ]
+}
