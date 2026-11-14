@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-readonly-root-filesystem",
+  "description": "A container with a read-only root filesystem creates a directory in it at start and exits.",
+  "rule": "KD118",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "read-only"
+    ],
+    [
+      "/cache"
+    ]
+  ]
+}
