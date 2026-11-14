@@ -85,10 +85,10 @@ kube-diagnose --snapshot shop.snapshot.json.gz           # diagnose it later, an
 kube-diagnose rules KD161              # what a rule detects and from which evidence
 ```
 
-It needs permission to `get` and `list` pods, events, Services, EndpointSlices, workloads, Jobs, claims,
-NetworkPolicies, ResourceQuotas, ServiceAccounts, ConfigMaps and Secrets in the namespace, nodes, StorageClasses
-and PersistentVolumes in the cluster, and to read pod logs. With less, it diagnoses from the rest and lists what
-it could not read.
+It needs permission to `get` and `list` pods, events, Services, EndpointSlices, Ingresses, workloads, Jobs,
+HorizontalPodAutoscalers, PodDisruptionBudgets, claims, NetworkPolicies, ResourceQuotas, ServiceAccounts,
+ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses and PersistentVolumes in the cluster,
+and to read pod logs. With less, it diagnoses from the rest and lists what it could not read.
 
 A snapshot holds object names, labels, event messages and log lines (never Secret or ConfigMap values) and is
 written readable by you only; treat it like the cluster data it came from. To share one in an issue, record it with
