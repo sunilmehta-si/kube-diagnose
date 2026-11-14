@@ -15,7 +15,9 @@ var reMissingRequest = regexp.MustCompile(`missing request for (\S+) in containe
 func hpaFindings(ix *index) []Finding {
 	var out []Finding
 	for _, h := range ix.s.HPAs {
-		if f := hpaMetrics(h); f != nil {
+		if f := hpaTarget(ix, h); f != nil {
+			out = append(out, *f)
+		} else if f := hpaMetrics(h); f != nil {
 			out = append(out, *f)
 		} else if f := hpaAtMax(h); f != nil {
 			out = append(out, *f)
@@ -72,4 +74,24 @@ func hpaAtMax(h kube.HorizontalPodAutoscaler) *Finding {
 			h.Metadata.Name, target, h.Spec.MaxReplicas, h.Status.CurrentReplicas),
 		Evidence: []Evidence{ev}, Fix: "Raise maxReplicas if the cluster has room, or lower the per-replica load (a higher target, faster replicas).",
 		Affects: []kube.Ref{{Kind: h.Spec.ScaleTargetRef.Kind, Namespace: h.Metadata.Namespace, Name: h.Spec.ScaleTargetRef.Name}}}
+}
+
+// hpaTarget finds an HPA whose scaleTargetRef names a workload that does not exist.
+func hpaTarget(ix *index, h kube.HorizontalPodAutoscaler) *Finding {
+	c, ok := kube.FindCondition(h.Status.Conditions, "AbleToScale")
+	if !ok || c.Status != "False" || c.Reason != "FailedGetScale" || !strings.Contains(c.Message, "not found") {
+		return nil
+	}
+	ref := h.Spec.ScaleTargetRef
+	ev := hpaCondition(h, "AbleToScale")
+	ev.What, ev.Detail = "AbleToScale is False, reason FailedGetScale", c.Message
+	evs := []Evidence{ev}
+	if ix.read("deployments.apps") {
+		evs = append(evs, Evidence{Object: kube.Ref{Kind: ref.Kind, Namespace: h.Metadata.Namespace, Name: ref.Name},
+			What:    fmt.Sprintf("there is no %s %s in namespace %s", ref.Kind, ref.Name, h.Metadata.Namespace),
+			Command: cmdGet(ref.Kind, h.Metadata.Namespace, ref.Name, "")})
+	}
+	return &Finding{Rule: "KD178", Title: "HPA targets a workload that does not exist", Severity: Warning, Object: h.Ref(),
+		Cause:    fmt.Sprintf("HPA %s scales %s %s, which does not exist in namespace %s, so it scales nothing", h.Metadata.Name, ref.Kind, ref.Name, h.Metadata.Namespace),
+		Evidence: evs, Fix: "Correct scaleTargetRef to the workload's kind and name, or delete the HPA if the workload is gone."}
 }

@@ -821,3 +821,14 @@ func TestHPAHeldAtMaximum(t *testing.T) {
 	s.HPAs = []kube.HorizontalPodAutoscaler{h}
 	expect(t, only(t, Diagnose(s)), "KD177", "HorizontalPodAutoscaler shop/web", "maxReplicas of 5, so the workload runs at 5 replicas")
 }
+
+func TestHPATargetMissing(t *testing.T) {
+	s := snap()
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web", kube.Condition{Type: "AbleToScale", Status: "False", Reason: "FailedGetScale",
+		Message: `the HPA controller was unable to get the target's current scale: deployments.apps "web" not found`})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD178", "HorizontalPodAutoscaler shop/web", "scales Deployment web, which does not exist")
+	if len(f.Evidence) != 2 || f.Evidence[1].Command != "kubectl get deployment web -n shop" {
+		t.Errorf("evidence %+v", f.Evidence)
+	}
+}

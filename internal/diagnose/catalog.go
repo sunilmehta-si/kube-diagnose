@@ -61,6 +61,7 @@ var Rules = []Rule{
 	{"KD175", "PriorityClass does not exist", Critical, "A controller cannot create pods because their priorityClassName names a PriorityClass that does not exist.", "The controller's FailedCreate event."},
 	{"KD176", "HPA cannot read its metrics", Warning, "A HorizontalPodAutoscaler cannot compute replicas because it cannot read its metrics: no metrics API (metrics-server), a container without the resource request utilization needs, or a custom metric no adapter serves. The workload looks healthy but does not scale.", "The HPA's ScalingActive condition."},
 	{"KD177", "HPA is held at its maximum", Warning, "A HorizontalPodAutoscaler computes more replicas than maxReplicas allows, so the workload runs under more load than its scaling target.", "The HPA's ScalingLimited condition with reason TooManyReplicas."},
+	{"KD178", "HPA targets a workload that does not exist", Warning, "A HorizontalPodAutoscaler's scaleTargetRef names a workload that does not exist, so it scales nothing.", "The HPA's AbleToScale condition with reason FailedGetScale."},
 	{"KD179", "Controller cannot create pods", Critical, "A controller's FailedCreate event for a reason KD170-KD173 do not cover.", "The FailedCreate event."},
 	{"KD180", "Job failed", Critical, "A Job failed (backoff limit or deadline) and no pod is left to show why.", "The Job's Failed condition."},
 	{"KD181", "Deployment rollout stalled", Warning, "A Deployment passed its progress deadline and no pod finding explains it.", "The Progressing condition with ProgressDeadlineExceeded."},
