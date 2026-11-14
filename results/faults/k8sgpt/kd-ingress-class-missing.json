@@ -1,0 +1,26 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Ingress",
+      "name": "kd-ingress-class-missing/web",
+      "error": [
+        {
+          "Text": "Ingress uses the ingress class nginx-internal which does not exist.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "nginx-internal",
+              "Masked": "b15vY2cuLi19dzhnXlk="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

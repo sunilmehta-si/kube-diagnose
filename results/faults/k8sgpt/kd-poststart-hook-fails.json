@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-poststart-hook-fails/web",
+      "error": [
+        {
+          "Text": "Deployment kd-poststart-hook-fails/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-poststart-hook-fails",
+              "Masked": "aXUpOXQxO0B2UDppWlBMKE1dRkdhJjM="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "J20x"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-poststart-hook-fails/web-657885869b-75szk",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-657885869b-75szk",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

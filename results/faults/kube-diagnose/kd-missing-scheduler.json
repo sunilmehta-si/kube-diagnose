@@ -1,0 +1,54 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-missing-scheduler"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD148",
+      "title": "Pod waits for a scheduler that is not running",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-missing-scheduler",
+        "name": "web"
+      },
+      "cause": "the pod asks for scheduler volcano and no scheduler has looked at it in 3m0s; volcano is not running, or does not handle this namespace; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-missing-scheduler",
+            "name": "web-86c86bf68-rpzbd"
+          },
+          "what": "pod asks for scheduler volcano and has no PodScheduled condition",
+          "command": "kubectl get pod web-86c86bf68-rpzbd -n kd-missing-scheduler -o jsonpath='{.spec.schedulerName}{\"\\n\"}{.status.conditions}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "name": "*"
+          },
+          "what": "scheduler pods in the cluster",
+          "command": "kubectl get pods -A -o wide | grep -i sched"
+        }
+      ],
+      "fix": "Install or start volcano (and check its logs and the namespaces it watches), or remove schedulerName to use the default scheduler.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-missing-scheduler",
+          "name": "web-86c86bf68-rpzbd"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

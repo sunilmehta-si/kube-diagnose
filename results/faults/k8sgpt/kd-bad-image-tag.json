@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-bad-image-tag",
-              "Masked": "S2YtRl8mdlNaUn1mbGxRKQ=="
+              "Masked": "InlJLmw2dFt1KFFTbyZ7Mw=="
             },
             {
               "Unmasked": "web",
-              "Masked": "diFN"
+              "Masked": "eXIw"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-bad-image-tag/web-6847787ffb-6glcw",
+      "name": "kd-bad-image-tag/web-6847787ffb-wpkm2",
       "error": [
         {
           "Text": "Back-off pulling image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
@@ -41,7 +41,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-bad-image-tag/web-6847787ffb-h5d9v",
+      "name": "kd-bad-image-tag/web-6847787ffb-xr5b4",
       "error": [
         {
           "Text": "Back-off pulling image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",

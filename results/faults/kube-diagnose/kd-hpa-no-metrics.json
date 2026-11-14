@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hpa-no-metrics"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD176",
+      "title": "HPA cannot read its metrics",
+      "severity": "warning",
+      "object": {
+        "kind": "HorizontalPodAutoscaler",
+        "namespace": "kd-hpa-no-metrics",
+        "name": "web"
+      },
+      "cause": "HPA web cannot read resource metrics for Deployment web, because the metrics API (metrics-server) is not answering, so the HPA does not scale",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-no-metrics",
+            "name": "web"
+          },
+          "what": "ScalingActive is False, reason FailedGetResourceMetric",
+          "detail": "the HPA was unable to compute the replica count: failed to get cpu utilization: unable to get metrics for resource cpu: unable to fetch metrics from resource metrics API: the server could not find the requested resource (get pods.metrics.k8s.io)",
+          "command": "kubectl get hpa web -n kd-hpa-no-metrics -o jsonpath='{.status.conditions[?(@.type==\"ScalingActive\")]}'"
+        },
+        {
+          "object": {
+            "kind": "APIService",
+            "name": "v1beta1.metrics.k8s.io"
+          },
+          "what": "the resource metrics API",
+          "command": "kubectl get apiservices v1beta1.metrics.k8s.io"
+        }
+      ],
+      "fix": "Install metrics-server (or the cluster's metrics adapter) and check that the v1beta1.metrics.k8s.io APIService is Available.",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "namespace": "kd-hpa-no-metrics",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

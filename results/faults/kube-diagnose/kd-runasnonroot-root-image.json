@@ -1,0 +1,47 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-runasnonroot-root-image"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD117",
+      "title": "Image runs as root but the pod requires non-root",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-runasnonroot-root-image",
+        "name": "web"
+      },
+      "cause": "container web must run as a non-root user (runAsNonRoot), but image docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec runs as root; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-runasnonroot-root-image",
+            "name": "web-67f8d9fc9-cdhpx"
+          },
+          "what": "container web is waiting: CreateContainerConfigError",
+          "detail": "container has runAsNonRoot and image will run as root (pod: \"web-67f8d9fc9-cdhpx_kd-runasnonroot-root-image(a6f47c6a-976a-4cd5-9b39-a0b914e8a7e5)\", container: web)",
+          "command": "kubectl get pod web-67f8d9fc9-cdhpx -n kd-runasnonroot-root-image -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+        }
+      ],
+      "fix": "Set securityContext.runAsUser to a non-zero UID the image supports, or use an image built to run as a non-root user.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-runasnonroot-root-image",
+          "name": "web-67f8d9fc9-cdhpx"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

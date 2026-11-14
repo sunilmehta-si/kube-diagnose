@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hostport-conflict"
+  ],
+  "collectedAt": "2026-11-14 09:06 UTC",
+  "findings": [
+    {
+      "rule": "KD145",
+      "title": "Host port is taken on every node",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-hostport-conflict",
+        "name": "web"
+      },
+      "cause": "no node can run the pod: 1 node has hostPort 8081 in use already; Deployment web has 1 of 2 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostport-conflict",
+            "name": "web-7d46598d5d-6srml"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 node(s) didn't have free ports for the requested pod ports. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
+          "command": "kubectl get pod web-7d46598d5d-6srml -n kd-hostport-conflict -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostport-conflict",
+            "name": "web-7d46598d5d-6srml"
+          },
+          "what": "pod requests host ports 8081",
+          "command": "kubectl get pod web-7d46598d5d-6srml -n kd-hostport-conflict -o jsonpath='{.spec.containers[*].ports}'"
+        }
+      ],
+      "fix": "Drop hostPort and reach the pod through a Service, or run at most one such pod per node (a DaemonSet, or fewer replicas than nodes).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-hostport-conflict",
+          "name": "web-7d46598d5d-6srml"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

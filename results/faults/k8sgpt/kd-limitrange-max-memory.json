@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-limitrange-max-memory/web",
+      "error": [
+        {
+          "Text": "Deployment kd-limitrange-max-memory/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-max-memory",
+              "Masked": "Yn0rK3p6OyZbV1dLN280ejtIJl01KjJ1"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "X31d"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-limitrange-max-memory/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-limitrange-max-memory/web-6bc7c8f797",
+      "error": [
+        {
+          "Text": "pods \"web-6bc7c8f797-jz78p\" is forbidden: maximum memory usage per Container is 64Mi, but limit is 128Mi",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

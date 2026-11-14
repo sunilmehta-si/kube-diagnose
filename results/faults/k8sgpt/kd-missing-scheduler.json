@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-missing-scheduler/web",
+      "error": [
+        {
+          "Text": "Deployment kd-missing-scheduler/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-missing-scheduler",
+              "Masked": "UnhzTFJieDNUPUFfJGY3T1RHZ0A="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "dT5h"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-selector-mismatch"
   ],
-  "collectedAt": "2026-11-13 08:08 UTC",
+  "collectedAt": "2026-11-14 09:07 UTC",
   "findings": [
     {
       "rule": "KD160",
