@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-limitrange-max-memory",
+  "description": "A LimitRange caps containers at 64 MiB and the Deployment asks for a 128 MiB limit, so no pod is created.",
+  "rule": "KD174",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "limitrange"
+    ],
+    [
+      "maximum memory"
+    ]
+  ]
+}
