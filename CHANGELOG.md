@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-14
+
 ### Added
 - 21 rules, 62 in all (`docs/rules.md`):
   - images: registry rate limits (KD105), pull secrets that do not exist (KD106) or are not of type
@@ -24,6 +26,12 @@
 - 17 fault scenarios, 40 broken namespaces in all, for the new rules that a one-node kind cluster can reproduce.
 - `record --redact`: names, label values, image repositories and IP addresses become pseudonyms, and the context
   name and logs are dropped, so a snapshot can be attached to a public issue; it diagnoses to the same causes.
+- The fault suite's committed run (43578580025): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 40 of 40 faults and raises no false alarm; k8sgpt v0.4.41 names 21.
+
+### Fixed (found by the fault suite on Kubernetes 1.37)
+- A failing postStart hook is named from the pod spec, since the kubelet's event says only "PostStartHook failed".
+- The pod-level ephemeral-storage eviction message, which ends with a space, is recognised.
 
 ## [0.1.0] - 2026-11-13
 
