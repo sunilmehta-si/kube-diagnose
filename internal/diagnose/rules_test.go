@@ -744,3 +744,12 @@ func TestMultiAttach(t *testing.T) {
 	s.Events = []kube.Event{event("Pod", "db", "FailedAttachVolume", `Multi-Attach error for volume "pvc-7f3a" Volume is already exclusively attached to one node and can't be attached to another`, 0)}
 	expect(t, only(t, Diagnose(s)), "KD155", "Pod shop/db", "still attached elsewhere")
 }
+
+func TestLimitRangeRejects(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	s.Workloads[1].Status.Replicas = 0
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate", `Error creating: pods "web-rs-8kq2v" is forbidden: [maximum memory usage per Container is 512Mi, but limit is 1Gi, minimum cpu usage per Container is 100m, but request is 50m]`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD174", "Deployment shop/web", "maximum memory usage per Container is 512Mi, but limit is 1Gi; minimum cpu usage per Container is 100m, but request is 50m")
+}
