@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-hpa-target-missing",
+  "description": "An HPA targets a Deployment that does not exist.",
+  "rule": "KD178",
+  "object": "HorizontalPodAutoscaler/web",
+  "keywords": [
+    [
+      "web-api"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}
