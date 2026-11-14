@@ -572,3 +572,29 @@ func TestRegistryRateLimit(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestImagePullSecretMissing(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "ghcr.io/acme/web:2.0"
+	p.Spec.ImagePullSecrets = []kube.LocalObjectReference{{Name: "ghcr-creds"}}
+	waiting(&p, "ImagePullBackOff", "")
+	s.Pods = []kube.Pod{p}
+	s.Secrets = []kube.KeySet{keys("shop", "default-token", "token")}
+	s.Events = []kube.Event{
+		event("Pod", "web", "Failed", `Failed to pull image "ghcr.io/acme/web:2.0": failed to resolve reference "ghcr.io/acme/web:2.0": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token: 401 Unauthorized`, 0),
+		event("Pod", "web", "FailedToRetrieveImagePullSecret", "Unable to retrieve some image pull secrets (ghcr-creds); attempting to pull the image may not succeed.", time.Minute),
+	}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD106", "Pod shop/web", "imagePullSecret ghcr-creds, which does not exist")
+	if len(f.Evidence) != 4 {
+		t.Errorf("evidence: %+v", f.Evidence)
+	}
+
+	s.Secrets = append(s.Secrets, kube.KeySet{Namespace: "shop", Name: "ghcr-creds", Type: "kubernetes.io/dockerconfigjson", Keys: []string{".dockerconfigjson"}})
+	expect(t, only(t, Diagnose(s)), "KD102", "Pod shop/web", "it answered 401 unauthorized")
+
+	s.Gaps = []snapshot.Gap{{Resource: "secrets", Error: "forbidden"}}
+	s.Secrets = nil
+	expect(t, only(t, Diagnose(s)), "KD102", "Pod shop/web", "refused")
+}

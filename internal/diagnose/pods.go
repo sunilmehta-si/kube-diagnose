@@ -161,6 +161,9 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
 			"Check the registry host name in the image, and that nodes can resolve and reach it (DNS, egress, proxy).", ev...)
 	case reDenied.MatchString(msg):
+		if pr := pullSecretProblem(ix, p, cs, image, ev); pr != nil {
+			return pr
+		}
 		cause := fmt.Sprintf("the registry refused to serve image %s (%s)", image, deniedReason(msg))
 		if strings.Contains(strings.ToLower(msg), "does not exist") {
 			cause = fmt.Sprintf("image %s does not exist, or it is private and the pod has no credentials for it (%s)", image, deniedReason(msg))
@@ -178,6 +181,30 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	return newProblem(p, cs.Name, "KD100", "Image cannot be pulled", Critical,
 		fmt.Sprintf("image %s cannot be pulled", image), "pull|"+image,
 		"Read the pull error in the evidence; the node's container runtime reported it.", ev...)
+}
+
+// pullSecretProblem finds an imagePullSecrets entry that names a Secret that does not exist, the usual reason a
+// registry refuses a pod that was meant to have credentials.
+func pullSecretProblem(ix *index, p kube.Pod, cs kube.ContainerStatus, image string, ev []Evidence) *problem {
+	if !ix.read("secrets") {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	for _, ref := range p.Spec.ImagePullSecrets {
+		if _, ok := ix.secrets[nsName{ns, ref.Name}]; ok {
+			continue
+		}
+		for _, e := range ix.eventsFor(p.Ref(), "FailedToRetrieveImagePullSecret") {
+			ev = append(ev, eventEvidence(p.Ref(), e))
+			break
+		}
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Secret", Namespace: ns, Name: ref.Name},
+			What: fmt.Sprintf("there is no Secret %s in namespace %s", ref.Name, ns), Command: cmdGet("secret", ns, ref.Name, "")})
+		return newProblem(p, cs.Name, "KD106", "Image pull secret does not exist", Critical,
+			fmt.Sprintf("the pod pulls image %s with imagePullSecret %s, which does not exist in namespace %s, so the registry sees no credentials", image, ref.Name, ns),
+			"pullsecret|"+ref.Name, fmt.Sprintf("Create the docker-registry Secret %s in namespace %s (kubectl create secret docker-registry), or correct imagePullSecrets.", ref.Name, ns), ev...)
+	}
+	return nil
 }
 
 // deniedReason quotes how the registry refused, most specific first.
