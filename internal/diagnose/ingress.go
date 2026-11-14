@@ -3,6 +3,7 @@ package diagnose
 import (
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
@@ -49,10 +50,26 @@ func ingressFindings(ix *index) []Finding {
 	for _, ing := range ix.s.Ingresses {
 		ns := ing.Metadata.Namespace
 		missing := map[string][]string{} // Service -> routes
+		var badPorts []string
+		var portEv []Evidence
 		for _, r := range ingressRoutes(ing) {
-			if _, ok := services[nsName{ns, r.backend.Name}]; !ok {
+			svc, ok := services[nsName{ns, r.backend.Name}]
+			if !ok {
 				missing[r.backend.Name] = append(missing[r.backend.Name], r.where)
+				continue
 			}
+			if want, have, ok := servicePortMatches(svc, r.backend); !ok {
+				badPorts = append(badPorts, fmt.Sprintf("port %s of Service %s (for %s), which has %s", want, svc.Metadata.Name, r.where, have))
+				portEv = append(portEv, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s has %s", svc.Metadata.Name, have),
+					Command: cmdGet("service", ns, svc.Metadata.Name, "{.spec.ports}")})
+			}
+		}
+		if len(badPorts) > 0 {
+			out = append(out, Finding{Rule: "KD166", Title: "Ingress sends traffic to a port the Service does not have", Severity: Critical, Object: ing.Ref(),
+				Cause: fmt.Sprintf("Ingress %s sends traffic to %s, so the controller has no endpoints for it and answers with an error (usually 503)",
+					ing.Metadata.Name, strings.Join(badPorts, "; ")),
+				Evidence: append([]Evidence{{Object: ing.Ref(), What: "Ingress backends", Command: cmdGet("ingress", ns, ing.Metadata.Name, "{.spec}")}}, portEv...),
+				Fix:      "Set the Ingress backend's port to a port the Service exposes (its port number, or its port name), not the container's targetPort."})
 		}
 		if len(missing) == 0 {
 			continue
@@ -72,4 +89,25 @@ func ingressFindings(ix *index) []Finding {
 			Evidence: ev, Fix: "Correct the backend Service name in the Ingress, or create the Service."})
 	}
 	return out
+}
+
+// servicePortMatches reports whether an Ingress backend's port is one the Service exposes, and what it asks for and
+// what the Service has when it is not.
+func servicePortMatches(svc kube.Service, b *kube.IngressServiceBackend) (string, string, bool) {
+	var have []string
+	for _, sp := range svc.Spec.Ports {
+		if (b.Port.Name != "" && sp.Name == b.Port.Name) || (b.Port.Name == "" && sp.Port == b.Port.Number) {
+			return "", "", true
+		}
+		desc := strconv.Itoa(int(sp.Port))
+		if sp.Name != "" {
+			desc = sp.Name + " (" + desc + ")"
+		}
+		have = append(have, desc)
+	}
+	want := strconv.Itoa(int(b.Port.Number))
+	if b.Port.Name != "" {
+		want = strconv.Quote(b.Port.Name)
+	}
+	return want, "ports " + strings.Join(have, ", "), false
 }

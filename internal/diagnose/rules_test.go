@@ -879,3 +879,23 @@ func TestIngressBackendServiceMissing(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestIngressBackendPortMissing(t *testing.T) {
+	s := snap()
+	s.Pods = []kube.Pod{pod("web", "")}
+	svc := service("web", map[string]string{"app": "web"}, named("http"))
+	svc.Spec.Ports[0].Name = "http"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Ingresses = []kube.Ingress{ingress("shop", "web", 8080, "")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD166", "Ingress shop/shop", "port 8080 of Service web (for shop.example.com/api), which has ports http (80)")
+
+	s.Ingresses = []kube.Ingress{ingress("shop", "web", 0, "https")}
+	expect(t, only(t, Diagnose(s)), "KD166", "Ingress shop/shop", `port "https" of Service web`)
+
+	s.Ingresses = []kube.Ingress{ingress("shop", "web", 0, "http")}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
