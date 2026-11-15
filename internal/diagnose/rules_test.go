@@ -1237,3 +1237,14 @@ func TestCronJobRunsFailingAreOneFinding(t *testing.T) {
 		t.Errorf("affects %v", f.Affects)
 	}
 }
+
+func TestImageWithoutTheNodesPlatform(t *testing.T) {
+	s := snap()
+	s.Nodes[0].Metadata.Labels["kubernetes.io/arch"], s.Nodes[0].Metadata.Labels["kubernetes.io/os"] = "amd64", "linux"
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "docker.io/arm64v8/busybox:1.37.0"
+	waiting(&p, "ErrImagePull", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "docker.io/arm64v8/busybox:1.37.0": rpc error: code = NotFound desc = failed to pull and unpack image "docker.io/arm64v8/busybox:1.37.0": no match for platform in manifest: not found`, 0)}
+	expect(t, only(t, Diagnose(s)), "KD109", "Pod shop/web", "has no build for linux/amd64")
+}

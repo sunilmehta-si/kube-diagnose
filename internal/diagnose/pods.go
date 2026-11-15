@@ -213,6 +213,7 @@ var (
 	reNotFound  = regexp.MustCompile(`(?i)\bnot found\b|manifest unknown|NotFound|no such manifest|name unknown`)
 	reDenied    = regexp.MustCompile(`(?i)unauthorized|authentication required|access denied|denied:|insufficient_scope|\b40[13]\b|forbidden`)
 	reRateLimit = regexp.MustCompile(`(?i)toomanyrequests|429 too many requests|pull rate limit`)
+	rePlatform  = regexp.MustCompile(`(?i)no match for platform in manifest|no matching manifest for|does not provide the specified platform`)
 	reNetwork   = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
 )
 
@@ -232,6 +233,16 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return newProblem(p, cs.Name, "KD105", "Registry rate-limits the image pull", Critical,
 			fmt.Sprintf("the registry is rate-limiting pulls of image %s (it answered 429 Too Many Requests)", image), "ratelimit|"+registry(image),
 			"Pull with credentials (an account raises the limit; list a docker-registry Secret in imagePullSecrets), or mirror the image to a registry you control.", ev...)
+	case rePlatform.MatchString(msg):
+		arch := "the node's architecture"
+		for _, n := range ix.s.Nodes {
+			if n.Metadata.Name == p.Spec.NodeName && n.Metadata.Labels["kubernetes.io/arch"] != "" {
+				arch = n.Metadata.Labels["kubernetes.io/os"] + "/" + n.Metadata.Labels["kubernetes.io/arch"]
+			}
+		}
+		return newProblem(p, cs.Name, "KD109", "Image has no build for the node's platform", Critical,
+			fmt.Sprintf("image %s exists, but has no build for %s, so the node cannot pull it", image, arch), "platform|"+image,
+			"Use a multi-architecture image that includes the node's platform, or schedule the pod onto nodes it was built for (a nodeSelector on kubernetes.io/arch).", ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
