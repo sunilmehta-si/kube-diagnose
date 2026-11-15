@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-init-container-fails",
-              "Masked": "IXV0I29QZHBkVF5Tb1JOMVg6ZldqR0Q="
+              "Masked": "N0ZrIS0xQCtkNT5vKSJpaXphe2JnMDo="
             },
             {
               "Unmasked": "web",
-              "Masked": "N1Bx"
+              "Masked": "TG8h"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-init-container-fails/web-845dc8755d-swh4g",
+      "name": "kd-init-container-fails/web-845dc8755d-qh8sw",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=2 container=wait-for-db pod=web-845dc8755d-swh4g",
+          "Text": "the termination reason is Error exitCode=2 container=wait-for-db pod=web-845dc8755d-qh8sw",
           "KubernetesDoc": "",
           "Sensitive": []
         }

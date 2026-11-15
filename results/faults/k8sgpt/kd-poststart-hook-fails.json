@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-poststart-hook-fails",
-              "Masked": "aXUpOXQxO0B2UDppWlBMKE1dRkdhJjM="
+              "Masked": "JkZHWnk3Qit1ZiohSiFLTlheRlFjOXk="
             },
             {
               "Unmasked": "web",
-              "Masked": "J20x"
+              "Masked": "QTRo"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-poststart-hook-fails/web-657885869b-75szk",
+      "name": "kd-poststart-hook-fails/web-657885869b-ncp6c",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-657885869b-75szk",
+          "Text": "the last termination reason is Error container=web pod=web-657885869b-ncp6c",
           "KubernetesDoc": "",
           "Sensitive": []
         }

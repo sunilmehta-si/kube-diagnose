@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-service-refused",
+  "description": "An app connects to Service db, whose Deployment is scaled to 0, so the connection is refused and the app exits.",
+  "rule": "KD124",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "Service db"
+    ],
+    [
+      "no ready pods"
+    ]
+  ]
+}

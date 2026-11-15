@@ -136,12 +136,25 @@ func scan(args []string, env Env) int {
 	fs.StringVar(output, "o", "text", "shorthand for --output")
 	failOn := fs.String("fail-on", "", "exit 1 when a finding is at least this severe: critical or warning")
 	color := fs.String("color", "auto", "auto, always or never (NO_COLOR is honoured)")
+	ignore := fs.String("ignore", "", "comma-separated rule IDs whose findings are left out, such as KD168 on a cluster without load balancers")
 	if err := fs.Parse(args); err != nil {
 		return parseExit(err)
 	}
 	if fs.NArg() > 0 {
 		fmt.Fprintf(env.Stderr, "kube-diagnose: unexpected argument %q\n", fs.Arg(0))
 		return 2
+	}
+	ignored := map[string]bool{}
+	for _, id := range strings.Split(*ignore, ",") {
+		id = strings.ToUpper(strings.TrimSpace(id))
+		if id == "" {
+			continue
+		}
+		if _, ok := diagnose.RuleByID(id); !ok {
+			fmt.Fprintf(env.Stderr, "kube-diagnose: --ignore: no rule %s (kube-diagnose rules lists them)\n", id)
+			return 2
+		}
+		ignored[id] = true
 	}
 	threshold, ok := map[string]int{"": -1, "critical": int(diagnose.Critical), "warning": int(diagnose.Warning)}[*failOn]
 	if !ok {
@@ -164,6 +177,20 @@ func scan(args []string, env Env) int {
 		return 2
 	}
 	r := diagnose.Diagnose(s)
+	if len(ignored) > 0 {
+		kept, left := r.Findings[:0], 0
+		for _, f := range r.Findings {
+			if ignored[f.Rule] {
+				left++
+				continue
+			}
+			kept = append(kept, f)
+		}
+		r.Findings = kept
+		if left > 0 {
+			fmt.Fprintf(env.Stderr, "kube-diagnose: %d findings of ignored rules left out\n", left)
+		}
+	}
 	switch *output {
 	case "text":
 		useColor := *color == "always" || (*color == "auto" && env.IsTTY && env.Getenv("NO_COLOR") == "")

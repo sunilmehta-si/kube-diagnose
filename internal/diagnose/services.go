@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -17,6 +18,9 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 	var out []Finding
 	blocked := map[kube.Ref][]kube.Ref{} // Service -> its pods that are not ready
 	for _, svc := range ix.s.Services {
+		if f := loadBalancerPending(ix, svc); f != nil {
+			out = append(out, *f)
+		}
 		if len(svc.Spec.Selector) == 0 || svc.Spec.Type == "ExternalName" {
 			continue
 		}
@@ -60,11 +64,19 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 
 func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	ns := svc.Metadata.Namespace
-	// A workload whose template matches is scaled to zero or failing to create pods: not a selector problem.
+	// A workload whose template matches is scaled to zero or failing to create pods: not a selector problem. Scaling
+	// to zero is often deliberate (KEDA does it); it is worth saying only when an Ingress still sends traffic here.
+	var zero []kube.Workload
 	for _, w := range ix.s.Workloads {
 		if w.Metadata.Namespace == ns && w.Kind != "ReplicaSet" && kube.MatchesMap(svc.Spec.Selector, w.Spec.Template.Metadata.Labels) {
-			return nil
+			if w.Kind == "DaemonSet" || w.Desired() != 0 {
+				return nil
+			}
+			zero = append(zero, w)
 		}
+	}
+	if len(zero) > 0 {
+		return scaledToZero(ix, svc, zero[0])
 	}
 	sel := kube.FormatMap(svc.Spec.Selector)
 	ev := []Evidence{{Object: svc.Ref(), What: "Service selects pods with " + sel,
@@ -79,6 +91,61 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	}
 	return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Critical, Object: svc.Ref(), Cause: cause,
 		Evidence: ev, Fix: fix}
+}
+
+// lbPendingAfter is how long a LoadBalancer Service may wait for its address before it is reported.
+const lbPendingAfter = 2 * time.Minute
+
+// loadBalancerPending finds a LoadBalancer Service that has no external address minutes after it was created: no
+// load balancer controller serves it, or the one there fails.
+func loadBalancerPending(ix *index, svc kube.Service) *Finding {
+	if svc.Spec.Type != "LoadBalancer" || len(svc.Status.LoadBalancer.Ingress) > 0 || svc.Metadata.CreationTimestamp.IsZero() {
+		return nil
+	}
+	age := ix.s.CollectedAt.Sub(svc.Metadata.CreationTimestamp)
+	if age < lbPendingAfter {
+		return nil
+	}
+	ns, name := svc.Metadata.Namespace, svc.Metadata.Name
+	ev := []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has type LoadBalancer and no external address after %s", name, age.Round(time.Minute)),
+		Command: cmdGet("service", ns, name, "{.spec.type}{\" \"}{.status.loadBalancer}")}}
+	cause := fmt.Sprintf("LoadBalancer Service %s has had no external address for %s: nothing in the cluster provisions load balancers (a cloud controller manager, MetalLB, cloud-provider-kind), or the one there ignores this Service", name, age.Round(time.Minute))
+	fix := "Install a load balancer implementation for this cluster, or expose the Service another way (an Ingress or Gateway, or type NodePort)."
+	for _, e := range ix.eventsFor(svc.Ref(), "SyncLoadBalancerFailed") {
+		ev = append(ev, eventEvidence(svc.Ref(), e))
+		cause = fmt.Sprintf("LoadBalancer Service %s has had no external address for %s: the load balancer controller fails to create one: %s", name, age.Round(time.Minute), clip(e.Message, 200))
+		fix = "Fix what the load balancer controller reports (quota, subnet, annotations, permissions); it retries on its own."
+		break
+	}
+	return &Finding{Rule: "KD168", Title: "LoadBalancer Service has no external address", Severity: Warning, Object: svc.Ref(),
+		Cause: cause, Evidence: ev, Fix: fix}
+}
+
+// scaledToZero reports a Service whose workload is scaled to zero while an Ingress still sends it traffic.
+func scaledToZero(ix *index, svc kube.Service, w kube.Workload) *Finding {
+	ns := svc.Metadata.Namespace
+	for _, ing := range ix.s.Ingresses {
+		if ing.Metadata.Namespace != ns || !routesTo(ing, svc.Metadata.Name) {
+			continue
+		}
+		return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Warning, Object: svc.Ref(),
+			Cause: fmt.Sprintf("Ingress %s sends traffic to Service %s, which has no pods because %s %s is scaled to 0 replicas", ing.Metadata.Name, svc.Metadata.Name, w.Kind, w.Metadata.Name),
+			Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("%s %s has replicas 0", w.Kind, w.Metadata.Name),
+				Command: cmdGet(strings.ToLower(w.Kind), ns, w.Metadata.Name, "{.spec.replicas}")},
+				{Object: ing.Ref(), What: fmt.Sprintf("Ingress %s routes to Service %s", ing.Metadata.Name, svc.Metadata.Name), Command: cmdGet("ingress", ns, ing.Metadata.Name, "{.spec}")}},
+			Fix:     fmt.Sprintf("Scale %s %s up (kubectl scale --replicas), or check what scaled it down (an HPA, KEDA or a deploy pipeline); if it is retired, remove the Ingress route.", w.Kind, w.Metadata.Name),
+			Affects: []kube.Ref{ing.Ref()}}
+	}
+	return nil
+}
+
+func routesTo(ing kube.Ingress, svc string) bool {
+	for _, r := range ingressRoutes(ing) {
+		if r.backend.Name == svc {
+			return true
+		}
+	}
+	return false
 }
 
 // nearestLabels finds the pod label set that shares the most selector keys with the selector, printed as the

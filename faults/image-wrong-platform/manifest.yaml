@@ -1,0 +1,26 @@
+# A Deployment's image is published only for arm64, and the node is amd64, so there is no build to pull.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-image-wrong-platform
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-image-wrong-platform
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/arm64v8/busybox:1.37.0@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7
+          command: ["sleep", "3600"]

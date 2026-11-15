@@ -51,6 +51,11 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
+	for _, cs := range p.Status.InitContainerStatuses {
+		if pr := initStuck(ix, p, cs); pr != nil {
+			return pr
+		}
+	}
 	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probeProblem(ix, p, cs); pr != nil {
 			return pr
@@ -85,11 +90,52 @@ func unclaimed(ix *index, p kube.Pod) *problem {
 			Command: "kubectl get pods -A -o wide | grep -i sched"})
 }
 
+// initStuckAfter is how long an init container may run before it is reported as never finishing.
+const initStuckAfter = 2 * time.Minute
+
+// initStuck finds an init container that is still running long after it started, holding the pod in Init. Init
+// containers that wait for a dependency loop until it appears, so the log usually names what is missing.
+func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	if p.Status.Phase != "Pending" || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
+		return nil
+	}
+	ran := ix.s.CollectedAt.Sub(cs.State.Running.StartedAt)
+	if ran < initStuckAfter {
+		return nil
+	}
+	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("init container %s has been running since %s", cs.Name, cs.State.Running.StartedAt.UTC().Format(time.RFC3339)),
+		Command: cmdContainerState(p, cs.Name, "state")}}
+	cause := fmt.Sprintf("init container %s has run for %s without finishing, so the pod's app containers have not started", cs.Name, ran.Round(time.Minute))
+	if log, ok := ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}]; ok && len(log.Lines) > 0 {
+		ev = append(ev, logEvidence(p, cs.Name, log))
+		cause += fmt.Sprintf("; its log says: %q", errorLine(log.Lines))
+	}
+	fix := "Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0."
+	if svcNS, svc, _, ok := ix.missingService(p.Metadata.Namespace, ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines); ok {
+		cause += fmt.Sprintf("; it waits for %s, and there is no Service %s in namespace %s", svc, svc, svcNS)
+		fix = fmt.Sprintf("Create Service %s in namespace %s (or deploy what it fronts), or correct the host name the init container waits for.", svc, svcNS)
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
+			What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})
+	}
+	return newProblem(p, cs.Name, "KD119", "Init container never finishes", Critical, cause, "initstuck", fix, ev...)
+}
+
 func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if w := cs.State.Waiting; w != nil {
 		switch w.Reason {
 		case "ErrImagePull", "ImagePullBackOff":
 			return imagePull(ix, p, cs)
+		case "ErrImageNeverPull":
+			image := imageOf(p, cs)
+			node := p.Spec.NodeName
+			if node == "" {
+				node = "its node"
+			}
+			return newProblem(p, cs.Name, "KD108", "Image is not on the node and may not be pulled", Critical,
+				fmt.Sprintf("container %s's image %s is not on %s, and its imagePullPolicy is Never, so the kubelet will not pull it", cs.Name, image, node),
+				"neverpull|"+image, "Load the image onto every node that may run the pod (kind load docker-image, or pre-pull it), or set imagePullPolicy to IfNotPresent so the kubelet pulls it.",
+				waitingEvidence(p, cs), Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s has imagePullPolicy Never", cs.Name),
+					Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].imagePullPolicy}`, cs.Name))})
 		case "InvalidImageName":
 			return newProblem(p, cs.Name, "KD104", "Image reference is invalid", Critical,
 				fmt.Sprintf("container %s has image %q, which is not a valid image reference", cs.Name, imageOf(p, cs)),
@@ -167,6 +213,7 @@ var (
 	reNotFound  = regexp.MustCompile(`(?i)\bnot found\b|manifest unknown|NotFound|no such manifest|name unknown`)
 	reDenied    = regexp.MustCompile(`(?i)unauthorized|authentication required|access denied|denied:|insufficient_scope|\b40[13]\b|forbidden`)
 	reRateLimit = regexp.MustCompile(`(?i)toomanyrequests|429 too many requests|pull rate limit`)
+	rePlatform  = regexp.MustCompile(`(?i)no match for platform in manifest|no matching manifest for|does not provide the specified platform`)
 	reNetwork   = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
 )
 
@@ -186,6 +233,16 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return newProblem(p, cs.Name, "KD105", "Registry rate-limits the image pull", Critical,
 			fmt.Sprintf("the registry is rate-limiting pulls of image %s (it answered 429 Too Many Requests)", image), "ratelimit|"+registry(image),
 			"Pull with credentials (an account raises the limit; list a docker-registry Secret in imagePullSecrets), or mirror the image to a registry you control.", ev...)
+	case rePlatform.MatchString(msg):
+		arch := "the node's architecture"
+		for _, n := range ix.s.Nodes {
+			if n.Metadata.Name == p.Spec.NodeName && n.Metadata.Labels["kubernetes.io/arch"] != "" {
+				arch = n.Metadata.Labels["kubernetes.io/os"] + "/" + n.Metadata.Labels["kubernetes.io/arch"]
+			}
+		}
+		return newProblem(p, cs.Name, "KD109", "Image has no build for the node's platform", Critical,
+			fmt.Sprintf("image %s exists, but has no build for %s, so the node cannot pull it", image, arch), "platform|"+image,
+			"Use a multi-architecture image that includes the node's platform, or schedule the pod onto nodes it was built for (a nodeSelector on kubernetes.io/arch).", ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
@@ -543,6 +600,22 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := portInUse(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := refusedByEmptyService(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {
+		return newProblem(p, cs.Name, "KD121", "Container looks up a Service that does not exist", Critical,
+			fmt.Sprintf("container %s exits because it cannot resolve %s: there is no Service %s in namespace %s; its log says: %q", cs.Name, svc, svc, svcNS, clip(line, 200)),
+			"nosvc|"+svcNS+"/"+svc, fmt.Sprintf("Create Service %s in namespace %s (or deploy what it fronts), or correct the host name the app connects to in its configuration.", svc, svcNS),
+			append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
+				What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})...)
+	}
 	title, rule := "Container keeps crashing", "KD110"
 	what := "exits"
 	if isInit(p, cs.Name) {
@@ -638,6 +711,44 @@ func readOnlyRoot(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evid
 		return newProblem(p, cs.Name, "KD118", "Container writes to its read-only root filesystem", Critical, cause, "readonly|"+path, fix, ev...)
 	}
 	return nil
+}
+
+var reAddrInUse = regexp.MustCompile(`(?i)address already in use|address in use|EADDRINUSE`)
+
+// portInUse finds a container that exits because the port it binds is taken. Containers in a pod share one network
+// namespace, so the usual cause is another container of the same pod on the same port.
+func portInUse(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	line := ""
+	for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+		if reAddrInUse.MatchString(lines[i]) {
+			line = lines[i]
+		}
+	}
+	if line == "" {
+		return nil
+	}
+	c, _ := containerSpec(p, cs.Name)
+	cause := fmt.Sprintf("container %s exits because the port it listens on is already in use: %q", cs.Name, clip(line, 160))
+	fix := "Make the container listen on a free port; containers in one pod share its network, so each needs its own port."
+	key := "addrinuse"
+	for _, other := range append(append([]kube.Container{}, p.Spec.InitContainers...), p.Spec.Containers...) {
+		if other.Name == cs.Name {
+			continue
+		}
+		for _, op := range other.Ports {
+			for _, cp := range c.Ports {
+				if op.ContainerPort == cp.ContainerPort {
+					cause = fmt.Sprintf("container %s exits because port %d is already in use: container %s of the same pod also listens on %d, and containers in a pod share one network", cs.Name, cp.ContainerPort, other.Name, cp.ContainerPort)
+					fix = fmt.Sprintf("Give %s or %s another port (and update the Service's targetPort to match).", cs.Name, other.Name)
+					key = fmt.Sprintf("addrinuse|%d", cp.ContainerPort)
+					ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("containers %s and %s both declare port %d", cs.Name, other.Name, cp.ContainerPort),
+						Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{range .spec.containers[*]}{.name}{" "}{.ports}{"\n"}{end}`)})
+					return newProblem(p, cs.Name, "KD122", "Port is already in use", Critical, cause, key, fix, ev...)
+				}
+			}
+		}
+	}
+	return newProblem(p, cs.Name, "KD122", "Port is already in use", Critical, cause, key, fix, ev...)
 }
 
 // hookFailed finds a container that the kubelet killed because its postStart hook failed. Such a container exits

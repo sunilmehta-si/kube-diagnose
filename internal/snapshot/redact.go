@@ -117,8 +117,40 @@ func (r *redactor) collect(s *Snapshot) {
 			r.addName("ctr", c.name)
 			r.addImage(c.image)
 		}
+		// Objects the pod refers to are named even when they do not exist, which is when a diagnosis names them.
+		for _, c := range append(append([]kube.Container{}, p.Spec.InitContainers...), p.Spec.Containers...) {
+			for _, e := range c.EnvFrom {
+				if e.ConfigMapRef != nil {
+					r.addName("cm", e.ConfigMapRef.Name)
+				}
+				if e.SecretRef != nil {
+					r.addName("secret", e.SecretRef.Name)
+				}
+			}
+			for _, e := range c.Env {
+				if e.ValueFrom != nil && e.ValueFrom.ConfigMapKeyRef != nil {
+					r.addName("cm", e.ValueFrom.ConfigMapKeyRef.Name)
+				}
+				if e.ValueFrom != nil && e.ValueFrom.SecretKeyRef != nil {
+					r.addName("secret", e.ValueFrom.SecretKeyRef.Name)
+				}
+			}
+		}
+		for _, ref := range p.Spec.ImagePullSecrets {
+			r.addName("secret", ref.Name)
+		}
+		r.addName("pc", p.Spec.PriorityClassName)
 		for _, v := range p.Spec.Volumes {
 			r.addName("vol", v.Name)
+			if v.ConfigMap != nil {
+				r.addName("cm", v.ConfigMap.Name)
+			}
+			if v.Secret != nil {
+				r.addName("secret", v.Secret.SecretName)
+			}
+			if v.PersistentVolumeClaim != nil {
+				r.addName("pvc", v.PersistentVolumeClaim.ClaimName)
+			}
 		}
 	}
 	for _, n := range s.Nodes {
@@ -127,12 +159,24 @@ func (r *redactor) collect(s *Snapshot) {
 	for _, w := range s.Workloads {
 		r.addName("ns", w.Metadata.Namespace)
 		r.addName(strings.ToLower(w.Kind), w.Metadata.Name)
+		r.addName("svc", w.Spec.ServiceName)
 	}
 	for _, j := range s.Jobs {
 		r.addName("job", j.Metadata.Name)
+		for _, o := range j.Metadata.OwnerReferences {
+			r.addName("owner", o.Name)
+		}
+	}
+	for _, w := range s.Workloads {
+		for _, o := range w.Metadata.OwnerReferences {
+			r.addName("owner", o.Name)
+		}
 	}
 	for _, x := range s.Services {
 		r.addName("svc", x.Metadata.Name)
+		for _, lb := range x.Status.LoadBalancer.Ingress {
+			r.addName("host", lb.Hostname)
+		}
 	}
 	for _, x := range s.EndpointSlices {
 		r.addName("eps", x.Metadata.Name)
@@ -141,10 +185,30 @@ func (r *redactor) collect(s *Snapshot) {
 		r.addName("ing", x.Metadata.Name)
 		for _, rule := range x.Spec.Rules {
 			r.addName("host", rule.Host)
+			if rule.HTTP != nil {
+				for _, p := range rule.HTTP.Paths {
+					if p.Backend.Service != nil {
+						r.addName("svc", p.Backend.Service.Name)
+					}
+				}
+			}
+		}
+		if b := x.Spec.DefaultBackend; b != nil && b.Service != nil {
+			r.addName("svc", b.Service.Name)
+		}
+		for _, t := range x.Spec.TLS {
+			r.addName("secret", t.SecretName)
+			for _, h := range t.Hosts {
+				r.addName("host", h)
+			}
+		}
+		if x.Spec.IngressClassName != nil {
+			r.addName("ingclass", *x.Spec.IngressClassName)
 		}
 	}
 	for _, x := range s.HPAs {
 		r.addName("hpa", x.Metadata.Name)
+		r.addName("target", x.Spec.ScaleTargetRef.Name)
 	}
 	for _, x := range s.PDBs {
 		r.addName("pdb", x.Metadata.Name)

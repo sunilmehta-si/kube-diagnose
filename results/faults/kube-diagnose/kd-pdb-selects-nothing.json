@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pdb-selects-nothing"
+  ],
+  "collectedAt": "2026-11-15 05:42 UTC",
+  "findings": [
+    {
+      "rule": "KD186",
+      "title": "PodDisruptionBudget selects no pods",
+      "severity": "warning",
+      "object": {
+        "kind": "PodDisruptionBudget",
+        "namespace": "kd-pdb-selects-nothing",
+        "name": "web"
+      },
+      "cause": "PodDisruptionBudget web selects pods with app=frontend, and no pod or workload in namespace kd-pdb-selects-nothing has those labels, so it protects nothing from evictions (the closest pod labels are app=web)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PodDisruptionBudget",
+            "namespace": "kd-pdb-selects-nothing",
+            "name": "web"
+          },
+          "what": "the budget has selector app=frontend and expects 0 pods",
+          "command": "kubectl get pdb web -n kd-pdb-selects-nothing -o jsonpath='{.spec.selector}{\"\\n\"}{.status.expectedPods}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pdb-selects-nothing",
+            "name": "*"
+          },
+          "what": "pod labels in the namespace",
+          "command": "kubectl get pods -n kd-pdb-selects-nothing --show-labels"
+        }
+      ],
+      "fix": "Change the budget's selector to match the pods it should protect (app=web)."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

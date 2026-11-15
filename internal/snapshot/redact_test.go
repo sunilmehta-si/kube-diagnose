@@ -5,6 +5,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
 
 func TestRedactRemovesIdentifiersAndKeepsShape(t *testing.T) {
@@ -61,6 +63,44 @@ func TestRedactKeepsTokensWhole(t *testing.T) {
 	for _, kept := range []string{"webhook", ":2.0", ":8080", "registry.invalid/image-"} {
 		if !strings.Contains(got, kept) {
 			t.Errorf("%q missing from %q", kept, got)
+		}
+	}
+}
+
+// TestRedactNamesObjectsThatDoNotExist covers the names a snapshot holds only as references: a missing ConfigMap,
+// Secret, claim, Service or TLS Secret is named by the diagnosis, so it must be pseudonymised too.
+func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
+	var p kube.Pod
+	p.Metadata = kube.ObjectMeta{Name: "web-1", Namespace: "shop"}
+	p.Spec.Containers = []kube.Container{{Name: "web", Image: "nginx", EnvFrom: []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "web-config"}}},
+		Env: []kube.EnvVar{{Name: "DB", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db-password", Key: "pw"}}}}}}
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "orders-data"}}}
+	p.Spec.ImagePullSecrets = []kube.LocalObjectReference{{Name: "regcred"}}
+	var ss kube.Workload
+	ss.Kind, ss.Metadata = "StatefulSet", kube.ObjectMeta{Name: "db", Namespace: "shop"}
+	ss.Spec.ServiceName = "db-headless"
+	var ing kube.Ingress
+	ing.Metadata = kube.ObjectMeta{Name: "shop", Namespace: "shop"}
+	ing.Spec.DefaultBackend = &kube.IngressBackend{Service: &kube.IngressServiceBackend{Name: "storefront"}}
+	ing.Spec.TLS = []kube.IngressTLS{{Hosts: []string{"shop.acme.example"}, SecretName: "acme-tls"}}
+	var svc kube.Service
+	svc.Metadata = kube.ObjectMeta{Name: "web", Namespace: "shop"}
+	svc.Status.LoadBalancer.Ingress = append(svc.Status.LoadBalancer.Ingress, struct {
+		IP       string `json:"ip,omitempty"`
+		Hostname string `json:"hostname,omitempty"`
+	}{Hostname: "a1b2.elb.acme.example"})
+	var job kube.Job
+	job.Metadata = kube.ObjectMeta{Name: "nightly-29001", Namespace: "shop", OwnerReferences: []kube.OwnerReference{{Kind: "CronJob", Name: "nightly-export"}}}
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Pods: []kube.Pod{p}, Workloads: []kube.Workload{ss},
+		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}, Jobs: []kube.Job{job}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(red)
+	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export"} {
+		if strings.Contains(string(b), name) {
+			t.Errorf("redacted snapshot still contains %q", name)
 		}
 	}
 }

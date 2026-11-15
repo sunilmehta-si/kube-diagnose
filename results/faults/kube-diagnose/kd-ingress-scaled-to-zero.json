@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-ingress-scaled-to-zero"
+  ],
+  "collectedAt": "2026-11-15 05:41 UTC",
+  "findings": [
+    {
+      "rule": "KD160",
+      "title": "Service selects no pods",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-ingress-scaled-to-zero",
+        "name": "web"
+      },
+      "cause": "Ingress web sends traffic to Service web, which has no pods because Deployment web is scaled to 0 replicas",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-ingress-scaled-to-zero",
+            "name": "web"
+          },
+          "what": "Deployment web has replicas 0",
+          "command": "kubectl get deployment web -n kd-ingress-scaled-to-zero -o jsonpath='{.spec.replicas}'"
+        },
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-scaled-to-zero",
+            "name": "web"
+          },
+          "what": "Ingress web routes to Service web",
+          "command": "kubectl get ingress web -n kd-ingress-scaled-to-zero -o jsonpath='{.spec}'"
+        }
+      ],
+      "fix": "Scale Deployment web up (kubectl scale --replicas), or check what scaled it down (an HPA, KEDA or a deploy pipeline); if it is retired, remove the Ingress route.",
+      "affects": [
+        {
+          "kind": "Ingress",
+          "namespace": "kd-ingress-scaled-to-zero",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

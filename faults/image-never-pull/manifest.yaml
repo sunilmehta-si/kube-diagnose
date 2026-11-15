@@ -1,0 +1,27 @@
+# A Deployment's image is not on the node and its imagePullPolicy is Never, so the kubelet will not pull it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-image-never-pull
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-image-never-pull
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0
+          imagePullPolicy: Never
+          command: ["sleep", "3600"]

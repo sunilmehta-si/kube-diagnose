@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-image-wrong-platform/web",
+      "error": [
+        {
+          "Text": "Deployment kd-image-wrong-platform/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-image-wrong-platform",
+              "Masked": "bWxINydnNjs4Tj5Mcl9XTC1DP0o3dzw="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "JFM1"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-image-wrong-platform/web-56dcc9c758-4mbcd",
+      "error": [
+        {
+          "Text": "Back-off pulling image \"docker.io/arm64v8/busybox:1.37.0@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/arm64v8/busybox@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": no match for platform in manifest: not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

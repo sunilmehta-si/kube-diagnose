@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -67,6 +68,22 @@ func pendingClaim(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
 	if len(evs) == 0 {
 		return nil
 	}
+	for _, e := range evs {
+		if e.Reason != "ProvisioningFailed" || !reAccessMode.MatchString(e.Message) {
+			continue
+		}
+		class := "its StorageClass"
+		if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "" {
+			class = "StorageClass " + *pvc.Spec.StorageClassName
+		} else if d := defaultClass(ix); d != "" {
+			class = "the default StorageClass " + d
+		}
+		modes := strings.Join(pvc.Spec.AccessModes, ", ")
+		return &Finding{Rule: "KD156", Title: "StorageClass cannot provide the access mode", Severity: Critical, Object: ref,
+			Cause:    fmt.Sprintf("PersistentVolumeClaim %s asks for access mode %s, which the provisioner of %s cannot provide: %s", name, modes, class, clip(e.Message, 200)),
+			Evidence: []Evidence{state, {Object: ref, What: "claim asks for access modes " + modes, Command: cmdGet("pvc", ns, name, "{.spec.accessModes}")}, eventEvidence(ref, e)},
+			Fix:      "Ask for an access mode the class supports (usually ReadWriteOnce), or use a StorageClass whose storage can be shared (NFS, CephFS, a cloud file store) for ReadWriteMany. A claim's access modes cannot be changed: recreate it."}
+	}
 	e := evs[0]
 	cause := fmt.Sprintf("PersistentVolumeClaim %s is not bound: %s", name, e.Message)
 	if e.Reason == "ExternalProvisioning" {
@@ -76,6 +93,8 @@ func pendingClaim(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
 		Evidence: []Evidence{state, eventEvidence(ref, e)},
 		Fix:      "Check that the StorageClass's provisioner runs in the cluster and read its logs; for static volumes, create a PersistentVolume that matches the claim."}
 }
+
+var reAccessMode = regexp.MustCompile(`(?i)access ?modes?\b|ReadWriteMany|ReadOnlyMany|ReadWriteOncePod`)
 
 func classNames(ix *index) []string {
 	var out []string

@@ -60,7 +60,7 @@ func TestManifestsUseThePinnedImages(t *testing.T) {
 			pins[v] = true
 		}
 	}
-	if len(pins) != 2 {
+	if len(pins) != 3 {
 		t.Fatalf("versions.env image pins: %v", pins)
 	}
 	paths, _ := filepath.Glob("../../faults/*/manifest.yaml")

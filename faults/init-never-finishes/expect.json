@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-init-never-finishes",
+  "description": "An init container waits for a database Service that does not exist, so the app never starts and nothing reports an error.",
+  "rule": "KD119",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "db:5432"
+    ],
+    [
+      "init container"
+    ],
+    [
+      "finish",
+      "never",
+      "not started"
+    ]
+  ]
+}

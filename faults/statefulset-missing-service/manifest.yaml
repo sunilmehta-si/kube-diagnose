@@ -1,0 +1,27 @@
+# A StatefulSet names a governing Service that does not exist, so its pods have no DNS names.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-statefulset-missing-service
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: kd-statefulset-missing-service
+spec:
+  serviceName: db-headless
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]

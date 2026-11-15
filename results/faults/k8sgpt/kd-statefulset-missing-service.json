@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "StatefulSet",
+      "name": "kd-statefulset-missing-service/db",
+      "error": [
+        {
+          "Text": "StatefulSet uses the service kd-statefulset-missing-service/db-headless which does not exist.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-statefulset-missing-service",
+              "Masked": "fUc0ck0vVi8kIXkhRUE3OFcwei9BNnpsVnwhIXxG"
+            },
+            {
+              "Unmasked": "db-headless",
+              "Masked": "XyRrdmRbbVlzXUA="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

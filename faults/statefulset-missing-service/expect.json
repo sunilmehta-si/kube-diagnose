@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-statefulset-missing-service",
+  "description": "A StatefulSet names a governing Service that does not exist, so its pods have no DNS names.",
+  "rule": "KD182",
+  "object": "StatefulSet/db",
+  "keywords": [
+    [
+      "db-headless"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}

@@ -50,6 +50,10 @@ func Diagnose(s *snapshot.Snapshot) Report {
 		f := fromProblems(ix, g.owner, g.probs)
 		for _, pr := range g.probs {
 			podsTo[pr.pod.Ref()] = len(r.Findings)
+			// The pod's own controller is explained too: a Job grouped under its CronJob needs no finding of its own.
+			if o, ok := pr.pod.Metadata.Controller(); ok {
+				explained[kube.Ref{Kind: o.Kind, Namespace: pr.pod.Metadata.Namespace, Name: o.Name}] = true
+			}
 		}
 		explained[g.owner] = true
 		r.Findings = append(r.Findings, f)
@@ -94,6 +98,7 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	r.Findings = append(r.Findings, rolloutFindings(ix, explained)...)
 	r.Findings = append(r.Findings, hpaFindings(ix)...)
 	r.Findings = append(r.Findings, pdbFindings(ix)...)
+	r.Findings = append(r.Findings, statefulSetFindings(ix)...)
 	r.Findings = append(r.Findings, nodeFindings(ix)...)
 	sort.SliceStable(r.Findings, func(i, j int) bool {
 		a, b := r.Findings[i], r.Findings[j]

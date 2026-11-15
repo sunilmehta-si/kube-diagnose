@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readiness-failing"
   ],
-  "collectedAt": "2026-11-14 09:06 UTC",
+  "collectedAt": "2026-11-15 05:43 UTC",
   "findings": [
     {
       "rule": "KD120",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-9t4v7"
+            "name": "web-ff6bfb896-7526z"
           },
           "what": "event Unhealthy (25 times)",
           "detail": "Readiness probe failed: HTTP probe failed with statuscode: 404",
-          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-9t4v7"
+          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-7526z"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-9t4v7"
+            "name": "web-ff6bfb896-7526z"
           },
           "what": "container web is running but not ready",
-          "command": "kubectl get pod web-ff6bfb896-9t4v7 -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+          "command": "kubectl get pod web-ff6bfb896-7526z -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
         }
       ],
       "fix": "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready.",
@@ -42,12 +42,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-9t4v7"
+          "name": "web-ff6bfb896-7526z"
         },
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-przr5"
+          "name": "web-ff6bfb896-jmzt2"
         },
         {
           "kind": "Service",

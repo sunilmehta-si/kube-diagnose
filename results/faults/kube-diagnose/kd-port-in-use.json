@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-port-in-use"
+  ],
+  "collectedAt": "2026-11-15 05:43 UTC",
+  "findings": [
+    {
+      "rule": "KD122",
+      "title": "Port is already in use",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-port-in-use",
+        "name": "web"
+      },
+      "cause": "container metrics exits because port 8080 is already in use: container web of the same pod also listens on 8080, and containers in a pod share one network; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-port-in-use",
+            "name": "web-64496df69d-nhfhx"
+          },
+          "what": "container metrics exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-64496df69d-nhfhx -n kd-port-in-use -o jsonpath='{.status.containerStatuses[?(@.name==\"metrics\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-port-in-use",
+            "name": "web-64496df69d-nhfhx"
+          },
+          "what": "last lines of container metrics's log (run that exited)",
+          "detail": "httpd: bind: Address already in use",
+          "command": "kubectl logs web-64496df69d-nhfhx -n kd-port-in-use -c metrics --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-port-in-use",
+            "name": "web-64496df69d-nhfhx"
+          },
+          "what": "containers metrics and web both declare port 8080",
+          "command": "kubectl get pod web-64496df69d-nhfhx -n kd-port-in-use -o jsonpath='{range .spec.containers[*]}{.name}{\" \"}{.ports}{\"\\n\"}{end}'"
+        }
+      ],
+      "fix": "Give metrics or web another port (and update the Service's targetPort to match).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-port-in-use",
+          "name": "web-64496df69d-nhfhx"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

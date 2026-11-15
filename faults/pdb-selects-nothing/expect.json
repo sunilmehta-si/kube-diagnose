@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-pdb-selects-nothing",
+  "description": "A PodDisruptionBudget selects app=frontend while the pods are app=web, so it protects nothing.",
+  "rule": "KD186",
+  "object": "PodDisruptionBudget/web",
+  "keywords": [
+    [
+      "frontend"
+    ],
+    [
+      "protects nothing",
+      "no pod"
+    ]
+  ]
+}

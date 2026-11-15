@@ -1,0 +1,58 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pvc-access-mode"
+  ],
+  "collectedAt": "2026-11-15 05:43 UTC",
+  "findings": [
+    {
+      "rule": "KD156",
+      "title": "StorageClass cannot provide the access mode",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pvc-access-mode",
+        "name": "shared"
+      },
+      "cause": "PersistentVolumeClaim shared asks for access mode ReadWriteMany, which the provisioner of StorageClass standard cannot provide: failed to provision volume with StorageClass \"standard\": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-access-mode",
+            "name": "shared"
+          },
+          "what": "PersistentVolumeClaim is Pending",
+          "command": "kubectl get pvc shared -n kd-pvc-access-mode -o jsonpath='{.status.phase}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-access-mode",
+            "name": "shared"
+          },
+          "what": "claim asks for access modes ReadWriteMany",
+          "command": "kubectl get pvc shared -n kd-pvc-access-mode -o jsonpath='{.spec.accessModes}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-access-mode",
+            "name": "shared"
+          },
+          "what": "event ProvisioningFailed (5 times)",
+          "detail": "failed to provision volume with StorageClass \"standard\": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes",
+          "command": "kubectl get events -n kd-pvc-access-mode --field-selector involvedObject.kind=PersistentVolumeClaim,involvedObject.name=shared"
+        }
+      ],
+      "fix": "Ask for an access mode the class supports (usually ReadWriteOnce), or use a StorageClass whose storage can be shared (NFS, CephFS, a cloud file store) for ReadWriteMany. A claim's access modes cannot be changed: recreate it."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

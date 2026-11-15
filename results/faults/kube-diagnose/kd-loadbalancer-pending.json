@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-loadbalancer-pending"
+  ],
+  "collectedAt": "2026-11-15 05:42 UTC",
+  "findings": [
+    {
+      "rule": "KD168",
+      "title": "LoadBalancer Service has no external address",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-loadbalancer-pending",
+        "name": "web"
+      },
+      "cause": "LoadBalancer Service web has had no external address for 4m0s: nothing in the cluster provisions load balancers (a cloud controller manager, MetalLB, cloud-provider-kind), or the one there ignores this Service",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-loadbalancer-pending",
+            "name": "web"
+          },
+          "what": "Service web has type LoadBalancer and no external address after 4m0s",
+          "command": "kubectl get service web -n kd-loadbalancer-pending -o jsonpath='{.spec.type}{\" \"}{.status.loadBalancer}'"
+        }
+      ],
+      "fix": "Install a load balancer implementation for this cluster, or expose the Service another way (an Ingress or Gateway, or type NodePort)."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

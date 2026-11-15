@@ -244,3 +244,19 @@ func (g *goneLog) Run(ctx context.Context, args ...string) ([]byte, error) {
 	}
 	return g.fake.Run(ctx, args...)
 }
+
+// TestLogsOfARunningInitContainer reads the current log of an init container that has not finished, the one place
+// that says what it waits for.
+func TestLogsOfARunningInitContainer(t *testing.T) {
+	waiting := `{"items":[{"metadata":{"name":"web-1","namespace":"shop"},"spec":{"initContainers":[{"name":"wait-for-db","image":"busybox"}],"containers":[{"name":"web","image":"nginx"}]},
+  "status":{"phase":"Pending","initContainerStatuses":[{"name":"wait-for-db","restartCount":0,"state":{"running":{}}}],
+   "containerStatuses":[{"name":"web","restartCount":0,"state":{"waiting":{"reason":"PodInitializing"}}}]}}]}`
+	f := &fake{answers: map[string]string{"get pods": waiting, "logs web-1 wait-for-db": "waiting for db:5432\n"}}
+	s, err := Collect(context.Background(), f, Options{AllNamespaces: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Logs) != 1 || s.Logs[0].Container != "wait-for-db" || s.Logs[0].Previous || s.Logs[0].Lines[0] != "waiting for db:5432" {
+		t.Errorf("logs %+v", s.Logs)
+	}
+}

@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-cronjob-fails",
+  "description": "A CronJob runs every minute and every run fails because BACKUP_TARGET is not set.",
+  "rule": "KD110",
+  "object": "CronJob/backup",
+  "keywords": [
+    [
+      "BACKUP_TARGET"
+    ],
+    [
+      "code 2"
+    ]
+  ]
+}

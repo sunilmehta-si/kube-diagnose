@@ -51,6 +51,9 @@ func ingressFindings(ix *index) []Finding {
 		if f := ingressClassMissing(ix, ing); f != nil {
 			out = append(out, *f)
 		}
+		if f := ingressTLSSecret(ix, ing); f != nil {
+			out = append(out, *f)
+		}
 		ns := ing.Metadata.Namespace
 		missing := map[string][]string{} // Service -> routes
 		var badPorts []string
@@ -156,4 +159,45 @@ func ingressClassMissing(ix *index, ing kube.Ingress) *Finding {
 			{Object: ing.Ref(), What: "Ingress class", Command: cmdGet("ingress", ing.Metadata.Namespace, ing.Metadata.Name, "{.spec.ingressClassName}")},
 			{Object: kube.Ref{Kind: "IngressClass", Name: "*"}, What: have, Command: "kubectl get ingressclasses"}},
 		Fix: "Set ingressClassName to an installed class, or install the ingress controller the class belongs to (and mark one class default if Ingresses omit it)."}
+}
+
+// ingressTLSSecret finds an Ingress whose TLS Secret does not exist or holds no certificate and key. The controller
+// then serves its own default certificate for those hosts, and clients that check certificates refuse it.
+func ingressTLSSecret(ix *index, ing kube.Ingress) *Finding {
+	if !ix.read("secrets") {
+		return nil
+	}
+	ns := ing.Metadata.Namespace
+	for _, t := range ing.Spec.TLS {
+		if t.SecretName == "" {
+			continue
+		}
+		hosts := "its hosts"
+		if len(t.Hosts) > 0 {
+			hosts = strings.Join(t.Hosts, ", ")
+		}
+		ref := kube.Ref{Kind: "Secret", Namespace: ns, Name: t.SecretName}
+		ev := []Evidence{{Object: ing.Ref(), What: fmt.Sprintf("Ingress %s serves TLS for %s from Secret %s", ing.Metadata.Name, hosts, t.SecretName),
+			Command: cmdGet("ingress", ns, ing.Metadata.Name, "{.spec.tls}")}}
+		sec, ok := ix.secrets[nsName{ns, t.SecretName}]
+		var cause, fix string
+		switch {
+		case !ok:
+			ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("there is no Secret %s in namespace %s", t.SecretName, ns), Command: cmdGet("secret", ns, t.SecretName, "")})
+			cause = fmt.Sprintf("Ingress %s serves TLS for %s from Secret %s, which does not exist in namespace %s, so the controller serves its default certificate and clients reject it",
+				ing.Metadata.Name, hosts, t.SecretName, ns)
+			fix = fmt.Sprintf("Create the TLS Secret %s in namespace %s (kubectl create secret tls, or a cert-manager Certificate), or correct secretName.", t.SecretName, ns)
+		case !sec.Has("tls.crt") || !sec.Has("tls.key"):
+			ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("Secret %s has type %s and keys %s", t.SecretName, sec.Type, strings.Join(sec.Keys, ", ")),
+				Command: cmdGet("secret", ns, t.SecretName, "{.type}")})
+			cause = fmt.Sprintf("Ingress %s serves TLS for %s from Secret %s, which has no tls.crt and tls.key, so the controller serves its default certificate and clients reject it",
+				ing.Metadata.Name, hosts, t.SecretName)
+			fix = fmt.Sprintf("Recreate %s with kubectl create secret tls (type kubernetes.io/tls, keys tls.crt and tls.key).", t.SecretName)
+		default:
+			continue
+		}
+		return &Finding{Rule: "KD169", Title: "Ingress TLS Secret is missing or has no certificate", Severity: Critical, Object: ing.Ref(),
+			Cause: cause, Evidence: ev, Fix: fix}
+	}
+	return nil
 }

@@ -21,7 +21,8 @@ Fixes go into the latest release only.
   lines can hold anything an app prints. Snapshots are written readable by their owner only; treat them and the
   reports like the cluster data they came from before you share them. `record --redact` replaces every name,
   label value, image repository and IP address with a pseudonym keyed by a random secret that is not kept, drops
-  the context name and removes logs. Key names of ConfigMaps and Secrets, event reasons and Kubernetes versions are
+  the context name and removes logs. That includes names the snapshot holds only as references (a missing
+  ConfigMap, Secret, claim, Service or TLS Secret, a Job's CronJob) and Ingress and load balancer host names. Key names of ConfigMaps and Secrets, event reasons and Kubernetes versions are
   kept; review a redacted snapshot before posting it publicly.
 - **Untrusted input.** A snapshot file is parsed as data; a newer snapshot schema is refused rather than misread.
   Evidence commands in a report are built from object names the API server accepted, quoted for the shell.

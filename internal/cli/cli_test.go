@@ -247,3 +247,17 @@ func TestRecordRedacted(t *testing.T) {
 		t.Errorf("redacted snapshot should diagnose the same: %s", out)
 	}
 }
+
+func TestIgnoreRules(t *testing.T) {
+	env, out, errb, _ := testEnv(broken())
+	if code := Run([]string{"-n", "shop", "-o", "json", "--ignore", "kd101, KD168", "--fail-on", "critical"}, env); code != 0 {
+		t.Errorf("the only finding is ignored, so --fail-on passes: exit %d", code)
+	}
+	if !strings.Contains(out.String(), `"findings": []`) || !strings.Contains(errb.String(), "1 findings of ignored rules left out") {
+		t.Errorf("out %s err %s", out, errb)
+	}
+	env, _, errb, _ = testEnv(broken())
+	if code := Run([]string{"-n", "shop", "--ignore", "KD999"}, env); code != 2 || !strings.Contains(errb.String(), "no rule KD999") {
+		t.Errorf("unknown rule: exit %d, %s", code, errb)
+	}
+}

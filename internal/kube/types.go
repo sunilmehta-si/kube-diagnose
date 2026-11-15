@@ -198,6 +198,7 @@ type SecurityContext struct {
 type Container struct {
 	Name            string           `json:"name"`
 	Image           string           `json:"image"`
+	ImagePullPolicy string           `json:"imagePullPolicy,omitempty"`
 	Command         []string         `json:"command,omitempty"`
 	Args            []string         `json:"args,omitempty"`
 	Ports           []ContainerPort  `json:"ports,omitempty"`
@@ -428,6 +429,14 @@ type Service struct {
 		ClusterIP    string            `json:"clusterIP,omitempty"`
 		ExternalName string            `json:"externalName,omitempty"`
 	} `json:"spec"`
+	Status struct {
+		LoadBalancer struct {
+			Ingress []struct {
+				IP       string `json:"ip,omitempty"`
+				Hostname string `json:"hostname,omitempty"`
+			} `json:"ingress,omitempty"`
+		} `json:"loadBalancer,omitempty"`
+	} `json:"status,omitempty"`
 }
 
 func (s Service) Ref() Ref {
@@ -486,12 +495,18 @@ type IngressRule struct {
 	} `json:"http,omitempty"`
 }
 
+type IngressTLS struct {
+	Hosts      []string `json:"hosts,omitempty"`
+	SecretName string   `json:"secretName,omitempty"`
+}
+
 type Ingress struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
 		IngressClassName *string         `json:"ingressClassName,omitempty"`
 		DefaultBackend   *IngressBackend `json:"defaultBackend,omitempty"`
 		Rules            []IngressRule   `json:"rules,omitempty"`
+		TLS              []IngressTLS    `json:"tls,omitempty"`
 	} `json:"spec"`
 }
 
@@ -538,6 +553,8 @@ type Workload struct {
 		Replicas *int32         `json:"replicas,omitempty"`
 		Selector *LabelSelector `json:"selector,omitempty"`
 		Template PodTemplate    `json:"template"`
+		// ServiceName is a StatefulSet's governing Service, which gives its pods their DNS names.
+		ServiceName string `json:"serviceName,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
 }
@@ -711,6 +728,20 @@ func (n NetworkPolicy) AppliesToIngress() bool {
 	}
 	for _, t := range n.Spec.PolicyTypes {
 		if t == "Ingress" {
+			return true
+		}
+	}
+	return false
+}
+
+// AppliesToEgress reports whether the policy restricts egress: it lists Egress in policyTypes, or it has no
+// policyTypes and has egress rules.
+func (n NetworkPolicy) AppliesToEgress() bool {
+	if len(n.Spec.PolicyTypes) == 0 {
+		return len(n.Spec.Egress) > 0
+	}
+	for _, t := range n.Spec.PolicyTypes {
+		if t == "Egress" {
 			return true
 		}
 	}

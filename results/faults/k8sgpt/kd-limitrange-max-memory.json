@@ -5,6 +5,19 @@
   "problems": 3,
   "results": [
     {
+      "kind": "ReplicaSet",
+      "name": "kd-limitrange-max-memory/web-6bc7c8f797",
+      "error": [
+        {
+          "Text": "pods \"web-6bc7c8f797-pxhzf\" is forbidden: maximum memory usage per Container is 64Mi, but limit is 128Mi",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
       "kind": "Deployment",
       "name": "kd-limitrange-max-memory/web",
       "error": [
@@ -14,11 +27,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-limitrange-max-memory",
-              "Masked": "Yn0rK3p6OyZbV1dLN280ejtIJl01KjJ1"
+              "Masked": "J0A/VjMhPmNhVkcycXZqRixWcmNqbUpT"
             },
             {
               "Unmasked": "web",
-              "Masked": "X31d"
+              "Masked": "VStj"
             }
           ]
         }
@@ -38,19 +51,6 @@
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "ReplicaSet",
-      "name": "kd-limitrange-max-memory/web-6bc7c8f797",
-      "error": [
-        {
-          "Text": "pods \"web-6bc7c8f797-jz78p\" is forbidden: maximum memory usage per Container is 64Mi, but limit is 128Mi",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     }
   ]
 }

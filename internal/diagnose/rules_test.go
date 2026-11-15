@@ -957,3 +957,294 @@ func TestPostStartHookFailsWithTheBareKubeletEvent(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD116", "Pod shop/web", "postStart hook (sh -c /opt/warm-cache.sh) fails")
 }
+
+func TestImageNeverPulled(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].ImagePullPolicy = "Never"
+	waiting(&p, "ErrImageNeverPull", `Container image "registry.example.com/shop/web:1.4.2" is not present with pull policy of Never`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD108", "Deployment shop/web", "registry.example.com/shop/web:1.4.2 is not on node-1", "imagePullPolicy is Never")
+}
+
+func TestInitContainerNeverFinishes(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "wait-for-db", Image: "busybox"}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "PodInitializing", "")
+	started := t0.Add(-5 * time.Minute)
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "wait-for-db", State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: started}}}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "wait-for-db", Lines: []string{"waiting for db:5432", "waiting for db:5432"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD119", "Deployment shop/web", "init container wait-for-db has run for 5m0s", "waiting for db:5432")
+
+	// When it loops on a lookup of a Service name, the missing Service is named.
+	s.Logs[0].Lines = []string{"waiting for db:5432", "wget: bad address 'db:5432'"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD119", "Deployment shop/web", "it waits for db, and there is no Service db in namespace shop")
+
+	// Init containers that have run for a short while are just starting.
+	p.Status.InitContainerStatuses[0].State.Running.StartedAt = t0.Add(-30 * time.Second)
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("an init container 30 s in is not stuck: %+v", r.Findings)
+	}
+}
+
+func TestCrashOnAMissingService(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"starting", `panic: dial tcp: lookup payments on 10.96.0.10:53: no such host`}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD121", "Deployment shop/web", "cannot resolve payments", "no Service payments in namespace shop")
+
+	// With the Service there, the lookup failure is DNS trouble of another kind, left to the crash rule.
+	s.Services = []kube.Service{service("payments", map[string]string{"app": "payments"}, port(8080))}
+	if f := Diagnose(s).Findings[0]; f.Rule != "KD110" {
+		t.Errorf("with Service payments present: %s %s", f.Rule, f.Cause)
+	}
+}
+
+func TestPortAlreadyInUse(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers = append(p.Spec.Containers, kube.Container{Name: "metrics", Image: "registry.example.com/shop/metrics:2",
+		Ports: []kube.ContainerPort{{Name: "metrics", ContainerPort: 8080}}})
+	p.Status.ContainerStatuses = append(p.Status.ContainerStatuses, kube.ContainerStatus{Name: "metrics",
+		State:                kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CrashLoopBackOff"}},
+		LastTerminationState: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 1, Reason: "Error"}}, RestartCount: 3})
+	notReady(&p)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "metrics", Previous: true, Lines: []string{"listen tcp :8080: bind: address already in use"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD122", "Deployment shop/web", "port 8080 is already in use", "container web of the same pod also listens on 8080")
+}
+
+func TestServiceOfAWorkloadScaledToZero(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 0, 0)
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	var ing kube.Ingress
+	ing.Metadata = kube.ObjectMeta{Name: "shop", Namespace: "shop"}
+	ing.Spec.DefaultBackend = &kube.IngressBackend{Service: &kube.IngressServiceBackend{Name: "web"}}
+	ing.Spec.DefaultBackend.Service.Port.Number = 80
+	s.Ingresses = []kube.Ingress{ing}
+	s.IngressClasses = []kube.IngressClass{{Metadata: kube.ObjectMeta{Name: "nginx", Annotations: map[string]string{"ingressclass.kubernetes.io/is-default-class": "true"}}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD160", "Service shop/web", "Ingress shop sends traffic", "Deployment web is scaled to 0 replicas")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+	// Running replicas that have not made pods yet are left to the controller findings.
+	deployment(s, "web", 2, 0)
+	s.Workloads = s.Workloads[2:]
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a workload with replicas: %+v", r.Findings)
+	}
+}
+
+func TestPDBSelectsNoPods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	var b kube.PodDisruptionBudget
+	b.Metadata = kube.ObjectMeta{Name: "web", Namespace: "shop"}
+	b.Spec.MinAvailable = &kube.IntOrString{Int: 1}
+	b.Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"app": "frontend"}}
+	s.PDBs = []kube.PodDisruptionBudget{b}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD186", "PodDisruptionBudget shop/web", "selects pods with app=frontend", "the closest pod labels are app=web")
+
+	s.PDBs[0].Spec.Selector.MatchLabels["app"] = "web"
+	s.PDBs[0].Status.ExpectedPods, s.PDBs[0].Status.CurrentHealthy, s.PDBs[0].Status.DesiredHealthy, s.PDBs[0].Status.DisruptionsAllowed = 1, 1, 1, 0
+	if f := only(t, Diagnose(s)); f.Rule != "KD185" {
+		t.Errorf("a budget that covers the pod: %s", f.Rule)
+	}
+}
+
+func TestLoadBalancerWithoutAnAddress(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	svc := service("web", map[string]string{"app": "web"}, named("http"))
+	svc.Spec.Type = "LoadBalancer"
+	svc.Metadata.CreationTimestamp = t0.Add(-10 * time.Minute)
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD168", "Service shop/web", "no external address for 10m0s", "nothing in the cluster provisions load balancers")
+
+	s.Events = []kube.Event{event("Service", "web", "SyncLoadBalancerFailed", `Error syncing load balancer: failed to ensure load balancer: googleapi: Error 403: QUOTA_EXCEEDED`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD168", "Service shop/web", "fails to create one", "QUOTA_EXCEEDED")
+
+	s.Services[0].Metadata.CreationTimestamp = t0.Add(-30 * time.Second)
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a new Service waits for its address: %+v", r.Findings)
+	}
+}
+
+func TestIngressTLSSecret(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	ing := ingress("shop", "web", 80, "")
+	ing.Spec.TLS = []kube.IngressTLS{{Hosts: []string{"shop.example.com"}, SecretName: "shop-tls"}}
+	s.Ingresses = []kube.Ingress{ing}
+	expect(t, only(t, Diagnose(s)), "KD169", "Ingress shop/shop", "Secret shop-tls, which does not exist", "shop.example.com")
+
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "Opaque", Keys: []string{"cert.pem", "key.pem"}}}
+	expect(t, only(t, Diagnose(s)), "KD169", "Ingress shop/shop", "which has no tls.crt and tls.key")
+
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "kubernetes.io/tls", Keys: []string{"tls.crt", "tls.key"}}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a good TLS Secret: %+v", r.Findings)
+	}
+}
+
+func TestStatefulSetGoverningService(t *testing.T) {
+	s := snap()
+	var replicas int32 = 1
+	ss := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "db", Namespace: "shop"}}
+	ss.Spec.Replicas, ss.Spec.ServiceName = &replicas, "db-headless"
+	ss.Spec.Template.Metadata.Labels = map[string]string{"app": "web"}
+	ss.Status.Replicas, ss.Status.ReadyReplicas = 1, 1
+	s.Workloads = []kube.Workload{ss}
+	p := pod("db-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "db", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "Service db-headless does not exist", "db-0.db-headless.shop.svc does not resolve")
+
+	svc := service("db-headless", map[string]string{"app": "web"}, named("http"))
+	svc.Spec.ClusterIP = "10.96.4.20"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 1)}
+	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is not headless (it has clusterIP 10.96.4.20)")
+
+	s.Services[0].Spec.ClusterIP = "None"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a headless governing Service: %+v", r.Findings)
+	}
+}
+
+func TestClaimAccessModeNotSupported(t *testing.T) {
+	s := snap()
+	var sc kube.StorageClass
+	sc.Metadata = kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}}
+	sc.Provisioner, sc.VolumeBindingMode = "rancher.io/local-path", "WaitForFirstConsumer"
+	s.StorageClasses = []kube.StorageClass{sc}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "shared", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteMany"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	p := pod("web", "")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "shared"}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "shared", "ProvisioningFailed",
+		`failed to provision volume with StorageClass "standard": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD156", "PersistentVolumeClaim shop/shared", "asks for access mode ReadWriteMany", "the default StorageClass standard", "NodePath only supports")
+}
+
+func TestNetworkPolicyBlocksDNS(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("db", map[string]string{"app": "db"}, port(5432))}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address 'db:5432'"}}}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "egress-db-only", Namespace: "shop"}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	tcp5432 := kube.IntOrString{Int: 5432}
+	rule := kube.NetworkPolicyRule{To: []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "db"}}}}}
+	rule.Ports = append(rule.Ports, struct {
+		Port *kube.IntOrString `json:"port,omitempty"`
+	}{Port: &tcp5432})
+	np.Spec.Egress = []kube.NetworkPolicyRule{rule}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := Diagnose(s).Findings[0]
+	expect(t, f, "KD123", "Deployment shop/web", "cannot resolve db", "NetworkPolicy egress-db-only restricts its egress")
+
+	// Allowing port 53 lets DNS out: the crash is something else.
+	dns := kube.IntOrString{Int: 53}
+	s.NetworkPolicies[0].Spec.Egress = append(s.NetworkPolicies[0].Spec.Egress, kube.NetworkPolicyRule{})
+	s.NetworkPolicies[0].Spec.Egress[1].Ports = append(s.NetworkPolicies[0].Spec.Egress[1].Ports, struct {
+		Port *kube.IntOrString `json:"port,omitempty"`
+	}{Port: &dns})
+	if f := Diagnose(s).Findings[0]; f.Rule == "KD123" {
+		t.Errorf("DNS is allowed: %s", f.Cause)
+	}
+}
+
+func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	db := service("db", map[string]string{"app": "db"}, port(5432))
+	db.Spec.ClusterIP = "10.96.12.7"
+	s.Services = []kube.Service{db}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: can't connect to remote host (10.96.12.7): Connection refused"}}}
+	f := Diagnose(s).Findings[0]
+	expect(t, f, "KD124", "Deployment shop/web", "Service db refuses its connection", "no pod has its selector's labels app=db")
+
+	s.Logs[0].Lines = []string{`psql: error: connection to server at "db" (10.96.12.7), port 5432 failed: Connection refused`}
+	expect(t, Diagnose(s).Findings[0], "KD124", "Deployment shop/web", "Service db refuses its connection")
+
+	// A Service with a ready pod refuses for another reason: the crash rule quotes the log.
+	q := pod("db-1", "")
+	q.Metadata.Labels = map[string]string{"app": "db"}
+	s.Pods = append(s.Pods, q)
+	if f := Diagnose(s).Findings[0]; f.Rule != "KD110" {
+		t.Errorf("with a ready db pod: %s %s", f.Rule, f.Cause)
+	}
+}
+
+func TestCronJobRunsFailingAreOneFinding(t *testing.T) {
+	s := snap()
+	for _, run := range []string{"backup-29001", "backup-29002"} {
+		var j kube.Job
+		j.Metadata = kube.ObjectMeta{Name: run, Namespace: "shop", OwnerReferences: []kube.OwnerReference{{Kind: "CronJob", Name: "backup", Controller: yes()}}}
+		j.Status.Failed = 1
+		j.Status.Conditions = []kube.Condition{{Type: "Failed", Status: "True", Reason: "BackoffLimitExceeded"}}
+		s.Jobs = append(s.Jobs, j)
+		p := pod(run+"-x", "")
+		p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: run, Controller: yes()}}
+		p.Status.Phase = "Failed"
+		notReady(&p)
+		p.Status.ContainerStatuses[0].State = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 2, Reason: "Error"}}
+		s.Pods = append(s.Pods, p)
+	}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "CronJob shop/backup", "exited with code 2")
+	if len(f.Affects) != 2 {
+		t.Errorf("affects %v", f.Affects)
+	}
+}
+
+func TestImageWithoutTheNodesPlatform(t *testing.T) {
+	s := snap()
+	s.Nodes[0].Metadata.Labels["kubernetes.io/arch"], s.Nodes[0].Metadata.Labels["kubernetes.io/os"] = "amd64", "linux"
+	p := pod("web", "")
+	p.Spec.Containers[0].Image = "docker.io/arm64v8/busybox:1.37.0"
+	waiting(&p, "ErrImagePull", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "docker.io/arm64v8/busybox:1.37.0": rpc error: code = NotFound desc = failed to pull and unpack image "docker.io/arm64v8/busybox:1.37.0": no match for platform in manifest: not found`, 0)}
+	expect(t, only(t, Diagnose(s)), "KD109", "Pod shop/web", "has no build for linux/amd64")
+}

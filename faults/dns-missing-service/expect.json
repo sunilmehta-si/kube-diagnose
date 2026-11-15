@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-dns-missing-service",
+  "description": "An app calls a Service named payments that does not exist; the lookup fails and it exits.",
+  "rule": "KD121",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "payments"
+    ],
+    [
+      "no Service",
+      "does not exist"
+    ]
+  ]
+}

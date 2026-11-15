@@ -181,7 +181,8 @@ func keys(ctx context.Context, r Runner, s *snapshot.Snapshot, resource, ns stri
 var ansi = regexp.MustCompile(`\x1b\[[0-9;]*[A-Za-z]`)
 
 // logs reads the tail of the log of every container that crashed or is restarting: the previous instance's log
-// when there is one, since that is the run that failed.
+// when there is one, since that is the run that failed. It also reads the current log of an init container that is
+// still running in a pending pod, since what it waits for is usually what it prints.
 func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 	type want struct {
 		pod       kube.Pod
@@ -190,6 +191,11 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 	}
 	var wants []want
 	for _, p := range s.Pods {
+		for _, c := range p.Status.InitContainerStatuses {
+			if p.Status.Phase == "Pending" && c.State.Running != nil && c.RestartCount == 0 {
+				wants = append(wants, want{p, c.Name, false})
+			}
+		}
 		statuses := append(append([]kube.ContainerStatus{}, p.Status.InitContainerStatuses...), p.Status.ContainerStatuses...)
 		for _, c := range statuses {
 			crashed := c.LastTerminationState.Terminated != nil && c.LastTerminationState.Terminated.ExitCode != 0
