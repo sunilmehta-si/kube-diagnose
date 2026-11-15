@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-ingress-scaled-to-zero",
+  "description": "An Ingress routes to a Service whose Deployment is scaled to 0 replicas, so every request fails.",
+  "rule": "KD160",
+  "object": "Service/web",
+  "keywords": [
+    [
+      "scaled to 0",
+      "replicas 0"
+    ],
+    [
+      "Ingress"
+    ]
+  ]
+}

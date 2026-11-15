@@ -1,0 +1,71 @@
+# An Ingress routes to a Service whose Deployment is scaled to 0 replicas, so every request fails.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-ingress-scaled-to-zero
+
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: kd-faults
+spec:
+  controller: example.com/kd-faults
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-ingress-scaled-to-zero
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+          ports:
+            - name: http
+              containerPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: kd-ingress-scaled-to-zero
+spec:
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: "http"
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  namespace: kd-ingress-scaled-to-zero
+spec:
+  ingressClassName: kd-faults
+  rules:
+    - host: shop.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80
