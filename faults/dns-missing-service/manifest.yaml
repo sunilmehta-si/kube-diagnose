@@ -1,0 +1,26 @@
+# An app calls a Service named payments that does not exist; the lookup fails and it exits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-dns-missing-service
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-dns-missing-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo 'calling payments:8080'; wget -q -T 2 -O /dev/null http://payments:8080/ || exit 1; sleep 3600"]
