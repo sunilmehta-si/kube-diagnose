@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-networkpolicy-blocks-dns",
+  "description": "An egress NetworkPolicy allows the app to reach only its database, which also blocks DNS, so the app cannot resolve the database's name and exits.",
+  "rule": "KD123",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "egress-db-only"
+    ],
+    [
+      "53",
+      "DNS"
+    ]
+  ]
+}
