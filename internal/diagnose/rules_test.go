@@ -1029,3 +1029,26 @@ func TestPortAlreadyInUse(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD122", "Deployment shop/web", "port 8080 is already in use", "container web of the same pod also listens on 8080")
 }
+
+func TestServiceOfAWorkloadScaledToZero(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 0, 0)
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	var ing kube.Ingress
+	ing.Metadata = kube.ObjectMeta{Name: "shop", Namespace: "shop"}
+	ing.Spec.DefaultBackend = &kube.IngressBackend{Service: &kube.IngressServiceBackend{Name: "web"}}
+	ing.Spec.DefaultBackend.Service.Port.Number = 80
+	s.Ingresses = []kube.Ingress{ing}
+	s.IngressClasses = []kube.IngressClass{{Metadata: kube.ObjectMeta{Name: "nginx", Annotations: map[string]string{"ingressclass.kubernetes.io/is-default-class": "true"}}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD160", "Service shop/web", "Ingress shop sends traffic", "Deployment web is scaled to 0 replicas")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+	// Running replicas that have not made pods yet are left to the controller findings.
+	deployment(s, "web", 2, 0)
+	s.Workloads = s.Workloads[2:]
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a workload with replicas: %+v", r.Findings)
+	}
+}

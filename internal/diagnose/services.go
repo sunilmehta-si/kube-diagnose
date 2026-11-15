@@ -60,11 +60,19 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 
 func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	ns := svc.Metadata.Namespace
-	// A workload whose template matches is scaled to zero or failing to create pods: not a selector problem.
+	// A workload whose template matches is scaled to zero or failing to create pods: not a selector problem. Scaling
+	// to zero is often deliberate (KEDA does it); it is worth saying only when an Ingress still sends traffic here.
+	var zero []kube.Workload
 	for _, w := range ix.s.Workloads {
 		if w.Metadata.Namespace == ns && w.Kind != "ReplicaSet" && kube.MatchesMap(svc.Spec.Selector, w.Spec.Template.Metadata.Labels) {
-			return nil
+			if w.Kind == "DaemonSet" || w.Desired() != 0 {
+				return nil
+			}
+			zero = append(zero, w)
 		}
+	}
+	if len(zero) > 0 {
+		return scaledToZero(ix, svc, zero[0])
 	}
 	sel := kube.FormatMap(svc.Spec.Selector)
 	ev := []Evidence{{Object: svc.Ref(), What: "Service selects pods with " + sel,
@@ -79,6 +87,33 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	}
 	return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Critical, Object: svc.Ref(), Cause: cause,
 		Evidence: ev, Fix: fix}
+}
+
+// scaledToZero reports a Service whose workload is scaled to zero while an Ingress still sends it traffic.
+func scaledToZero(ix *index, svc kube.Service, w kube.Workload) *Finding {
+	ns := svc.Metadata.Namespace
+	for _, ing := range ix.s.Ingresses {
+		if ing.Metadata.Namespace != ns || !routesTo(ing, svc.Metadata.Name) {
+			continue
+		}
+		return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Warning, Object: svc.Ref(),
+			Cause: fmt.Sprintf("Ingress %s sends traffic to Service %s, which has no pods because %s %s is scaled to 0 replicas", ing.Metadata.Name, svc.Metadata.Name, w.Kind, w.Metadata.Name),
+			Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("%s %s has replicas 0", w.Kind, w.Metadata.Name),
+				Command: cmdGet(strings.ToLower(w.Kind), ns, w.Metadata.Name, "{.spec.replicas}")},
+				{Object: ing.Ref(), What: fmt.Sprintf("Ingress %s routes to Service %s", ing.Metadata.Name, svc.Metadata.Name), Command: cmdGet("ingress", ns, ing.Metadata.Name, "{.spec}")}},
+			Fix:     fmt.Sprintf("Scale %s %s up (kubectl scale --replicas), or check what scaled it down (an HPA, KEDA or a deploy pipeline); if it is retired, remove the Ingress route.", w.Kind, w.Metadata.Name),
+			Affects: []kube.Ref{ing.Ref()}}
+	}
+	return nil
+}
+
+func routesTo(ing kube.Ingress, svc string) bool {
+	for _, r := range ingressRoutes(ing) {
+		if r.backend.Name == svc {
+			return true
+		}
+	}
+	return false
 }
 
 // nearestLabels finds the pod label set that shares the most selector keys with the selector, printed as the
