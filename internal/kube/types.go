@@ -553,6 +553,8 @@ type Workload struct {
 		Replicas *int32         `json:"replicas,omitempty"`
 		Selector *LabelSelector `json:"selector,omitempty"`
 		Template PodTemplate    `json:"template"`
+		// ServiceName is a StatefulSet's governing Service, which gives its pods their DNS names.
+		ServiceName string `json:"serviceName,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
 }
