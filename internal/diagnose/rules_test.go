@@ -1113,3 +1113,28 @@ func TestIngressTLSSecret(t *testing.T) {
 		t.Errorf("a good TLS Secret: %+v", r.Findings)
 	}
 }
+
+func TestStatefulSetGoverningService(t *testing.T) {
+	s := snap()
+	var replicas int32 = 1
+	ss := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "db", Namespace: "shop"}}
+	ss.Spec.Replicas, ss.Spec.ServiceName = &replicas, "db-headless"
+	ss.Spec.Template.Metadata.Labels = map[string]string{"app": "web"}
+	ss.Status.Replicas, ss.Status.ReadyReplicas = 1, 1
+	s.Workloads = []kube.Workload{ss}
+	p := pod("db-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "db", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "Service db-headless does not exist", "db-0.db-headless.shop.svc does not resolve")
+
+	svc := service("db-headless", map[string]string{"app": "web"}, named("http"))
+	svc.Spec.ClusterIP = "10.96.4.20"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 1)}
+	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is not headless (it has clusterIP 10.96.4.20)")
+
+	s.Services[0].Spec.ClusterIP = "None"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a headless governing Service: %+v", r.Findings)
+	}
+}
