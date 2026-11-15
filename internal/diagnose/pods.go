@@ -51,6 +51,11 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
+	for _, cs := range p.Status.InitContainerStatuses {
+		if pr := initStuck(ix, p, cs); pr != nil {
+			return pr
+		}
+	}
 	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probeProblem(ix, p, cs); pr != nil {
 			return pr
@@ -83,6 +88,30 @@ func unclaimed(ix *index, p kube.Pod) *problem {
 			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.schedulerName}{\"\\n\"}{.status.conditions}")},
 		Evidence{Object: kube.Ref{Kind: "Pod", Name: "*"}, What: "scheduler pods in the cluster",
 			Command: "kubectl get pods -A -o wide | grep -i sched"})
+}
+
+// initStuckAfter is how long an init container may run before it is reported as never finishing.
+const initStuckAfter = 2 * time.Minute
+
+// initStuck finds an init container that is still running long after it started, holding the pod in Init. Init
+// containers that wait for a dependency loop until it appears, so the log usually names what is missing.
+func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	if p.Status.Phase != "Pending" || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
+		return nil
+	}
+	ran := ix.s.CollectedAt.Sub(cs.State.Running.StartedAt)
+	if ran < initStuckAfter {
+		return nil
+	}
+	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("init container %s has been running since %s", cs.Name, cs.State.Running.StartedAt.UTC().Format(time.RFC3339)),
+		Command: cmdContainerState(p, cs.Name, "state")}}
+	cause := fmt.Sprintf("init container %s has run for %s without finishing, so the pod's app containers have not started", cs.Name, ran.Round(time.Minute))
+	if log, ok := ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}]; ok && len(log.Lines) > 0 {
+		ev = append(ev, logEvidence(p, cs.Name, log))
+		cause += fmt.Sprintf("; its log says: %q", errorLine(log.Lines))
+	}
+	return newProblem(p, cs.Name, "KD119", "Init container never finishes", Critical, cause, "initstuck",
+		"Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0.", ev...)
 }
 
 func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {

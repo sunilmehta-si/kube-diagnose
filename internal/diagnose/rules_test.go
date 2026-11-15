@@ -968,3 +968,25 @@ func TestImageNeverPulled(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD108", "Deployment shop/web", "registry.example.com/shop/web:1.4.2 is not on node-1", "imagePullPolicy is Never")
 }
+
+func TestInitContainerNeverFinishes(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "wait-for-db", Image: "busybox"}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "PodInitializing", "")
+	started := t0.Add(-5 * time.Minute)
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "wait-for-db", State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: started}}}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "wait-for-db", Lines: []string{"waiting for db:5432", "waiting for db:5432"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD119", "Deployment shop/web", "init container wait-for-db has run for 5m0s", "waiting for db:5432")
+
+	// Init containers that have run for a short while are just starting.
+	p.Status.InitContainerStatuses[0].State.Running.StartedAt = t0.Add(-30 * time.Second)
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("an init container 30 s in is not stuck: %+v", r.Findings)
+	}
+}
