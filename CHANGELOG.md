@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-11-15
+
 ### Added
 - 12 rules, 74 in all (`docs/rules.md`):
   - images: not on the node with `imagePullPolicy: Never` (KD108), and no build for the node's platform (KD109),
@@ -21,6 +23,9 @@
 - The snapshot holds containers' imagePullPolicy, Services' load balancer status, Ingress TLS entries and a
   StatefulSet's serviceName.
 - 14 fault scenarios, 54 broken namespaces in all.
+- The fault suite's committed run (43681868847): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 54 of 54 faults and raises no false alarm; k8sgpt v0.4.41 names 24, 13 of them first.
+- KD123 and KD124 also read Go's DNS timeout and curl 8's refused-connection message.
 
 ### Fixed
 - `record --redact` left the names of objects a snapshot only refers to in clear text: a missing ConfigMap, Secret,
