@@ -1052,3 +1052,22 @@ func TestServiceOfAWorkloadScaledToZero(t *testing.T) {
 		t.Errorf("a workload with replicas: %+v", r.Findings)
 	}
 }
+
+func TestPDBSelectsNoPods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	var b kube.PodDisruptionBudget
+	b.Metadata = kube.ObjectMeta{Name: "web", Namespace: "shop"}
+	b.Spec.MinAvailable = &kube.IntOrString{Int: 1}
+	b.Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"app": "frontend"}}
+	s.PDBs = []kube.PodDisruptionBudget{b}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD186", "PodDisruptionBudget shop/web", "selects pods with app=frontend", "the closest pod labels are app=web")
+
+	s.PDBs[0].Spec.Selector.MatchLabels["app"] = "web"
+	s.PDBs[0].Status.ExpectedPods, s.PDBs[0].Status.CurrentHealthy, s.PDBs[0].Status.DesiredHealthy, s.PDBs[0].Status.DisruptionsAllowed = 1, 1, 1, 0
+	if f := only(t, Diagnose(s)); f.Rule != "KD185" {
+		t.Errorf("a budget that covers the pod: %s", f.Rule)
+	}
+}
