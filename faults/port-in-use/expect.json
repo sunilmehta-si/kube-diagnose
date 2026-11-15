@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-port-in-use",
+  "description": "A sidecar listens on the same port as the app in the same pod, so it exits with address in use.",
+  "rule": "KD122",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "8080"
+    ],
+    [
+      "in use"
+    ]
+  ]
+}
