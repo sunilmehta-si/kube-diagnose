@@ -163,6 +163,14 @@ func (r *redactor) collect(s *Snapshot) {
 	}
 	for _, j := range s.Jobs {
 		r.addName("job", j.Metadata.Name)
+		for _, o := range j.Metadata.OwnerReferences {
+			r.addName("owner", o.Name)
+		}
+	}
+	for _, w := range s.Workloads {
+		for _, o := range w.Metadata.OwnerReferences {
+			r.addName("owner", o.Name)
+		}
 	}
 	for _, x := range s.Services {
 		r.addName("svc", x.Metadata.Name)

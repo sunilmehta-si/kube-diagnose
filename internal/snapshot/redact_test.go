@@ -89,14 +89,16 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 		IP       string `json:"ip,omitempty"`
 		Hostname string `json:"hostname,omitempty"`
 	}{Hostname: "a1b2.elb.acme.example"})
+	var job kube.Job
+	job.Metadata = kube.ObjectMeta{Name: "nightly-29001", Namespace: "shop", OwnerReferences: []kube.OwnerReference{{Kind: "CronJob", Name: "nightly-export"}}}
 	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Pods: []kube.Pod{p}, Workloads: []kube.Workload{ss},
-		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}}
+		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}, Jobs: []kube.Job{job}}
 	red, err := redactWithKey(s, []byte("k"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	b, _ := json.Marshal(red)
-	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example"} {
+	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export"} {
 		if strings.Contains(string(b), name) {
 			t.Errorf("redacted snapshot still contains %q", name)
 		}
