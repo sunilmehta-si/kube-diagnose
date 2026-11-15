@@ -983,6 +983,11 @@ func TestInitContainerNeverFinishes(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD119", "Deployment shop/web", "init container wait-for-db has run for 5m0s", "waiting for db:5432")
 
+	// When it loops on a lookup of a Service name, the missing Service is named.
+	s.Logs[0].Lines = []string{"waiting for db:5432", "wget: bad address 'db:5432'"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD119", "Deployment shop/web", "it waits for db, and there is no Service db in namespace shop")
+
 	// Init containers that have run for a short while are just starting.
 	p.Status.InitContainerStatuses[0].State.Running.StartedAt = t0.Add(-30 * time.Second)
 	s.Pods = []kube.Pod{p}

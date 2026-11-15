@@ -110,8 +110,14 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		ev = append(ev, logEvidence(p, cs.Name, log))
 		cause += fmt.Sprintf("; its log says: %q", errorLine(log.Lines))
 	}
-	return newProblem(p, cs.Name, "KD119", "Init container never finishes", Critical, cause, "initstuck",
-		"Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0.", ev...)
+	fix := "Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0."
+	if svcNS, svc, _, ok := ix.missingService(p.Metadata.Namespace, ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines); ok {
+		cause += fmt.Sprintf("; it waits for %s, and there is no Service %s in namespace %s", svc, svc, svcNS)
+		fix = fmt.Sprintf("Create Service %s in namespace %s (or deploy what it fronts), or correct the host name the init container waits for.", svc, svcNS)
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
+			What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})
+	}
+	return newProblem(p, cs.Name, "KD119", "Init container never finishes", Critical, cause, "initstuck", fix, ev...)
 }
 
 func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
