@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-image-never-pull",
+  "description": "A Deployment's image is not on the node and its imagePullPolicy is Never, so the kubelet will not pull it.",
+  "rule": "KD108",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "kube-diagnose-missing"
+    ],
+    [
+      "Never"
+    ]
+  ]
+}
