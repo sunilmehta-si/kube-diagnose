@@ -108,14 +108,21 @@ func (ix *index) eventsFor(r kube.Ref, reasons ...string) []kube.Event {
 	return out
 }
 
-// owner walks a pod's controller chain to the object a person edits: ReplicaSet to Deployment, Job to CronJob is
-// left at the Job. A bare pod is its own owner.
+// owner walks a pod's controller chain to the object a person edits: ReplicaSet to Deployment, Job to CronJob. A
+// bare pod is its own owner.
 func (ix *index) owner(p kube.Pod) kube.Ref {
 	o, ok := p.Metadata.Controller()
 	if !ok {
 		return p.Ref()
 	}
 	ref := kube.Ref{Kind: o.Kind, Namespace: p.Metadata.Namespace, Name: o.Name}
+	if o.Kind == "Job" {
+		if j, ok := ix.jobs[ref]; ok {
+			if c, ok := j.Metadata.Controller(); ok && c.Kind == "CronJob" {
+				return kube.Ref{Kind: "CronJob", Namespace: p.Metadata.Namespace, Name: c.Name}
+			}
+		}
+	}
 	if o.Kind == "ReplicaSet" {
 		if rs, ok := ix.workloads[ref]; ok {
 			if d, ok := rs.Metadata.Controller(); ok && d.Kind == "Deployment" {

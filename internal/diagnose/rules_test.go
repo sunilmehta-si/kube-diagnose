@@ -1215,3 +1215,25 @@ func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
 		t.Errorf("with a ready db pod: %s %s", f.Rule, f.Cause)
 	}
 }
+
+func TestCronJobRunsFailingAreOneFinding(t *testing.T) {
+	s := snap()
+	for _, run := range []string{"backup-29001", "backup-29002"} {
+		var j kube.Job
+		j.Metadata = kube.ObjectMeta{Name: run, Namespace: "shop", OwnerReferences: []kube.OwnerReference{{Kind: "CronJob", Name: "backup", Controller: yes()}}}
+		j.Status.Failed = 1
+		j.Status.Conditions = []kube.Condition{{Type: "Failed", Status: "True", Reason: "BackoffLimitExceeded"}}
+		s.Jobs = append(s.Jobs, j)
+		p := pod(run+"-x", "")
+		p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: run, Controller: yes()}}
+		p.Status.Phase = "Failed"
+		notReady(&p)
+		p.Status.ContainerStatuses[0].State = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 2, Reason: "Error"}}
+		s.Pods = append(s.Pods, p)
+	}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "CronJob shop/backup", "exited with code 2")
+	if len(f.Affects) != 2 {
+		t.Errorf("affects %v", f.Affects)
+	}
+}
