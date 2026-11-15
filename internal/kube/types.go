@@ -429,6 +429,14 @@ type Service struct {
 		ClusterIP    string            `json:"clusterIP,omitempty"`
 		ExternalName string            `json:"externalName,omitempty"`
 	} `json:"spec"`
+	Status struct {
+		LoadBalancer struct {
+			Ingress []struct {
+				IP       string `json:"ip,omitempty"`
+				Hostname string `json:"hostname,omitempty"`
+			} `json:"ingress,omitempty"`
+		} `json:"loadBalancer,omitempty"`
+	} `json:"status,omitempty"`
 }
 
 func (s Service) Ref() Ref {
