@@ -39,6 +39,9 @@ uses; a test fails if a command outside the allowlist appears in the evidence.
    (`index.read`).
 4. Add it to `catalog.go` and run `make docs`.
 5. If a cluster can be broken that way, add a scenario to `faults/` with the words that name the cause.
+6. If the rule reads a new field, or names an object the snapshot only refers to (one that may not exist), make
+   `snapshot.Redact` pseudonymise it and extend `TestRedactNamesObjectsThatDoNotExist`; a redacted snapshot must
+   diagnose the same and keep no names.
 
 ## Commits
 
