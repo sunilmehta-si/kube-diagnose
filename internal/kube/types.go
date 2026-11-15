@@ -495,12 +495,18 @@ type IngressRule struct {
 	} `json:"http,omitempty"`
 }
 
+type IngressTLS struct {
+	Hosts      []string `json:"hosts,omitempty"`
+	SecretName string   `json:"secretName,omitempty"`
+}
+
 type Ingress struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
 		IngressClassName *string         `json:"ingressClassName,omitempty"`
 		DefaultBackend   *IngressBackend `json:"defaultBackend,omitempty"`
 		Rules            []IngressRule   `json:"rules,omitempty"`
+		TLS              []IngressTLS    `json:"tls,omitempty"`
 	} `json:"spec"`
 }
 
