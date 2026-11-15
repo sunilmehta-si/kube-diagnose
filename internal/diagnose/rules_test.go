@@ -1138,3 +1138,22 @@ func TestStatefulSetGoverningService(t *testing.T) {
 		t.Errorf("a headless governing Service: %+v", r.Findings)
 	}
 }
+
+func TestClaimAccessModeNotSupported(t *testing.T) {
+	s := snap()
+	var sc kube.StorageClass
+	sc.Metadata = kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}}
+	sc.Provisioner, sc.VolumeBindingMode = "rancher.io/local-path", "WaitForFirstConsumer"
+	s.StorageClasses = []kube.StorageClass{sc}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "shared", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteMany"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	p := pod("web", "")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "shared"}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "shared", "ProvisioningFailed",
+		`failed to provision volume with StorageClass "standard": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD156", "PersistentVolumeClaim shop/shared", "asks for access mode ReadWriteMany", "the default StorageClass standard", "NodePath only supports")
+}
