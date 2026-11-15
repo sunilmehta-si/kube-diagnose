@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-loadbalancer-pending",
+  "description": "A Service of type LoadBalancer on a cluster with no load balancer implementation never gets an external address.",
+  "rule": "KD168",
+  "object": "Service/web",
+  "keywords": [
+    [
+      "load balancer",
+      "LoadBalancer"
+    ],
+    [
+      "external address"
+    ]
+  ]
+}
