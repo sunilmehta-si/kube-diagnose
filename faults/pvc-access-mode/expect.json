@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-pvc-access-mode",
+  "description": "A claim asks for ReadWriteMany from kind's default StorageClass, whose node-local provisioner supports only ReadWriteOnce.",
+  "rule": "KD156",
+  "object": "PersistentVolumeClaim/shared",
+  "keywords": [
+    [
+      "ReadWriteMany"
+    ],
+    [
+      "access mode"
+    ]
+  ]
+}
