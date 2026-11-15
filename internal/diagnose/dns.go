@@ -128,7 +128,7 @@ func dnsBlocked(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, 
 // libpq.
 var reRefused = []*regexp.Regexp{
 	regexp.MustCompile(`can't connect to remote host \(([0-9.]+)\): Connection refused`),
-	regexp.MustCompile(`(?i)failed to connect to ([A-Za-z0-9.-]+) port \d+.*Connection refused`),
+	regexp.MustCompile(`(?i)failed to connect to ([A-Za-z0-9.-]+) port \d+.*(?:Connection refused|Couldn't connect to server)`),
 	regexp.MustCompile(`dial tcp ([0-9.]+):\d+: connect: connection refused`),
 	regexp.MustCompile(`ECONNREFUSED ([0-9.]+):\d+`),
 	regexp.MustCompile(`connection to server at "([A-Za-z0-9.-]+)".*Connection refused`),

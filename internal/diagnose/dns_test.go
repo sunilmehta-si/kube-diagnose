@@ -62,3 +62,18 @@ func TestMissingServiceNeedsTheNamespaceRead(t *testing.T) {
 		t.Error("the Service list was not read")
 	}
 }
+
+// curl 8 says "Couldn't connect to server" where older versions said "Connection refused".
+func TestRefusedServiceByCurl(t *testing.T) {
+	s := snap()
+	s.Services = []kube.Service{service("db", map[string]string{"app": "db"}, port(5432))}
+	ix := newIndex(s)
+	for _, line := range []string{
+		"curl: (7) Failed to connect to db port 5432 after 2 ms: Couldn't connect to server",
+		"curl: (7) Failed to connect to db port 5432: Connection refused",
+	} {
+		if svc, _, ok := refusedService(ix, "shop", []string{line}); !ok || svc.Metadata.Name != "db" {
+			t.Errorf("%q: %v %v", line, svc.Metadata.Name, ok)
+		}
+	}
+}
