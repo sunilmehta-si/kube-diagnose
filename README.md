@@ -48,15 +48,19 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
 - **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 54 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 74 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled or are rate-limited,
-pull secrets that are missing or of the wrong type, crashes (with the exit code explained and the log line that reads
-like the error quoted), out-of-memory kills, probes on the wrong port, failing lifecycle hooks, runAsNonRoot with a
-root image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys, pods no node can take (with
-the request and the largest node's capacity, or the spread rule, host port, volume zone or missing scheduler that
-stops them), volumes still attached to another node, claims for StorageClasses that do not exist, Services and
-Ingresses that send traffic nowhere, NetworkPolicies that shut a Service off, exhausted quotas, LimitRange,
-PriorityClass, ServiceAccount, Pod Security and webhook rejections, HPAs that cannot scale, PodDisruptionBudgets that
-block drains, evictions, failed Jobs, and nodes that are not ready.
+It knows 74 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited,
+have no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or
+of the wrong type, crashes (with the exit code explained and the log line that reads like the error quoted, and traced
+to the Service the app could not resolve or reach, the port another container holds, or the egress NetworkPolicy that
+blocks DNS), out-of-memory kills, probes on the wrong port, init containers that never finish, failing lifecycle
+hooks, runAsNonRoot with a root image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys,
+pods no node can take (with the request and the largest node's capacity, or the spread rule, host port, volume zone or
+missing scheduler that stops them), volumes still attached to another node, claims for StorageClasses that do not
+exist or access modes they cannot provide, Services and Ingresses that send traffic nowhere, Ingress TLS Secrets that
+are missing, LoadBalancer Services that never get an address, StatefulSets without their headless Service,
+NetworkPolicies that shut a Service off, exhausted quotas, LimitRange, PriorityClass, ServiceAccount, Pod Security
+and webhook rejections, HPAs that cannot scale, PodDisruptionBudgets that block drains or select nothing, evictions,
+failed Jobs and CronJobs, and nodes that are not ready.
 
 ## Install
 
@@ -79,6 +83,7 @@ kubectl diagnose -n shop               # one namespace
 kubectl diagnose -A                    # every namespace
 kubectl diagnose -n shop -o markdown   # for an issue or a pull request; -o json for tools
 kubectl diagnose -n shop --fail-on warning   # exit 1 when something is wrong, for CI after a deploy
+kubectl diagnose -n shop --ignore KD168      # leave out a rule's findings (here: no load balancers on kind)
 kubectl diagnose record -n shop -o shop.snapshot.json.gz   # save what it read
 kube-diagnose --snapshot shop.snapshot.json.gz           # diagnose it later, anywhere, without a cluster
 kube-diagnose rules KD161              # what a rule detects and from which evidence
