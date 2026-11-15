@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-ingress-tls-secret-missing",
+  "description": "An Ingress serves TLS from a Secret that does not exist, so the controller would serve its default certificate.",
+  "rule": "KD169",
+  "object": "Ingress/web",
+  "keywords": [
+    [
+      "shop-tls"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}
