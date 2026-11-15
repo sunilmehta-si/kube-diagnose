@@ -589,6 +589,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := portInUse(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {
 		return newProblem(p, cs.Name, "KD121", "Container looks up a Service that does not exist", Critical,
 			fmt.Sprintf("container %s exits because it cannot resolve %s: there is no Service %s in namespace %s; its log says: %q", cs.Name, svc, svc, svcNS, clip(line, 200)),
@@ -691,6 +694,44 @@ func readOnlyRoot(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evid
 		return newProblem(p, cs.Name, "KD118", "Container writes to its read-only root filesystem", Critical, cause, "readonly|"+path, fix, ev...)
 	}
 	return nil
+}
+
+var reAddrInUse = regexp.MustCompile(`(?i)address already in use|address in use|EADDRINUSE`)
+
+// portInUse finds a container that exits because the port it binds is taken. Containers in a pod share one network
+// namespace, so the usual cause is another container of the same pod on the same port.
+func portInUse(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	line := ""
+	for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+		if reAddrInUse.MatchString(lines[i]) {
+			line = lines[i]
+		}
+	}
+	if line == "" {
+		return nil
+	}
+	c, _ := containerSpec(p, cs.Name)
+	cause := fmt.Sprintf("container %s exits because the port it listens on is already in use: %q", cs.Name, clip(line, 160))
+	fix := "Make the container listen on a free port; containers in one pod share its network, so each needs its own port."
+	key := "addrinuse"
+	for _, other := range append(append([]kube.Container{}, p.Spec.InitContainers...), p.Spec.Containers...) {
+		if other.Name == cs.Name {
+			continue
+		}
+		for _, op := range other.Ports {
+			for _, cp := range c.Ports {
+				if op.ContainerPort == cp.ContainerPort {
+					cause = fmt.Sprintf("container %s exits because port %d is already in use: container %s of the same pod also listens on %d, and containers in a pod share one network", cs.Name, cp.ContainerPort, other.Name, cp.ContainerPort)
+					fix = fmt.Sprintf("Give %s or %s another port (and update the Service's targetPort to match).", cs.Name, other.Name)
+					key = fmt.Sprintf("addrinuse|%d", cp.ContainerPort)
+					ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("containers %s and %s both declare port %d", cs.Name, other.Name, cp.ContainerPort),
+						Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{range .spec.containers[*]}{.name}{" "}{.ports}{"\n"}{end}`)})
+					return newProblem(p, cs.Name, "KD122", "Port is already in use", Critical, cause, key, fix, ev...)
+				}
+			}
+		}
+	}
+	return newProblem(p, cs.Name, "KD122", "Port is already in use", Critical, cause, key, fix, ev...)
 }
 
 // hookFailed finds a container that the kubelet killed because its postStart hook failed. Such a container exits

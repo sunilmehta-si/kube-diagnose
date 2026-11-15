@@ -1013,3 +1013,19 @@ func TestCrashOnAMissingService(t *testing.T) {
 		t.Errorf("with Service payments present: %s %s", f.Rule, f.Cause)
 	}
 }
+
+func TestPortAlreadyInUse(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers = append(p.Spec.Containers, kube.Container{Name: "metrics", Image: "registry.example.com/shop/metrics:2",
+		Ports: []kube.ContainerPort{{Name: "metrics", ContainerPort: 8080}}})
+	p.Status.ContainerStatuses = append(p.Status.ContainerStatuses, kube.ContainerStatus{Name: "metrics",
+		State:                kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CrashLoopBackOff"}},
+		LastTerminationState: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 1, Reason: "Error"}}, RestartCount: 3})
+	notReady(&p)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "metrics", Previous: true, Lines: []string{"listen tcp :8080: bind: address already in use"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD122", "Deployment shop/web", "port 8080 is already in use", "container web of the same pod also listens on 8080")
+}
