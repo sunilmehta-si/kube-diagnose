@@ -957,3 +957,14 @@ func TestPostStartHookFailsWithTheBareKubeletEvent(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD116", "Pod shop/web", "postStart hook (sh -c /opt/warm-cache.sh) fails")
 }
+
+func TestImageNeverPulled(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].ImagePullPolicy = "Never"
+	waiting(&p, "ErrImageNeverPull", `Container image "registry.example.com/shop/web:1.4.2" is not present with pull policy of Never`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD108", "Deployment shop/web", "registry.example.com/shop/web:1.4.2 is not on node-1", "imagePullPolicy is Never")
+}

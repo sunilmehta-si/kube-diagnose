@@ -90,6 +90,17 @@ func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		switch w.Reason {
 		case "ErrImagePull", "ImagePullBackOff":
 			return imagePull(ix, p, cs)
+		case "ErrImageNeverPull":
+			image := imageOf(p, cs)
+			node := p.Spec.NodeName
+			if node == "" {
+				node = "its node"
+			}
+			return newProblem(p, cs.Name, "KD108", "Image is not on the node and may not be pulled", Critical,
+				fmt.Sprintf("container %s's image %s is not on %s, and its imagePullPolicy is Never, so the kubelet will not pull it", cs.Name, image, node),
+				"neverpull|"+image, "Load the image onto every node that may run the pod (kind load docker-image, or pre-pull it), or set imagePullPolicy to IfNotPresent so the kubelet pulls it.",
+				waitingEvidence(p, cs), Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s has imagePullPolicy Never", cs.Name),
+					Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].imagePullPolicy}`, cs.Name))})
 		case "InvalidImageName":
 			return newProblem(p, cs.Name, "KD104", "Image reference is invalid", Critical,
 				fmt.Sprintf("container %s has image %q, which is not a valid image reference", cs.Name, imageOf(p, cs)),
