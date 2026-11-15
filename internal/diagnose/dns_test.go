@@ -19,7 +19,8 @@ func TestUnresolvedHost(t *testing.T) {
 		"java.net.UnknownHostException: kafka":                                                        "kafka",
 		`psql: error: could not translate host name "postgres" to address: Name or service not known`: "postgres",
 		"** server can't find db.: NXDOMAIN":                                                          "db",
-		"connection refused":                                                                          "",
+		`dial tcp: lookup db on 10.96.0.10:53: read udp 10.244.0.9:41234->10.96.0.10:53: i/o timeout`: "db",
+		"connection refused": "",
 	} {
 		if got, _ := unresolvedHost([]string{line}); got != want {
 			t.Errorf("%q: got %q, want %q", line, got, want)

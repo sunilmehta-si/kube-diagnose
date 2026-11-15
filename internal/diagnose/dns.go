@@ -15,6 +15,8 @@ var reUnresolved = []*regexp.Regexp{
 	regexp.MustCompile(`bad address '([A-Za-z0-9.-]+)`),
 	regexp.MustCompile(`(?i)could not resolve host:? ['"]?([A-Za-z0-9.-]+)`),
 	regexp.MustCompile(`lookup ([A-Za-z0-9.-]+)(?: on [0-9a-fA-F.:\[\]]+)?: no such host`),
+	// Go when no DNS server answers, as behind a NetworkPolicy that blocks port 53.
+	regexp.MustCompile(`lookup ([A-Za-z0-9.-]+) on [0-9a-fA-F.:\[\]]+:53: .*(?:i/o timeout|connection refused|server misbehaving)`),
 	regexp.MustCompile(`(?i)failed to resolve '([A-Za-z0-9.-]+)'`),
 	regexp.MustCompile(`getaddrinfo (?:ENOTFOUND|EAI_AGAIN) ([A-Za-z0-9.-]+)`),
 	regexp.MustCompile(`UnknownHostException: ([A-Za-z0-9.-]+)`),
