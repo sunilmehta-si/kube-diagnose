@@ -123,3 +123,66 @@ func dnsBlocked(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, 
 		fmt.Sprintf("container %s exits because it cannot resolve %s: NetworkPolicy %s restricts its egress and allows nothing to port 53, so no DNS lookup gets out; its log says: %q", cs.Name, host, np.Metadata.Name, clip(line, 200)),
 		"dnsblocked|"+np.Metadata.Name, fmt.Sprintf("Add an egress rule to %s (or another policy selecting these pods) that allows UDP and TCP port 53 to the cluster DNS (namespace kube-system, k8s-app: kube-dns).", np.Metadata.Name), ev...)
 }
+
+// reRefused matches a refused connection and captures the host or IP it went to: busybox wget, curl, Go, Node and
+// libpq.
+var reRefused = []*regexp.Regexp{
+	regexp.MustCompile(`can't connect to remote host \(([0-9.]+)\): Connection refused`),
+	regexp.MustCompile(`(?i)failed to connect to ([A-Za-z0-9.-]+) port \d+.*Connection refused`),
+	regexp.MustCompile(`dial tcp ([0-9.]+):\d+: connect: connection refused`),
+	regexp.MustCompile(`ECONNREFUSED ([0-9.]+):\d+`),
+	regexp.MustCompile(`connection to server at "([A-Za-z0-9.-]+)".*Connection refused`),
+}
+
+// refusedService finds, in a container's log, a refused connection to a Service of the pod's namespace, by name or
+// by cluster IP, and returns the Service.
+func refusedService(ix *index, ns string, lines []string) (kube.Service, string, bool) {
+	for i := len(lines) - 1; i >= 0; i-- {
+		for _, re := range reRefused {
+			m := re.FindStringSubmatch(lines[i])
+			if m == nil {
+				continue
+			}
+			for _, svc := range ix.s.Services {
+				if svc.Metadata.Namespace != ns {
+					continue
+				}
+				if svc.Spec.ClusterIP == m[1] || svc.Metadata.Name == m[1] || strings.HasPrefix(m[1], svc.Metadata.Name+"."+ns+".") || m[1] == svc.Metadata.Name+"."+ns {
+					return svc, lines[i], true
+				}
+			}
+		}
+	}
+	return kube.Service{}, "", false
+}
+
+// refusedByEmptyService finds a container that exits because the Service it connects to has no ready pods: the
+// cluster refuses connections to a Service without endpoints.
+func refusedByEmptyService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	svc, line, ok := refusedService(ix, p.Metadata.Namespace, lines)
+	if !ok || len(svc.Spec.Selector) == 0 {
+		return nil
+	}
+	ns := svc.Metadata.Namespace
+	matching, ready := 0, 0
+	for _, q := range ix.s.Pods {
+		if q.Metadata.Namespace == ns && kube.MatchesMap(svc.Spec.Selector, q.Metadata.Labels) && q.Status.Phase != "Succeeded" && q.Status.Phase != "Failed" {
+			matching++
+			if q.Ready() {
+				ready++
+			}
+		}
+	}
+	if ready > 0 {
+		return nil
+	}
+	why := fmt.Sprintf("it selects %d pods and none is ready", matching)
+	if matching == 0 {
+		why = "no pod has its selector's labels " + kube.FormatMap(svc.Spec.Selector)
+	}
+	ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no ready pods: %s", svc.Metadata.Name, why),
+		Command: "kubectl get endpointslices -n " + ns + " -l kubernetes.io/service-name=" + svc.Metadata.Name})
+	return newProblem(p, cs.Name, "KD124", "Container connects to a Service with no ready pods", Critical,
+		fmt.Sprintf("container %s exits because Service %s refuses its connection: the Service has no ready pods (%s); its log says: %q", cs.Name, svc.Metadata.Name, why, clip(line, 200)),
+		"refused|"+svc.Metadata.Name, fmt.Sprintf("Fix Service %s's pods (the findings for them say why they are not ready, or scale them up), or make %s wait and retry rather than exit.", svc.Metadata.Name, cs.Name), ev...)
+}

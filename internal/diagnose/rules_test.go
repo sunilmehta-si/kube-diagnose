@@ -1190,3 +1190,28 @@ func TestNetworkPolicyBlocksDNS(t *testing.T) {
 		t.Errorf("DNS is allowed: %s", f.Cause)
 	}
 }
+
+func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	db := service("db", map[string]string{"app": "db"}, port(5432))
+	db.Spec.ClusterIP = "10.96.12.7"
+	s.Services = []kube.Service{db}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: can't connect to remote host (10.96.12.7): Connection refused"}}}
+	f := Diagnose(s).Findings[0]
+	expect(t, f, "KD124", "Deployment shop/web", "Service db refuses its connection", "no pod has its selector's labels app=db")
+
+	s.Logs[0].Lines = []string{`psql: error: connection to server at "db" (10.96.12.7), port 5432 failed: Connection refused`}
+	expect(t, Diagnose(s).Findings[0], "KD124", "Deployment shop/web", "Service db refuses its connection")
+
+	// A Service with a ready pod refuses for another reason: the crash rule quotes the log.
+	q := pod("db-1", "")
+	q.Metadata.Labels = map[string]string{"app": "db"}
+	s.Pods = append(s.Pods, q)
+	if f := Diagnose(s).Findings[0]; f.Rule != "KD110" {
+		t.Errorf("with a ready db pod: %s %s", f.Rule, f.Cause)
+	}
+}
