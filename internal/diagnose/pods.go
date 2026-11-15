@@ -592,6 +592,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := portInUse(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {
 		return newProblem(p, cs.Name, "KD121", "Container looks up a Service that does not exist", Critical,
 			fmt.Sprintf("container %s exits because it cannot resolve %s: there is no Service %s in namespace %s; its log says: %q", cs.Name, svc, svc, svcNS, clip(line, 200)),

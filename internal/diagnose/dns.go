@@ -1,9 +1,12 @@
 package diagnose
 
 import (
+	"fmt"
 	"regexp"
 	"slices"
 	"strings"
+
+	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
 
 // reUnresolved matches the ways common clients report a host name that DNS does not know, capturing the name:
@@ -74,4 +77,49 @@ func (ix *index) missingService(podNS string, lines []string) (svcNS, svc, line 
 		return "", "", "", false
 	}
 	return svcNS, svc, line, true
+}
+
+// dnsBlockedBy returns the egress NetworkPolicy that leaves a pod no way to reach DNS: the pod is selected by
+// egress policies and none of their rules allows port 53 (a rule without ports allows every port to its peers).
+// It returns nil when the pod's egress is not restricted or DNS is allowed.
+func dnsBlockedBy(ix *index, p kube.Pod) *kube.NetworkPolicy {
+	var first *kube.NetworkPolicy
+	for i, np := range ix.s.NetworkPolicies {
+		if np.Metadata.Namespace != p.Metadata.Namespace || !np.AppliesToEgress() || !np.Spec.PodSelector.Matches(p.Metadata.Labels) {
+			continue
+		}
+		if first == nil {
+			first = &ix.s.NetworkPolicies[i]
+		}
+		for _, rule := range np.Spec.Egress {
+			if len(rule.Ports) == 0 {
+				return nil
+			}
+			for _, port := range rule.Ports {
+				if port.Port == nil || (!port.Port.IsName && port.Port.Int == 53) || (port.Port.IsName && strings.HasPrefix(port.Port.Str, "dns")) {
+					return nil
+				}
+			}
+		}
+	}
+	return first
+}
+
+// dnsBlocked finds a container that exits after a failed lookup while an egress NetworkPolicy blocks its DNS.
+func dnsBlocked(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	host, line := unresolvedHost(lines)
+	if host == "" {
+		return nil
+	}
+	np := dnsBlockedBy(ix, p)
+	if np == nil {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	ref := kube.Ref{Kind: "NetworkPolicy", Namespace: ns, Name: np.Metadata.Name}
+	ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("NetworkPolicy %s restricts the pod's egress and allows no traffic to port 53", np.Metadata.Name),
+		Command: cmdGet("networkpolicy", ns, np.Metadata.Name, "{.spec.egress}")})
+	return newProblem(p, cs.Name, "KD123", "NetworkPolicy blocks the pod's DNS lookups", Critical,
+		fmt.Sprintf("container %s exits because it cannot resolve %s: NetworkPolicy %s restricts its egress and allows nothing to port 53, so no DNS lookup gets out; its log says: %q", cs.Name, host, np.Metadata.Name, clip(line, 200)),
+		"dnsblocked|"+np.Metadata.Name, fmt.Sprintf("Add an egress rule to %s (or another policy selecting these pods) that allows UDP and TCP port 53 to the cluster DNS (namespace kube-system, k8s-app: kube-dns).", np.Metadata.Name), ev...)
 }

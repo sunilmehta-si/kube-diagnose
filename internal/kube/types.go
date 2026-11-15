@@ -734,6 +734,20 @@ func (n NetworkPolicy) AppliesToIngress() bool {
 	return false
 }
 
+// AppliesToEgress reports whether the policy restricts egress: it lists Egress in policyTypes, or it has no
+// policyTypes and has egress rules.
+func (n NetworkPolicy) AppliesToEgress() bool {
+	if len(n.Spec.PolicyTypes) == 0 {
+		return len(n.Spec.Egress) > 0
+	}
+	for _, t := range n.Spec.PolicyTypes {
+		if t == "Egress" {
+			return true
+		}
+	}
+	return false
+}
+
 type ResourceQuota struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Status   struct {

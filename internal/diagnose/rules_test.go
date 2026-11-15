@@ -1157,3 +1157,36 @@ func TestClaimAccessModeNotSupported(t *testing.T) {
 		`failed to provision volume with StorageClass "standard": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes`, time.Minute)}
 	expect(t, only(t, Diagnose(s)), "KD156", "PersistentVolumeClaim shop/shared", "asks for access mode ReadWriteMany", "the default StorageClass standard", "NodePath only supports")
 }
+
+func TestNetworkPolicyBlocksDNS(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("db", map[string]string{"app": "db"}, port(5432))}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address 'db:5432'"}}}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "egress-db-only", Namespace: "shop"}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	tcp5432 := kube.IntOrString{Int: 5432}
+	rule := kube.NetworkPolicyRule{To: []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "db"}}}}}
+	rule.Ports = append(rule.Ports, struct {
+		Port *kube.IntOrString `json:"port,omitempty"`
+	}{Port: &tcp5432})
+	np.Spec.Egress = []kube.NetworkPolicyRule{rule}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := Diagnose(s).Findings[0]
+	expect(t, f, "KD123", "Deployment shop/web", "cannot resolve db", "NetworkPolicy egress-db-only restricts its egress")
+
+	// Allowing port 53 lets DNS out: the crash is something else.
+	dns := kube.IntOrString{Int: 53}
+	s.NetworkPolicies[0].Spec.Egress = append(s.NetworkPolicies[0].Spec.Egress, kube.NetworkPolicyRule{})
+	s.NetworkPolicies[0].Spec.Egress[1].Ports = append(s.NetworkPolicies[0].Spec.Egress[1].Ports, struct {
+		Port *kube.IntOrString `json:"port,omitempty"`
+	}{Port: &dns})
+	if f := Diagnose(s).Findings[0]; f.Rule == "KD123" {
+		t.Errorf("DNS is allowed: %s", f.Cause)
+	}
+}
