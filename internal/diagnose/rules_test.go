@@ -1071,3 +1071,24 @@ func TestPDBSelectsNoPods(t *testing.T) {
 		t.Errorf("a budget that covers the pod: %s", f.Rule)
 	}
 }
+
+func TestLoadBalancerWithoutAnAddress(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	svc := service("web", map[string]string{"app": "web"}, named("http"))
+	svc.Spec.Type = "LoadBalancer"
+	svc.Metadata.CreationTimestamp = t0.Add(-10 * time.Minute)
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD168", "Service shop/web", "no external address for 10m0s", "nothing in the cluster provisions load balancers")
+
+	s.Events = []kube.Event{event("Service", "web", "SyncLoadBalancerFailed", `Error syncing load balancer: failed to ensure load balancer: googleapi: Error 403: QUOTA_EXCEEDED`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD168", "Service shop/web", "fails to create one", "QUOTA_EXCEEDED")
+
+	s.Services[0].Metadata.CreationTimestamp = t0.Add(-30 * time.Second)
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a new Service waits for its address: %+v", r.Findings)
+	}
+}

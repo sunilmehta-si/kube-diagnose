@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -17,6 +18,9 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 	var out []Finding
 	blocked := map[kube.Ref][]kube.Ref{} // Service -> its pods that are not ready
 	for _, svc := range ix.s.Services {
+		if f := loadBalancerPending(ix, svc); f != nil {
+			out = append(out, *f)
+		}
 		if len(svc.Spec.Selector) == 0 || svc.Spec.Type == "ExternalName" {
 			continue
 		}
@@ -87,6 +91,34 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	}
 	return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Critical, Object: svc.Ref(), Cause: cause,
 		Evidence: ev, Fix: fix}
+}
+
+// lbPendingAfter is how long a LoadBalancer Service may wait for its address before it is reported.
+const lbPendingAfter = 2 * time.Minute
+
+// loadBalancerPending finds a LoadBalancer Service that has no external address minutes after it was created: no
+// load balancer controller serves it, or the one there fails.
+func loadBalancerPending(ix *index, svc kube.Service) *Finding {
+	if svc.Spec.Type != "LoadBalancer" || len(svc.Status.LoadBalancer.Ingress) > 0 || svc.Metadata.CreationTimestamp.IsZero() {
+		return nil
+	}
+	age := ix.s.CollectedAt.Sub(svc.Metadata.CreationTimestamp)
+	if age < lbPendingAfter {
+		return nil
+	}
+	ns, name := svc.Metadata.Namespace, svc.Metadata.Name
+	ev := []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has type LoadBalancer and no external address after %s", name, age.Round(time.Minute)),
+		Command: cmdGet("service", ns, name, "{.spec.type}{\" \"}{.status.loadBalancer}")}}
+	cause := fmt.Sprintf("LoadBalancer Service %s has had no external address for %s: nothing in the cluster provisions load balancers (a cloud controller manager, MetalLB, cloud-provider-kind), or the one there ignores this Service", name, age.Round(time.Minute))
+	fix := "Install a load balancer implementation for this cluster, or expose the Service another way (an Ingress or Gateway, or type NodePort)."
+	for _, e := range ix.eventsFor(svc.Ref(), "SyncLoadBalancerFailed") {
+		ev = append(ev, eventEvidence(svc.Ref(), e))
+		cause = fmt.Sprintf("LoadBalancer Service %s has had no external address for %s: the load balancer controller fails to create one: %s", name, age.Round(time.Minute), clip(e.Message, 200))
+		fix = "Fix what the load balancer controller reports (quota, subnet, annotations, permissions); it retries on its own."
+		break
+	}
+	return &Finding{Rule: "KD168", Title: "LoadBalancer Service has no external address", Severity: Warning, Object: svc.Ref(),
+		Cause: cause, Evidence: ev, Fix: fix}
 }
 
 // scaledToZero reports a Service whose workload is scaled to zero while an Ingress still sends it traffic.
