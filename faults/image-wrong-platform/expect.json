@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-image-wrong-platform",
+  "description": "A Deployment's image is published only for arm64, and the node is amd64, so there is no build to pull.",
+  "rule": "KD109",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "arm64v8/busybox"
+    ],
+    [
+      "no build for",
+      "platform"
+    ]
+  ]
+}
