@@ -583,6 +583,13 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {
+		return newProblem(p, cs.Name, "KD121", "Container looks up a Service that does not exist", Critical,
+			fmt.Sprintf("container %s exits because it cannot resolve %s: there is no Service %s in namespace %s; its log says: %q", cs.Name, svc, svc, svcNS, clip(line, 200)),
+			"nosvc|"+svcNS+"/"+svc, fmt.Sprintf("Create Service %s in namespace %s (or deploy what it fronts), or correct the host name the app connects to in its configuration.", svc, svcNS),
+			append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
+				What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})...)
+	}
 	title, rule := "Container keeps crashing", "KD110"
 	what := "exits"
 	if isInit(p, cs.Name) {

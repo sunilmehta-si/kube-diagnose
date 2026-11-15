@@ -990,3 +990,21 @@ func TestInitContainerNeverFinishes(t *testing.T) {
 		t.Errorf("an init container 30 s in is not stuck: %+v", r.Findings)
 	}
 }
+
+func TestCrashOnAMissingService(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"starting", `panic: dial tcp: lookup payments on 10.96.0.10:53: no such host`}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD121", "Deployment shop/web", "cannot resolve payments", "no Service payments in namespace shop")
+
+	// With the Service there, the lookup failure is DNS trouble of another kind, left to the crash rule.
+	s.Services = []kube.Service{service("payments", map[string]string{"app": "payments"}, port(8080))}
+	if f := Diagnose(s).Findings[0]; f.Rule != "KD110" {
+		t.Errorf("with Service payments present: %s %s", f.Rule, f.Cause)
+	}
+}
