@@ -1092,3 +1092,24 @@ func TestLoadBalancerWithoutAnAddress(t *testing.T) {
 		t.Errorf("a new Service waits for its address: %+v", r.Findings)
 	}
 }
+
+func TestIngressTLSSecret(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	ing := ingress("shop", "web", 80, "")
+	ing.Spec.TLS = []kube.IngressTLS{{Hosts: []string{"shop.example.com"}, SecretName: "shop-tls"}}
+	s.Ingresses = []kube.Ingress{ing}
+	expect(t, only(t, Diagnose(s)), "KD169", "Ingress shop/shop", "Secret shop-tls, which does not exist", "shop.example.com")
+
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "Opaque", Keys: []string{"cert.pem", "key.pem"}}}
+	expect(t, only(t, Diagnose(s)), "KD169", "Ingress shop/shop", "which has no tls.crt and tls.key")
+
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "kubernetes.io/tls", Keys: []string{"tls.crt", "tls.key"}}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a good TLS Secret: %+v", r.Findings)
+	}
+}
