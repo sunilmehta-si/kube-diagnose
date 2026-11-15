@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-image-never-pull"
+  ],
+  "collectedAt": "2026-11-15 05:41 UTC",
+  "findings": [
+    {
+      "rule": "KD108",
+      "title": "Image is not on the node and may not be pulled",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-image-never-pull",
+        "name": "web"
+      },
+      "cause": "container web's image ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0 is not on kd-faults-control-plane, and its imagePullPolicy is Never, so the kubelet will not pull it; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-image-never-pull",
+            "name": "web-7859f6669f-89b7b"
+          },
+          "what": "container web is waiting: ErrImageNeverPull",
+          "detail": "Container image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\" is not present with pull policy of Never",
+          "command": "kubectl get pod web-7859f6669f-89b7b -n kd-image-never-pull -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-image-never-pull",
+            "name": "web-7859f6669f-89b7b"
+          },
+          "what": "container web has imagePullPolicy Never",
+          "command": "kubectl get pod web-7859f6669f-89b7b -n kd-image-never-pull -o jsonpath='{.spec.containers[?(@.name==\"web\")].imagePullPolicy}'"
+        }
+      ],
+      "fix": "Load the image onto every node that may run the pod (kind load docker-image, or pre-pull it), or set imagePullPolicy to IfNotPresent so the kubelet pulls it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-image-never-pull",
+          "name": "web-7859f6669f-89b7b"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

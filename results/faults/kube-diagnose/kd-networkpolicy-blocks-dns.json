@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-blocks-dns"
+  ],
+  "collectedAt": "2026-11-15 05:42 UTC",
+  "findings": [
+    {
+      "rule": "KD123",
+      "title": "NetworkPolicy blocks the pod's DNS lookups",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-networkpolicy-blocks-dns",
+        "name": "web"
+      },
+      "cause": "container web exits because it cannot resolve db: NetworkPolicy egress-db-only restricts its egress and allows nothing to port 53, so no DNS lookup gets out; its log says: \"wget: bad address 'db'\"; Deployment web has 1 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-blocks-dns",
+            "name": "web-bc988964d-wzwcd"
+          },
+          "what": "container web exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-bc988964d-wzwcd -n kd-networkpolicy-blocks-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-blocks-dns",
+            "name": "web-bc988964d-wzwcd"
+          },
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "calling db\nwget: bad address 'db'",
+          "command": "kubectl logs web-bc988964d-wzwcd -n kd-networkpolicy-blocks-dns -c web --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-blocks-dns",
+            "name": "egress-db-only"
+          },
+          "what": "NetworkPolicy egress-db-only restricts the pod's egress and allows no traffic to port 53",
+          "command": "kubectl get networkpolicy egress-db-only -n kd-networkpolicy-blocks-dns -o jsonpath='{.spec.egress}'"
+        }
+      ],
+      "fix": "Add an egress rule to egress-db-only (or another policy selecting these pods) that allows UDP and TCP port 53 to the cluster DNS (namespace kube-system, k8s-app: kube-dns).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-networkpolicy-blocks-dns",
+          "name": "web-bc988964d-wzwcd"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

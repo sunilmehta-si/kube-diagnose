@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dns-missing-service/web",
+      "error": [
+        {
+          "Text": "Deployment kd-dns-missing-service/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dns-missing-service",
+              "Masked": "WVlhQnIjZV9ubGdCQ0cpTDosYnhtMQ=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "ZFRU"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-dns-missing-service/web-9969d4d5c-pzgf7",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-9969d4d5c-pzgf7",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

@@ -1,0 +1,66 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cronjob-fails"
+  ],
+  "collectedAt": "2026-11-15 05:41 UTC",
+  "findings": [
+    {
+      "rule": "KD110",
+      "title": "Container fails",
+      "severity": "critical",
+      "object": {
+        "kind": "CronJob",
+        "namespace": "kd-cronjob-fails",
+        "name": "backup"
+      },
+      "cause": "container backup exited with code 2 (misused shell builtin or bad arguments); its log says: \"ERROR: BACKUP_TARGET is not set\"",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-cronjob-fails",
+            "name": "backup-29912019-9hhm6"
+          },
+          "what": "container backup exited with code 2 (Error)",
+          "command": "kubectl get pod backup-29912019-9hhm6 -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-cronjob-fails",
+            "name": "backup-29912019-9hhm6"
+          },
+          "what": "last lines of container backup's log (current run)",
+          "detail": "starting backup\nERROR: BACKUP_TARGET is not set",
+          "command": "kubectl logs backup-29912019-9hhm6 -n kd-cronjob-fails -c backup --tail=20"
+        }
+      ],
+      "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-cronjob-fails",
+          "name": "backup-29912019-9hhm6"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-cronjob-fails",
+          "name": "backup-29912020-r46v8"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-cronjob-fails",
+          "name": "backup-29912021-rrrhc"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 3,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

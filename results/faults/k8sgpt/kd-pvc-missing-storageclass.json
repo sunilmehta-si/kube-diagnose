@@ -5,28 +5,6 @@
   "problems": 3,
   "results": [
     {
-      "kind": "Deployment",
-      "name": "kd-pvc-missing-storageclass/web",
-      "error": [
-        {
-          "Text": "Deployment kd-pvc-missing-storageclass/web has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pvc-missing-storageclass",
-              "Masked": "ZE85JkdbckwyVjEjTjlGPC50OSQxWlJYUW1t"
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "Ki9I"
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "PersistentVolumeClaim",
       "name": "kd-pvc-missing-storageclass/data",
       "error": [
@@ -40,8 +18,30 @@
       "parentObject": ""
     },
     {
+      "kind": "Deployment",
+      "name": "kd-pvc-missing-storageclass/web",
+      "error": [
+        {
+          "Text": "Deployment kd-pvc-missing-storageclass/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-missing-storageclass",
+              "Masked": "USJnM3g4SE8xPF9rYzUvREBIanVodFpZWzpH"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "aTEk"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Pod",
-      "name": "kd-pvc-missing-storageclass/web-689b97894-cqb42",
+      "name": "kd-pvc-missing-storageclass/web-689b97894-crxsc",
       "error": [
         {
           "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",

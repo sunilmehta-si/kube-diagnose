@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-init-never-finishes/web",
+      "error": [
+        {
+          "Text": "Deployment kd-init-never-finishes/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-init-never-finishes",
+              "Masked": "Q1UzZS03LC9vb2QmbztySSZnTVstRw=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "dW5u"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

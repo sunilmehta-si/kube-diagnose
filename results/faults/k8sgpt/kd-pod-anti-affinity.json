@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pod-anti-affinity",
-              "Masked": "MCpaWWpRaEpeTFp9QlJ9USFpTDo="
+              "Masked": "QWwwR0smMC1qNjRlI14/KUhZIkE="
             },
             {
               "Unmasked": "web",
-              "Masked": "SDEz"
+              "Masked": "Xlg0"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pod-anti-affinity/web-769478f8ff-76fsn",
+      "name": "kd-pod-anti-affinity/web-769478f8ff-d6mct",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",

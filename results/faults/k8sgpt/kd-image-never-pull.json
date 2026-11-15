@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-image-never-pull/web",
+      "error": [
+        {
+          "Text": "Deployment kd-image-never-pull/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-image-never-pull",
+              "Masked": "enQ5QClvWSlSeiFPTWIzY3xQTA=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Kytu"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-image-never-pull/web-7859f6669f-89b7b",
+      "error": [
+        {
+          "Text": "Container image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\" is not present with pull policy of Never",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hpa-target-missing"
   ],
-  "collectedAt": "2026-11-14 09:06 UTC",
+  "collectedAt": "2026-11-15 05:41 UTC",
   "findings": [
     {
       "rule": "KD178",

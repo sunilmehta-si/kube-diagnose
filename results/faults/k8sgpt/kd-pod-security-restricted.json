@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pod-security-restricted",
-              "Masked": "NypjSHZ5LFdJbzBNbmghUyYnMntmJ0krKEI="
+              "Masked": "MVZZV0hwRjIhSF4oKWcqY2pqKSVONyszcFc="
             },
             {
               "Unmasked": "web",
-              "Masked": "Vy5B"
+              "Masked": "Vms3"
             }
           ]
         }
@@ -44,7 +44,7 @@
       "name": "kd-pod-security-restricted/web-54b9bbc47f",
       "error": [
         {
-          "Text": "pods \"web-54b9bbc47f-bw2mg\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
+          "Text": "pods \"web-54b9bbc47f-bhq57\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
           "KubernetesDoc": "",
           "Sensitive": []
         }

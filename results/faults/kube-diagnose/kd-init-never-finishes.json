@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-init-never-finishes"
+  ],
+  "collectedAt": "2026-11-15 05:42 UTC",
+  "findings": [
+    {
+      "rule": "KD119",
+      "title": "Init container never finishes",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-init-never-finishes",
+        "name": "web"
+      },
+      "cause": "init container wait-for-db has run for 4m0s without finishing, so the pod's app containers have not started; its log says: \"wget: bad address 'db:5432'\"; it waits for db, and there is no Service db in namespace kd-init-never-finishes; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-never-finishes",
+            "name": "web-658bdbddd-6n8tg"
+          },
+          "what": "init container wait-for-db has been running since 2026-11-15T05:38:32Z",
+          "command": "kubectl get pod web-658bdbddd-6n8tg -n kd-init-never-finishes -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-never-finishes",
+            "name": "web-658bdbddd-6n8tg"
+          },
+          "what": "last lines of container wait-for-db's log (current run)",
+          "detail": "waiting for db:5432\nwget: bad address 'db:5432'\nwget: bad address 'db:5432'\nwaiting for db:5432\nwaiting for db:5432\nwget: bad address 'db:5432'",
+          "command": "kubectl logs web-658bdbddd-6n8tg -n kd-init-never-finishes -c wait-for-db --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-init-never-finishes",
+            "name": "db"
+          },
+          "what": "there is no Service db in namespace kd-init-never-finishes",
+          "command": "kubectl get service db -n kd-init-never-finishes"
+        }
+      ],
+      "fix": "Create Service db in namespace kd-init-never-finishes (or deploy what it fronts), or correct the host name the init container waits for.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-init-never-finishes",
+          "name": "web-658bdbddd-6n8tg"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

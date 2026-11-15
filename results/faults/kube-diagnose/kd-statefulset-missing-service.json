@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-statefulset-missing-service"
+  ],
+  "collectedAt": "2026-11-15 05:43 UTC",
+  "findings": [
+    {
+      "rule": "KD182",
+      "title": "StatefulSet's governing Service is missing or not headless",
+      "severity": "warning",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-statefulset-missing-service",
+        "name": "db"
+      },
+      "cause": "StatefulSet db's governing Service db-headless does not exist, so its pods have no DNS names (db-0.db-headless.kd-statefulset-missing-service.svc does not resolve)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "StatefulSet",
+            "namespace": "kd-statefulset-missing-service",
+            "name": "db"
+          },
+          "what": "StatefulSet db names Service db-headless as its governing Service",
+          "command": "kubectl get statefulset db -n kd-statefulset-missing-service -o jsonpath='{.spec.serviceName}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-statefulset-missing-service",
+            "name": "db-headless"
+          },
+          "what": "there is no Service db-headless in namespace kd-statefulset-missing-service",
+          "command": "kubectl get service db-headless -n kd-statefulset-missing-service"
+        }
+      ],
+      "fix": "Create a headless Service db-headless (clusterIP: None) that selects the StatefulSet's pods, or set serviceName to the one that exists."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

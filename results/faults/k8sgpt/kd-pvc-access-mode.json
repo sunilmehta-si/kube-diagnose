@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pvc-access-mode/web",
+      "error": [
+        {
+          "Text": "Deployment kd-pvc-access-mode/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-access-mode",
+              "Masked": "VE5RJkMtIWgqKSc2VU09dG1w"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "QUVh"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

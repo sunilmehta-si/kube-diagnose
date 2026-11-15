@@ -1,0 +1,113 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 6,
+  "results": [
+    {
+      "kind": "Pod",
+      "name": "kd-cronjob-fails/backup-29912019-9hhm6",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=2 container=backup pod=backup-29912019-9hhm6",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-cronjob-fails/backup-29912020-r46v8",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=2 container=backup pod=backup-29912020-r46v8",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-cronjob-fails/backup-29912021-rrrhc",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=2 container=backup pod=backup-29912021-rrrhc",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-cronjob-fails/backup-29912019",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-cronjob-fails",
+              "Masked": "U2ZlNDExRWN2eEBZUXBQVQ=="
+            },
+            {
+              "Unmasked": "backup-29912019",
+              "Masked": "N0V1TDFldzsxISR5LWJI"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-cronjob-fails/backup-29912020",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-cronjob-fails",
+              "Masked": "cmY9X0wmXlVAUXVTOGp1UA=="
+            },
+            {
+              "Unmasked": "backup-29912020",
+              "Masked": "Mk8waHgwbGN2ZiFnaGg0"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-cronjob-fails/backup-29912021",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-cronjob-fails",
+              "Masked": "ZUdqISQhUUQsKWg0X3giUw=="
+            },
+            {
+              "Unmasked": "backup-29912021",
+              "Masked": "UGsnOSc2LzB2K1oqKVI2"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}
