@@ -2,6 +2,31 @@
 
 ## [Unreleased]
 
+### Added
+- 12 rules, 74 in all (`docs/rules.md`):
+  - images: not on the node with `imagePullPolicy: Never` (KD108), and no build for the node's platform (KD109),
+    which read as "does not exist" before;
+  - containers: init containers that never finish, with the Service they wait for named when it is missing (KD119);
+    crashes traced to a Service name that does not resolve because the Service does not exist (KD121), a port
+    another container of the pod holds (KD122), an egress NetworkPolicy that blocks DNS (KD123), or a Service that
+    refuses the connection because it has no ready pods (KD124);
+  - storage: claims for an access mode the StorageClass cannot provide (KD156);
+  - networking: LoadBalancer Services with no external address (KD168), Ingress TLS Secrets that are missing or
+    hold no certificate (KD169), and an Ingress that routes to a workload scaled to zero (KD160, as a warning);
+  - StatefulSets whose governing Service is missing or not headless (KD182), and PodDisruptionBudgets that select
+    no pods (KD186).
+- A CronJob's failing runs are one finding on the CronJob instead of one per Job.
+- `--ignore KD168,...` leaves out the findings of chosen rules, and says on stderr how many it left out.
+- The collector reads the current log of an init container still running in a pending pod.
+- The snapshot holds containers' imagePullPolicy, Services' load balancer status, Ingress TLS entries and a
+  StatefulSet's serviceName.
+- 14 fault scenarios, 54 broken namespaces in all.
+
+### Fixed
+- `record --redact` left the names of objects a snapshot only refers to in clear text: a missing ConfigMap, Secret,
+  claim, pull secret, Ingress backend Service or HPA target, and the CronJob that owns a Job. Those are the names
+  a diagnosis reports, so they are pseudonymised now.
+
 ## [0.2.0] - 2026-11-14
 
 ### Added
