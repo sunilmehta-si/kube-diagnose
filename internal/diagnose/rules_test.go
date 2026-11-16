@@ -1407,3 +1407,30 @@ func TestPodSandboxCannotBeCreated(t *testing.T) {
 		t.Errorf("a running pod with an old sandbox event: %+v", r.Findings)
 	}
 }
+
+func TestServiceAccountTokenNotMounted(t *testing.T) {
+	no := false
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.ServiceAccountName = "operator"
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ServiceAccounts = []kube.ServiceAccount{{Metadata: kube.ObjectMeta{Name: "operator", Namespace: "shop"}, AutomountServiceAccountToken: &no}}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{
+		`E1116 08:12:01.000000       1 main.go:40] error building in-cluster config: open /var/run/secrets/kubernetes.io/serviceaccount/token: no such file or directory`}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD125", "Deployment shop/web", "its ServiceAccount operator sets automountServiceAccountToken: false")
+
+	// The pod's own setting, with busybox's wording.
+	s.ServiceAccounts = nil
+	p.Spec.AutomountServiceAccountToken = &no
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{`cat: can't open '/var/run/secrets/kubernetes.io/serviceaccount/token': No such file or directory`}
+	expect(t, only(t, Diagnose(s)), "KD125", "Deployment shop/web", "the pod sets automountServiceAccountToken: false")
+
+	// With the token mounted, a missing file is something else, and stays a crash.
+	p.Spec.AutomountServiceAccountToken = nil
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD110", "Deployment shop/web")
+}

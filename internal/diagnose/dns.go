@@ -188,3 +188,45 @@ func refusedByEmptyService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines
 		fmt.Sprintf("container %s exits because Service %s refuses its connection: the Service has no ready pods (%s); its log says: %q", cs.Name, svc.Metadata.Name, why, clip(line, 200)),
 		"refused|"+svc.Metadata.Name, fmt.Sprintf("Fix Service %s's pods (the findings for them say why they are not ready, or scale them up), or make %s wait and retry rather than exit.", svc.Metadata.Name, cs.Name), ev...)
 }
+
+// reTokenMissing matches a container failing to read the ServiceAccount files the kubelet mounts for API access.
+var reTokenMissing = regexp.MustCompile(`(?i)(?:/var)?/run/secrets/kubernetes\.io/serviceaccount/?([a-z.]*)['"]?:? .*(?:no such file|not exist|can't open)`)
+
+// tokenNotMounted finds a container that exits because it cannot read its ServiceAccount token, while the pod or its
+// ServiceAccount sets automountServiceAccountToken: false, so the token was never mounted.
+func tokenNotMounted(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	line := ""
+	for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+		if reTokenMissing.MatchString(lines[i]) {
+			line = lines[i]
+		}
+	}
+	if line == "" {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	sa := p.Spec.ServiceAccountName
+	if sa == "" {
+		sa = "default"
+	}
+	where := ""
+	switch {
+	case p.Spec.AutomountServiceAccountToken != nil && !*p.Spec.AutomountServiceAccountToken:
+		where = "the pod sets automountServiceAccountToken: false"
+		ev = append(ev, Evidence{Object: p.Ref(), What: where, Command: cmdGet("pod", ns, p.Metadata.Name, "{.spec.automountServiceAccountToken}")})
+	case p.Spec.AutomountServiceAccountToken == nil:
+		for _, a := range ix.s.ServiceAccounts {
+			if a.Metadata.Namespace == ns && a.Metadata.Name == sa && a.AutomountServiceAccountToken != nil && !*a.AutomountServiceAccountToken {
+				where = fmt.Sprintf("its ServiceAccount %s sets automountServiceAccountToken: false", sa)
+				ev = append(ev, Evidence{Object: kube.Ref{Kind: "ServiceAccount", Namespace: ns, Name: sa}, What: where,
+					Command: cmdGet("serviceaccount", ns, sa, "{.automountServiceAccountToken}")})
+			}
+		}
+	}
+	if where == "" {
+		return nil // the token should be there; something else removed or hid it
+	}
+	return newProblem(p, cs.Name, "KD125", "Container needs a ServiceAccount token that is not mounted", Critical,
+		fmt.Sprintf("container %s exits because it cannot read its ServiceAccount token, and %s, so the kubelet never mounted it; its log says: %q", cs.Name, where, clip(line, 200)),
+		"notoken|"+sa, "If the app talks to the Kubernetes API, set automountServiceAccountToken: true on the pod (it overrides the ServiceAccount), or mount a projected serviceAccountToken volume; if it does not, find why it tries.", ev...)
+}

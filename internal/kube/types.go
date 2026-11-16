@@ -278,6 +278,8 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
 	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
 	SchedulingGates []SchedulingGate `json:"schedulingGates,omitempty"`
 }
@@ -765,7 +767,8 @@ type ResourceQuota struct {
 }
 
 type ServiceAccount struct {
-	Metadata ObjectMeta `json:"metadata"`
+	Metadata                     ObjectMeta `json:"metadata"`
+	AutomountServiceAccountToken *bool      `json:"automountServiceAccountToken,omitempty"`
 }
 
 // KeySet is a ConfigMap or Secret reduced to its name and key names. kube-diagnose never reads values: the
