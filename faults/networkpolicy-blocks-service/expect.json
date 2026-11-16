@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-networkpolicy-blocks-service",
+  "description": "An egress NetworkPolicy lets the app resolve names but reach nothing else, so its connection to the db Service times out and it exits.",
+  "rule": "KD127",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "NetworkPolicy"
+    ],
+    [
+      "egress-dns-only"
+    ],
+    [
+      "db"
+    ]
+  ]
+}
