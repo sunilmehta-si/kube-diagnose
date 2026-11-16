@@ -519,6 +519,7 @@ var (
 	reMountCM     = regexp.MustCompile(`configmap "([^"]+)" not found`)
 	reMountSecret = regexp.MustCompile(`secret "([^"]+)" not found`)
 	reMountKey    = regexp.MustCompile(`references non-existent (config|secret) key: (\S+)`)
+	reHostPath    = regexp.MustCompile(`for volume "([^"]+)" : hostPath type check failed: (\S+) is not a (directory|file|socket file|character device|block device)`)
 )
 
 // mountProblem finds a pod stuck creating its containers because a volume cannot be mounted.
@@ -551,6 +552,14 @@ func mountProblem(ix *index, p kube.Pod) *problem {
 			pr := missingObject(ix, p, "", "secret", m[1], ev)
 			pr.cause = fmt.Sprintf("a volume of the pod needs Secret %s, which does not exist in namespace %s", m[1], p.Metadata.Namespace)
 			return pr
+		}
+		if m := reHostPath.FindStringSubmatch(e.Message); m != nil {
+			node := orNode(p.Spec.NodeName)
+			return newProblem(p, "", "KD135", "hostPath does not exist on the node", Critical,
+				fmt.Sprintf("volume %s mounts hostPath %s, which is not a %s on %s, and the volume's type requires one, so the pod cannot start", m[1], m[2], m[3], node),
+				"hostpath|"+m[2], fmt.Sprintf("Create %s on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.", m[2]),
+				append(ev, Evidence{Object: p.Ref(), What: "volume " + m[1],
+					Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, m[1]))})...)
 		}
 		if m := reMountKey.FindStringSubmatch(e.Message); m != nil {
 			kind, name := volumeSourceFor(p, m[1], m[2])

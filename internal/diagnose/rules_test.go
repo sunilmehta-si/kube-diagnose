@@ -1611,3 +1611,15 @@ func TestReadinessGateNotMet(t *testing.T) {
 		t.Errorf("a young pod has no KD128 (its Service has no ready pods, which KD162 reports): %+v", r.Findings)
 	}
 }
+
+func TestHostPathMissingOnTheNode(t *testing.T) {
+	s := snap()
+	deployment(s, "agent", 1, 0)
+	s.Pods = []kube.Pod{creating("agent-rs-a", "agent")}
+	s.Events = []kube.Event{event("Pod", "agent-rs-a", "FailedMount", `MountVolume.SetUp failed for volume "logs" : hostPath type check failed: /var/log/app is not a directory`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD135", "Deployment shop/agent", "hostPath /var/log/app, which is not a directory on node node-1")
+	if !strings.Contains(f.Fix, "DirectoryOrCreate") || !strings.Contains(f.Evidence[1].Command, `@.name=="logs"`) {
+		t.Errorf("fix %s evidence %+v", f.Fix, f.Evidence)
+	}
+}
