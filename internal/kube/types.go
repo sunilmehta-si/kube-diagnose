@@ -714,12 +714,14 @@ type NetworkPolicyPeer struct {
 	} `json:"ipBlock,omitempty"`
 }
 
+type NetworkPolicyPort struct {
+	Port *IntOrString `json:"port,omitempty"`
+}
+
 type NetworkPolicyRule struct {
 	From  []NetworkPolicyPeer `json:"from,omitempty"`
 	To    []NetworkPolicyPeer `json:"to,omitempty"`
-	Ports []struct {
-		Port *IntOrString `json:"port,omitempty"`
-	} `json:"ports,omitempty"`
+	Ports []NetworkPolicyPort `json:"ports,omitempty"`
 }
 
 type NetworkPolicy struct {

@@ -1484,3 +1484,60 @@ func TestPausedDeployment(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestNetworkPolicyBlocksAServiceConnection(t *testing.T) {
+	build := func() *snapshot.Snapshot {
+		s := snap()
+		deployment(s, "web", 1, 0)
+		p := pod("web-rs-a", "web")
+		crashed(&p, 1, "Error", 3)
+		db := pod("db", "")
+		db.Metadata.Labels = map[string]string{"app": "db"}
+		db.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "pg", ContainerPort: 5432}}
+		s.Pods = []kube.Pod{p, db}
+		svc := service("db", map[string]string{"app": "db"}, named("pg"))
+		svc.Spec.Ports[0].Port = 5432
+		svc.Spec.ClusterIP = "10.96.40.12"
+		s.Services = []kube.Service{svc}
+		s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to db (10.96.40.12:5432)", "wget: download timed out"}}}
+		return s
+	}
+	dns := kube.IntOrString{Int: 53}
+	egressDNSOnly := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "egress-dns-only", Namespace: "shop"}}
+	egressDNSOnly.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+	egressDNSOnly.Spec.PolicyTypes = []string{"Egress"}
+	egressDNSOnly.Spec.Egress = []kube.NetworkPolicyRule{{Ports: []kube.NetworkPolicyPort{{Port: &dns}}}}
+
+	s := build()
+	s.NetworkPolicies = []kube.NetworkPolicy{egressDNSOnly}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD127", "Deployment shop/web", "connection to Service db times out", "NetworkPolicy egress-dns-only allows no egress traffic between them on port 5432")
+
+	// Go's wording, by cluster IP, and a block on the backends' ingress instead.
+	s = build()
+	s.Logs[0].Lines = []string{`error: dial tcp 10.96.40.12:5432: i/o timeout`}
+	ingress := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "db-from-api", Namespace: "shop"}}
+	ingress.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "db"}}
+	ingress.Spec.Ingress = []kube.NetworkPolicyRule{{From: []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "api"}}}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{ingress}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD127", "Deployment shop/web", "NetworkPolicy db-from-api allows no ingress traffic")
+	if !strings.Contains(f.Fix, "allows pods with app=web on port 5432") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// A rule that allows the client by label, by named port, lifts the block.
+	s.NetworkPolicies[0].Spec.Ingress[0].From[0].PodSelector.MatchLabels["app"] = "web"
+	pg := kube.IntOrString{Str: "pg", IsName: true}
+	s.NetworkPolicies[0].Spec.Ingress[0].Ports = []kube.NetworkPolicyPort{{Port: &pg}}
+	if f := only(t, Diagnose(s)); f.Rule == "KD127" {
+		t.Errorf("the policy allows the client: %s", f.Cause)
+	}
+
+	// A peer chosen by namespace selector may be this namespace: the rule claims only what it can prove.
+	s.NetworkPolicies[0].Spec.Ingress[0].From = []kube.NetworkPolicyPeer{{NamespaceSelector: &kube.LabelSelector{}}}
+	s.NetworkPolicies[0].Spec.Ingress[0].Ports = nil
+	if f := only(t, Diagnose(s)); f.Rule == "KD127" {
+		t.Errorf("namespace selector: %s", f.Cause)
+	}
+}
