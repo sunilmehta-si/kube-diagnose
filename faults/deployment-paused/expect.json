@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-deployment-paused",
+  "description": "A Deployment was created paused and never resumed, so it has no ReplicaSet and no pods, and nothing reports an error.",
+  "rule": "KD184",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "paused"
+    ],
+    [
+      "roll out",
+      "rollout"
+    ]
+  ]
+}
