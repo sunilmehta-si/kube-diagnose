@@ -263,3 +263,14 @@ func rbacDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Eviden
 		fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: it may not %s %s %s", cs.Name, sa, verb, res, scope),
 		"rbac|"+sa+"|"+verb+"|"+res, fix, ev...)
 }
+
+// readyBehind counts the ready pods a Service's selector matches.
+func readyBehind(ix *index, svc kube.Service) int {
+	n := 0
+	for _, q := range ix.s.Pods {
+		if q.Metadata.Namespace == svc.Metadata.Namespace && kube.MatchesMap(svc.Spec.Selector, q.Metadata.Labels) && q.Ready() {
+			n++
+		}
+	}
+	return n
+}

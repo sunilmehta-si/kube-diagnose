@@ -1795,3 +1795,24 @@ func TestLivenessProbeTimesOut(t *testing.T) {
 	s.Pods[0].Spec.Containers[0].LivenessProbe.TimeoutSeconds = 3
 	expect(t, only(t, Diagnose(s)), "KD112", "Pod shop/web", "3s timeoutSeconds")
 }
+
+func TestInitContainerWaitsForAServiceWithNoReadyPods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "wait-for-db", Image: "busybox"}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "PodInitializing", "")
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "wait-for-db", State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0.Add(-6 * time.Minute)}}}}
+	s.Pods = []kube.Pod{p}
+	db := service("db", map[string]string{"app": "db"}, port(5432))
+	db.Spec.ClusterIP = "10.96.7.7"
+	s.Services = []kube.Service{db}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "wait-for-db", Lines: []string{"wget: can't connect to remote host (10.96.7.7): Connection refused"}}}
+	// The Service's own finding, that it selects no pod, is listed too: it says why the Service is empty.
+	r := Diagnose(s)
+	if len(r.Findings) != 2 || r.Findings[1].Rule != "KD160" {
+		t.Fatalf("%+v", r.Findings)
+	}
+	expect(t, r.Findings[0], "KD119", "Deployment shop/web", "it waits for Service db, which has no ready pods")
+}

@@ -163,7 +163,14 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		cause += fmt.Sprintf("; its log says: %q", errorLine(log.Lines))
 	}
 	fix := "Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0."
-	if svcNS, svc, _, ok := ix.missingService(p.Metadata.Namespace, ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines); ok {
+	lines := ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines
+	if svc, _, ok := refusedService(ix, p.Metadata.Namespace, lines); ok && len(svc.Spec.Selector) > 0 && readyBehind(ix, svc) == 0 {
+		cause += fmt.Sprintf("; it waits for Service %s, which has no ready pods", svc.Metadata.Name)
+		fix = fmt.Sprintf("Fix Service %s's pods (their own findings say why they are not ready, or the workload is scaled to 0); the init container finishes once they answer.", svc.Metadata.Name)
+		ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no ready pods", svc.Metadata.Name),
+			Command: "kubectl get endpointslices -n " + svc.Metadata.Namespace + " -l kubernetes.io/service-name=" + svc.Metadata.Name})
+	}
+	if svcNS, svc, _, ok := ix.missingService(p.Metadata.Namespace, lines); ok {
 		cause += fmt.Sprintf("; it waits for %s, and there is no Service %s in namespace %s", svc, svc, svcNS)
 		fix = fmt.Sprintf("Create Service %s in namespace %s (or deploy what it fronts), or correct the host name the init container waits for.", svc, svcNS)
 		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
