@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-device-plugin-missing",
+  "description": "A Deployment's pods request an extended resource that no node advertises, because no device plugin provides it, so they stay Pending.",
+  "rule": "KD140",
+  "object": "Deployment/train",
+  "keywords": [
+    [
+      "example.com/accelerator"
+    ],
+    [
+      "device plugin",
+      "advertises"
+    ]
+  ]
+}
