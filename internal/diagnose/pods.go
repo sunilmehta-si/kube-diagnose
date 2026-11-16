@@ -904,8 +904,33 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if d := describeProbe(c, probe); d != "" {
 		cause = fmt.Sprintf("container %s fails its %s probe (%s), so the kubelet restarts it (%d restarts)", cs.Name, kind, d, cs.RestartCount)
 	}
-	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe),
-		"Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly.", ev...)
+	fix := "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly."
+	if exe := probeExecMissing(ix, p, cs.Name, kind); exe != "" {
+		cause = fmt.Sprintf("container %s's %s probe runs %s, which is not in image %s, so the probe can never pass and the kubelet restarts the container (%d restarts)", cs.Name, kind, exe, imageOf(p, cs), cs.RestartCount)
+		fix = probeExecFix(exe)
+	}
+	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe), fix, ev...)
+}
+
+// reProbeNoExec matches the kubelet's report that an exec probe's command does not exist in the container.
+var reProbeNoExec = regexp.MustCompile(`exec: "([^"]+)": executable file not found|exec: "([^"]+)": stat [^:]+: no such file or directory`)
+
+// probeExecMissing returns the command an exec probe of the given kind ("liveness", "readiness", "startup") tried to
+// run and the container does not have, from the probe's events; "" when the probe failed for another reason.
+func probeExecMissing(ix *index, p kube.Pod, container, kind string) string {
+	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
+		if !mentionsContainer(e, container) || !strings.HasPrefix(strings.ToLower(e.Message), kind+" probe") {
+			continue
+		}
+		if m := reProbeNoExec.FindStringSubmatch(e.Message); m != nil {
+			return m[1] + m[2]
+		}
+	}
+	return ""
+}
+
+func probeExecFix(exe string) string {
+	return fmt.Sprintf("Use a command the image has (distroless images have no shell or curl, busybox has wget but no curl), or replace the exec probe with an httpGet or tcpSocket probe, which the kubelet runs itself and needs nothing in the image; %s is the command to replace.", exe)
 }
 
 // describeProbe says what a probe checks and, when the probe's port is not one the container declares, says so.
@@ -965,8 +990,12 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if d := describeProbe(c, c.ReadinessProbe); d != "" {
 			cause = fmt.Sprintf("container %s runs but fails its readiness probe (%s), so it gets no traffic", cs.Name, d)
 		}
-		return newProblem(p, cs.Name, "KD120", "Readiness probe failing", Critical, cause, "ready|"+describeProbe(c, c.ReadinessProbe),
-			"Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready.",
+		fix := "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready."
+		if exe := probeExecMissing(ix, p, cs.Name, "readiness"); exe != "" {
+			cause = fmt.Sprintf("container %s's readiness probe runs %s, which is not in image %s, so the probe can never pass and the container gets no traffic", cs.Name, exe, imageOf(p, cs))
+			fix = probeExecFix(exe)
+		}
+		return newProblem(p, cs.Name, "KD120", "Readiness probe failing", Critical, cause, "ready|"+describeProbe(c, c.ReadinessProbe), fix,
 			eventEvidence(p.Ref(), e), Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s is running but not ready", cs.Name),
 				Command: cmdContainerState(p, cs.Name, "ready")})
 	}

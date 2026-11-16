@@ -183,6 +183,40 @@ func TestLivenessProbeOnTheWrongPort(t *testing.T) {
 	expect(t, f, "KD112", "Pod shop/web", "GET /healthz on port 9090", "declares port 8080")
 }
 
+func TestProbeCommandNotInTheImage(t *testing.T) {
+	const noCurl = `OCI runtime exec failed: exec failed: unable to start container process: exec: "curl": executable file not found in $PATH: unknown`
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"curl", "-f", "http://localhost:8080/healthz"}}}
+	crashed(&p, 137, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	e1 := event("Pod", "web", "Unhealthy", "Liveness probe failed: "+noCurl, time.Minute)
+	e1.InvolvedObject.FieldPath = "spec.containers{web}"
+	e2 := event("Pod", "web", "Killing", "Container web failed liveness probe, will be restarted", 2*time.Minute)
+	e2.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e1, e2}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD112", "Pod shop/web", "liveness probe runs curl, which is not in image registry.example.com/shop/web:1.4.2")
+	if !strings.Contains(f.Fix, "httpGet") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// The same for a readiness probe, which leaves the container out of its Services instead.
+	s = snap()
+	p = pod("web", "")
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"curl", "-f", "http://localhost:8080/ready"}}}
+	notReady(&p)
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Unhealthy", "Readiness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"5f2c\": "+noCurl, 0)}
+	expect(t, only(t, Diagnose(s)), "KD120", "Pod shop/web", "readiness probe runs curl, which is not in image")
+
+	// A probe that fails for another reason keeps its own explanation.
+	s.Events = []kube.Event{event("Pod", "web", "Unhealthy", "Readiness probe failed: curl: (7) Failed to connect to localhost port 8080", 0)}
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "not in image") {
+		t.Errorf("a refused connection is not a missing command: %s", f.Cause)
+	}
+}
+
 func TestReadinessProbeFailing(t *testing.T) {
 	s := snap()
 	deployment(s, "web", 2, 0)
