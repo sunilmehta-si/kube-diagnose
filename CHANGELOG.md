@@ -29,10 +29,17 @@
 - A pod that requests an extended resource no node advertises (KD140) is said to lack its device plugin.
 - An init container that never finishes (KD119) names the Service it waits for when that Service has no ready pods.
 - The snapshot holds pods' scheduling gates, readiness gates, finalizers and automountServiceAccountToken, init
-  containers' restartPolicy, ServiceAccounts' automountServiceAccountToken, a Deployment's paused field and a
-  PersistentVolume's claimRef UID.
+  containers' restartPolicy, ServiceAccounts' automountServiceAccountToken, a Deployment's paused field, a Job's
+  suspend field, a claim's capacity and conditions, and a PersistentVolume's claimRef UID.
+
+### Changed
+- The report's summary counts info findings as notes, not problems: "2 problems: 1 critical, 1 warning. 1 note."
 
 ### Fixed
+- An out-of-memory kill that the runtime reports as exit code 137 with reason Error, not OOMKilled, was reported as
+  a crash (KD110). A SIGKILL with no probe or hook behind it, in a container with a memory limit, is now reported as
+  running out of memory (KD111), and the cause says how the runtime labelled it. The fault suite caught this once on
+  Kubernetes 1.37, where the kill landed as the container started.
 - A claim for a class that no StorageClass object has was reported as asking for a StorageClass that does not exist
   (KD150) even when PersistentVolumes carry that class name, as static volumes do.
 - A sidecar (an init container with `restartPolicy: Always`) was reported as an init container that never finishes
