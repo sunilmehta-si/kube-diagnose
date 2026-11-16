@@ -99,6 +99,9 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if p.Status.Phase != "Pending" || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
 		return nil
 	}
+	if isSidecar(p, cs.Name) {
+		return nil // a sidecar is meant to keep running; the init container after it is the one that holds the pod
+	}
 	ran := ix.s.CollectedAt.Sub(cs.State.Running.StartedAt)
 	if ran < initStuckAfter {
 		return nil
@@ -617,15 +620,19 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 				What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})...)
 	}
 	title, rule := "Container keeps crashing", "KD110"
-	what := "exits"
-	if isInit(p, cs.Name) {
+	what, kind := "exits", "container"
+	sidecar := isSidecar(p, cs.Name)
+	if isInit(p, cs.Name) && !sidecar {
 		title, rule = "Init container fails", "KD115"
+	}
+	if sidecar {
+		kind = "sidecar container"
 	}
 	if p.Status.Phase == "Failed" {
 		title = "Container fails"
 		what = "exited"
 	}
-	cause := fmt.Sprintf("container %s %s with code %d (%s)", cs.Name, what, t.ExitCode, exitMeaning(t.ExitCode))
+	cause := fmt.Sprintf("%s %s %s with code %d (%s)", kind, cs.Name, what, t.ExitCode, exitMeaning(t.ExitCode))
 	if line := errorLine(log.Lines); line != "" {
 		cause += fmt.Sprintf("; its log says: %q", line)
 	}
@@ -643,6 +650,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	}
 	if isInit(p, cs.Name) {
 		fix = "Fix what the init container's log reports; the app containers start only after every init container succeeds."
+	}
+	if sidecar {
+		fix = "Fix what the sidecar's log reports; it is an init container with restartPolicy: Always, so the kubelet restarts it for as long as the pod runs."
 	}
 	return newProblem(p, cs.Name, rule, title, Critical, cause, "exit|"+strconv.Itoa(int(t.ExitCode)), fix, ev...)
 }

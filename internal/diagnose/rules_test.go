@@ -1248,3 +1248,45 @@ func TestImageWithoutTheNodesPlatform(t *testing.T) {
 	s.Events = []kube.Event{event("Pod", "web", "Failed", `Failed to pull image "docker.io/arm64v8/busybox:1.37.0": rpc error: code = NotFound desc = failed to pull and unpack image "docker.io/arm64v8/busybox:1.37.0": no match for platform in manifest: not found`, 0)}
 	expect(t, only(t, Diagnose(s)), "KD109", "Pod shop/web", "has no build for linux/amd64")
 }
+
+func TestSidecarIsNotAnInitContainerThatNeverFinishes(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "proxy", Image: "busybox", RestartPolicy: "Always"}, {Name: "wait-for-db", Image: "busybox"}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "PodInitializing", "")
+	started := t0.Add(-10 * time.Minute)
+	running := kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: started}}
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "proxy", Ready: true, State: running}, {Name: "wait-for-db", State: running}}
+	s.Pods = []kube.Pod{p}
+	// The sidecar has run as long as the init container after it, and it is the init container that holds the pod.
+	expect(t, only(t, Diagnose(s)), "KD119", "Deployment shop/web", "init container wait-for-db has run for 10m0s")
+
+	// A sidecar alone in a pending pod is not stuck: something after it holds the pod, and this rule cannot say what.
+	p.Spec.InitContainers = p.Spec.InitContainers[:1]
+	p.Status.InitContainerStatuses = p.Status.InitContainerStatuses[:1]
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a running sidecar is not a stuck init container: %+v", r.Findings)
+	}
+}
+
+func TestSidecarThatKeepsCrashing(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.InitContainers = []kube.Container{{Name: "proxy", Image: "registry.example.com/shop/proxy:2", RestartPolicy: "Always"}}
+	p.Status.Phase = "Pending"
+	notReady(&p)
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "proxy", RestartCount: 5,
+		State:                kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CrashLoopBackOff"}},
+		LastTerminationState: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 1, Reason: "Error"}}}}
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "PodInitializing"}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "proxy", Previous: true, Lines: []string{"error: upstream address is not set"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "Pod shop/web", "sidecar container proxy exits with code 1", "upstream address is not set")
+	if !strings.Contains(f.Fix, "restartPolicy: Always") || !strings.Contains(f.Evidence[0].Command, "initContainerStatuses") {
+		t.Errorf("fix %q, evidence %q", f.Fix, f.Evidence[0].Command)
+	}
+}

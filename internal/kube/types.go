@@ -210,6 +210,8 @@ type Container struct {
 	StartupProbe    *Probe           `json:"startupProbe,omitempty"`
 	SecurityContext *SecurityContext `json:"securityContext,omitempty"`
 	Lifecycle       *Lifecycle       `json:"lifecycle,omitempty"`
+	// RestartPolicy is Always on a sidecar: an init container that keeps running beside the app containers.
+	RestartPolicy string `json:"restartPolicy,omitempty"`
 }
 
 type KeyToPath struct {

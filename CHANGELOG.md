@@ -2,6 +2,12 @@
 
 ## [Unreleased]
 
+### Fixed
+- A sidecar (an init container with `restartPolicy: Always`) was reported as an init container that never finishes
+  (KD119) once it had run for two minutes in a pending pod, and a later init container that really was stuck went
+  unnamed. Sidecars are now skipped there, a crashing sidecar is reported as a crashing container (KD110) and not
+  as a failed init container (KD115), and the collector no longer reads a running sidecar's log.
+
 ## [0.3.0] - 2026-11-15
 
 ### Added

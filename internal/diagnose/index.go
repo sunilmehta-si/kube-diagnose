@@ -152,6 +152,17 @@ func isInit(p kube.Pod, name string) bool {
 	return false
 }
 
+// isSidecar reports whether the container is a sidecar: an init container with restartPolicy Always, which starts
+// before the app containers and keeps running beside them instead of finishing.
+func isSidecar(p kube.Pod, name string) bool {
+	for _, c := range p.Spec.InitContainers {
+		if c.Name == name {
+			return c.RestartPolicy == "Always"
+		}
+	}
+	return false
+}
+
 // ---- kubectl commands that show each kind of evidence ----
 
 func shq(s string) string { return "'" + strings.ReplaceAll(s, "'", `'\''`) + "'" }
