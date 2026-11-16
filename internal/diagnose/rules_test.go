@@ -1816,3 +1816,21 @@ func TestInitContainerWaitsForAServiceWithNoReadyPods(t *testing.T) {
 	}
 	expect(t, r.Findings[0], "KD119", "Deployment shop/web", "it waits for Service db, which has no ready pods")
 }
+
+func TestVolumeResizeFailed(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.Resources.Requests = map[string]string{"storage": "100Gi"}
+	pvc.Status.Phase, pvc.Status.Capacity = "Bound", map[string]string{"storage": "50Gi"}
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "VolumeResizeFailed", `resize volume "pvc-1a2b" by resizer "ebs.csi.aws.com" failed: rpc error: code = Internal desc = Could not resize volume "vol-0abc": You've reached the maximum modification rate per volume limit. Wait at least 6 hours between modifications per EBS volume.`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD158", "PersistentVolumeClaim shop/data", "asks for 100Gi but its volume still has 50Gi", "maximum modification rate")
+
+	// Grown, with an old failure event: done.
+	s.PVCs[0].Status.Capacity["storage"] = "100Gi"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}

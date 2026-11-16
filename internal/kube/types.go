@@ -678,7 +678,9 @@ type PersistentVolumeClaim struct {
 		} `json:"resources,omitempty"`
 	} `json:"spec"`
 	Status struct {
-		Phase string `json:"phase,omitempty"`
+		Phase      string            `json:"phase,omitempty"`
+		Capacity   map[string]string `json:"capacity,omitempty"`
+		Conditions []Condition       `json:"conditions,omitempty"`
 	} `json:"status"`
 }
 

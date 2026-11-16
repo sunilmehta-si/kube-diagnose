@@ -14,6 +14,9 @@ import (
 func storageFindings(ix *index) []Finding {
 	var out []Finding
 	for _, pvc := range ix.s.PVCs {
+		if f := resizeFailed(ix, pvc); f != nil {
+			out = append(out, *f)
+		}
 		if pvc.Status.Phase != "Pending" {
 			continue
 		}
@@ -210,4 +213,28 @@ func namedVolume(ix *index, pvc kube.PersistentVolumeClaim, state Evidence) *Fin
 		return nil
 	}
 	return f
+}
+
+// resizeFailed finds a bound claim that was grown and whose volume was not: the claim asks for more than it has and
+// the resizer reports a failure. The claim stays Bound, so nothing else looks wrong until the disk fills.
+func resizeFailed(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
+	want, have := pvc.Spec.Resources.Requests["storage"], pvc.Status.Capacity["storage"]
+	if pvc.Status.Phase != "Bound" || want == "" || have == "" {
+		return nil
+	}
+	w, errw := kube.ParseQuantity(want)
+	h, errh := kube.ParseQuantity(have)
+	if errw != nil || errh != nil || w <= h {
+		return nil
+	}
+	evs := ix.eventsFor(pvc.Ref(), "VolumeResizeFailed", "FileSystemResizeFailed")
+	if len(evs) == 0 {
+		return nil
+	}
+	ns, name := pvc.Metadata.Namespace, pvc.Metadata.Name
+	return &Finding{Rule: "KD158", Title: "Volume resize failed", Severity: Warning, Object: pvc.Ref(),
+		Cause: fmt.Sprintf("PersistentVolumeClaim %s asks for %s but its volume still has %s: resizing it failed (%s)", name, want, have, clip(evs[0].Message, 200)),
+		Evidence: []Evidence{{Object: pvc.Ref(), What: fmt.Sprintf("claim requests %s, capacity is %s", want, have), Command: cmdGet("pvc", ns, name, "{.spec.resources.requests.storage} {.status.capacity.storage} {.status.conditions}")},
+			eventEvidence(pvc.Ref(), evs[0])},
+		Fix: "Read the resize error in the evidence: the StorageClass must allow volume expansion and its CSI driver must support it; some volumes can only grow while detached or only once in a few hours. A claim cannot be shrunk back."}
 }
