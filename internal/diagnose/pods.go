@@ -985,6 +985,14 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		cause = fmt.Sprintf("container %s fails its %s probe (%s), so the kubelet restarts it (%d restarts)", cs.Name, kind, d, cs.RestartCount)
 	}
 	fix := "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly."
+	if probeTimedOut(ix, p, cs.Name, kind) && probe != nil {
+		limit := probe.TimeoutSeconds
+		if limit == 0 {
+			limit = 1 // the API's default
+		}
+		cause = fmt.Sprintf("container %s's %s probe times out: the app does not answer within the probe's %ds timeoutSeconds, so the kubelet restarts it (%d restarts)", cs.Name, kind, limit, cs.RestartCount)
+		fix = fmt.Sprintf("Raise the probe's timeoutSeconds above how long the check takes under load (it is %ds), keep the health endpoint cheap, or find why the app stops answering.", limit)
+	}
 	if exe := probeExecMissing(ix, p, cs.Name, kind); exe != "" {
 		cause = fmt.Sprintf("container %s's %s probe runs %s, which is not in image %s, so the probe can never pass and the kubelet restarts the container (%d restarts)", cs.Name, kind, exe, imageOf(p, cs), cs.RestartCount)
 		fix = probeExecFix(exe)
@@ -1132,4 +1140,17 @@ func csiMissing(p kube.Pod, driver string, e kube.Event) *problem {
 		eventEvidence(p.Ref(), e),
 		Evidence{Object: kube.Ref{Kind: "CSINode", Name: p.Spec.NodeName}, What: "the CSI drivers registered on " + node,
 			Command: "kubectl get csinodes -o custom-columns=NODE:.metadata.name,DRIVERS:.spec.drivers[*].name"})
+}
+
+// reProbeTimeout matches the kubelet's report that an HTTP, TCP or exec probe ran out of time.
+var reProbeTimeout = regexp.MustCompile(`Client\.Timeout exceeded|context deadline exceeded|command timed out|i/o timeout`)
+
+// probeTimedOut reports whether the newest failure of the probe of the given kind was a timeout.
+func probeTimedOut(ix *index, p kube.Pod, container, kind string) bool {
+	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
+		if mentionsContainer(e, container) && strings.HasPrefix(strings.ToLower(e.Message), kind+" probe") {
+			return reProbeTimeout.MatchString(e.Message)
+		}
+	}
+	return false
 }

@@ -1777,3 +1777,21 @@ func TestCSIDriverNotRunning(t *testing.T) {
 	s.Events = []kube.Event{event("Pod", "db-rs-a", "FailedAttachVolume", `AttachVolume.Attach failed for volume "pvc-1a2b" : timed out waiting for external-attacher of ebs.csi.aws.com CSI driver to attach volume vol-0abc`, time.Minute)}
 	expect(t, only(t, Diagnose(s)), "KD136", "Deployment shop/db", "no attacher for it answered")
 }
+
+func TestLivenessProbeTimesOut(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/healthz", Port: named("http")}}
+	crashed(&p, 137, "Error", 6)
+	s.Pods = []kube.Pod{p}
+	e1 := event("Pod", "web", "Unhealthy", `Liveness probe failed: Get "http://10.244.0.7:8080/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`, time.Minute)
+	e1.InvolvedObject.FieldPath = "spec.containers{web}"
+	e2 := event("Pod", "web", "Killing", "Container web failed liveness probe, will be restarted", 2*time.Minute)
+	e2.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e1, e2}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD112", "Pod shop/web", "liveness probe times out", "within the probe's 1s timeoutSeconds")
+
+	s.Pods[0].Spec.Containers[0].LivenessProbe.TimeoutSeconds = 3
+	expect(t, only(t, Diagnose(s)), "KD112", "Pod shop/web", "3s timeoutSeconds")
+}
