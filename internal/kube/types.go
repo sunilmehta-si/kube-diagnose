@@ -37,6 +37,8 @@ type ObjectMeta struct {
 	OwnerReferences   []OwnerReference  `json:"ownerReferences,omitempty"`
 	CreationTimestamp time.Time         `json:"creationTimestamp"`
 	DeletionTimestamp *time.Time        `json:"deletionTimestamp,omitempty"`
+	// Finalizers must all be removed before a deleted object goes away.
+	Finalizers []string `json:"finalizers,omitempty"`
 }
 
 // Controller returns the owner that controls the object, if any.

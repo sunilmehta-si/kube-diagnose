@@ -30,7 +30,10 @@ type problem struct {
 // configuration, image, process, probes. A later stage's symptoms are caused by an earlier one, so the first
 // failure is the root cause.
 func podProblem(ix *index, p kube.Pod) *problem {
-	if p.Metadata.DeletionTimestamp != nil || p.Status.Phase == "Succeeded" {
+	if p.Metadata.DeletionTimestamp != nil {
+		return terminating(ix, p)
+	}
+	if p.Status.Phase == "Succeeded" {
 		return nil
 	}
 	if p.Status.Reason == "Evicted" {

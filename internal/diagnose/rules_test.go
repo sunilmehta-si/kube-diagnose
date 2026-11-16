@@ -1541,3 +1541,42 @@ func TestNetworkPolicyBlocksAServiceConnection(t *testing.T) {
 		t.Errorf("namespace selector: %s", f.Cause)
 	}
 }
+
+func TestPodStuckTerminating(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	p := pod("web-rs-a", "web")
+	due := t0.Add(-15 * time.Minute)
+	p.Metadata.DeletionTimestamp = &due
+	p.Metadata.Finalizers = []string{"example.com/backup"}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD194", "Deployment shop/web", "still terminating 15m0s after its grace period ended", "finalizer example.com/backup has not been removed")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+
+	// On a node that is down, the kubelet cannot confirm the pod stopped.
+	p.Metadata.Finalizers = nil
+	s.Pods = []kube.Pod{p}
+	s.Nodes[0].Status.Conditions[0].Status = "Unknown"
+	var got *Finding
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD194" {
+			got = &f
+		}
+	}
+	if got == nil {
+		t.Fatal("no KD194 for a pod on a node that is down")
+	}
+	expect(t, *got, "KD194", "Deployment shop/web", "its node node-1 is not ready")
+
+	// Within its grace period, or just past it, a terminating pod is just stopping.
+	s.Nodes[0].Status.Conditions[0].Status = "True"
+	due = t0.Add(-30 * time.Second)
+	p.Metadata.DeletionTimestamp = &due
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
