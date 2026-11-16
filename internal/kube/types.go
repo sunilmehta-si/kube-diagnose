@@ -350,6 +350,17 @@ func (p Pod) Ref() Ref {
 	return Ref{Kind: "Pod", Namespace: p.Metadata.Namespace, Name: p.Metadata.Name}
 }
 
+// IsSidecar reports whether the named container is a sidecar: an init container with restartPolicy Always, which
+// starts before the app containers and keeps running beside them instead of finishing.
+func (p Pod) IsSidecar(name string) bool {
+	for _, c := range p.Spec.InitContainers {
+		if c.Name == name {
+			return c.RestartPolicy == "Always"
+		}
+	}
+	return false
+}
+
 // Ready reports whether the pod's Ready condition is True.
 func (p Pod) Ready() bool {
 	c, ok := FindCondition(p.Status.Conditions, "Ready")

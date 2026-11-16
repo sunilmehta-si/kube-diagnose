@@ -192,7 +192,7 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 	var wants []want
 	for _, p := range s.Pods {
 		for _, c := range p.Status.InitContainerStatuses {
-			if p.Status.Phase == "Pending" && c.State.Running != nil && c.RestartCount == 0 && !sidecar(p, c.Name) {
+			if p.Status.Phase == "Pending" && c.State.Running != nil && c.RestartCount == 0 && !p.IsSidecar(c.Name) {
 				wants = append(wants, want{p, c.Name, false})
 			}
 		}
@@ -245,17 +245,6 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 		}
 		s.Logs = append(s.Logs, l)
 	}
-}
-
-// sidecar reports whether the named init container has restartPolicy Always: it is meant to keep running, so its
-// running in a pending pod says nothing about why the pod waits.
-func sidecar(p kube.Pod, name string) bool {
-	for _, c := range p.Spec.InitContainers {
-		if c.Name == name {
-			return c.RestartPolicy == "Always"
-		}
-	}
-	return false
 }
 
 func readLog(ctx context.Context, r Runner, args []string, previous bool) ([]byte, error) {

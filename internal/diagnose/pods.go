@@ -192,7 +192,7 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if p.Status.Phase != "Pending" || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
 		return nil
 	}
-	if isSidecar(p, cs.Name) {
+	if p.IsSidecar(cs.Name) {
 		return nil // a sidecar is meant to keep running; the init container after it is the one that holds the pod
 	}
 	ran := ix.s.CollectedAt.Sub(cs.State.Running.StartedAt)
@@ -758,7 +758,7 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	}
 	title, rule := "Container keeps crashing", "KD110"
 	what, kind := "exits", "container"
-	sidecar := isSidecar(p, cs.Name)
+	sidecar := p.IsSidecar(cs.Name)
 	if isInit(p, cs.Name) && !sidecar {
 		title, rule = "Init container fails", "KD115"
 	}
