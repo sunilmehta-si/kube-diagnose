@@ -48,19 +48,23 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
 - **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 63 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 85 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited,
-have no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or
-of the wrong type, crashes (with the exit code explained and the log line that reads like the error quoted, and traced
-to the Service the app could not resolve or reach, the port another container holds, or the egress NetworkPolicy that
-blocks DNS), out-of-memory kills, probes on the wrong port, init containers that never finish, failing lifecycle
-hooks, runAsNonRoot with a root image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys,
-pods no node can take (with the request and the largest node's capacity, or the spread rule, host port, volume zone or
-missing scheduler that stops them), volumes still attached to another node, claims for StorageClasses that do not
-exist or access modes they cannot provide, Services and Ingresses that send traffic nowhere, Ingress TLS Secrets that
-are missing, LoadBalancer Services that never get an address, StatefulSets without their headless Service,
-NetworkPolicies that shut a Service off, exhausted quotas, LimitRange, PriorityClass, ServiceAccount, Pod Security
-and webhook rejections, HPAs that cannot scale, PodDisruptionBudgets that block drains or select nothing, evictions,
-failed Jobs and CronJobs, and nodes that are not ready.
+It knows 85 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
+no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or of
+the wrong type, crashes (with the exit code explained and the log line that reads like the error quoted, and traced to
+the Service the app could not resolve or reach, the port another container holds, the NetworkPolicy that blocks DNS or
+drops the connection, the RBAC permission its ServiceAccount lacks, or the token automounting turned off),
+out-of-memory kills, probes on the wrong port or running a command the image does not have, init containers that never
+finish (sidecars are told apart), readiness gates nobody sets, failing lifecycle hooks, runAsNonRoot with a root
+image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys, pods no node can take (with the
+request and the largest node's capacity, or the spread rule, host port, volume zone, scheduling gate or missing
+scheduler that stops them), pod sandboxes the network plugin cannot set up, hostPath volumes the node does not have,
+pods stuck terminating, volumes still attached to another node, claims for StorageClasses that do not exist, access
+modes they cannot provide or a named volume they cannot bind to, Services and Ingresses that send traffic nowhere,
+Ingress TLS Secrets that are missing, LoadBalancer Services that never get an address, StatefulSets without their
+headless Service, NetworkPolicies that shut a Service off, exhausted quotas, LimitRange, PriorityClass, RuntimeClass,
+ServiceAccount, Pod Security and webhook rejections, Deployments left paused, HPAs that cannot scale,
+PodDisruptionBudgets that block drains or select nothing, evictions, failed Jobs and CronJobs, and nodes that are not
+ready.
 
 ## Install
 
