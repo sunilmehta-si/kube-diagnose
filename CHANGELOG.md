@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Added
-- 11 rules, 85 in all (`docs/rules.md`):
+- 14 rules, 88 in all (`docs/rules.md`):
   - scheduling and start-up: pods held by a scheduling gate, with Kueue's admission gate named (KD146); pod
     sandboxes the network plugin cannot set up or the node has no IP address for (KD134); hostPath volumes whose
     path the node does not have (KD135); readiness gates no controller sets (KD128);
@@ -11,11 +11,17 @@
     and RoleBinding to create (KD126), and a NetworkPolicy that drops the connection to a Service, on the client's
     egress or the backends' ingress (KD127);
   - storage: claims that name a PersistentVolume they cannot bind to: missing, reserved for another claim, Released
-    with the old claim's UID, or of another class or a smaller size (KD157);
+    with the old claim's UID, or of another class or a smaller size (KD157); volumes whose CSI driver is not running
+    (KD136); bound claims whose volume failed to grow (KD158);
   - controllers: pods rejected for a RuntimeClass that does not exist (KD183), Deployments left paused before their
-    rollout finished (KD184), and pods stuck terminating, with the finalizer or node that holds them (KD194).
+    rollout finished (KD184), Jobs left suspended, or waiting for Kueue to admit them (KD187), and pods stuck
+    terminating, with the finalizer or node that holds them (KD194).
 - Liveness and readiness findings say when an exec probe runs a command the image does not have (curl in a busybox
-  or distroless image).
+  or distroless image), and a liveness finding says when the probe times out, with its timeoutSeconds.
+- A registry the node cannot reach (KD103) is told apart when its TLS certificate is not trusted (x509) or it speaks
+  plain HTTP, with the containerd setting to change.
+- A pod that requests an extended resource no node advertises (KD140) is said to lack its device plugin.
+- An init container that never finishes (KD119) names the Service it waits for when that Service has no ready pods.
 - The snapshot holds pods' scheduling gates, readiness gates, finalizers and automountServiceAccountToken, init
   containers' restartPolicy, ServiceAccounts' automountServiceAccountToken, a Deployment's paused field and a
   PersistentVolume's claimRef UID.
