@@ -1834,3 +1834,22 @@ func TestVolumeResizeFailed(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+// TestLivenessProbeThatCannotRun is what Kubernetes 1.37 with containerd 2 does when an exec probe's command is not in
+// the image, as the fault suite recorded it: the probe errors, the kubelet ignores the result, and the container
+// runs on with no restart.
+func TestLivenessProbeThatCannotRun(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"curl", "-f", "http://localhost:8080/"}}}
+	s.Pods = []kube.Pod{p}
+	e := event("Pod", "web-rs-a", "Unhealthy", `Liveness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec "e14b": OCI runtime exec failed: exec failed: unable to start container process: exec: "curl": executable file not found in $PATH: unknown`, time.Minute)
+	e.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD129", "Deployment shop/web", "liveness probe runs curl, which is not in image", "checks nothing")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+}

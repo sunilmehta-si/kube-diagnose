@@ -70,7 +70,51 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
-	return readinessGate(ix, p)
+	if pr := readinessGate(ix, p); pr != nil {
+		return pr
+	}
+	for _, cs := range p.Status.ContainerStatuses {
+		if pr := probeCannotRun(ix, p, cs); pr != nil {
+			return pr
+		}
+	}
+	return nil
+}
+
+// probeCannotRun finds a liveness or startup probe whose command is not in the image. The kubelet reports such a
+// probe as errored, not failed, and ignores the result: the container is never restarted, so the probe silently
+// checks nothing.
+func probeCannotRun(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	if cs.State.Running == nil {
+		return nil
+	}
+	c, _ := containerSpec(p, cs.Name)
+	for _, kind := range []string{"liveness", "startup"} {
+		probe := c.LivenessProbe
+		if kind == "startup" {
+			probe = c.StartupProbe
+		}
+		if probe == nil || probe.Exec == nil {
+			continue
+		}
+		exe := probeExecMissing(ix, p, cs.Name, kind)
+		if exe == "" {
+			continue
+		}
+		var ev []Evidence
+		for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
+			if mentionsContainer(e, cs.Name) && strings.HasPrefix(strings.ToLower(e.Message), kind+" probe") {
+				ev = append(ev, eventEvidence(p.Ref(), e))
+				break
+			}
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's %s probe runs %s", cs.Name, kind, strings.Join(probe.Exec.Command, " ")),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].%sProbe}`, cs.Name, kind))})
+		return newProblem(p, cs.Name, "KD129", "Probe command is not in the image", Warning,
+			fmt.Sprintf("container %s's %s probe runs %s, which is not in image %s; the kubelet counts that as an error, not a failure, so the probe never passes or fails and checks nothing", cs.Name, kind, exe, imageOf(p, cs)),
+			"probecmd|"+kind+"|"+exe, probeExecFix(exe), ev...)
+	}
+	return nil
 }
 
 // readinessGateAfter is how long a running pod may wait for its readiness gates before it is reported.

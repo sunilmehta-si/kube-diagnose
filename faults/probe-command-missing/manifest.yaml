@@ -1,4 +1,4 @@
-# A liveness probe runs curl, which the busybox image does not have, so the probe always fails and the kubelet keeps restarting a healthy container.
+# A liveness probe runs curl, which the busybox image does not have, so every probe errors and the kubelet ignores it: the container runs with a liveness check that checks nothing.
 apiVersion: v1
 kind: Namespace
 metadata:
