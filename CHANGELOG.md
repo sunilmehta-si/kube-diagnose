@@ -3,7 +3,7 @@
 ## [Unreleased]
 
 ### Added
-- 14 rules, 88 in all (`docs/rules.md`):
+- 15 rules, 89 in all (`docs/rules.md`):
   - scheduling and start-up: pods held by a scheduling gate, with Kueue's admission gate named (KD146); pod
     sandboxes the network plugin cannot set up or the node has no IP address for (KD134); hostPath volumes whose
     path the node does not have (KD135); readiness gates no controller sets (KD128);
@@ -16,8 +16,14 @@
   - controllers: pods rejected for a RuntimeClass that does not exist (KD183), Deployments left paused before their
     rollout finished (KD184), Jobs left suspended, or waiting for Kueue to admit them (KD187), and pods stuck
     terminating, with the finalizer or node that holds them (KD194).
-- Liveness and readiness findings say when an exec probe runs a command the image does not have (curl in a busybox
-  or distroless image), and a liveness finding says when the probe times out, with its timeoutSeconds.
+- Probes whose exec command is not in the image (curl in a busybox or distroless image): a readiness probe keeps the
+  pod out of its Services (KD120 says why), and a liveness or startup probe errors without ever restarting the
+  container, so it silently checks nothing (KD129, a warning). The fault suite showed the second on Kubernetes 1.37;
+  KD112 still names the command where a runtime reports it as a failure. A liveness finding also says when the probe
+  times out, with its timeoutSeconds.
+- 12 fault scenarios, 66 broken namespaces in all, one for each new cause a kind cluster can reproduce. KD134, KD126,
+  KD158 and KD194 need a broken network plugin, an API client, a cloud volume or a deletion, and are tested on the
+  messages Kubernetes and its clients write for them.
 - A registry the node cannot reach (KD103) is told apart when its TLS certificate is not trusted (x509) or it speaks
   plain HTTP, with the containerd setting to change.
 - A pod that requests an extended resource no node advertises (KD140) is said to lack its device plugin.
