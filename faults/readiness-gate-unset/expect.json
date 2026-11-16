@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-readiness-gate-unset",
+  "description": "A Deployment's pods have a readiness gate that no controller in the cluster sets, so they run with every container ready but never become Ready, and their Service has no endpoints.",
+  "rule": "KD128",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "readiness gate"
+    ],
+    [
+      "example.com/lb-registered"
+    ]
+  ]
+}
