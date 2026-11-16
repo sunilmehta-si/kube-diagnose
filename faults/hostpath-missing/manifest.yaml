@@ -1,0 +1,33 @@
+# A DaemonSet mounts a hostPath of type Directory that the nodes do not have, so its pods stay in ContainerCreating.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-hostpath-missing
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: agent
+  namespace: kd-hostpath-missing
+spec:
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      containers:
+        - name: agent
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          volumeMounts:
+            - name: state
+              mountPath: /state
+      volumes:
+        - name: state
+          hostPath:
+            path: /var/lib/agent-state
+            type: Directory
