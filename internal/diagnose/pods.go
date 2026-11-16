@@ -267,6 +267,8 @@ var (
 	reRateLimit = regexp.MustCompile(`(?i)toomanyrequests|429 too many requests|pull rate limit`)
 	rePlatform  = regexp.MustCompile(`(?i)no match for platform in manifest|no matching manifest for|does not provide the specified platform`)
 	reNetwork   = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
+	reX509      = regexp.MustCompile(`x509: (certificate signed by unknown authority|certificate has expired or is not yet valid[^"]*|certificate is valid for [^"]+?, not [^\s"]+|[^"]+)`)
+	rePlainHTTP = regexp.MustCompile(`(?i)server gave HTTP response to HTTPS client`)
 )
 
 func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -295,6 +297,17 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return newProblem(p, cs.Name, "KD109", "Image has no build for the node's platform", Critical,
 			fmt.Sprintf("image %s exists, but has no build for %s, so the node cannot pull it", image, arch), "platform|"+image,
 			"Use a multi-architecture image that includes the node's platform, or schedule the pod onto nodes it was built for (a nodeSelector on kubernetes.io/arch).", ev...)
+	case reX509.MatchString(msg):
+		why := strings.TrimRight(reX509.FindStringSubmatch(msg)[1], ".: ")
+		host := registry(image)
+		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
+			fmt.Sprintf("the node does not accept the TLS certificate of registry %s for image %s (x509: %s)", host, image, why), "x509|"+host,
+			fmt.Sprintf("Give every node the CA that signed %s's certificate (for containerd, /etc/containerd/certs.d/%s/ca.crt), or serve the registry with a certificate the nodes already trust; an expired or wrong-host certificate has to be replaced.", host, host), ev...)
+	case rePlainHTTP.MatchString(msg):
+		host := registry(image)
+		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
+			fmt.Sprintf("registry %s speaks plain HTTP and the node pulls image %s over HTTPS", host, image), "plainhttp|"+host,
+			fmt.Sprintf("Serve %s over TLS, or configure every node's runtime to use HTTP for it (for containerd, a hosts.toml under /etc/containerd/certs.d/%s with server = \"http://%s\").", host, host, host), ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),

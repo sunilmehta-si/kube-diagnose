@@ -1697,3 +1697,22 @@ func TestStaticVolumeClassNeedsNoStorageClassObject(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestRegistryTLSProblems(t *testing.T) {
+	pullFails := func(msg string) Finding {
+		s := snap()
+		p := pod("web", "")
+		p.Spec.Containers[0].Image = "registry.corp.internal:5000/shop/web:1"
+		waiting(&p, "ErrImagePull", "")
+		s.Pods = []kube.Pod{p}
+		s.Events = []kube.Event{event("Pod", "web", "Failed", msg, 0)}
+		return only(t, Diagnose(s))
+	}
+	f := pullFails(`Failed to pull image "registry.corp.internal:5000/shop/web:1": rpc error: code = Unknown desc = failed to pull and unpack image "registry.corp.internal:5000/shop/web:1": failed to resolve reference "registry.corp.internal:5000/shop/web:1": failed to do request: Head "https://registry.corp.internal:5000/v2/shop/web/manifests/1": tls: failed to verify certificate: x509: certificate signed by unknown authority`)
+	expect(t, f, "KD103", "Pod shop/web", "does not accept the TLS certificate of registry registry.corp.internal:5000", "x509: certificate signed by unknown authority")
+	if !strings.Contains(f.Fix, "/etc/containerd/certs.d/registry.corp.internal:5000/ca.crt") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	f = pullFails(`Failed to pull image "registry.corp.internal:5000/shop/web:1": failed to resolve reference "registry.corp.internal:5000/shop/web:1": failed to do request: Head "https://registry.corp.internal:5000/v2/shop/web/manifests/1": http: server gave HTTP response to HTTPS client`)
+	expect(t, f, "KD103", "Pod shop/web", "registry registry.corp.internal:5000 speaks plain HTTP")
+}
