@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-access-mode"
   ],
-  "collectedAt": "2026-11-15 05:43 UTC",
+  "collectedAt": "2026-11-16 05:35 UTC",
   "findings": [
     {
       "rule": "KD156",

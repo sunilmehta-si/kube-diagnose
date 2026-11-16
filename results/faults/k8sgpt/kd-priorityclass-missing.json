@@ -14,26 +14,13 @@
           "Sensitive": [
             {
               "Unmasked": "kd-priorityclass-missing",
-              "Masked": "J1QodV4hQF1NLWgkZSo/SyV1OXc6J0cm"
+              "Masked": "OG1ecV5rRHI8RylvLSQ/bV5pT10xSTZn"
             },
             {
               "Unmasked": "web",
-              "Masked": "MF5G"
+              "Masked": "amlq"
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "ConfigMap",
-      "name": "kd-priorityclass-missing/kube-root-ca.crt",
-      "error": [
-        {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
-          "KubernetesDoc": "",
-          "Sensitive": []
         }
       ],
       "details": "",
@@ -51,6 +38,19 @@
       ],
       "details": "",
       "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-priorityclass-missing/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
     }
   ]
 }

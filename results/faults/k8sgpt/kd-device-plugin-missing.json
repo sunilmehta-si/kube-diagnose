@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-device-plugin-missing/train",
+      "error": [
+        {
+          "Text": "Deployment kd-device-plugin-missing/train has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-device-plugin-missing",
+              "Masked": "bFsoVDxoaml8QyRPdmkoT2UrY0o+T2ky"
+            },
+            {
+              "Unmasked": "train",
+              "Masked": "LTgzUFM="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-device-plugin-missing/train-f5cfdd7f-vthf9",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 Insufficient example.com/accelerator. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/train"
+    }
+  ]
+}

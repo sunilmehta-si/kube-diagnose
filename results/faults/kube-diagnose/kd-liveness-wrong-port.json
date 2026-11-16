@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-liveness-wrong-port"
   ],
-  "collectedAt": "2026-11-15 05:42 UTC",
+  "collectedAt": "2026-11-16 05:34 UTC",
   "findings": [
     {
       "rule": "KD112",
@@ -21,21 +21,21 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-liveness-wrong-port",
-            "name": "web-67fbcb44db-snwhf"
+            "name": "web-67fbcb44db-4wjdg"
           },
           "what": "event Unhealthy (6 times)",
           "detail": "Liveness probe failed: Get \"http://10.244.0.26:9090/\": dial tcp 10.244.0.26:9090: connect: connection refused",
-          "command": "kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-snwhf"
+          "command": "kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-4wjdg"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-liveness-wrong-port",
-            "name": "web-67fbcb44db-snwhf"
+            "name": "web-67fbcb44db-4wjdg"
           },
           "what": "event Killing (6 times)",
           "detail": "Container web failed liveness probe, will be restarted",
-          "command": "kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-snwhf"
+          "command": "kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-4wjdg"
         }
       ],
       "fix": "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly.",
@@ -43,7 +43,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-liveness-wrong-port",
-          "name": "web-67fbcb44db-snwhf"
+          "name": "web-67fbcb44db-4wjdg"
         }
       ]
     }

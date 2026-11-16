@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pod-security-restricted"
   ],
-  "collectedAt": "2026-11-15 05:43 UTC",
+  "collectedAt": "2026-11-16 05:35 UTC",
   "findings": [
     {
       "rule": "KD172",
@@ -24,7 +24,7 @@
             "name": "web-54b9bbc47f"
           },
           "what": "event FailedCreate (7 times)",
-          "detail": "(combined from similar events): Error creating: pods \"web-54b9bbc47f-mbfb5\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
+          "detail": "(combined from similar events): Error creating: pods \"web-54b9bbc47f-9q5st\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
           "command": "kubectl get events -n kd-pod-security-restricted --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-54b9bbc47f"
         },
         {

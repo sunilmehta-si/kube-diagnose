@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-oomkilled"
   ],
-  "collectedAt": "2026-11-15 05:42 UTC",
+  "collectedAt": "2026-11-16 05:34 UTC",
   "findings": [
     {
       "rule": "KD111",
@@ -21,19 +21,19 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-oomkilled",
-            "name": "web-6f499f987f-78hcn"
+            "name": "web-6f499f987f-4gzh7"
           },
           "what": "container web exited with code 137 (OOMKilled), restarted 5 times",
-          "command": "kubectl get pod web-6f499f987f-78hcn -n kd-oomkilled -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+          "command": "kubectl get pod web-6f499f987f-4gzh7 -n kd-oomkilled -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-oomkilled",
-            "name": "web-6f499f987f-78hcn"
+            "name": "web-6f499f987f-4gzh7"
           },
           "what": "container web has memory limit 32Mi",
-          "command": "kubectl get pod web-6f499f987f-78hcn -n kd-oomkilled -o jsonpath='{.spec.containers[?(@.name==\"web\")].resources.limits.memory}'"
+          "command": "kubectl get pod web-6f499f987f-4gzh7 -n kd-oomkilled -o jsonpath='{.spec.containers[?(@.name==\"web\")].resources.limits.memory}'"
         }
       ],
       "fix": "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use.",
@@ -41,7 +41,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-oomkilled",
-          "name": "web-6f499f987f-78hcn"
+          "name": "web-6f499f987f-4gzh7"
         }
       ]
     }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-init-container-fails"
   ],
-  "collectedAt": "2026-11-15 05:42 UTC",
+  "collectedAt": "2026-11-16 05:34 UTC",
   "findings": [
     {
       "rule": "KD115",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-container-fails",
-            "name": "web-845dc8755d-qh8sw"
+            "name": "web-845dc8755d-tl4mm"
           },
           "what": "container wait-for-db exited with code 2 (Error), restarted 5 times",
-          "command": "kubectl get pod web-845dc8755d-qh8sw -n kd-init-container-fails -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state.terminated}'"
+          "command": "kubectl get pod web-845dc8755d-tl4mm -n kd-init-container-fails -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-container-fails",
-            "name": "web-845dc8755d-qh8sw"
+            "name": "web-845dc8755d-tl4mm"
           },
           "what": "last lines of container wait-for-db's log (current run)",
           "detail": "FATAL: cannot reach db:5432",
-          "command": "kubectl logs web-845dc8755d-qh8sw -n kd-init-container-fails -c wait-for-db --tail=20"
+          "command": "kubectl logs web-845dc8755d-tl4mm -n kd-init-container-fails -c wait-for-db --tail=20"
         }
       ],
       "fix": "Fix what the init container's log reports; the app containers start only after every init container succeeds.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-init-container-fails",
-          "name": "web-845dc8755d-qh8sw"
+          "name": "web-845dc8755d-tl4mm"
         }
       ]
     }

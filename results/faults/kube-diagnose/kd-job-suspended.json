@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-job-suspended"
+  ],
+  "collectedAt": "2026-11-16 05:34 UTC",
+  "findings": [
+    {
+      "rule": "KD187",
+      "title": "Job is suspended",
+      "severity": "info",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-job-suspended",
+        "name": "train"
+      },
+      "cause": "Job train has been suspended for 4m0s, so it runs no pods until spec.suspend is set to false",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-job-suspended",
+            "name": "train"
+          },
+          "what": "Job has spec.suspend: true",
+          "command": "kubectl get job train -n kd-job-suspended -o jsonpath='{.spec.suspend}{\" \"}{.status.conditions}'"
+        }
+      ],
+      "fix": "Resume it if it should run: kubectl patch job train -n kd-job-suspended --type=merge -p '{\"spec\":{\"suspend\":false}}'."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

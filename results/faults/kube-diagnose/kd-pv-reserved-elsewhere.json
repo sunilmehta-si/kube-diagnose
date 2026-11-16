@@ -1,0 +1,63 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pv-reserved-elsewhere"
+  ],
+  "collectedAt": "2026-11-16 05:35 UTC",
+  "findings": [
+    {
+      "rule": "KD157",
+      "title": "Claim names a volume it cannot bind to",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pv-reserved-elsewhere",
+        "name": "data"
+      },
+      "cause": "PersistentVolumeClaim data names PersistentVolume kd-pv-reserved-elsewhere, which is reserved for claim kd-pv-reserved-elsewhere/old-data (Available), so it cannot bind",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-reserved-elsewhere",
+            "name": "data"
+          },
+          "what": "PersistentVolumeClaim is Pending",
+          "command": "kubectl get pvc data -n kd-pv-reserved-elsewhere -o jsonpath='{.status.phase}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-reserved-elsewhere",
+            "name": "data"
+          },
+          "what": "claim names PersistentVolume kd-pv-reserved-elsewhere",
+          "command": "kubectl get pvc data -n kd-pv-reserved-elsewhere -o jsonpath='{.spec.volumeName}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolume",
+            "name": "kd-pv-reserved-elsewhere"
+          },
+          "what": "PersistentVolume kd-pv-reserved-elsewhere is Available with claimRef kd-pv-reserved-elsewhere/old-data",
+          "command": "kubectl get pv kd-pv-reserved-elsewhere -o jsonpath='{.status.phase} {.spec.claimRef}'"
+        }
+      ],
+      "fix": "If kd-pv-reserved-elsewhere/old-data is gone and its data is meant for this claim, clear the volume's claimRef (kubectl patch pv kd-pv-reserved-elsewhere --type=json -p '[{\"op\":\"remove\",\"path\":\"/spec/claimRef\"}]'); otherwise point the claim at a free volume.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pv-reserved-elsewhere",
+          "name": "db-56f8666648-n7f79"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

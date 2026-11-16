@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-probe-command-missing"
+  ],
+  "collectedAt": "2026-11-16 05:35 UTC",
+  "findings": [
+    {
+      "rule": "KD129",
+      "title": "Probe command is not in the image",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-probe-command-missing",
+        "name": "web"
+      },
+      "cause": "container web's liveness probe runs curl, which is not in image docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec; the kubelet counts that as an error, not a failure, so the probe never passes or fails and checks nothing; Deployment web has 1 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-command-missing",
+            "name": "web-6cf8bd5cc7-xhfw2"
+          },
+          "what": "event Unhealthy",
+          "detail": "Liveness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"ef1fba7d0897ae40b823d2a8ccc50c6d6262d1fc59e04fc718fa9f01b8017cdc\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"curl\": executable file not found in $PATH",
+          "command": "kubectl get events -n kd-probe-command-missing --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cf8bd5cc7-xhfw2"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-command-missing",
+            "name": "web-6cf8bd5cc7-xhfw2"
+          },
+          "what": "container web's liveness probe runs curl -f http://localhost:8080/",
+          "command": "kubectl get pod web-6cf8bd5cc7-xhfw2 -n kd-probe-command-missing -o jsonpath='{.spec.containers[?(@.name==\"web\")].livenessProbe}'"
+        }
+      ],
+      "fix": "Use a command the image has (distroless images have no shell or curl, busybox has wget but no curl), or replace the exec probe with an httpGet or tcpSocket probe, which the kubelet runs itself and needs nothing in the image; curl is the command to replace.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-probe-command-missing",
+          "name": "web-6cf8bd5cc7-xhfw2"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

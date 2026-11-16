@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-csi-driver-missing"
+  ],
+  "collectedAt": "2026-11-16 05:33 UTC",
+  "findings": [
+    {
+      "rule": "KD136",
+      "title": "CSI driver is not running",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-csi-driver-missing",
+        "name": "db"
+      },
+      "cause": "a volume of the pod uses CSI driver csi.kd-faults.example.com, which is not registered on node kd-faults-control-plane, so the volume cannot be mounted; Deployment db has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-csi-driver-missing",
+            "name": "db-56f8666648-9srr2"
+          },
+          "what": "event FailedMount (9 times)",
+          "detail": "MountVolume.MountDevice failed for volume \"kd-csi-driver-missing\" : kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.kd-faults.example.com not found in the list of registered CSI drivers",
+          "command": "kubectl get events -n kd-csi-driver-missing --field-selector involvedObject.kind=Pod,involvedObject.name=db-56f8666648-9srr2"
+        },
+        {
+          "object": {
+            "kind": "CSINode",
+            "name": "kd-faults-control-plane"
+          },
+          "what": "the CSI drivers registered on node kd-faults-control-plane",
+          "command": "kubectl get csinodes -o custom-columns=NODE:.metadata.name,DRIVERS:.spec.drivers[*].name"
+        }
+      ],
+      "fix": "Install the csi.kd-faults.example.com CSI driver, or check that its node DaemonSet runs on node kd-faults-control-plane and its controller is up (their pods are usually in kube-system or the driver's namespace).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-csi-driver-missing",
+          "name": "db-56f8666648-9srr2"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

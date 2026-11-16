@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-loadbalancer-pending"
   ],
-  "collectedAt": "2026-11-15 05:42 UTC",
+  "collectedAt": "2026-11-16 05:34 UTC",
   "findings": [
     {
       "rule": "KD168",

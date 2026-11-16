@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-runtimeclass-missing"
+  ],
+  "collectedAt": "2026-11-16 05:35 UTC",
+  "findings": [
+    {
+      "rule": "KD183",
+      "title": "RuntimeClass does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-runtimeclass-missing",
+        "name": "web"
+      },
+      "cause": "Deployment kd-runtimeclass-missing/web cannot create pods: they name RuntimeClass gvisor, which does not exist",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ReplicaSet",
+            "namespace": "kd-runtimeclass-missing",
+            "name": "web-69dd9c9864"
+          },
+          "what": "event FailedCreate (16 times)",
+          "detail": "Error creating: pods \"web-69dd9c9864-\" is forbidden: pod rejected: RuntimeClass \"gvisor\" not found",
+          "command": "kubectl get events -n kd-runtimeclass-missing --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-69dd9c9864"
+        },
+        {
+          "object": {
+            "kind": "RuntimeClass",
+            "name": "gvisor"
+          },
+          "what": "the cluster's RuntimeClasses",
+          "command": "kubectl get runtimeclasses"
+        }
+      ],
+      "fix": "Create RuntimeClass gvisor for a handler the nodes' container runtime has (such as gVisor's runsc or Kata), or remove runtimeClassName to use the default runtime."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

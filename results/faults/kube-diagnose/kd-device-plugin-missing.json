@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-device-plugin-missing"
+  ],
+  "collectedAt": "2026-11-16 05:33 UTC",
+  "findings": [
+    {
+      "rule": "KD140",
+      "title": "No node has enough example.com/accelerator",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-device-plugin-missing",
+        "name": "train"
+      },
+      "cause": "the pod requests example.com/accelerator, and no node advertises any (1 node checked): the device plugin that provides it is not running; Deployment train has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-device-plugin-missing",
+            "name": "train-f5cfdd7f-vthf9"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 Insufficient example.com/accelerator. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod train-f5cfdd7f-vthf9 -n kd-device-plugin-missing -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-device-plugin-missing",
+            "name": "train-f5cfdd7f-vthf9"
+          },
+          "what": "pod requests 1 example.com/accelerator",
+          "command": "kubectl get pod train-f5cfdd7f-vthf9 -n kd-device-plugin-missing -o jsonpath='{.spec.containers[*].resources.requests}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "*"
+          },
+          "what": "no node lists example.com/accelerator in its allocatable resources",
+          "command": "kubectl get nodes -o custom-columns=NAME:.metadata.name,EXAMPLE_COM_ACCELERATOR:.status.allocatable.example\\.com/accelerator"
+        }
+      ],
+      "fix": "Install or fix the device plugin that provides example.com/accelerator (for nvidia.com/gpu, the NVIDIA device plugin or GPU Operator) and check its DaemonSet runs on the nodes that have the hardware; or remove the request.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-device-plugin-missing",
+          "name": "train-f5cfdd7f-vthf9"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

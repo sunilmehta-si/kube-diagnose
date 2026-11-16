@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-csi-driver-missing/db",
+      "error": [
+        {
+          "Text": "Deployment kd-csi-driver-missing/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-csi-driver-missing",
+              "Masked": "d2t5Qk4pNm1lSFZCQV1iJVdZXTJF"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "MSE="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-csi-driver-missing/db-56f8666648-9srr2",
+      "error": [
+        {
+          "Text": "MountVolume.MountDevice failed for volume \"kd-csi-driver-missing\" : kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.kd-faults.example.com not found in the list of registered CSI drivers",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    }
+  ]
+}

@@ -1,0 +1,51 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-readiness-gate-unset"
+  ],
+  "collectedAt": "2026-11-16 05:35 UTC",
+  "findings": [
+    {
+      "rule": "KD128",
+      "title": "Readiness gate is not met",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-readiness-gate-unset",
+        "name": "web"
+      },
+      "cause": "the pod's containers are ready, but no controller has set its readiness gate example.com/lb-registered (never set), so the pod is not Ready and its Services send it no traffic; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readiness-gate-unset",
+            "name": "web-54495c8f84-p7wgt"
+          },
+          "what": "pod readiness gates and conditions",
+          "command": "kubectl get pod web-54495c8f84-p7wgt -n kd-readiness-gate-unset -o jsonpath='{.spec.readinessGates}{\"\\n\"}{.status.conditions}'"
+        }
+      ],
+      "fix": "Find the controller that sets the gate's condition (an AWS or GKE load balancer controller sets target-health conditions) and why it has not; the pod stays out of every Service until it does.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-readiness-gate-unset",
+          "name": "web-54495c8f84-p7wgt"
+        },
+        {
+          "kind": "Service",
+          "namespace": "kd-readiness-gate-unset",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

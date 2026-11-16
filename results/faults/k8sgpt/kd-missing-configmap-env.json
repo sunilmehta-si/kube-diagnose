@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-missing-configmap-env",
-              "Masked": "XjRbanh1VF1MdU0qRkdRfWJmLSJGaW1y"
+              "Masked": "JUpLQGVtOSUlc2NrQm96OUQlWDQ9OENt"
             },
             {
               "Unmasked": "web",
-              "Masked": "UjVQ"
+              "Masked": "Y2oj"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-missing-configmap-env/web-797b746fc4-pj895",
+      "name": "kd-missing-configmap-env/web-797b746fc4-qvnxx",
       "error": [
         {
           "Text": "configmap \"app-config\" not found",

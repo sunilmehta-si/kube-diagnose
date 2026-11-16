@@ -8,7 +8,7 @@ that shows it to you. It never changes anything: every kubectl command it runs i
 
 ```text
 $ kubectl diagnose -n kd-liveness-wrong-port
-kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-15 05:42 UTC
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-16 05:34 UTC
 1 problem: 1 warning.
 
 1. WARNING  Liveness probe kills the container  KD112
@@ -17,15 +17,15 @@ kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2
           port 8080), so the kubelet restarts it (5 restarts); Deployment web has 1 of 1 replicas
           ready
    Evidence:
-     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-snwhf: event Unhealthy (6 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-4wjdg: event Unhealthy (6 times)
          │ Liveness probe failed: Get "http://10.244.0.26:9090/": dial tcp 10.244.0.26:9090: connect: connection refused
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-snwhf
-     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-snwhf: event Killing (6 times)
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-4wjdg
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-4wjdg: event Killing (6 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-snwhf
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-4wjdg
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pod web-67fbcb44db-snwhf
+   Affects: Pod web-67fbcb44db-4wjdg
 ```
 
 That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
@@ -124,25 +124,29 @@ healthy namespace count as false alarms. The workflow's summary shows the table 
 the same suite on any machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any
 kubeconfig context that is not kind-*.
 
-The run committed in [`results/faults`](results/faults) ([run 43681868847](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/43681868847),
-15 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
+The run committed in [`results/faults`](results/faults) ([run 43810509539](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/43810509539),
+16 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
 
 | Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
 |---|---|---|---|---|
-| kube-diagnose | 54 of 54 (exact rule and object: 54) | 54 | 0 | 0 |
-| k8sgpt | 24 of 54 | 13 | 0 | 83 |
+| kube-diagnose | 66 of 66 (exact rule and object: 66) | 66 | 0 | 0 |
+| k8sgpt | 29 of 66 | 12 | 0 | 106 |
 | holmesgpt | not run | | | |
 
 | Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
 |---|---|---|---|---|
 | bad-image-tag | A Deployment's image tag does not exist. | ✅ | ☑️ | – |
-| command-not-found | The container's command is not in the image. | ✅ | ❌ | – |
+| command-not-found | The container's command is not in the image. | ✅ | ☑️ | – |
 | crashloop-missing-env | The app exits because an environment variable it needs is not set. | ✅ | ❌ | – |
 | cronjob-fails | A CronJob runs every minute and every run fails because BACKUP_TARGET is not set. | ✅ | ❌ | – |
+| csi-driver-missing | A database's volume belongs to a CSI driver that is registered in the API but runs on no node, so the volume never mounts and the pod stays in ContainerCreating. | ✅ | ☑️ | – |
+| deployment-paused | A Deployment was created paused and never resumed, so it has no ReplicaSet and no pods, and nothing reports an error. | ✅ | ❌ | – |
+| device-plugin-missing | A Deployment's pods request an extended resource that no node advertises, because no device plugin provides it, so they stay Pending. | ✅ | ❌ | – |
 | dns-missing-service | An app calls a Service named payments that does not exist; the lookup fails and it exits. | ✅ | ❌ | – |
 | ephemeral-storage-limit | A container writes 50 MiB to its local disk with a 10 MiB ephemeral-storage limit and is evicted. | ✅ | ✅ | – |
 | exec-format-error | The image is built for arm64 and the node is amd64 (CI's runners are amd64). | ✅ | ❌ | – |
 | healthy | Control: a working Deployment and Service. Every finding here is a false alarm. | ✅ quiet | ✅ quiet | – |
+| hostpath-missing | A DaemonSet mounts a hostPath of type Directory that the nodes do not have, so its pods stay in ContainerCreating. | ✅ | ☑️ | – |
 | hostport-conflict | Two replicas ask for the same hostPort on a one-node cluster, so the second is never scheduled. | ✅ | ❌ | – |
 | hpa-no-metrics | An HPA scales on CPU utilization in a cluster without a metrics API, so it never scales. | ✅ | ❌ | – |
 | hpa-target-missing | An HPA targets a Deployment that does not exist. | ✅ | ❌ | – |
@@ -157,7 +161,8 @@ The run committed in [`results/faults`](results/faults) ([run 43681868847](https
 | init-never-finishes | An init container waits for a database Service that does not exist, so the app never starts and nothing reports an error. | ✅ | ❌ | – |
 | insufficient-cpu | A pod requests more CPU than any node has. | ✅ | ✅ | – |
 | job-backoff | A Job's container fails until the Job hits its backoff limit. | ✅ | ❌ | – |
-| limitrange-max-memory | A LimitRange caps containers at 64 MiB and the Deployment asks for a 128 MiB limit, so no pod is created. | ✅ | ✅ | – |
+| job-suspended | A Job was created suspended and never resumed, so it runs no pods and reports no error. | ✅ | ✅ | – |
+| limitrange-max-memory | A LimitRange caps containers at 64 MiB and the Deployment asks for a 128 MiB limit, so no pod is created. | ✅ | ☑️ | – |
 | liveness-wrong-port | The liveness probe checks a port nothing listens on, so the kubelet keeps restarting a healthy server. | ✅ | ❌ | – |
 | loadbalancer-pending | A Service of type LoadBalancer on a cluster with no load balancer implementation never gets an external address. | ✅ | ❌ | – |
 | missing-configmap-env | A container's envFrom names a ConfigMap that does not exist. | ✅ | ☑️ | – |
@@ -167,6 +172,7 @@ The run committed in [`results/faults`](results/faults) ([run 43681868847](https
 | missing-secret-key | A container reads a key the Secret does not have. | ✅ | ☑️ | – |
 | missing-serviceaccount | Pods run as a ServiceAccount that does not exist, so none is created. | ✅ | ☑️ | – |
 | networkpolicy-blocks-dns | An egress NetworkPolicy allows the app to reach only its database, which also blocks DNS, so the app cannot resolve the database's name and exits. | ✅ | ❌ | – |
+| networkpolicy-blocks-service | An egress NetworkPolicy lets the app resolve names but reach nothing else, so its connection to the db Service times out and it exits. | ✅ | ❌ | – |
 | networkpolicy-deny-all | A default-deny NetworkPolicy shuts off a Service's pods. | ✅ | ❌ | – |
 | node-selector | A pod's nodeSelector matches no node. | ✅ | ❌ | – |
 | oomkilled | A container uses more memory than its limit. | ✅ | ✅ | – |
@@ -177,24 +183,30 @@ The run committed in [`results/faults`](results/faults) ([run 43681868847](https
 | port-in-use | A sidecar listens on the same port as the app in the same pod, so it exits with address in use. | ✅ | ❌ | – |
 | poststart-hook-fails | A postStart hook runs a script that is not in the image, so the kubelet kills the container each time it starts. | ✅ | ❌ | – |
 | priorityclass-missing | Pods name a PriorityClass that does not exist, so none is created. | ✅ | ☑️ | – |
+| probe-command-missing | A liveness probe runs curl, which the busybox image does not have, so every probe errors and the kubelet ignores it: the container runs with a liveness check that checks nothing. | ✅ | ❌ | – |
 | pull-secret-missing | A private image is pulled with an imagePullSecret that does not exist. | ✅ | ❌ | – |
 | pull-secret-wrong-type | A private image is pulled with an imagePullSecret of type Opaque, which the kubelet ignores. | ✅ | ❌ | – |
+| pv-reserved-elsewhere | A claim names a PersistentVolume that is reserved for another claim, so it stays Pending with no event, and the database that mounts it never starts. | ✅ | ❌ | – |
 | pvc-access-mode | A claim asks for ReadWriteMany from kind's default StorageClass, whose node-local provisioner supports only ReadWriteOnce. | ✅ | ❌ | – |
-| pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ✅ | – |
+| pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ☑️ | – |
 | quota-exceeded | A ResourceQuota allows one pod and the Deployment wants three. | ✅ | ✅ | – |
 | readiness-failing | The readiness probe asks for a path the server does not have, so the pods never get traffic. | ✅ | ☑️ | – |
+| readiness-gate-unset | A Deployment's pods have a readiness gate that no controller in the cluster sets, so they run with every container ready but never become Ready, and their Service has no endpoints. | ✅ | ❌ | – |
 | readonly-root-filesystem | A container with a read-only root filesystem creates a directory in it at start and exits. | ✅ | ❌ | – |
 | runasnonroot-root-image | The pod requires a non-root user and the image runs as root, so the container is never created. | ✅ | ✅ | – |
+| runtimeclass-missing | A Deployment's pods name a RuntimeClass the cluster does not have, so admission rejects every pod and none is created. | ✅ | ☑️ | – |
+| scheduling-gate | A Deployment's pods carry a scheduling gate that no controller removes, so they stay Pending with no events and no error. | ✅ | ❌ | – |
 | service-port-name | A Service's targetPort names a port the container does not declare. | ✅ | ❌ | – |
 | service-refused | An app connects to Service db, whose Deployment is scaled to 0, so the connection is refused and the app exits. | ✅ | ❌ | – |
 | service-selector-mismatch | A Service selects app=web while its pods are labelled app=webapp. | ✅ | ✅ | – |
 | service-wrong-target-port | A Service sends traffic to port 80, but the container listens on 8080. | ✅ | ❌ | – |
 | statefulset-missing-service | A StatefulSet names a governing Service that does not exist, so its pods have no DNS names. | ✅ | ✅ | – |
+| token-not-mounted | A controller reads its ServiceAccount token at start, but its ServiceAccount turns token automounting off, so the token is never mounted and the container exits. | ✅ | ❌ | – |
 
 ✅ named the root cause in its first finding · ☑️ named it, but not first · ❌ did not name it · ⚠️ N: N false alarms · – not run
 
 k8sgpt reports what each of its analyzers sees: the symptom where kube-diagnose names the cause behind it. For the
-crash it said only that the termination reason is Error, not that the log says DATABASE_URL is not set; for the
+crash it said only that the last termination reason is Error, not that the log says DATABASE_URL is not set; for the
 liveness probe on the wrong port it reported nothing in this run, since it looked while the container was running
 between restarts (in the 0.2.0 run it said only that the last termination reason is Error; k8sgpt-ai/k8sgpt#1941
 proposes reporting the probe); for the node selector it quoted the scheduler's message, not which label no node has; and for the
@@ -202,7 +214,10 @@ deny-all NetworkPolicy its default analyzers reported nothing (its NetworkPolicy
 caught kube-diagnose missing 4 of the 23: containers that had just exited, which the kubelet had not yet marked as
 crash-looping. The first runs of the 0.2.0 scenarios caught two message forms the unit tests had not seen: a
 postStart failure event that does not name the hook, and an eviction message that ends in a space. The 14 scenarios
-added for 0.3.0 were named first, with the exact rule and object, on their first run. Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make test` replays all of
+added for 0.3.0 were named first, with the exact rule and object, on their first run. The 12 added for 0.4.0 caught
+three things the unit tests had not: an exec probe whose command is not in the image errors without restarting the
+container, so it checks nothing (KD129 was added for it); the kubelet writes a comma in its hostPath type check
+message; and once the runtime reported an out-of-memory kill as exit 137 with reason Error. Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make test` replays all of
 them through the current code.
 
 ## How it works

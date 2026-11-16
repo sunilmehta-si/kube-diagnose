@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-blocks-service"
+  ],
+  "collectedAt": "2026-11-16 05:34 UTC",
+  "findings": [
+    {
+      "rule": "KD127",
+      "title": "NetworkPolicy blocks the connection to a Service",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-networkpolicy-blocks-service",
+        "name": "web"
+      },
+      "cause": "container web exits because its connection to Service db times out: NetworkPolicy egress-dns-only allows no egress traffic between them on port 8080, and a blocked connection is dropped, not refused; its log says: \"wget: download timed out\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-blocks-service",
+            "name": "web-645cb7cf7b-56vkp"
+          },
+          "what": "container web exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-645cb7cf7b-56vkp -n kd-networkpolicy-blocks-service -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-blocks-service",
+            "name": "web-645cb7cf7b-56vkp"
+          },
+          "what": "last lines of container web's log (current run)",
+          "detail": "Connecting to db (10.96.31.146:80)\nwget: download timed out",
+          "command": "kubectl logs web-645cb7cf7b-56vkp -n kd-networkpolicy-blocks-service -c web --tail=20"
+        },
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-blocks-service",
+            "name": "egress-dns-only"
+          },
+          "what": "NetworkPolicy egress-dns-only restricts the client's egress and no egress rule in the namespace allows app=web,pod-template-hash=645cb7cf7b pods to port 8080 of app=db,pod-template-hash=756d549855 pods",
+          "command": "kubectl get networkpolicies -n kd-networkpolicy-blocks-service -o yaml"
+        }
+      ],
+      "fix": "Add an egress rule to egress-dns-only (or another policy selecting the client pods) that allows pods with app=db on port 8080.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-networkpolicy-blocks-service",
+          "name": "web-645cb7cf7b-56vkp"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}
