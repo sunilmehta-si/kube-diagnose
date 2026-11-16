@@ -1765,3 +1765,15 @@ func TestExtendedResourceNoNodeAdvertises(t *testing.T) {
 		t.Errorf("a full GPU node is not a missing device plugin: %s", f.Cause)
 	}
 }
+
+func TestCSIDriverNotRunning(t *testing.T) {
+	s := snap()
+	deployment(s, "db", 1, 0)
+	s.Pods = []kube.Pod{creating("db-rs-a", "db")}
+	s.Events = []kube.Event{event("Pod", "db-rs-a", "FailedMount", `MountVolume.MountDevice failed for volume "pvc-1a2b" : kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name ebs.csi.aws.com not found in the list of registered CSI drivers`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD136", "Deployment shop/db", "CSI driver ebs.csi.aws.com, which is not registered on node node-1")
+
+	s.Events = []kube.Event{event("Pod", "db-rs-a", "FailedAttachVolume", `AttachVolume.Attach failed for volume "pvc-1a2b" : timed out waiting for external-attacher of ebs.csi.aws.com CSI driver to attach volume vol-0abc`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD136", "Deployment shop/db", "no attacher for it answered")
+}

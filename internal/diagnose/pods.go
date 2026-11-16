@@ -532,6 +532,7 @@ var (
 	reMountCM     = regexp.MustCompile(`configmap "([^"]+)" not found`)
 	reMountSecret = regexp.MustCompile(`secret "([^"]+)" not found`)
 	reMountKey    = regexp.MustCompile(`references non-existent (config|secret) key: (\S+)`)
+	reCSIMissing  = regexp.MustCompile(`driver name (\S+) not found in the list of registered CSI drivers|timed out waiting for external-attacher of (\S+) CSI driver`)
 	reHostPath    = regexp.MustCompile(`for volume "([^"]+)" : hostPath type check failed: (\S+) is not a (directory|file|socket file|character device|block device)`)
 )
 
@@ -539,6 +540,11 @@ var (
 func mountProblem(ix *index, p kube.Pod) *problem {
 	if p.Status.Phase != "Pending" {
 		return nil
+	}
+	for _, e := range ix.eventsFor(p.Ref(), "FailedAttachVolume", "FailedMount") {
+		if m := reCSIMissing.FindStringSubmatch(e.Message); m != nil {
+			return csiMissing(p, m[1]+m[2], e)
+		}
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "FailedAttachVolume") {
 		m := reMultiAttach.FindStringSubmatch(e.Message)
@@ -1111,4 +1117,19 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// csiMissing reports a volume whose CSI driver is not running: not registered with the kubelet on the pod's node,
+// or with no attacher to attach the volume.
+func csiMissing(p kube.Pod, driver string, e kube.Event) *problem {
+	node := orNode(p.Spec.NodeName)
+	cause := fmt.Sprintf("a volume of the pod uses CSI driver %s, which is not registered on %s, so the volume cannot be mounted", driver, node)
+	if strings.Contains(e.Message, "external-attacher") {
+		cause = fmt.Sprintf("a volume of the pod uses CSI driver %s, and no attacher for it answered, so the volume is never attached", driver)
+	}
+	return newProblem(p, "", "KD136", "CSI driver is not running", Critical, cause, "csi|"+driver,
+		fmt.Sprintf("Install the %s CSI driver, or check that its node DaemonSet runs on %s and its controller is up (their pods are usually in kube-system or the driver's namespace).", driver, node),
+		eventEvidence(p.Ref(), e),
+		Evidence{Object: kube.Ref{Kind: "CSINode", Name: p.Spec.NodeName}, What: "the CSI drivers registered on " + node,
+			Command: "kubectl get csinodes -o custom-columns=NODE:.metadata.name,DRIVERS:.spec.drivers[*].name"})
 }
