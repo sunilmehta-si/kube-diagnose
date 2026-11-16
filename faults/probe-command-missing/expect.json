@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-probe-command-missing",
+  "description": "A liveness probe runs curl, which the busybox image does not have, so the probe always fails and the kubelet keeps restarting a healthy container.",
+  "rule": "KD112",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "liveness"
+    ],
+    [
+      "curl"
+    ],
+    [
+      "not in",
+      "not found"
+    ]
+  ]
+}
