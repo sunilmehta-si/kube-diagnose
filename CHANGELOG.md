@@ -2,7 +2,27 @@
 
 ## [Unreleased]
 
+### Added
+- 11 rules, 85 in all (`docs/rules.md`):
+  - scheduling and start-up: pods held by a scheduling gate, with Kueue's admission gate named (KD146); pod
+    sandboxes the network plugin cannot set up or the node has no IP address for (KD134); hostPath volumes whose
+    path the node does not have (KD135); readiness gates no controller sets (KD128);
+  - crashes traced to a ServiceAccount token that automounting turned off (KD125), an RBAC denial, with the Role
+    and RoleBinding to create (KD126), and a NetworkPolicy that drops the connection to a Service, on the client's
+    egress or the backends' ingress (KD127);
+  - storage: claims that name a PersistentVolume they cannot bind to: missing, reserved for another claim, Released
+    with the old claim's UID, or of another class or a smaller size (KD157);
+  - controllers: pods rejected for a RuntimeClass that does not exist (KD183), Deployments left paused before their
+    rollout finished (KD184), and pods stuck terminating, with the finalizer or node that holds them (KD194).
+- Liveness and readiness findings say when an exec probe runs a command the image does not have (curl in a busybox
+  or distroless image).
+- The snapshot holds pods' scheduling gates, readiness gates, finalizers and automountServiceAccountToken, init
+  containers' restartPolicy, ServiceAccounts' automountServiceAccountToken, a Deployment's paused field and a
+  PersistentVolume's claimRef UID.
+
 ### Fixed
+- A claim for a class that no StorageClass object has was reported as asking for a StorageClass that does not exist
+  (KD150) even when PersistentVolumes carry that class name, as static volumes do.
 - A sidecar (an init container with `restartPolicy: Always`) was reported as an init container that never finishes
   (KD119) once it had run for two minutes in a pending pod, and a later init container that really was stuck went
   unnamed. Sidecars are now skipped there, a crashing sidecar is reported as a crashing container (KD110) and not
