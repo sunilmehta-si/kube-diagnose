@@ -1,0 +1,35 @@
+# A controller reads its ServiceAccount token at start, but its ServiceAccount turns token automounting off, so the token is never mounted and the container exits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-token-not-mounted
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: watcher
+  namespace: kd-token-not-mounted
+automountServiceAccountToken: false
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: watcher
+  namespace: kd-token-not-mounted
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: watcher
+  template:
+    metadata:
+      labels:
+        app: watcher
+    spec:
+      serviceAccountName: watcher
+      containers:
+        - name: watcher
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo 'loading in-cluster config'; cat /var/run/secrets/kubernetes.io/serviceaccount/token > /dev/null || exit 1; sleep 3600"]

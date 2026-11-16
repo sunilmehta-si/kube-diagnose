@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-token-not-mounted",
+  "description": "A controller reads its ServiceAccount token at start, but its ServiceAccount turns token automounting off, so the token is never mounted and the container exits.",
+  "rule": "KD125",
+  "object": "Deployment/watcher",
+  "keywords": [
+    [
+      "automountServiceAccountToken"
+    ],
+    [
+      "token"
+    ]
+  ]
+}
