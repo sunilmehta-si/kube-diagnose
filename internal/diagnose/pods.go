@@ -37,6 +37,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		return evicted(p)
 	}
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
+		if c.Reason == "SchedulingGated" {
+			return gated(ix, p)
+		}
 		return unschedulable(ix, p, c)
 	}
 	if pr := unclaimed(ix, p); pr != nil {

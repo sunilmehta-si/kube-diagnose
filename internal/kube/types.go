@@ -278,6 +278,12 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
+	SchedulingGates []SchedulingGate `json:"schedulingGates,omitempty"`
+}
+
+type SchedulingGate struct {
+	Name string `json:"name"`
 }
 
 type ContainerStateWaiting struct {

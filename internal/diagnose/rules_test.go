@@ -1290,3 +1290,37 @@ func TestSidecarThatKeepsCrashing(t *testing.T) {
 		t.Errorf("fix %q, evidence %q", f.Fix, f.Evidence[0].Command)
 	}
 }
+
+func TestPodHeldByASchedulingGate(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.NodeName = ""
+	p.Spec.SchedulingGates = []kube.SchedulingGate{{Name: "example.com/quota-check"}}
+	p.Status.Phase, p.Status.ContainerStatuses = "Pending", nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "SchedulingGated", Message: "Scheduling is blocked due to non-empty scheduling gates"}}
+	p.Metadata.CreationTimestamp = t0.Add(-12 * time.Minute)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD146", "Deployment shop/web", "waited 12m0s behind scheduling gate example.com/quota-check", "0 of 1 replicas ready")
+	if !strings.Contains(f.Fix, "example.com/quota-check") {
+		t.Errorf("fix should name the gate: %s", f.Fix)
+	}
+
+	// Kueue's gate: the pod waits for admission, and its queue is named.
+	p.Spec.SchedulingGates = []kube.SchedulingGate{{Name: "kueue.x-k8s.io/admission"}}
+	p.Metadata.Labels["kueue.x-k8s.io/queue-name"] = "team-a"
+	s.Pods = []kube.Pod{p}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD146", "Deployment shop/web", "Kueue has not admitted it", "LocalQueue team-a")
+	if !strings.Contains(f.Evidence[1].Command, "workloads.kueue.x-k8s.io") {
+		t.Errorf("evidence should point at the Workloads: %+v", f.Evidence)
+	}
+
+	// A controller that gates pods releases them within seconds: a young gated pod is not a finding.
+	p.Metadata.CreationTimestamp = t0.Add(-20 * time.Second)
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a pod gated for 20 s: %+v", r.Findings)
+	}
+}

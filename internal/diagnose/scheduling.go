@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -313,4 +314,43 @@ func pvcBlocked(ix *index, p kube.Pod, text string) *problem {
 	}
 	return newProblem(p, "", "KD143", "Pod waits for a PersistentVolumeClaim", Critical,
 		"the pod waits for a PersistentVolumeClaim: "+text, "pvc|"+text, "Check the pod's PersistentVolumeClaims.")
+}
+
+// gatedAfter is how long a pod may sit behind a scheduling gate before it is reported: a controller that gates
+// pods normally releases them within seconds.
+const gatedAfter = 2 * time.Minute
+
+// kueueGate is the gate Kueue puts on the plain pods it manages until it admits them.
+const kueueGate = "kueue.x-k8s.io/admission"
+
+// gated finds a pod that the scheduler has not been allowed to look at: it carries scheduling gates, and whatever
+// set them has not removed them. The scheduler reports no error for such a pod, and it has no events.
+func gated(ix *index, p kube.Pod) *problem {
+	age := ix.s.CollectedAt.Sub(p.Metadata.CreationTimestamp)
+	if len(p.Spec.SchedulingGates) == 0 || p.Metadata.CreationTimestamp.IsZero() || age < gatedAfter {
+		return nil
+	}
+	var names []string
+	kueue := false
+	for _, g := range p.Spec.SchedulingGates {
+		names = append(names, g.Name)
+		kueue = kueue || g.Name == kueueGate
+	}
+	gates := strings.Join(names, ", ")
+	ns := p.Metadata.Namespace
+	ev := []Evidence{{Object: p.Ref(), What: "pod is not scheduled: SchedulingGated, with gates " + gates,
+		Command: cmdGet("pod", ns, p.Metadata.Name, `{.spec.schedulingGates}{"\n"}{.status.conditions[?(@.type=="PodScheduled")]}`)}}
+	cause := fmt.Sprintf("the pod has waited %s behind scheduling gate %s: the scheduler does not look at a pod until every gate is removed, and whatever set this one has not removed it", age.Round(time.Minute), gates)
+	fix := fmt.Sprintf("Find the controller that owns gate %s and why it has not released the pod (it may not be running). If nothing owns the gate, remove schedulingGates from the pod template.", gates)
+	if kueue {
+		queue := p.Metadata.Labels["kueue.x-k8s.io/queue-name"]
+		cause = fmt.Sprintf("the pod has waited %s behind Kueue's scheduling gate %s: Kueue has not admitted it, so the scheduler has not looked at it", age.Round(time.Minute), kueueGate)
+		fix = "Read the pod's Workload (its conditions say why it is not admitted): the queue has no quota left, or the queue does not exist. The pod starts when Kueue admits it."
+		if queue != "" {
+			cause += fmt.Sprintf("; it is queued in LocalQueue %s", queue)
+		}
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Workload", Namespace: ns, Name: "*"}, What: "Kueue's Workloads in the namespace, with their admission status",
+			Command: "kubectl get workloads.kueue.x-k8s.io -n " + ns})
+	}
+	return newProblem(p, "", "KD146", "Pod is held by a scheduling gate", Critical, cause, "gate|"+gates, fix, ev...)
 }
