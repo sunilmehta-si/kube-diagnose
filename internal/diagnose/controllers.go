@@ -13,6 +13,7 @@ var (
 	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
 	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
+	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)
 	reSA            = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
 	reWebhk         = regexp.MustCompile(`admission webhook "([^"]+)" denied the request`)
 	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
@@ -88,6 +89,13 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "PriorityClass", Name: pc},
 			What: "the cluster's PriorityClasses", Command: "kubectl get priorityclasses"})
 		f.Fix = fmt.Sprintf("Create PriorityClass %s, or set priorityClassName to one that exists (or remove it).", pc)
+	case reRuntimeClass.MatchString(msg):
+		rc := reRuntimeClass.FindStringSubmatch(msg)[1]
+		f.Rule, f.Title = "KD183", "RuntimeClass does not exist"
+		f.Cause = fmt.Sprintf("%s cannot create pods: they name RuntimeClass %s, which does not exist", owner, rc)
+		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "RuntimeClass", Name: rc},
+			What: "the cluster's RuntimeClasses", Command: "kubectl get runtimeclasses"})
+		f.Fix = fmt.Sprintf("Create RuntimeClass %s for a handler the nodes' container runtime has (such as gVisor's runsc or Kata), or remove runtimeClassName to use the default runtime.", rc)
 	case reSA.MatchString(msg):
 		sa := reSA.FindStringSubmatch(msg)[1]
 		f.Rule, f.Title = "KD171", "ServiceAccount does not exist"

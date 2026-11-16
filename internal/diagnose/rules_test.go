@@ -764,6 +764,18 @@ func TestPriorityClassMissing(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD175", "Deployment shop/web", "PriorityClass business-critical, which does not exist")
 }
 
+func TestRuntimeClassMissing(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	s.Workloads[1].Status.Replicas = 0
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate", `Error creating: pods "web-rs-x7k2p" is forbidden: pod rejected: RuntimeClass "gvisor" not found`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD183", "Deployment shop/web", "RuntimeClass gvisor, which does not exist")
+	if !strings.Contains(f.Fix, "remove runtimeClassName") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
 func TestPodWaitsForAMissingScheduler(t *testing.T) {
 	s := snap()
 	p := pod("train", "")
