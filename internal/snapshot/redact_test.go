@@ -94,11 +94,7 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	// A volume reserved for a claim that is gone names that claim (KD157), and a Job waiting for Kueue names its queue.
 	var pv kube.PersistentVolume
 	pv.Metadata.Name = "orders-pv"
-	pv.Spec.ClaimRef = &struct {
-		Namespace string `json:"namespace"`
-		Name      string `json:"name"`
-		UID       string `json:"uid,omitempty"`
-	}{Namespace: "shop", Name: "orders-data-old"}
+	pv.Spec.ClaimRef = &kube.ClaimReference{Namespace: "shop", Name: "orders-data-old"}
 	job.Metadata.Labels = map[string]string{"kueue.x-k8s.io/queue-name": "team-payments"}
 	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Pods: []kube.Pod{p}, Workloads: []kube.Workload{ss},
 		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}, Jobs: []kube.Job{job}, PVs: []kube.PersistentVolume{pv}}

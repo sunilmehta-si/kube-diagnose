@@ -1625,11 +1625,7 @@ func TestHostPathMissingOnTheNode(t *testing.T) {
 }
 
 func TestClaimNamesAVolumeItCannotBindTo(t *testing.T) {
-	type claimRef = struct {
-		Namespace string `json:"namespace"`
-		Name      string `json:"name"`
-		UID       string `json:"uid,omitempty"`
-	}
+	type claimRef = kube.ClaimReference
 	build := func() *snapshot.Snapshot {
 		s := snap()
 		var pvc kube.PersistentVolumeClaim

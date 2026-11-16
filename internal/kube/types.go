@@ -710,17 +710,21 @@ func (s StorageClass) IsDefault() bool {
 	return s.Metadata.Annotations["storageclass.kubernetes.io/is-default-class"] == "true"
 }
 
+// ClaimReference is the claim a PersistentVolume is bound or reserved to. UID is set once it binds; a volume whose
+// claim was deleted keeps the old UID, which stops a new claim of the same name from binding.
+type ClaimReference struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	UID       string `json:"uid,omitempty"`
+}
+
 type PersistentVolume struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
 		StorageClassName string            `json:"storageClassName,omitempty"`
 		Capacity         map[string]string `json:"capacity,omitempty"`
 		AccessModes      []string          `json:"accessModes,omitempty"`
-		ClaimRef         *struct {
-			Namespace string `json:"namespace"`
-			Name      string `json:"name"`
-			UID       string `json:"uid,omitempty"`
-		} `json:"claimRef,omitempty"`
+		ClaimRef         *ClaimReference   `json:"claimRef,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		Phase string `json:"phase,omitempty"`
