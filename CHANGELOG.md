@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
+- The fault suite's committed run (43810509539): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 66 of 66 faults and raises no false alarm; k8sgpt v0.4.41 names 29, 12 of them first.
+
 ### Added
 - 15 rules, 89 in all (`docs/rules.md`):
   - scheduling and start-up: pods held by a scheduling gate, with Kueue's admission gate named (KD146); pod
