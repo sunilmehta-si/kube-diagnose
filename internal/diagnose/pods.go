@@ -48,6 +48,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if pr := mountProblem(ix, p); pr != nil {
 		return pr
 	}
+	if pr := sandboxProblem(ix, p); pr != nil {
+		return pr
+	}
 	statuses := append(append([]kube.ContainerStatus{}, p.Status.InitContainerStatuses...), p.Status.ContainerStatuses...)
 	for _, cs := range statuses {
 		if pr := containerProblem(ix, p, cs); pr != nil {

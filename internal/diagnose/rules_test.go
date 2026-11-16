@@ -1324,3 +1324,40 @@ func TestPodHeldByASchedulingGate(t *testing.T) {
 		t.Errorf("a pod gated for 20 s: %+v", r.Findings)
 	}
 }
+
+// creating returns a pod that is on its node with every container still waiting in ContainerCreating.
+func creating(name, owner string) kube.Pod {
+	p := pod(name, owner)
+	p.Status.Phase = "Pending"
+	waiting(&p, "ContainerCreating", "")
+	return p
+}
+
+func TestPodSandboxCannotBeCreated(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	s.Pods = []kube.Pod{creating("web-rs-a", "web")}
+	s.Events = []kube.Event{event("Pod", "web-rs-a", "FailedCreatePodSandBox", `Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "0c1f2a": plugin type="calico" failed (add): error getting ClusterInformation: connection is unauthorized: Unauthorized`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD134", "Deployment shop/web", "network plugin calico on node node-1 fails to set up the pod's network", "connection is unauthorized")
+	if strings.Contains(f.Cause, "rpc error") {
+		t.Errorf("the gRPC wrapper should be dropped from the cause: %s", f.Cause)
+	}
+
+	// The node's pod IP range is used up.
+	s.Events = []kube.Event{event("Pod", "web-rs-a", "FailedCreatePodSandBox", `Failed to create pod sandbox: rpc error: code = Unknown desc = failed to setup network for sandbox "0c1f2a": plugin type="ptp" failed (add): failed to allocate for range 0: no IP addresses available in range set: 10.244.1.1-10.244.1.254`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD134", "Deployment shop/web", "node node-1 cannot give the pod an IP address")
+
+	// Anything else is quoted as the runtime reported it.
+	s.Events = []kube.Event{event("Pod", "web-rs-a", "FailedCreatePodSandBox", `Failed to create pod sandbox: rpc error: code = Unknown desc = failed to create containerd task: failed to create shim task: OCI runtime create failed: unable to start container process`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD134", "Deployment shop/web", "node node-1 cannot create the pod's sandbox", "OCI runtime create failed")
+
+	// A sandbox failure that was retried and passed is history: the container has started.
+	p := pod("web-rs-a", "web")
+	s.Pods = []kube.Pod{p}
+	s.Workloads = nil
+	deployment(s, "web", 1, 1)
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a running pod with an old sandbox event: %+v", r.Findings)
+	}
+}
