@@ -565,6 +565,8 @@ type Workload struct {
 		Template PodTemplate    `json:"template"`
 		// ServiceName is a StatefulSet's governing Service, which gives its pods their DNS names.
 		ServiceName string `json:"serviceName,omitempty"`
+		// Paused stops a Deployment's rollouts until it is resumed.
+		Paused bool `json:"paused,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
 }

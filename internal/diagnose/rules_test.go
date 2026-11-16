@@ -1459,3 +1459,28 @@ func TestServiceAccountLacksRBACPermission(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestPausedDeployment(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 3, 0)
+	s.Workloads = s.Workloads[:1] // created paused: no ReplicaSet, no pods
+	s.Workloads[0].Spec.Paused = true
+	s.Workloads[0].Status = kube.WorkloadStatus{Conditions: []kube.Condition{{Type: "Progressing", Status: "Unknown", Reason: "DeploymentPaused", Message: "Deployment is paused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD184", "Deployment shop/web", "is paused", "0 of its 3 replicas run the current pod template and 0 are ready")
+	if f.Severity != Critical || f.Evidence[0].Detail != "Deployment is paused" || !strings.Contains(f.Fix, "kubectl rollout resume deployment/web -n shop") {
+		t.Errorf("%s %+v %s", f.Severity, f.Evidence, f.Fix)
+	}
+
+	// Paused halfway through a rollout: the old pods still serve.
+	s.Workloads[0].Status = kube.WorkloadStatus{Replicas: 3, UpdatedReplicas: 1, ReadyReplicas: 3}
+	if f := only(t, Diagnose(s)); f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+
+	// Paused with every replica current and ready is how a Deployment waits for its next change: not a problem.
+	s.Workloads[0].Status = kube.WorkloadStatus{Replicas: 3, UpdatedReplicas: 3, ReadyReplicas: 3}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}

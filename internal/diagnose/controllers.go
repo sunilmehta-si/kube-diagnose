@@ -146,6 +146,10 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		if w.Kind != "Deployment" || explained[w.Ref()] {
 			continue
 		}
+		if f := paused(w); f != nil {
+			out = append(out, *f)
+			continue
+		}
 		c, ok := kube.FindCondition(w.Status.Conditions, "Progressing")
 		if !ok || c.Reason != "ProgressDeadlineExceeded" {
 			continue
@@ -157,4 +161,28 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 			Fix: "Find why the new pods do not become ready (kubectl rollout status, and their events), then fix or roll back (kubectl rollout undo)."})
 	}
 	return out
+}
+
+// paused finds a Deployment left paused while its replicas are not all on the current template and ready. A paused
+// Deployment creates no new ReplicaSet and never reaches its progress deadline, so nothing else reports it; one
+// created paused never creates a pod at all.
+func paused(w kube.Workload) *Finding {
+	desired := w.Desired()
+	if !w.Spec.Paused || desired == 0 || (w.Status.UpdatedReplicas >= desired && w.Status.ReadyReplicas >= desired) {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	sev := Warning
+	if w.Status.ReadyReplicas == 0 {
+		sev = Critical
+	}
+	ev := []Evidence{{Object: w.Ref(), What: fmt.Sprintf("Deployment has spec.paused: true, %d of %d replicas updated, %d ready", w.Status.UpdatedReplicas, desired, w.Status.ReadyReplicas),
+		Command: cmdGet("deployment", ns, name, `{.spec.paused}{" "}{.status}`)}}
+	if c, ok := kube.FindCondition(w.Status.Conditions, "Progressing"); ok && c.Reason == "DeploymentPaused" {
+		ev[0].Detail = c.Message
+	}
+	return &Finding{Rule: "KD184", Title: "Deployment rollout is paused", Severity: sev, Object: w.Ref(),
+		Cause:    fmt.Sprintf("Deployment %s is paused, so it does not roll out: %d of its %d replicas run the current pod template and %d are ready", name, w.Status.UpdatedReplicas, desired, w.Status.ReadyReplicas),
+		Evidence: ev,
+		Fix:      fmt.Sprintf("Resume it when the change is ready: kubectl rollout resume deployment/%s -n %s.", name, ns)}
 }
