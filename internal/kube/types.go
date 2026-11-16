@@ -608,6 +608,7 @@ type Job struct {
 		BackoffLimit          *int32      `json:"backoffLimit,omitempty"`
 		Completions           *int32      `json:"completions,omitempty"`
 		ActiveDeadlineSeconds *int64      `json:"activeDeadlineSeconds,omitempty"`
+		Suspend               *bool       `json:"suspend,omitempty"`
 		Template              PodTemplate `json:"template"`
 	} `json:"spec"`
 	Status struct {

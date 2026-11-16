@@ -1716,3 +1716,29 @@ func TestRegistryTLSProblems(t *testing.T) {
 	f = pullFails(`Failed to pull image "registry.corp.internal:5000/shop/web:1": failed to resolve reference "registry.corp.internal:5000/shop/web:1": failed to do request: Head "https://registry.corp.internal:5000/v2/shop/web/manifests/1": http: server gave HTTP response to HTTPS client`)
 	expect(t, f, "KD103", "Pod shop/web", "registry registry.corp.internal:5000 speaks plain HTTP")
 }
+
+func TestSuspendedJob(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "train", Namespace: "shop", CreationTimestamp: t0.Add(-30 * time.Minute)}
+	j.Spec.Suspend = yes()
+	j.Status.Conditions = []kube.Condition{{Type: "Suspended", Status: "True", Reason: "JobSuspended", LastTransitionTime: t0.Add(-20 * time.Minute)}}
+	s.Jobs = []kube.Job{j}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD187", "Job shop/train", "suspended for 20m0s")
+	if f.Severity != Info {
+		t.Errorf("a Job suspended by hand is information: %s", f.Severity)
+	}
+
+	s.Jobs[0].Metadata.Labels = map[string]string{"kueue.x-k8s.io/queue-name": "team-a"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD187", "Job shop/train", "waited 20m0s for Kueue to admit it from LocalQueue team-a")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "Do not unsuspend it by hand") {
+		t.Errorf("%s %s", f.Severity, f.Fix)
+	}
+
+	s.Jobs[0].Status.Conditions[0].LastTransitionTime = t0.Add(-30 * time.Second)
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("just suspended: %+v", r.Findings)
+	}
+}
