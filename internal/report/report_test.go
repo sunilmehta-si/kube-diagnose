@@ -80,6 +80,22 @@ func TestTextWithNoFindings(t *testing.T) {
 	}
 }
 
+// TestSummaryCountsInfoAsNotes keeps a note, such as a Job someone suspended, out of the problem count.
+func TestSummaryCountsInfoAsNotes(t *testing.T) {
+	note := diagnose.Finding{Rule: "KD187", Severity: diagnose.Info}
+	r := diagnose.Report{Checked: diagnose.Checked{Pods: 2}, Findings: []diagnose.Finding{note}}
+	if got := summary(r); got != "No problems found in 2 pods, 0 Services, 0 PersistentVolumeClaims and 0 nodes. 1 note." {
+		t.Errorf("only a note: %q", got)
+	}
+	r.Findings = append(sample().Findings, note)
+	if got := summary(r); got != "2 problems: 1 critical, 1 warning. 1 note." {
+		t.Errorf("problems and a note: %q", got)
+	}
+	if got := summary(sample()); got != "2 problems: 1 critical, 1 warning." {
+		t.Errorf("no notes: %q", got)
+	}
+}
+
 func TestMarkdown(t *testing.T) {
 	var b bytes.Buffer
 	if err := Markdown(&b, sample()); err != nil {

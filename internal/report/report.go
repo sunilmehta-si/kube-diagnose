@@ -57,22 +57,28 @@ func scope(r diagnose.Report) string {
 	return strings.Join(parts, " · ")
 }
 
+// summary counts the findings. Info findings are notes, such as a Job someone suspended, not problems.
 func summary(r diagnose.Report) string {
-	if len(r.Findings) == 0 {
-		return fmt.Sprintf("No problems found in %s, %s, %s and %s.", count(r.Checked.Pods, "pod"),
-			count(r.Checked.Services, "Service"), count(r.Checked.PVCs, "PersistentVolumeClaim"), count(r.Checked.Nodes, "node"))
-	}
 	by := map[diagnose.Severity]int{}
 	for _, f := range r.Findings {
 		by[f.Severity]++
 	}
+	notes := ""
+	if by[diagnose.Info] > 0 {
+		notes = " " + count(by[diagnose.Info], "note") + "."
+	}
+	problems := by[diagnose.Critical] + by[diagnose.Warning]
+	if problems == 0 {
+		return fmt.Sprintf("No problems found in %s, %s, %s and %s.%s", count(r.Checked.Pods, "pod"),
+			count(r.Checked.Services, "Service"), count(r.Checked.PVCs, "PersistentVolumeClaim"), count(r.Checked.Nodes, "node"), notes)
+	}
 	var parts []string
-	for _, s := range []diagnose.Severity{diagnose.Critical, diagnose.Warning, diagnose.Info} {
+	for _, s := range []diagnose.Severity{diagnose.Critical, diagnose.Warning} {
 		if by[s] > 0 {
 			parts = append(parts, fmt.Sprintf("%d %s", by[s], s))
 		}
 	}
-	return fmt.Sprintf("%s: %s.", count(len(r.Findings), "problem"), strings.Join(parts, ", "))
+	return fmt.Sprintf("%s: %s.%s", count(problems, "problem"), strings.Join(parts, ", "), notes)
 }
 
 func count(n int, word string) string {
