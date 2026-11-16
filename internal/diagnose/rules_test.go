@@ -1434,3 +1434,28 @@ func TestServiceAccountTokenNotMounted(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD110", "Deployment shop/web")
 }
+
+func TestServiceAccountLacksRBACPermission(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.ServiceAccountName = "operator"
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"starting informers",
+		`F1116 08:12:01.000000       1 main.go:52] failed to list *v1.ConfigMap: configmaps is forbidden: User "system:serviceaccount:shop:operator" cannot list resource "configmaps" in API group "" in the namespace "shop"`}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD126", "Deployment shop/web", "refuses its ServiceAccount operator: it may not list configmaps in namespace shop")
+	if !strings.Contains(f.Fix, "kubectl create role operator-configmaps -n shop --verb=list --resource=configmaps") ||
+		!strings.Contains(f.Fix, "--serviceaccount=shop:operator") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// A cluster-scoped denial for a resource in an API group.
+	s.Logs[0].Lines = []string{`Error from server (Forbidden): nodes.metrics.k8s.io is forbidden: User "system:serviceaccount:shop:operator" cannot list resource "nodes" in API group "metrics.k8s.io" at the cluster scope`}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD126", "Deployment shop/web", "it may not list nodes.metrics.k8s.io across the cluster")
+	if !strings.Contains(f.Fix, "kubectl create clusterrole operator-nodes --verb=list --resource=nodes.metrics.k8s.io") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}

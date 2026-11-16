@@ -230,3 +230,36 @@ func tokenNotMounted(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []str
 		fmt.Sprintf("container %s exits because it cannot read its ServiceAccount token, and %s, so the kubelet never mounted it; its log says: %q", cs.Name, where, clip(line, 200)),
 		"notoken|"+sa, "If the app talks to the Kubernetes API, set automountServiceAccountToken: true on the pod (it overrides the ServiceAccount), or mount a projected serviceAccountToken volume; if it does not, find why it tries.", ev...)
 }
+
+// reForbidden matches the API server's RBAC denial as clients print it, capturing the ServiceAccount's namespace and
+// name, the verb, the resource, its API group, and the namespace (empty at the cluster scope).
+var reForbidden = regexp.MustCompile(`User "system:serviceaccount:([^:"]+):([^"]+)" cannot (\S+) resource "([^"]+)" in API group "([^"]*)"(?: in the namespace "([^"]+)"| at the cluster scope)`)
+
+// rbacDenied finds a container that exits because the API server refuses its ServiceAccount a request.
+func rbacDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	var m []string
+	for i := len(lines) - 1; i >= 0 && m == nil; i-- {
+		m = reForbidden.FindStringSubmatch(lines[i])
+	}
+	if m == nil {
+		return nil
+	}
+	saNS, sa, verb, resource, group, ns := m[1], m[2], m[3], m[4], m[5], m[6]
+	res := resource
+	if group != "" {
+		res = resource + "." + group
+	}
+	scope := "in namespace " + ns
+	fix := fmt.Sprintf("Grant it: kubectl create role %s-%s -n %s --verb=%s --resource=%s, then kubectl create rolebinding %s-%s -n %s --role=%s-%s --serviceaccount=%s:%s (or add the rule to a Role it already has).",
+		sa, resource, ns, verb, res, sa, resource, ns, sa, resource, saNS, sa)
+	if ns == "" {
+		scope = "across the cluster"
+		fix = fmt.Sprintf("Grant it: kubectl create clusterrole %s-%s --verb=%s --resource=%s, then kubectl create clusterrolebinding %s-%s --clusterrole=%s-%s --serviceaccount=%s:%s; or, if namespaced access is enough, make the app read only its namespace and use a Role.",
+			sa, resource, verb, res, sa, resource, sa, resource, saNS, sa)
+	}
+	ev = append(ev, Evidence{Object: kube.Ref{Kind: "RoleBinding", Namespace: saNS, Name: "*"}, What: "the RoleBindings and ClusterRoleBindings and the subjects they name",
+		Command: "kubectl get rolebindings,clusterrolebindings -A -o wide"})
+	return newProblem(p, cs.Name, "KD126", "ServiceAccount lacks RBAC permission", Critical,
+		fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: it may not %s %s %s", cs.Name, sa, verb, res, scope),
+		"rbac|"+sa+"|"+verb+"|"+res, fix, ev...)
+}
