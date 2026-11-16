@@ -37,6 +37,8 @@ type ObjectMeta struct {
 	OwnerReferences   []OwnerReference  `json:"ownerReferences,omitempty"`
 	CreationTimestamp time.Time         `json:"creationTimestamp"`
 	DeletionTimestamp *time.Time        `json:"deletionTimestamp,omitempty"`
+	// Finalizers must all be removed before a deleted object goes away.
+	Finalizers []string `json:"finalizers,omitempty"`
 }
 
 // Controller returns the owner that controls the object, if any.
@@ -210,6 +212,8 @@ type Container struct {
 	StartupProbe    *Probe           `json:"startupProbe,omitempty"`
 	SecurityContext *SecurityContext `json:"securityContext,omitempty"`
 	Lifecycle       *Lifecycle       `json:"lifecycle,omitempty"`
+	// RestartPolicy is Always on a sidecar: an init container that keeps running beside the app containers.
+	RestartPolicy string `json:"restartPolicy,omitempty"`
 }
 
 type KeyToPath struct {
@@ -276,6 +280,20 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.
+	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+	// ReadinessGates are extra conditions, set by a controller, that must be True for the pod to be Ready.
+	ReadinessGates []PodReadinessGate `json:"readinessGates,omitempty"`
+	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
+	SchedulingGates []SchedulingGate `json:"schedulingGates,omitempty"`
+}
+
+type PodReadinessGate struct {
+	ConditionType string `json:"conditionType"`
+}
+
+type SchedulingGate struct {
+	Name string `json:"name"`
 }
 
 type ContainerStateWaiting struct {
@@ -330,6 +348,17 @@ type Pod struct {
 
 func (p Pod) Ref() Ref {
 	return Ref{Kind: "Pod", Namespace: p.Metadata.Namespace, Name: p.Metadata.Name}
+}
+
+// IsSidecar reports whether the named container is a sidecar: an init container with restartPolicy Always, which
+// starts before the app containers and keeps running beside them instead of finishing.
+func (p Pod) IsSidecar(name string) bool {
+	for _, c := range p.Spec.InitContainers {
+		if c.Name == name {
+			return c.RestartPolicy == "Always"
+		}
+	}
+	return false
 }
 
 // Ready reports whether the pod's Ready condition is True.
@@ -555,6 +584,8 @@ type Workload struct {
 		Template PodTemplate    `json:"template"`
 		// ServiceName is a StatefulSet's governing Service, which gives its pods their DNS names.
 		ServiceName string `json:"serviceName,omitempty"`
+		// Paused stops a Deployment's rollouts until it is resumed.
+		Paused bool `json:"paused,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
 }
@@ -588,6 +619,7 @@ type Job struct {
 		BackoffLimit          *int32      `json:"backoffLimit,omitempty"`
 		Completions           *int32      `json:"completions,omitempty"`
 		ActiveDeadlineSeconds *int64      `json:"activeDeadlineSeconds,omitempty"`
+		Suspend               *bool       `json:"suspend,omitempty"`
 		Template              PodTemplate `json:"template"`
 	} `json:"spec"`
 	Status struct {
@@ -657,7 +689,9 @@ type PersistentVolumeClaim struct {
 		} `json:"resources,omitempty"`
 	} `json:"spec"`
 	Status struct {
-		Phase string `json:"phase,omitempty"`
+		Phase      string            `json:"phase,omitempty"`
+		Capacity   map[string]string `json:"capacity,omitempty"`
+		Conditions []Condition       `json:"conditions,omitempty"`
 	} `json:"status"`
 }
 
@@ -676,16 +710,21 @@ func (s StorageClass) IsDefault() bool {
 	return s.Metadata.Annotations["storageclass.kubernetes.io/is-default-class"] == "true"
 }
 
+// ClaimReference is the claim a PersistentVolume is bound or reserved to. UID is set once it binds; a volume whose
+// claim was deleted keeps the old UID, which stops a new claim of the same name from binding.
+type ClaimReference struct {
+	Namespace string `json:"namespace"`
+	Name      string `json:"name"`
+	UID       string `json:"uid,omitempty"`
+}
+
 type PersistentVolume struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
 		StorageClassName string            `json:"storageClassName,omitempty"`
 		Capacity         map[string]string `json:"capacity,omitempty"`
 		AccessModes      []string          `json:"accessModes,omitempty"`
-		ClaimRef         *struct {
-			Namespace string `json:"namespace"`
-			Name      string `json:"name"`
-		} `json:"claimRef,omitempty"`
+		ClaimRef         *ClaimReference   `json:"claimRef,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		Phase string `json:"phase,omitempty"`
@@ -702,12 +741,14 @@ type NetworkPolicyPeer struct {
 	} `json:"ipBlock,omitempty"`
 }
 
+type NetworkPolicyPort struct {
+	Port *IntOrString `json:"port,omitempty"`
+}
+
 type NetworkPolicyRule struct {
 	From  []NetworkPolicyPeer `json:"from,omitempty"`
 	To    []NetworkPolicyPeer `json:"to,omitempty"`
-	Ports []struct {
-		Port *IntOrString `json:"port,omitempty"`
-	} `json:"ports,omitempty"`
+	Ports []NetworkPolicyPort `json:"ports,omitempty"`
 }
 
 type NetworkPolicy struct {
@@ -757,7 +798,8 @@ type ResourceQuota struct {
 }
 
 type ServiceAccount struct {
-	Metadata ObjectMeta `json:"metadata"`
+	Metadata                     ObjectMeta `json:"metadata"`
+	AutomountServiceAccountToken *bool      `json:"automountServiceAccountToken,omitempty"`
 }
 
 // KeySet is a ConfigMap or Secret reduced to its name and key names. kube-diagnose never reads values: the

@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-csi-driver-missing",
+  "description": "A database's volume belongs to a CSI driver that is registered in the API but runs on no node, so the volume never mounts and the pod stays in ContainerCreating.",
+  "rule": "KD136",
+  "object": "Deployment/db",
+  "keywords": [
+    [
+      "CSI"
+    ],
+    [
+      "csi.kd-faults.example.com"
+    ]
+  ]
+}

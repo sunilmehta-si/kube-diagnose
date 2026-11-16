@@ -4,37 +4,37 @@
   "namespaces": [
     "kd-networkpolicy-blocks-dns"
   ],
-  "collectedAt": "2026-11-15 05:42 UTC",
+  "collectedAt": "2026-11-16 05:34 UTC",
   "findings": [
     {
       "rule": "KD123",
       "title": "NetworkPolicy blocks the pod's DNS lookups",
-      "severity": "warning",
+      "severity": "critical",
       "object": {
         "kind": "Deployment",
         "namespace": "kd-networkpolicy-blocks-dns",
         "name": "web"
       },
-      "cause": "container web exits because it cannot resolve db: NetworkPolicy egress-db-only restricts its egress and allows nothing to port 53, so no DNS lookup gets out; its log says: \"wget: bad address 'db'\"; Deployment web has 1 of 1 replicas ready",
+      "cause": "container web exits because it cannot resolve db: NetworkPolicy egress-db-only restricts its egress and allows nothing to port 53, so no DNS lookup gets out; its log says: \"wget: bad address 'db'\"; Deployment web has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-dns",
-            "name": "web-bc988964d-wzwcd"
+            "name": "web-bc988964d-6c8xr"
           },
-          "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-bc988964d-wzwcd -n kd-networkpolicy-blocks-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 1 (Error), restarted 4 times",
+          "command": "kubectl get pod web-bc988964d-6c8xr -n kd-networkpolicy-blocks-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-dns",
-            "name": "web-bc988964d-wzwcd"
+            "name": "web-bc988964d-6c8xr"
           },
-          "what": "last lines of container web's log (run that exited)",
+          "what": "last lines of container web's log (current run)",
           "detail": "calling db\nwget: bad address 'db'",
-          "command": "kubectl logs web-bc988964d-wzwcd -n kd-networkpolicy-blocks-dns -c web --tail=20 --previous"
+          "command": "kubectl logs web-bc988964d-6c8xr -n kd-networkpolicy-blocks-dns -c web --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-blocks-dns",
-          "name": "web-bc988964d-wzwcd"
+          "name": "web-bc988964d-6c8xr"
         }
       ]
     }

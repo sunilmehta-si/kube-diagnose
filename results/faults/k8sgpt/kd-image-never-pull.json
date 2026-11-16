@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-image-never-pull",
-              "Masked": "enQ5QClvWSlSeiFPTWIzY3xQTA=="
+              "Masked": "NGRocGxqWmlmRVJhZzpuI21BYg=="
             },
             {
               "Unmasked": "web",
-              "Masked": "Kytu"
+              "Masked": "VFBl"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-image-never-pull/web-7859f6669f-89b7b",
+      "name": "kd-image-never-pull/web-7859f6669f-srhb7",
       "error": [
         {
           "Text": "Container image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\" is not present with pull policy of Never",

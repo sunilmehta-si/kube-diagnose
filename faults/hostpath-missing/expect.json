@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-hostpath-missing",
+  "description": "A DaemonSet mounts a hostPath of type Directory that the nodes do not have, so its pods stay in ContainerCreating.",
+  "rule": "KD135",
+  "object": "DaemonSet/agent",
+  "keywords": [
+    [
+      "hostPath"
+    ],
+    [
+      "/var/lib/agent-state"
+    ]
+  ]
+}

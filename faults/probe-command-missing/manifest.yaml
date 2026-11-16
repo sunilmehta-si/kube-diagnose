@@ -1,0 +1,35 @@
+# A liveness probe runs curl, which the busybox image does not have, so every probe errors and the kubelet ignores it: the container runs with a liveness check that checks nothing.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-probe-command-missing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-probe-command-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+          ports:
+            - name: http
+              containerPort: 8080
+          livenessProbe:
+            exec:
+              command: ["curl", "-f", "http://localhost:8080/"]
+            initialDelaySeconds: 2
+            periodSeconds: 5
+            failureThreshold: 2

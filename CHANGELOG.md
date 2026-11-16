@@ -2,6 +2,56 @@
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-11-16
+
+- The fault suite's committed run (43810509539): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 66 of 66 faults and raises no false alarm; k8sgpt v0.4.41 names 29, 12 of them first.
+
+### Added
+- 15 rules, 89 in all (`docs/rules.md`):
+  - scheduling and start-up: pods held by a scheduling gate, with Kueue's admission gate named (KD146); pod
+    sandboxes the network plugin cannot set up or the node has no IP address for (KD134); hostPath volumes whose
+    path the node does not have (KD135); readiness gates no controller sets (KD128);
+  - crashes traced to a ServiceAccount token that automounting turned off (KD125), an RBAC denial, with the Role
+    and RoleBinding to create (KD126), and a NetworkPolicy that drops the connection to a Service, on the client's
+    egress or the backends' ingress (KD127);
+  - storage: claims that name a PersistentVolume they cannot bind to: missing, reserved for another claim, Released
+    with the old claim's UID, or of another class or a smaller size (KD157); volumes whose CSI driver is not running
+    (KD136); bound claims whose volume failed to grow (KD158);
+  - controllers: pods rejected for a RuntimeClass that does not exist (KD183), Deployments left paused before their
+    rollout finished (KD184), Jobs left suspended, or waiting for Kueue to admit them (KD187), and pods stuck
+    terminating, with the finalizer or node that holds them (KD194).
+- Probes whose exec command is not in the image (curl in a busybox or distroless image): a readiness probe keeps the
+  pod out of its Services (KD120 says why), and a liveness or startup probe errors without ever restarting the
+  container, so it silently checks nothing (KD129, a warning). The fault suite showed the second on Kubernetes 1.37;
+  KD112 still names the command where a runtime reports it as a failure. A liveness finding also says when the probe
+  times out, with its timeoutSeconds.
+- 12 fault scenarios, 66 broken namespaces in all, one for each new cause a kind cluster can reproduce. KD134, KD126,
+  KD158 and KD194 need a broken network plugin, an API client, a cloud volume or a deletion, and are tested on the
+  messages Kubernetes and its clients write for them.
+- A registry the node cannot reach (KD103) is told apart when its TLS certificate is not trusted (x509) or it speaks
+  plain HTTP, with the containerd setting to change.
+- A pod that requests an extended resource no node advertises (KD140) is said to lack its device plugin.
+- An init container that never finishes (KD119) names the Service it waits for when that Service has no ready pods.
+- The snapshot holds pods' scheduling gates, readiness gates, finalizers and automountServiceAccountToken, init
+  containers' restartPolicy, ServiceAccounts' automountServiceAccountToken, a Deployment's paused field, a Job's
+  suspend field, a claim's capacity and conditions, and a PersistentVolume's claimRef UID.
+
+### Changed
+- The report's summary counts info findings as notes, not problems: "2 problems: 1 critical, 1 warning. 1 note."
+
+### Fixed
+- An out-of-memory kill that the runtime reports as exit code 137 with reason Error, not OOMKilled, was reported as
+  a crash (KD110). A SIGKILL with no probe or hook behind it, in a container with a memory limit, is now reported as
+  running out of memory (KD111), and the cause says how the runtime labelled it. The fault suite caught this once on
+  Kubernetes 1.37, where the kill landed as the container started.
+- A claim for a class that no StorageClass object has was reported as asking for a StorageClass that does not exist
+  (KD150) even when PersistentVolumes carry that class name, as static volumes do.
+- A sidecar (an init container with `restartPolicy: Always`) was reported as an init container that never finishes
+  (KD119) once it had run for two minutes in a pending pod, and a later init container that really was stuck went
+  unnamed. Sidecars are now skipped there, a crashing sidecar is reported as a crashing container (KD110) and not
+  as a failed init container (KD115), and the collector no longer reads a running sidecar's log.
+
 ## [0.3.0] - 2026-11-15
 
 ### Added

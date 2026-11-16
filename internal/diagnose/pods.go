@@ -30,19 +30,28 @@ type problem struct {
 // configuration, image, process, probes. A later stage's symptoms are caused by an earlier one, so the first
 // failure is the root cause.
 func podProblem(ix *index, p kube.Pod) *problem {
-	if p.Metadata.DeletionTimestamp != nil || p.Status.Phase == "Succeeded" {
+	if p.Metadata.DeletionTimestamp != nil {
+		return terminating(ix, p)
+	}
+	if p.Status.Phase == "Succeeded" {
 		return nil
 	}
 	if p.Status.Reason == "Evicted" {
 		return evicted(p)
 	}
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
+		if c.Reason == "SchedulingGated" {
+			return gated(ix, p)
+		}
 		return unschedulable(ix, p, c)
 	}
 	if pr := unclaimed(ix, p); pr != nil {
 		return pr
 	}
 	if pr := mountProblem(ix, p); pr != nil {
+		return pr
+	}
+	if pr := sandboxProblem(ix, p); pr != nil {
 		return pr
 	}
 	statuses := append(append([]kube.ContainerStatus{}, p.Status.InitContainerStatuses...), p.Status.ContainerStatuses...)
@@ -61,7 +70,91 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
+	if pr := readinessGate(ix, p); pr != nil {
+		return pr
+	}
+	for _, cs := range p.Status.ContainerStatuses {
+		if pr := probeCannotRun(ix, p, cs); pr != nil {
+			return pr
+		}
+	}
 	return nil
+}
+
+// probeCannotRun finds a liveness or startup probe whose command is not in the image. The kubelet reports such a
+// probe as errored, not failed, and ignores the result: the container is never restarted, so the probe silently
+// checks nothing.
+func probeCannotRun(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	if cs.State.Running == nil {
+		return nil
+	}
+	c, _ := containerSpec(p, cs.Name)
+	for _, kind := range []string{"liveness", "startup"} {
+		probe := c.LivenessProbe
+		if kind == "startup" {
+			probe = c.StartupProbe
+		}
+		if probe == nil || probe.Exec == nil {
+			continue
+		}
+		exe := probeExecMissing(ix, p, cs.Name, kind)
+		if exe == "" {
+			continue
+		}
+		var ev []Evidence
+		for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
+			if mentionsContainer(e, cs.Name) && strings.HasPrefix(strings.ToLower(e.Message), kind+" probe") {
+				ev = append(ev, eventEvidence(p.Ref(), e))
+				break
+			}
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's %s probe runs %s", cs.Name, kind, strings.Join(probe.Exec.Command, " ")),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].%sProbe}`, cs.Name, kind))})
+		return newProblem(p, cs.Name, "KD129", "Probe command is not in the image", Warning,
+			fmt.Sprintf("container %s's %s probe runs %s, which is not in image %s; the kubelet counts that as an error, not a failure, so the probe never passes or fails and checks nothing", cs.Name, kind, exe, imageOf(p, cs)),
+			"probecmd|"+kind+"|"+exe, probeExecFix(exe), ev...)
+	}
+	return nil
+}
+
+// readinessGateAfter is how long a running pod may wait for its readiness gates before it is reported.
+const readinessGateAfter = 2 * time.Minute
+
+// readinessGate finds a running pod whose containers are all ready but which is not Ready, because a readiness gate
+// condition that some controller should set is missing or False.
+func readinessGate(ix *index, p kube.Pod) *problem {
+	if p.Status.Phase != "Running" || len(p.Spec.ReadinessGates) == 0 || p.Ready() {
+		return nil
+	}
+	if c, ok := kube.FindCondition(p.Status.Conditions, "ContainersReady"); !ok || c.Status != "True" {
+		return nil
+	}
+	if p.Status.StartTime == nil || ix.s.CollectedAt.Sub(*p.Status.StartTime) < readinessGateAfter {
+		return nil
+	}
+	var unmet []string
+	missing := true
+	for _, g := range p.Spec.ReadinessGates {
+		c, ok := kube.FindCondition(p.Status.Conditions, g.ConditionType)
+		if !ok {
+			unmet = append(unmet, g.ConditionType+" (never set)")
+		} else if c.Status != "True" {
+			unmet = append(unmet, fmt.Sprintf("%s (%s)", g.ConditionType, c.Status))
+			missing = false
+		}
+	}
+	if len(unmet) == 0 {
+		return nil
+	}
+	gates := strings.Join(unmet, ", ")
+	fix := "Find the controller that sets the gate's condition (an AWS or GKE load balancer controller sets target-health conditions) and why it has not; the pod stays out of every Service until it does."
+	cause := fmt.Sprintf("the pod's containers are ready, but readiness gate %s is not True, so the pod is not Ready and its Services send it no traffic", gates)
+	if missing {
+		cause = fmt.Sprintf("the pod's containers are ready, but no controller has set its readiness gate %s, so the pod is not Ready and its Services send it no traffic", gates)
+	}
+	return newProblem(p, "", "KD128", "Readiness gate is not met", Critical, cause, "gate|"+gates, fix,
+		Evidence{Object: p.Ref(), What: "pod readiness gates and conditions",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.readinessGates}{"\n"}{.status.conditions}`)})
 }
 
 // unclaimedAfter is how long a pod may wait before a scheduler that never looked at it is reported.
@@ -99,6 +192,9 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if p.Status.Phase != "Pending" || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
 		return nil
 	}
+	if p.IsSidecar(cs.Name) {
+		return nil // a sidecar is meant to keep running; the init container after it is the one that holds the pod
+	}
 	ran := ix.s.CollectedAt.Sub(cs.State.Running.StartedAt)
 	if ran < initStuckAfter {
 		return nil
@@ -111,7 +207,14 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		cause += fmt.Sprintf("; its log says: %q", errorLine(log.Lines))
 	}
 	fix := "Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0."
-	if svcNS, svc, _, ok := ix.missingService(p.Metadata.Namespace, ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines); ok {
+	lines := ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines
+	if svc, _, ok := refusedService(ix, p.Metadata.Namespace, lines); ok && len(svc.Spec.Selector) > 0 && readyBehind(ix, svc) == 0 {
+		cause += fmt.Sprintf("; it waits for Service %s, which has no ready pods", svc.Metadata.Name)
+		fix = fmt.Sprintf("Fix Service %s's pods (their own findings say why they are not ready, or the workload is scaled to 0); the init container finishes once they answer.", svc.Metadata.Name)
+		ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no ready pods", svc.Metadata.Name),
+			Command: "kubectl get endpointslices -n " + svc.Metadata.Namespace + " -l kubernetes.io/service-name=" + svc.Metadata.Name})
+	}
+	if svcNS, svc, _, ok := ix.missingService(p.Metadata.Namespace, lines); ok {
 		cause += fmt.Sprintf("; it waits for %s, and there is no Service %s in namespace %s", svc, svc, svcNS)
 		fix = fmt.Sprintf("Create Service %s in namespace %s (or deploy what it fronts), or correct the host name the init container waits for.", svc, svcNS)
 		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
@@ -215,6 +318,8 @@ var (
 	reRateLimit = regexp.MustCompile(`(?i)toomanyrequests|429 too many requests|pull rate limit`)
 	rePlatform  = regexp.MustCompile(`(?i)no match for platform in manifest|no matching manifest for|does not provide the specified platform`)
 	reNetwork   = regexp.MustCompile(`(?i)no such host|i/o timeout|connection refused|tls handshake timeout|context deadline exceeded|network is unreachable|dial tcp`)
+	reX509      = regexp.MustCompile(`x509: (certificate signed by unknown authority|certificate has expired or is not yet valid[^"]*|certificate is valid for [^"]+?, not [^\s"]+|[^"]+)`)
+	rePlainHTTP = regexp.MustCompile(`(?i)server gave HTTP response to HTTPS client`)
 )
 
 func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -243,6 +348,17 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return newProblem(p, cs.Name, "KD109", "Image has no build for the node's platform", Critical,
 			fmt.Sprintf("image %s exists, but has no build for %s, so the node cannot pull it", image, arch), "platform|"+image,
 			"Use a multi-architecture image that includes the node's platform, or schedule the pod onto nodes it was built for (a nodeSelector on kubernetes.io/arch).", ev...)
+	case reX509.MatchString(msg):
+		why := strings.TrimRight(reX509.FindStringSubmatch(msg)[1], ".: ")
+		host := registry(image)
+		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
+			fmt.Sprintf("the node does not accept the TLS certificate of registry %s for image %s (x509: %s)", host, image, why), "x509|"+host,
+			fmt.Sprintf("Give every node the CA that signed %s's certificate (for containerd, /etc/containerd/certs.d/%s/ca.crt), or serve the registry with a certificate the nodes already trust; an expired or wrong-host certificate has to be replaced.", host, host), ev...)
+	case rePlainHTTP.MatchString(msg):
+		host := registry(image)
+		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
+			fmt.Sprintf("registry %s speaks plain HTTP and the node pulls image %s over HTTPS", host, image), "plainhttp|"+host,
+			fmt.Sprintf("Serve %s over TLS, or configure every node's runtime to use HTTP for it (for containerd, a hosts.toml under /etc/containerd/certs.d/%s with server = \"http://%s\").", host, host, host), ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
@@ -467,12 +583,19 @@ var (
 	reMountCM     = regexp.MustCompile(`configmap "([^"]+)" not found`)
 	reMountSecret = regexp.MustCompile(`secret "([^"]+)" not found`)
 	reMountKey    = regexp.MustCompile(`references non-existent (config|secret) key: (\S+)`)
+	reCSIMissing  = regexp.MustCompile(`driver name (\S+) not found in the list of registered CSI drivers|timed out waiting for external-attacher of (\S+) CSI driver`)
+	reHostPath    = regexp.MustCompile(`for volume "([^"]+)" : hostPath type check failed[:,] (\S+) is not a (directory|file|socket file|character device|block device)`)
 )
 
 // mountProblem finds a pod stuck creating its containers because a volume cannot be mounted.
 func mountProblem(ix *index, p kube.Pod) *problem {
 	if p.Status.Phase != "Pending" {
 		return nil
+	}
+	for _, e := range ix.eventsFor(p.Ref(), "FailedAttachVolume", "FailedMount") {
+		if m := reCSIMissing.FindStringSubmatch(e.Message); m != nil {
+			return csiMissing(p, m[1]+m[2], e)
+		}
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "FailedAttachVolume") {
 		m := reMultiAttach.FindStringSubmatch(e.Message)
@@ -499,6 +622,14 @@ func mountProblem(ix *index, p kube.Pod) *problem {
 			pr := missingObject(ix, p, "", "secret", m[1], ev)
 			pr.cause = fmt.Sprintf("a volume of the pod needs Secret %s, which does not exist in namespace %s", m[1], p.Metadata.Namespace)
 			return pr
+		}
+		if m := reHostPath.FindStringSubmatch(e.Message); m != nil {
+			node := orNode(p.Spec.NodeName)
+			return newProblem(p, "", "KD135", "hostPath does not exist on the node", Critical,
+				fmt.Sprintf("volume %s mounts hostPath %s, which is not a %s on %s, and the volume's type requires one, so the pod cannot start", m[1], m[2], m[3], node),
+				"hostpath|"+m[2], fmt.Sprintf("Create %s on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.", m[2]),
+				append(ev, Evidence{Object: p.Ref(), What: "volume " + m[1],
+					Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, m[1]))})...)
 		}
 		if m := reMountKey.FindStringSubmatch(e.Message); m != nil {
 			kind, name := volumeSourceFor(p, m[1], m[2])
@@ -593,6 +724,14 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if (t.ExitCode == 137 || t.ExitCode == 143) && probeKilled(ix, p, cs.Name) != nil {
 		return livenessKilled(ix, p, cs)
 	}
+	if c, _ := containerSpec(p, cs.Name); t.ExitCode == 137 && c.Resources.Limits["memory"] != "" {
+		// SIGKILL with no probe or hook behind it, in a container with a memory limit: the kernel's OOM killer. The
+		// runtime sometimes reports such a kill as Error rather than OOMKilled, when it lands as the container starts.
+		pr := oomKilled(ix, p, cs)
+		pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
+			cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+		return pr
+	}
 	ev := []Evidence{terminatedEvidence(p, cs, t)}
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
@@ -609,6 +748,15 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := refusedByEmptyService(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := policyBlocksService(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := tokenNotMounted(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := rbacDenied(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {
 		return newProblem(p, cs.Name, "KD121", "Container looks up a Service that does not exist", Critical,
 			fmt.Sprintf("container %s exits because it cannot resolve %s: there is no Service %s in namespace %s; its log says: %q", cs.Name, svc, svc, svcNS, clip(line, 200)),
@@ -617,15 +765,19 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 				What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})...)
 	}
 	title, rule := "Container keeps crashing", "KD110"
-	what := "exits"
-	if isInit(p, cs.Name) {
+	what, kind := "exits", "container"
+	sidecar := p.IsSidecar(cs.Name)
+	if isInit(p, cs.Name) && !sidecar {
 		title, rule = "Init container fails", "KD115"
+	}
+	if sidecar {
+		kind = "sidecar container"
 	}
 	if p.Status.Phase == "Failed" {
 		title = "Container fails"
 		what = "exited"
 	}
-	cause := fmt.Sprintf("container %s %s with code %d (%s)", cs.Name, what, t.ExitCode, exitMeaning(t.ExitCode))
+	cause := fmt.Sprintf("%s %s %s with code %d (%s)", kind, cs.Name, what, t.ExitCode, exitMeaning(t.ExitCode))
 	if line := errorLine(log.Lines); line != "" {
 		cause += fmt.Sprintf("; its log says: %q", line)
 	}
@@ -643,6 +795,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	}
 	if isInit(p, cs.Name) {
 		fix = "Fix what the init container's log reports; the app containers start only after every init container succeeds."
+	}
+	if sidecar {
+		fix = "Fix what the sidecar's log reports; it is an init container with restartPolicy: Always, so the kubelet restarts it for as long as the pod runs."
 	}
 	return newProblem(p, cs.Name, rule, title, Critical, cause, "exit|"+strconv.Itoa(int(t.ExitCode)), fix, ev...)
 }
@@ -888,8 +1043,41 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if d := describeProbe(c, probe); d != "" {
 		cause = fmt.Sprintf("container %s fails its %s probe (%s), so the kubelet restarts it (%d restarts)", cs.Name, kind, d, cs.RestartCount)
 	}
-	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe),
-		"Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly.", ev...)
+	fix := "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly."
+	if probeTimedOut(ix, p, cs.Name, kind) && probe != nil {
+		limit := probe.TimeoutSeconds
+		if limit == 0 {
+			limit = 1 // the API's default
+		}
+		cause = fmt.Sprintf("container %s's %s probe times out: the app does not answer within the probe's %ds timeoutSeconds, so the kubelet restarts it (%d restarts)", cs.Name, kind, limit, cs.RestartCount)
+		fix = fmt.Sprintf("Raise the probe's timeoutSeconds above how long the check takes under load (it is %ds), keep the health endpoint cheap, or find why the app stops answering.", limit)
+	}
+	if exe := probeExecMissing(ix, p, cs.Name, kind); exe != "" {
+		cause = fmt.Sprintf("container %s's %s probe runs %s, which is not in image %s, so the probe can never pass and the kubelet restarts the container (%d restarts)", cs.Name, kind, exe, imageOf(p, cs), cs.RestartCount)
+		fix = probeExecFix(exe)
+	}
+	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe), fix, ev...)
+}
+
+// reProbeNoExec matches the kubelet's report that an exec probe's command does not exist in the container.
+var reProbeNoExec = regexp.MustCompile(`exec: "([^"]+)": executable file not found|exec: "([^"]+)": stat [^:]+: no such file or directory`)
+
+// probeExecMissing returns the command an exec probe of the given kind ("liveness", "readiness", "startup") tried to
+// run and the container does not have, from the probe's events; "" when the probe failed for another reason.
+func probeExecMissing(ix *index, p kube.Pod, container, kind string) string {
+	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
+		if !mentionsContainer(e, container) || !strings.HasPrefix(strings.ToLower(e.Message), kind+" probe") {
+			continue
+		}
+		if m := reProbeNoExec.FindStringSubmatch(e.Message); m != nil {
+			return m[1] + m[2]
+		}
+	}
+	return ""
+}
+
+func probeExecFix(exe string) string {
+	return fmt.Sprintf("Use a command the image has (distroless images have no shell or curl, busybox has wget but no curl), or replace the exec probe with an httpGet or tcpSocket probe, which the kubelet runs itself and needs nothing in the image; %s is the command to replace.", exe)
 }
 
 // describeProbe says what a probe checks and, when the probe's port is not one the container declares, says so.
@@ -949,8 +1137,12 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if d := describeProbe(c, c.ReadinessProbe); d != "" {
 			cause = fmt.Sprintf("container %s runs but fails its readiness probe (%s), so it gets no traffic", cs.Name, d)
 		}
-		return newProblem(p, cs.Name, "KD120", "Readiness probe failing", Critical, cause, "ready|"+describeProbe(c, c.ReadinessProbe),
-			"Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready.",
+		fix := "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready."
+		if exe := probeExecMissing(ix, p, cs.Name, "readiness"); exe != "" {
+			cause = fmt.Sprintf("container %s's readiness probe runs %s, which is not in image %s, so the probe can never pass and the container gets no traffic", cs.Name, exe, imageOf(p, cs))
+			fix = probeExecFix(exe)
+		}
+		return newProblem(p, cs.Name, "KD120", "Readiness probe failing", Critical, cause, "ready|"+describeProbe(c, c.ReadinessProbe), fix,
 			eventEvidence(p.Ref(), e), Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s is running but not ready", cs.Name),
 				Command: cmdContainerState(p, cs.Name, "ready")})
 	}
@@ -992,4 +1184,39 @@ func sortedKeys[V any](m map[string]V) []string {
 	}
 	sort.Strings(out)
 	return out
+}
+
+// csiMissing reports a volume whose CSI driver is not running: not registered with the kubelet on the pod's node,
+// or with no attacher to attach the volume.
+func csiMissing(p kube.Pod, driver string, e kube.Event) *problem {
+	node := orNode(p.Spec.NodeName)
+	cause := fmt.Sprintf("a volume of the pod uses CSI driver %s, which is not registered on %s, so the volume cannot be mounted", driver, node)
+	if strings.Contains(e.Message, "external-attacher") {
+		cause = fmt.Sprintf("a volume of the pod uses CSI driver %s, and no attacher for it answered, so the volume is never attached", driver)
+	}
+	return newProblem(p, "", "KD136", "CSI driver is not running", Critical, cause, "csi|"+driver,
+		fmt.Sprintf("Install the %s CSI driver, or check that its node DaemonSet runs on %s and its controller is up (their pods are usually in kube-system or the driver's namespace).", driver, node),
+		eventEvidence(p.Ref(), e),
+		Evidence{Object: kube.Ref{Kind: "CSINode", Name: p.Spec.NodeName}, What: "the CSI drivers registered on " + node,
+			Command: "kubectl get csinodes -o custom-columns=NODE:.metadata.name,DRIVERS:.spec.drivers[*].name"})
+}
+
+// reProbeTimeout matches the kubelet's report that an HTTP, TCP or exec probe ran out of time.
+var reProbeTimeout = regexp.MustCompile(`Client\.Timeout exceeded|context deadline exceeded|command timed out|i/o timeout`)
+
+// probeTimedOut reports whether the newest failure of the probe of the given kind was a timeout.
+func probeTimedOut(ix *index, p kube.Pod, container, kind string) bool {
+	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
+		if mentionsContainer(e, container) && strings.HasPrefix(strings.ToLower(e.Message), kind+" probe") {
+			return reProbeTimeout.MatchString(e.Message)
+		}
+	}
+	return false
+}
+
+func orReason(r string) string {
+	if r == "" {
+		return "a plain exit"
+	}
+	return r
 }

@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-token-not-mounted"
+  ],
+  "collectedAt": "2026-11-16 05:36 UTC",
+  "findings": [
+    {
+      "rule": "KD125",
+      "title": "Container needs a ServiceAccount token that is not mounted",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-token-not-mounted",
+        "name": "watcher"
+      },
+      "cause": "container watcher exits because it cannot read its ServiceAccount token, and its ServiceAccount watcher sets automountServiceAccountToken: false, so the kubelet never mounted it; its log says: \"cat: can't open '/var/run/secrets/kubernetes.io/serviceaccount/token': No such file or directory\"; Deployment watcher has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-token-not-mounted",
+            "name": "watcher-7975754ccb-w4q54"
+          },
+          "what": "container watcher exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod watcher-7975754ccb-w4q54 -n kd-token-not-mounted -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-token-not-mounted",
+            "name": "watcher-7975754ccb-w4q54"
+          },
+          "what": "last lines of container watcher's log (run that exited)",
+          "detail": "loading in-cluster config\ncat: can't open '/var/run/secrets/kubernetes.io/serviceaccount/token': No such file or directory",
+          "command": "kubectl logs watcher-7975754ccb-w4q54 -n kd-token-not-mounted -c watcher --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "ServiceAccount",
+            "namespace": "kd-token-not-mounted",
+            "name": "watcher"
+          },
+          "what": "its ServiceAccount watcher sets automountServiceAccountToken: false",
+          "command": "kubectl get serviceaccount watcher -n kd-token-not-mounted -o jsonpath='{.automountServiceAccountToken}'"
+        }
+      ],
+      "fix": "If the app talks to the Kubernetes API, set automountServiceAccountToken: true on the pod (it overrides the ServiceAccount), or mount a projected serviceAccountToken volume; if it does not, find why it tries.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-token-not-mounted",
+          "name": "watcher-7975754ccb-w4q54"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

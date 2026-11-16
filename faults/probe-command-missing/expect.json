@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-probe-command-missing",
+  "description": "A liveness probe runs curl, which the busybox image does not have, so every probe errors and the kubelet ignores it: the container runs with a liveness check that checks nothing.",
+  "rule": "KD129",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "liveness"
+    ],
+    [
+      "curl"
+    ],
+    [
+      "not in",
+      "not found"
+    ]
+  ]
+}

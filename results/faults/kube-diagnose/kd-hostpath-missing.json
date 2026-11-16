@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hostpath-missing"
+  ],
+  "collectedAt": "2026-11-16 05:33 UTC",
+  "findings": [
+    {
+      "rule": "KD135",
+      "title": "hostPath does not exist on the node",
+      "severity": "critical",
+      "object": {
+        "kind": "DaemonSet",
+        "namespace": "kd-hostpath-missing",
+        "name": "agent"
+      },
+      "cause": "volume state mounts hostPath /var/lib/agent-state, which is not a directory on node kd-faults-control-plane, and the volume's type requires one, so the pod cannot start; DaemonSet agent has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostpath-missing",
+            "name": "agent-8ww2h"
+          },
+          "what": "event FailedMount (9 times)",
+          "detail": "MountVolume.SetUp failed for volume \"state\" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path \"/var/lib/agent-state\" does not exist",
+          "command": "kubectl get events -n kd-hostpath-missing --field-selector involvedObject.kind=Pod,involvedObject.name=agent-8ww2h"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostpath-missing",
+            "name": "agent-8ww2h"
+          },
+          "what": "volume state",
+          "command": "kubectl get pod agent-8ww2h -n kd-hostpath-missing -o jsonpath='{.spec.volumes[?(@.name==\"state\")]}'"
+        }
+      ],
+      "fix": "Create /var/lib/agent-state on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-hostpath-missing",
+          "name": "agent-8ww2h"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

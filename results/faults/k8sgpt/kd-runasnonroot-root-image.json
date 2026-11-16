@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-runasnonroot-root-image",
-              "Masked": "cWdNMSg8THhwSCFoXjYkKjx2TjA6V0tlXlo="
+              "Masked": "enFoOTc4IUU0TjMzbEFSdTJVSmYkNjV6WWU="
             },
             {
               "Unmasked": "web",
-              "Masked": "Kz1Z"
+              "Masked": "Wl52"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-runasnonroot-root-image/web-67f8d9fc9-5lxsj",
+      "name": "kd-runasnonroot-root-image/web-67f8d9fc9-flsv5",
       "error": [
         {
-          "Text": "container has runAsNonRoot and image will run as root (pod: \"web-67f8d9fc9-5lxsj_kd-runasnonroot-root-image(f590917b-a5b5-400b-bf10-9c17e8352f4c)\", container: web)",
+          "Text": "container has runAsNonRoot and image will run as root (pod: \"web-67f8d9fc9-flsv5_kd-runasnonroot-root-image(4d2be1a4-9df5-4a8a-88ea-b46fe8d993d3)\", container: web)",
           "KubernetesDoc": "",
           "Sensitive": []
         }

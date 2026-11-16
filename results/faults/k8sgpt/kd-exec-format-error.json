@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-exec-format-error",
-              "Masked": "M1I7TTFaJE5qayEsKyZxWmFOWDc="
+              "Masked": "ZmpqZFJqVEJddXtuLUM3UnQnNUI="
             },
             {
               "Unmasked": "web",
-              "Masked": "PDpH"
+              "Masked": "c211"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-exec-format-error/web-5b987f687b-9gg86",
+      "name": "kd-exec-format-error/web-5b987f687b-bmwsl",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=255 container=web pod=web-5b987f687b-9gg86",
+          "Text": "the termination reason is Error exitCode=255 container=web pod=web-5b987f687b-bmwsl",
           "KubernetesDoc": "",
           "Sensitive": []
         }

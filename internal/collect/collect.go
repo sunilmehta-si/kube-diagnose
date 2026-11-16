@@ -192,7 +192,7 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 	var wants []want
 	for _, p := range s.Pods {
 		for _, c := range p.Status.InitContainerStatuses {
-			if p.Status.Phase == "Pending" && c.State.Running != nil && c.RestartCount == 0 {
+			if p.Status.Phase == "Pending" && c.State.Running != nil && c.RestartCount == 0 && !p.IsSidecar(c.Name) {
 				wants = append(wants, want{p, c.Name, false})
 			}
 		}

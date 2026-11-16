@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-readiness-gate-unset/web",
+      "error": [
+        {
+          "Text": "Deployment kd-readiness-gate-unset/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readiness-gate-unset",
+              "Masked": "VUcvO0E4eldpdUN1VlM2L3JbUjdTaG0="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Ykkt"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Service",
+      "name": "kd-readiness-gate-unset/web",
+      "error": [
+        {
+          "Text": "Service has not ready endpoints, pods: [Pod/web-54495c8f84-p7wgt], expected 1",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

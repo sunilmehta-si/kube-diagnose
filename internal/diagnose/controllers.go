@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -13,6 +14,7 @@ var (
 	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
 	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
+	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)
 	reSA            = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
 	reWebhk         = regexp.MustCompile(`admission webhook "([^"]+)" denied the request`)
 	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
@@ -88,6 +90,13 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "PriorityClass", Name: pc},
 			What: "the cluster's PriorityClasses", Command: "kubectl get priorityclasses"})
 		f.Fix = fmt.Sprintf("Create PriorityClass %s, or set priorityClassName to one that exists (or remove it).", pc)
+	case reRuntimeClass.MatchString(msg):
+		rc := reRuntimeClass.FindStringSubmatch(msg)[1]
+		f.Rule, f.Title = "KD183", "RuntimeClass does not exist"
+		f.Cause = fmt.Sprintf("%s cannot create pods: they name RuntimeClass %s, which does not exist", owner, rc)
+		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "RuntimeClass", Name: rc},
+			What: "the cluster's RuntimeClasses", Command: "kubectl get runtimeclasses"})
+		f.Fix = fmt.Sprintf("Create RuntimeClass %s for a handler the nodes' container runtime has (such as gVisor's runsc or Kata), or remove runtimeClassName to use the default runtime.", rc)
 	case reSA.MatchString(msg):
 		sa := reSA.FindStringSubmatch(msg)[1]
 		f.Rule, f.Title = "KD171", "ServiceAccount does not exist"
@@ -134,8 +143,17 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 				Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.status.conditions[?(@.type=="Failed")]}`)}},
 			Fix: "Read the failed pods' logs if they still exist (kubectl logs job/" + j.Metadata.Name + "); raise backoffLimit or activeDeadlineSeconds only if the work is slow, not broken."})
 	}
+	for _, j := range ix.s.Jobs {
+		if f := suspendedJob(ix, j); f != nil && !explained[j.Ref()] {
+			out = append(out, *f)
+		}
+	}
 	for _, w := range ix.s.Workloads {
 		if w.Kind != "Deployment" || explained[w.Ref()] {
+			continue
+		}
+		if f := paused(w); f != nil {
+			out = append(out, *f)
 			continue
 		}
 		c, ok := kube.FindCondition(w.Status.Conditions, "Progressing")
@@ -149,4 +167,61 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 			Fix: "Find why the new pods do not become ready (kubectl rollout status, and their events), then fix or roll back (kubectl rollout undo)."})
 	}
 	return out
+}
+
+// paused finds a Deployment left paused while its replicas are not all on the current template and ready. A paused
+// Deployment creates no new ReplicaSet and never reaches its progress deadline, so nothing else reports it; one
+// created paused never creates a pod at all.
+func paused(w kube.Workload) *Finding {
+	desired := w.Desired()
+	if !w.Spec.Paused || desired == 0 || (w.Status.UpdatedReplicas >= desired && w.Status.ReadyReplicas >= desired) {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	sev := Warning
+	if w.Status.ReadyReplicas == 0 {
+		sev = Critical
+	}
+	ev := []Evidence{{Object: w.Ref(), What: fmt.Sprintf("Deployment has spec.paused: true, %d of %d replicas updated, %d ready", w.Status.UpdatedReplicas, desired, w.Status.ReadyReplicas),
+		Command: cmdGet("deployment", ns, name, `{.spec.paused}{" "}{.status}`)}}
+	if c, ok := kube.FindCondition(w.Status.Conditions, "Progressing"); ok && c.Reason == "DeploymentPaused" {
+		ev[0].Detail = c.Message
+	}
+	return &Finding{Rule: "KD184", Title: "Deployment rollout is paused", Severity: sev, Object: w.Ref(),
+		Cause:    fmt.Sprintf("Deployment %s is paused, so it does not roll out: %d of its %d replicas run the current pod template and %d are ready", name, w.Status.UpdatedReplicas, desired, w.Status.ReadyReplicas),
+		Evidence: ev,
+		Fix:      fmt.Sprintf("Resume it when the change is ready: kubectl rollout resume deployment/%s -n %s.", name, ns)}
+}
+
+// suspendedAfter is how long a Job may stay suspended before it is reported: Kueue admits a Job with quota free at
+// once, and a Job suspended by hand is usually resumed soon after.
+const suspendedAfter = 2 * time.Minute
+
+// suspendedJob finds a Job that has been suspended for a while, so it runs no pods. Under Kueue that means the Job
+// waits for admission; otherwise someone suspended it, which is noted as information.
+func suspendedJob(ix *index, j kube.Job) *Finding {
+	if j.Spec.Suspend == nil || !*j.Spec.Suspend {
+		return nil
+	}
+	since := j.Metadata.CreationTimestamp
+	if c, ok := kube.FindCondition(j.Status.Conditions, "Suspended"); ok && c.Status == "True" && !c.LastTransitionTime.IsZero() {
+		since = c.LastTransitionTime
+	}
+	if since.IsZero() || ix.s.CollectedAt.Sub(since) < suspendedAfter {
+		return nil
+	}
+	ns, name := j.Metadata.Namespace, j.Metadata.Name
+	held := ix.s.CollectedAt.Sub(since).Round(time.Minute)
+	ev := []Evidence{{Object: j.Ref(), What: "Job has spec.suspend: true", Command: cmdGet("job", ns, name, `{.spec.suspend}{" "}{.status.conditions}`)}}
+	f := &Finding{Rule: "KD187", Title: "Job is suspended", Severity: Info, Object: j.Ref(), Evidence: ev,
+		Cause: fmt.Sprintf("Job %s has been suspended for %s, so it runs no pods until spec.suspend is set to false", name, held),
+		Fix:   fmt.Sprintf("Resume it if it should run: kubectl patch job %s -n %s --type=merge -p '{\"spec\":{\"suspend\":false}}'.", name, ns)}
+	if q := j.Metadata.Labels["kueue.x-k8s.io/queue-name"]; q != "" {
+		f.Severity = Warning
+		f.Cause = fmt.Sprintf("Job %s has waited %s for Kueue to admit it from LocalQueue %s; Kueue keeps it suspended until the queue's ClusterQueue has quota for it", name, held, q)
+		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Workload", Namespace: ns, Name: "*"}, What: "Kueue's Workloads in the namespace, with their admission status",
+			Command: "kubectl get workloads.kueue.x-k8s.io -n " + ns})
+		f.Fix = fmt.Sprintf("Read the Job's Workload (its QuotaReserved and Admitted conditions say why it waits): the ClusterQueue behind LocalQueue %s has no quota left for its flavor, or the LocalQueue does not exist. Do not unsuspend it by hand: Kueue would suspend it again.", q)
+	}
+	return f
 }

@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-scheduling-gate",
+  "description": "A Deployment's pods carry a scheduling gate that no controller removes, so they stay Pending with no events and no error.",
+  "rule": "KD146",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "scheduling gate",
+      "schedulingGates",
+      "SchedulingGated"
+    ],
+    [
+      "example.com/quota-check"
+    ]
+  ]
+}

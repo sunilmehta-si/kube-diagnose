@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-pv-reserved-elsewhere",
+  "description": "A claim names a PersistentVolume that is reserved for another claim, so it stays Pending with no event, and the database that mounts it never starts.",
+  "rule": "KD157",
+  "object": "PersistentVolumeClaim/data",
+  "keywords": [
+    [
+      "reserved"
+    ],
+    [
+      "old-data"
+    ]
+  ]
+}

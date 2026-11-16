@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "DaemonSet",
+      "name": "kd-hostpath-missing/agent",
+      "error": [
+        {
+          "Text": "DaemonSet kd-hostpath-missing/agent has 0 ready replicas out of 1 scheduled",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-hostpath-missing",
+              "Masked": "S0pVOEBUU10iOkdfSCY2ZlhyJg=="
+            },
+            {
+              "Unmasked": "agent",
+              "Masked": "RHQzU3E="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-hostpath-missing/agent-8ww2h",
+      "error": [
+        {
+          "Text": "MountVolume.SetUp failed for volume \"state\" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path \"/var/lib/agent-state\" does not exist",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "DaemonSet/agent"
+    }
+  ]
+}

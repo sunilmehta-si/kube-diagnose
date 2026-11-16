@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readiness-failing"
   ],
-  "collectedAt": "2026-11-15 05:43 UTC",
+  "collectedAt": "2026-11-16 05:35 UTC",
   "findings": [
     {
       "rule": "KD120",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-7526z"
+            "name": "web-ff6bfb896-gwbw8"
           },
-          "what": "event Unhealthy (25 times)",
+          "what": "event Unhealthy (104 times)",
           "detail": "Readiness probe failed: HTTP probe failed with statuscode: 404",
-          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-7526z"
+          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-gwbw8"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-7526z"
+            "name": "web-ff6bfb896-gwbw8"
           },
           "what": "container web is running but not ready",
-          "command": "kubectl get pod web-ff6bfb896-7526z -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+          "command": "kubectl get pod web-ff6bfb896-gwbw8 -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
         }
       ],
       "fix": "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready.",
@@ -42,12 +42,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-7526z"
+          "name": "web-ff6bfb896-gwbw8"
         },
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-jmzt2"
+          "name": "web-ff6bfb896-hdsfh"
         },
         {
           "kind": "Service",

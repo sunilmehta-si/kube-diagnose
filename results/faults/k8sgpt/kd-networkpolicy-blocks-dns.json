@@ -1,7 +1,43 @@
 {
   "provider": "",
   "errors": null,
-  "status": "OK",
-  "problems": 0,
-  "results": null
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-networkpolicy-blocks-dns/web",
+      "error": [
+        {
+          "Text": "Deployment kd-networkpolicy-blocks-dns/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-networkpolicy-blocks-dns",
+              "Masked": "RTRyR1phZFk/cSI2bTEmXmYqbl50fFYhLUZ1"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Nzwn"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-networkpolicy-blocks-dns/web-bc988964d-6c8xr",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-bc988964d-6c8xr",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
 }

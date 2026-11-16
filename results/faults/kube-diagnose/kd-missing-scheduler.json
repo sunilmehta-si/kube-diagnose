@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-missing-scheduler"
   ],
-  "collectedAt": "2026-11-15 05:42 UTC",
+  "collectedAt": "2026-11-16 05:34 UTC",
   "findings": [
     {
       "rule": "KD148",
@@ -21,10 +21,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-scheduler",
-            "name": "web-86c86bf68-frf6g"
+            "name": "web-86c86bf68-hv4c7"
           },
           "what": "pod asks for scheduler volcano and has no PodScheduled condition",
-          "command": "kubectl get pod web-86c86bf68-frf6g -n kd-missing-scheduler -o jsonpath='{.spec.schedulerName}{\"\\n\"}{.status.conditions}'"
+          "command": "kubectl get pod web-86c86bf68-hv4c7 -n kd-missing-scheduler -o jsonpath='{.spec.schedulerName}{\"\\n\"}{.status.conditions}'"
         },
         {
           "object": {
@@ -40,7 +40,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-missing-scheduler",
-          "name": "web-86c86bf68-frf6g"
+          "name": "web-86c86bf68-hv4c7"
         }
       ]
     }

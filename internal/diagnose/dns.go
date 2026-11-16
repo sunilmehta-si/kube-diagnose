@@ -188,3 +188,89 @@ func refusedByEmptyService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines
 		fmt.Sprintf("container %s exits because Service %s refuses its connection: the Service has no ready pods (%s); its log says: %q", cs.Name, svc.Metadata.Name, why, clip(line, 200)),
 		"refused|"+svc.Metadata.Name, fmt.Sprintf("Fix Service %s's pods (the findings for them say why they are not ready, or scale them up), or make %s wait and retry rather than exit.", svc.Metadata.Name, cs.Name), ev...)
 }
+
+// reTokenMissing matches a container failing to read the ServiceAccount files the kubelet mounts for API access.
+var reTokenMissing = regexp.MustCompile(`(?i)(?:/var)?/run/secrets/kubernetes\.io/serviceaccount/?([a-z.]*)['"]?:? .*(?:no such file|not exist|can't open)`)
+
+// tokenNotMounted finds a container that exits because it cannot read its ServiceAccount token, while the pod or its
+// ServiceAccount sets automountServiceAccountToken: false, so the token was never mounted.
+func tokenNotMounted(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	line := ""
+	for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+		if reTokenMissing.MatchString(lines[i]) {
+			line = lines[i]
+		}
+	}
+	if line == "" {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	sa := p.Spec.ServiceAccountName
+	if sa == "" {
+		sa = "default"
+	}
+	where := ""
+	switch {
+	case p.Spec.AutomountServiceAccountToken != nil && !*p.Spec.AutomountServiceAccountToken:
+		where = "the pod sets automountServiceAccountToken: false"
+		ev = append(ev, Evidence{Object: p.Ref(), What: where, Command: cmdGet("pod", ns, p.Metadata.Name, "{.spec.automountServiceAccountToken}")})
+	case p.Spec.AutomountServiceAccountToken == nil:
+		for _, a := range ix.s.ServiceAccounts {
+			if a.Metadata.Namespace == ns && a.Metadata.Name == sa && a.AutomountServiceAccountToken != nil && !*a.AutomountServiceAccountToken {
+				where = fmt.Sprintf("its ServiceAccount %s sets automountServiceAccountToken: false", sa)
+				ev = append(ev, Evidence{Object: kube.Ref{Kind: "ServiceAccount", Namespace: ns, Name: sa}, What: where,
+					Command: cmdGet("serviceaccount", ns, sa, "{.automountServiceAccountToken}")})
+			}
+		}
+	}
+	if where == "" {
+		return nil // the token should be there; something else removed or hid it
+	}
+	return newProblem(p, cs.Name, "KD125", "Container needs a ServiceAccount token that is not mounted", Critical,
+		fmt.Sprintf("container %s exits because it cannot read its ServiceAccount token, and %s, so the kubelet never mounted it; its log says: %q", cs.Name, where, clip(line, 200)),
+		"notoken|"+sa, "If the app talks to the Kubernetes API, set automountServiceAccountToken: true on the pod (it overrides the ServiceAccount), or mount a projected serviceAccountToken volume; if it does not, find why it tries.", ev...)
+}
+
+// reForbidden matches the API server's RBAC denial as clients print it, capturing the ServiceAccount's namespace and
+// name, the verb, the resource, its API group, and the namespace (empty at the cluster scope).
+var reForbidden = regexp.MustCompile(`User "system:serviceaccount:([^:"]+):([^"]+)" cannot (\S+) resource "([^"]+)" in API group "([^"]*)"(?: in the namespace "([^"]+)"| at the cluster scope)`)
+
+// rbacDenied finds a container that exits because the API server refuses its ServiceAccount a request.
+func rbacDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	var m []string
+	for i := len(lines) - 1; i >= 0 && m == nil; i-- {
+		m = reForbidden.FindStringSubmatch(lines[i])
+	}
+	if m == nil {
+		return nil
+	}
+	saNS, sa, verb, resource, group, ns := m[1], m[2], m[3], m[4], m[5], m[6]
+	res := resource
+	if group != "" {
+		res = resource + "." + group
+	}
+	scope := "in namespace " + ns
+	fix := fmt.Sprintf("Grant it: kubectl create role %s-%s -n %s --verb=%s --resource=%s, then kubectl create rolebinding %s-%s -n %s --role=%s-%s --serviceaccount=%s:%s (or add the rule to a Role it already has).",
+		sa, resource, ns, verb, res, sa, resource, ns, sa, resource, saNS, sa)
+	if ns == "" {
+		scope = "across the cluster"
+		fix = fmt.Sprintf("Grant it: kubectl create clusterrole %s-%s --verb=%s --resource=%s, then kubectl create clusterrolebinding %s-%s --clusterrole=%s-%s --serviceaccount=%s:%s; or, if namespaced access is enough, make the app read only its namespace and use a Role.",
+			sa, resource, verb, res, sa, resource, sa, resource, saNS, sa)
+	}
+	ev = append(ev, Evidence{Object: kube.Ref{Kind: "RoleBinding", Namespace: saNS, Name: "*"}, What: "the RoleBindings and ClusterRoleBindings and the subjects they name",
+		Command: "kubectl get rolebindings,clusterrolebindings -A -o wide"})
+	return newProblem(p, cs.Name, "KD126", "ServiceAccount lacks RBAC permission", Critical,
+		fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: it may not %s %s %s", cs.Name, sa, verb, res, scope),
+		"rbac|"+sa+"|"+verb+"|"+res, fix, ev...)
+}
+
+// readyBehind counts the ready pods a Service's selector matches.
+func readyBehind(ix *index, svc kube.Service) int {
+	n := 0
+	for _, q := range ix.s.Pods {
+		if q.Metadata.Namespace == svc.Metadata.Namespace && kube.MatchesMap(svc.Spec.Selector, q.Metadata.Labels) && q.Ready() {
+			n++
+		}
+	}
+	return n
+}

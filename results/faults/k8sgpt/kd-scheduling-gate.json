@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-scheduling-gate/web",
+      "error": [
+        {
+          "Text": "Deployment kd-scheduling-gate/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-scheduling-gate",
+              "Masked": "eyxlQGIlLFk8eV5CRjgsQlQ5"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "SGxl"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-scheduling-gate/web-65f8ddb774-6j5qq",
+      "error": [
+        {
+          "Text": "Scheduling is blocked due to non-empty scheduling gates",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

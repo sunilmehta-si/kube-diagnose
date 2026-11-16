@@ -5,6 +5,19 @@
   "problems": 2,
   "results": [
     {
+      "kind": "ConfigMap",
+      "name": "kd-ingress-scaled-to-zero/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Service",
       "name": "kd-ingress-scaled-to-zero/web",
       "error": [
@@ -14,26 +27,13 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "JnBD"
+              "Masked": "dzlE"
             },
             {
               "Unmasked": "web",
-              "Masked": "bm5Y"
+              "Masked": "JEhA"
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "ConfigMap",
-      "name": "kd-ingress-scaled-to-zero/kube-root-ca.crt",
-      "error": [
-        {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
-          "KubernetesDoc": "",
-          "Sensitive": []
         }
       ],
       "details": "",

@@ -91,14 +91,20 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	}{Hostname: "a1b2.elb.acme.example"})
 	var job kube.Job
 	job.Metadata = kube.ObjectMeta{Name: "nightly-29001", Namespace: "shop", OwnerReferences: []kube.OwnerReference{{Kind: "CronJob", Name: "nightly-export"}}}
+	// A volume reserved for a claim that is gone names that claim (KD157), and a Job waiting for Kueue names its queue.
+	var pv kube.PersistentVolume
+	pv.Metadata.Name = "orders-pv"
+	pv.Spec.ClaimRef = &kube.ClaimReference{Namespace: "shop", Name: "orders-data-old"}
+	job.Metadata.Labels = map[string]string{"kueue.x-k8s.io/queue-name": "team-payments"}
 	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Pods: []kube.Pod{p}, Workloads: []kube.Workload{ss},
-		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}, Jobs: []kube.Job{job}}
+		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}, Jobs: []kube.Job{job}, PVs: []kube.PersistentVolume{pv}}
 	red, err := redactWithKey(s, []byte("k"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	b, _ := json.Marshal(red)
-	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export"} {
+	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export",
+		"orders-pv", "orders-data-old", "team-payments"} {
 		if strings.Contains(string(b), name) {
 			t.Errorf("redacted snapshot still contains %q", name)
 		}

@@ -1,0 +1,40 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-deployment-paused"
+  ],
+  "collectedAt": "2026-11-16 05:33 UTC",
+  "findings": [
+    {
+      "rule": "KD184",
+      "title": "Deployment rollout is paused",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-deployment-paused",
+        "name": "web"
+      },
+      "cause": "Deployment web is paused, so it does not roll out: 0 of its 2 replicas run the current pod template and 0 are ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-deployment-paused",
+            "name": "web"
+          },
+          "what": "Deployment has spec.paused: true, 0 of 2 replicas updated, 0 ready",
+          "detail": "Deployment is paused",
+          "command": "kubectl get deployment web -n kd-deployment-paused -o jsonpath='{.spec.paused}{\" \"}{.status}'"
+        }
+      ],
+      "fix": "Resume it when the change is ready: kubectl rollout resume deployment/web -n kd-deployment-paused."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-runtimeclass-missing",
+  "description": "A Deployment's pods name a RuntimeClass the cluster does not have, so admission rejects every pod and none is created.",
+  "rule": "KD183",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "RuntimeClass"
+    ],
+    [
+      "gvisor"
+    ]
+  ]
+}

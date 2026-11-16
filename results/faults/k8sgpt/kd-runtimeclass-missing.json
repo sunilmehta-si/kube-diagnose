@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-runtimeclass-missing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-runtimeclass-missing/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-runtimeclass-missing",
+              "Masked": "emJdZlYwYjMjT2hbT0xAMno1cHpfRUA="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "O09q"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-runtimeclass-missing/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-runtimeclass-missing/web-69dd9c9864",
+      "error": [
+        {
+          "Text": "pods \"web-69dd9c9864-\" is forbidden: pod rejected: RuntimeClass \"gvisor\" not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}
