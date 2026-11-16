@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-job-suspended",
+  "description": "A Job was created suspended and never resumed, so it runs no pods and reports no error.",
+  "rule": "KD187",
+  "object": "Job/train",
+  "keywords": [
+    [
+      "suspend"
+    ],
+    [
+      "train"
+    ]
+  ]
+}
