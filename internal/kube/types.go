@@ -705,6 +705,7 @@ type PersistentVolume struct {
 		ClaimRef         *struct {
 			Namespace string `json:"namespace"`
 			Name      string `json:"name"`
+			UID       string `json:"uid,omitempty"`
 		} `json:"claimRef,omitempty"`
 	} `json:"spec"`
 	Status struct {

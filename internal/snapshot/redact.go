@@ -219,6 +219,9 @@ func (r *redactor) collect(s *Snapshot) {
 	}
 	for _, x := range s.PVs {
 		r.addName("pv", x.Metadata.Name)
+		if x.Spec.ClaimRef != nil {
+			r.addName("pvc", x.Spec.ClaimRef.Name) // the claim it is reserved for may be gone, and is then named
+		}
 	}
 	for _, x := range s.NetworkPolicies {
 		r.addName("netpol", x.Metadata.Name)

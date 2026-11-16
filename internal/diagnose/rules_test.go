@@ -1623,3 +1623,77 @@ func TestHostPathMissingOnTheNode(t *testing.T) {
 		t.Errorf("fix %s evidence %+v", f.Fix, f.Evidence)
 	}
 }
+
+func TestClaimNamesAVolumeItCannotBindTo(t *testing.T) {
+	type claimRef = struct {
+		Namespace string `json:"namespace"`
+		Name      string `json:"name"`
+		UID       string `json:"uid,omitempty"`
+	}
+	build := func() *snapshot.Snapshot {
+		s := snap()
+		var pvc kube.PersistentVolumeClaim
+		pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", UID: "new-uid"}
+		pvc.Spec.StorageClassName = strp("")
+		pvc.Spec.VolumeName = "data-pv"
+		pvc.Spec.Resources.Requests = map[string]string{"storage": "10Gi"}
+		pvc.Status.Phase = "Pending"
+		s.PVCs = []kube.PersistentVolumeClaim{pvc}
+		var pv kube.PersistentVolume
+		pv.Metadata.Name = "data-pv"
+		pv.Spec.Capacity = map[string]string{"storage": "10Gi"}
+		pv.Status.Phase = "Available"
+		s.PVs = []kube.PersistentVolume{pv}
+		return s
+	}
+
+	s := build()
+	s.PVs[0].Spec.ClaimRef = &claimRef{Namespace: "shop", Name: "old-data"}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD157", "PersistentVolumeClaim shop/data", "reserved for claim shop/old-data (Available)")
+
+	// Released, still holding the deleted claim's UID: the case after a reinstall.
+	s = build()
+	s.PVs[0].Status.Phase = "Released"
+	s.PVs[0].Spec.ClaimRef = &claimRef{Namespace: "shop", Name: "data", UID: "old-uid"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD157", "PersistentVolumeClaim shop/data", "which is Released: it still holds the UID of the deleted claim")
+	if !strings.Contains(f.Fix, "/spec/claimRef/uid") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	s = build()
+	s.PVs = nil
+	expect(t, only(t, Diagnose(s)), "KD157", "PersistentVolumeClaim shop/data", "PersistentVolume data-pv, which does not exist")
+
+	s = build()
+	s.PVs[0].Spec.StorageClassName = "manual"
+	expect(t, only(t, Diagnose(s)), "KD157", "PersistentVolumeClaim shop/data", `asks for StorageClass "" and the volume has "manual"`)
+
+	s = build()
+	s.PVs[0].Spec.Capacity["storage"] = "5Gi"
+	expect(t, only(t, Diagnose(s)), "KD157", "PersistentVolumeClaim shop/data", "which holds 5Gi, less than the 10Gi")
+
+	// A volume that fits is just binding.
+	if r := Diagnose(build()); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestStaticVolumeClassNeedsNoStorageClassObject(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.StorageClassName = strp("manual")
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	var pv kube.PersistentVolume
+	pv.Metadata.Name = "data-pv"
+	pv.Spec.StorageClassName = "manual"
+	pv.Status.Phase = "Bound"
+	s.PVs = []kube.PersistentVolume{pv}
+	// "manual" names no StorageClass, but static volumes carry it: KD150 would be a false alarm.
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
