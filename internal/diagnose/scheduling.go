@@ -274,7 +274,13 @@ func insufficient(ix *index, p kube.Pod, res string, nodes int) (*problem, strin
 			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.containers[*].resources.requests}")})
 	}
 	fix := fmt.Sprintf("Lower the pod's %s request to what it needs, free %s on a node, or add a node with more.", res, res)
-	if bestNode != "" && req > best {
+	if bestNode == "" && strings.Contains(res, "/") && ix.read("nodes") && len(ix.s.Nodes) > 0 {
+		cause = fmt.Sprintf("the pod requests %s, and no node advertises any (%s checked): the device plugin that provides it is not running", res, plural(len(ix.s.Nodes), "node"))
+		phrase = "no node advertises " + res
+		fix = fmt.Sprintf("Install or fix the device plugin that provides %s (for nvidia.com/gpu, the NVIDIA device plugin or GPU Operator) and check its DaemonSet runs on the nodes that have the hardware; or remove the request.", res)
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Node", Name: "*"}, What: fmt.Sprintf("no node lists %s in its allocatable resources", res),
+			Command: fmt.Sprintf("kubectl get nodes -o custom-columns=NAME:.metadata.name,%s:.status.allocatable.%s", strings.ToUpper(strings.NewReplacer(".", "_", "/", "_").Replace(res)), strings.ReplaceAll(res, ".", `\.`))})
+	} else if bestNode != "" && req > best {
 		cause = fmt.Sprintf("the pod requests %s %s, more than any node can offer (the largest, %s, has %s allocatable)",
 			kube.FormatQuantity(res, req), res, bestNode, kube.FormatQuantity(res, best))
 		phrase = fmt.Sprintf("it requests %s %s and the largest node has %s", kube.FormatQuantity(res, req), res, kube.FormatQuantity(res, best))

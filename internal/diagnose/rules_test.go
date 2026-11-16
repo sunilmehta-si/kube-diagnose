@@ -1742,3 +1742,26 @@ func TestSuspendedJob(t *testing.T) {
 		t.Errorf("just suspended: %+v", r.Findings)
 	}
 }
+
+func TestExtendedResourceNoNodeAdvertises(t *testing.T) {
+	s := snap()
+	p := pod("train", "")
+	p.Spec.NodeName = ""
+	p.Spec.Containers[0].Resources.Requests = map[string]string{"nvidia.com/gpu": "1"}
+	p.Status.Phase, p.Status.ContainerStatuses = "Pending", nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 Insufficient nvidia.com/gpu. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod."}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD140", "Pod shop/train", "requests nvidia.com/gpu, and no node advertises any (1 node checked): the device plugin")
+	if !strings.Contains(f.Fix, "NVIDIA device plugin") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// With a GPU node that is full, it is the usual shortage.
+	s.Nodes = append(s.Nodes, node("gpu-1", "8", "32Gi"))
+	s.Nodes[1].Status.Allocatable["nvidia.com/gpu"] = "2"
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "device plugin") {
+		t.Errorf("a full GPU node is not a missing device plugin: %s", f.Cause)
+	}
+}
