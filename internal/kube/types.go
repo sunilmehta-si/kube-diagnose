@@ -282,8 +282,14 @@ type PodSpec struct {
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
 	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+	// ReadinessGates are extra conditions, set by a controller, that must be True for the pod to be Ready.
+	ReadinessGates []PodReadinessGate `json:"readinessGates,omitempty"`
 	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
 	SchedulingGates []SchedulingGate `json:"schedulingGates,omitempty"`
+}
+
+type PodReadinessGate struct {
+	ConditionType string `json:"conditionType"`
 }
 
 type SchedulingGate struct {

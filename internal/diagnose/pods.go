@@ -70,7 +70,47 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
-	return nil
+	return readinessGate(ix, p)
+}
+
+// readinessGateAfter is how long a running pod may wait for its readiness gates before it is reported.
+const readinessGateAfter = 2 * time.Minute
+
+// readinessGate finds a running pod whose containers are all ready but which is not Ready, because a readiness gate
+// condition that some controller should set is missing or False.
+func readinessGate(ix *index, p kube.Pod) *problem {
+	if p.Status.Phase != "Running" || len(p.Spec.ReadinessGates) == 0 || p.Ready() {
+		return nil
+	}
+	if c, ok := kube.FindCondition(p.Status.Conditions, "ContainersReady"); !ok || c.Status != "True" {
+		return nil
+	}
+	if p.Status.StartTime == nil || ix.s.CollectedAt.Sub(*p.Status.StartTime) < readinessGateAfter {
+		return nil
+	}
+	var unmet []string
+	missing := true
+	for _, g := range p.Spec.ReadinessGates {
+		c, ok := kube.FindCondition(p.Status.Conditions, g.ConditionType)
+		if !ok {
+			unmet = append(unmet, g.ConditionType+" (never set)")
+		} else if c.Status != "True" {
+			unmet = append(unmet, fmt.Sprintf("%s (%s)", g.ConditionType, c.Status))
+			missing = false
+		}
+	}
+	if len(unmet) == 0 {
+		return nil
+	}
+	gates := strings.Join(unmet, ", ")
+	fix := "Find the controller that sets the gate's condition (an AWS or GKE load balancer controller sets target-health conditions) and why it has not; the pod stays out of every Service until it does."
+	cause := fmt.Sprintf("the pod's containers are ready, but readiness gate %s is not True, so the pod is not Ready and its Services send it no traffic", gates)
+	if missing {
+		cause = fmt.Sprintf("the pod's containers are ready, but no controller has set its readiness gate %s, so the pod is not Ready and its Services send it no traffic", gates)
+	}
+	return newProblem(p, "", "KD128", "Readiness gate is not met", Critical, cause, "gate|"+gates, fix,
+		Evidence{Object: p.Ref(), What: "pod readiness gates and conditions",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.readinessGates}{"\n"}{.status.conditions}`)})
 }
 
 // unclaimedAfter is how long a pod may wait before a scheduler that never looked at it is reported.

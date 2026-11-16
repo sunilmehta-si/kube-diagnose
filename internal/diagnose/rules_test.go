@@ -1580,3 +1580,34 @@ func TestPodStuckTerminating(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestReadinessGateNotMet(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	start := t0.Add(-10 * time.Minute)
+	p.Status.StartTime = &start
+	p.Spec.ReadinessGates = []kube.PodReadinessGate{{ConditionType: "target-health.elbv2.k8s.aws/web-tg"}}
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "True"}, {Type: "Ready", Status: "False", Reason: "ReadinessGatesNotReady"},
+		{Type: "ContainersReady", Status: "True"}}
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD128", "Deployment shop/web", "no controller has set its readiness gate target-health.elbv2.k8s.aws/web-tg (never set)")
+	if len(f.Affects) != 2 {
+		t.Errorf("the Service should be listed as affected: %v", f.Affects)
+	}
+
+	// Set, but False.
+	p.Status.Conditions = append(p.Status.Conditions, kube.Condition{Type: "target-health.elbv2.k8s.aws/web-tg", Status: "False"})
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD128", "Deployment shop/web", "readiness gate target-health.elbv2.k8s.aws/web-tg (False) is not True")
+
+	// A pod that started a moment ago is waiting for the controller as designed.
+	start = t0.Add(-20 * time.Second)
+	p.Status.StartTime = &start
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 1 || r.Findings[0].Rule != "KD162" {
+		t.Errorf("a young pod has no KD128 (its Service has no ready pods, which KD162 reports): %+v", r.Findings)
+	}
+}
