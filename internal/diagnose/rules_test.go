@@ -1622,6 +1622,10 @@ func TestHostPathMissingOnTheNode(t *testing.T) {
 	if !strings.Contains(f.Fix, "DirectoryOrCreate") || !strings.Contains(f.Evidence[1].Command, `@.name=="logs"`) {
 		t.Errorf("fix %s evidence %+v", f.Fix, f.Evidence)
 	}
+
+	// The kubelet of Kubernetes 1.37, as the fault suite recorded it.
+	s.Events = []kube.Event{event("Pod", "agent-rs-a", "FailedMount", `MountVolume.SetUp failed for volume "state" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path "/var/lib/agent-state" does not exist`, time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD135", "Deployment shop/agent", "hostPath /var/lib/agent-state, which is not a directory on node node-1")
 }
 
 func TestClaimNamesAVolumeItCannotBindTo(t *testing.T) {

@@ -584,7 +584,7 @@ var (
 	reMountSecret = regexp.MustCompile(`secret "([^"]+)" not found`)
 	reMountKey    = regexp.MustCompile(`references non-existent (config|secret) key: (\S+)`)
 	reCSIMissing  = regexp.MustCompile(`driver name (\S+) not found in the list of registered CSI drivers|timed out waiting for external-attacher of (\S+) CSI driver`)
-	reHostPath    = regexp.MustCompile(`for volume "([^"]+)" : hostPath type check failed: (\S+) is not a (directory|file|socket file|character device|block device)`)
+	reHostPath    = regexp.MustCompile(`for volume "([^"]+)" : hostPath type check failed[:,] (\S+) is not a (directory|file|socket file|character device|block device)`)
 )
 
 // mountProblem finds a pod stuck creating its containers because a volume cannot be mounted.
