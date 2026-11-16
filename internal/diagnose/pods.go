@@ -724,6 +724,14 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if (t.ExitCode == 137 || t.ExitCode == 143) && probeKilled(ix, p, cs.Name) != nil {
 		return livenessKilled(ix, p, cs)
 	}
+	if c, _ := containerSpec(p, cs.Name); t.ExitCode == 137 && c.Resources.Limits["memory"] != "" {
+		// SIGKILL with no probe or hook behind it, in a container with a memory limit: the kernel's OOM killer. The
+		// runtime sometimes reports such a kill as Error rather than OOMKilled, when it lands as the container starts.
+		pr := oomKilled(ix, p, cs)
+		pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
+			cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+		return pr
+	}
 	ev := []Evidence{terminatedEvidence(p, cs, t)}
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
@@ -1204,4 +1212,11 @@ func probeTimedOut(ix *index, p kube.Pod, container, kind string) bool {
 		}
 	}
 	return false
+}
+
+func orReason(r string) string {
+	if r == "" {
+		return "a plain exit"
+	}
+	return r
 }

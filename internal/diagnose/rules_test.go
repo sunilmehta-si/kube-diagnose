@@ -155,6 +155,23 @@ func TestOOMKilled(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD111", "Pod shop/web", "64Mi memory limit", "OOMKilled")
 }
 
+// TestOOMKillReportedAsError is what the fault suite recorded once on Kubernetes 1.37 with containerd 2: a container
+// that runs out of memory as it starts, reported with exit code 137 and reason Error.
+func TestOOMKillReportedAsError(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "32Mi"}
+	crashed(&p, 137, "Error", 5)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD111", "Pod shop/web", "killed by SIGKILL (exit 137)", "32Mi memory limit", "reported the kill as Error, not OOMKilled")
+
+	// Without a memory limit nothing points at memory: it stays a crash with the signal explained.
+	p.Spec.Containers[0].Resources.Limits = nil
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD110", "Pod shop/web", "killed by SIGKILL")
+}
+
 func TestOOMKilledWhileRunningIsAWarning(t *testing.T) {
 	s := snap()
 	p := pod("web", "")
