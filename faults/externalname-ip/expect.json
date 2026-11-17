@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-externalname-ip",
+  "description": "An ExternalName Service points at an IP address, which cluster DNS turns into a CNAME that resolves to nothing.",
+  "rule": "KD260",
+  "object": "Service/legacy-db",
+  "keywords": [
+    [
+      "ExternalName"
+    ],
+    [
+      "IP address"
+    ]
+  ]
+}
