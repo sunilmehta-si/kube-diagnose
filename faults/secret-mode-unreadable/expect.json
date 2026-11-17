@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-secret-mode-unreadable",
+  "description": "A container that runs as user 1000 reads a Secret volume mounted with defaultMode 0400, so its files are readable by root only and it exits.",
+  "rule": "KD137",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "denied"
+    ],
+    [
+      "Secret"
+    ]
+  ]
+}
