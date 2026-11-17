@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-cronjob-suspended",
+  "description": "A CronJob is created with suspend: true, so it never starts a Job.",
+  "rule": "KD189",
+  "object": "CronJob/report",
+  "keywords": [
+    [
+      "suspend"
+    ]
+  ]
+}
