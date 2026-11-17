@@ -699,6 +699,8 @@ type Workload struct {
 		ServiceName string `json:"serviceName,omitempty"`
 		// Paused stops a Deployment's rollouts until it is resumed.
 		Paused bool `json:"paused,omitempty"`
+		// PodManagementPolicy is a StatefulSet's: OrderedReady (the default) creates pod n only once pod n-1 is ready.
+		PodManagementPolicy string `json:"podManagementPolicy,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
 }

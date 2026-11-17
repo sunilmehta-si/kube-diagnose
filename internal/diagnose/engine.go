@@ -137,6 +137,15 @@ func fromProblems(ix *index, owner kube.Ref, probs []*problem) Finding {
 		if owner.Kind != "Pod" {
 			f.Cause += fmt.Sprintf("; %s %s has %d of %d replicas ready", owner.Kind, owner.Name, ready, desired)
 		}
+		if owner.Kind == "StatefulSet" && w.Spec.PodManagementPolicy != "Parallel" {
+			if missing := uncreatedOrdinals(ix, owner, desired); len(missing) > 0 {
+				verb := "are"
+				if len(missing) == 1 {
+					verb = "is"
+				}
+				f.Cause += fmt.Sprintf(", and it creates its pods in order, each once the one before is ready, so %s %s not created yet", strings.Join(missing, ", "), verb)
+			}
+		}
 	}
 	return f
 }
@@ -170,4 +179,21 @@ func sortedRefs[V any](m map[kube.Ref]V) []kube.Ref {
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].String() < out[j].String() })
 	return out
+}
+
+// uncreatedOrdinals lists the pods of a StatefulSet, by name, that do not exist yet among its first desired ordinals.
+func uncreatedOrdinals(ix *index, sts kube.Ref, desired int32) []string {
+	have := map[string]bool{}
+	for _, p := range ix.s.Pods {
+		if p.Metadata.Namespace == sts.Namespace {
+			have[p.Metadata.Name] = true
+		}
+	}
+	var missing []string
+	for i := int32(0); i < desired; i++ {
+		if name := fmt.Sprintf("%s-%d", sts.Name, i); !have[name] {
+			missing = append(missing, name)
+		}
+	}
+	return missing
 }

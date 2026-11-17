@@ -1992,3 +1992,31 @@ func TestIngressesClaimTheSameHostAndPath(t *testing.T) {
 		t.Errorf("different classes: %+v", r.Findings)
 	}
 }
+
+func TestStatefulSetWaitsForItsFirstPod(t *testing.T) {
+	s := snap()
+	var replicas int32 = 3
+	ss := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "db", Namespace: "shop"}}
+	ss.Spec.Replicas, ss.Spec.ServiceName = &replicas, "db"
+	ss.Spec.Template.Metadata.Labels = map[string]string{"app": "web"}
+	ss.Status.Replicas = 1
+	s.Workloads = []kube.Workload{ss}
+	headless := service("db", map[string]string{"app": "web"}, named("http"))
+	headless.Spec.ClusterIP = "None"
+	s.Services = []kube.Service{headless}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db", 0)}
+	p := pod("db-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "db", Controller: yes()}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"cat", "/tmp/ready"}}}
+	notReady(&p)
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "db-0", "Unhealthy", "Readiness probe failed: cat: can't open '/tmp/ready': No such file or directory", 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD120", "StatefulSet shop/db", "has 0 of 3 replicas ready", "creates its pods in order", "db-1, db-2 are not created yet")
+
+	// Parallel creates them all at once: a missing pod is not waiting for this one.
+	s.Workloads[0].Spec.PodManagementPolicy = "Parallel"
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "in order") {
+		t.Errorf("Parallel: %s", f.Cause)
+	}
+}
