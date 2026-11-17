@@ -1939,3 +1939,31 @@ func TestNetworkPolicySelectsNoPods(t *testing.T) {
 		t.Errorf("unread CronJobs: %+v", r.Findings)
 	}
 }
+
+func TestIngressesClaimTheSameHostAndPath(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http")), service("web-v2", map[string]string{"app": "web"}, named("http"))}
+	s.Services[0].Spec.Ports[0].Port, s.Services[1].Spec.Ports[0].Port = 80, 80
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1), slice("web-v2", 1)}
+	older, newer := ingress("shop", "web", 80, ""), ingress("shop-v2", "web-v2", 80, "")
+	older.Metadata.CreationTimestamp, newer.Metadata.CreationTimestamp = t0.Add(-48*time.Hour), t0.Add(-time.Hour)
+	s.Ingresses = []kube.Ingress{newer, older}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD263", "Ingress shop/shop-v2", "shop.example.com/api to Service web-v2:80, which Ingress shop, created earlier, sends to Service web:80", "ingress-nginx keeps the oldest rule")
+
+	// The same backend twice is redundant, not a conflict.
+	s.Ingresses[0] = ingress("shop-v2", "web", 80, "")
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("same backend: %+v", r.Findings)
+	}
+	// Different classes are different controllers.
+	s.Ingresses[0] = newer
+	s.Ingresses[0].Spec.IngressClassName = strp("internal")
+	s.IngressClasses = append(s.IngressClasses, kube.IngressClass{Metadata: kube.ObjectMeta{Name: "internal"}})
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("different classes: %+v", r.Findings)
+	}
+}

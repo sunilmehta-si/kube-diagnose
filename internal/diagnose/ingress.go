@@ -46,7 +46,7 @@ func ingressFindings(ix *index) []Finding {
 	for _, s := range ix.s.Services {
 		services[nsName{s.Metadata.Namespace, s.Metadata.Name}] = s
 	}
-	var out []Finding
+	out := ingressConflicts(ix)
 	for _, ing := range ix.s.Ingresses {
 		if f := ingressClassMissing(ix, ing); f != nil {
 			out = append(out, *f)
@@ -200,4 +200,95 @@ func ingressTLSSecret(ix *index, ing kube.Ingress) *Finding {
 			Cause: cause, Evidence: ev, Fix: fix}
 	}
 	return nil
+}
+
+// ingressClass is the IngressClass that serves an Ingress: its ingressClassName, the legacy annotation, or the
+// cluster's default class.
+func ingressClass(ix *index, ing kube.Ingress) string {
+	if ing.Spec.IngressClassName != nil {
+		return *ing.Spec.IngressClassName
+	}
+	if c := ing.Metadata.Annotations["kubernetes.io/ingress.class"]; c != "" {
+		return c
+	}
+	for _, c := range ix.s.IngressClasses {
+		if c.IsDefault() {
+			return c.Metadata.Name
+		}
+	}
+	return ""
+}
+
+func backendString(b *kube.IngressServiceBackend) string {
+	if b.Port.Name != "" {
+		return b.Name + ":" + b.Port.Name
+	}
+	return b.Name + ":" + strconv.Itoa(int(b.Port.Number))
+}
+
+// ingressConflicts finds Ingresses of one class that send the same host and path to different Services. Only one
+// of them gets the traffic, which one being up to the controller; ingress-nginx keeps the oldest rule. The finding
+// is on the newer Ingress, the one whose route is likely ignored.
+func ingressConflicts(ix *index) []Finding {
+	ings := append([]kube.Ingress(nil), ix.s.Ingresses...)
+	sort.SliceStable(ings, func(i, j int) bool {
+		a, b := ings[i].Metadata.CreationTimestamp, ings[j].Metadata.CreationTimestamp
+		if !a.Equal(b) {
+			return a.Before(b)
+		}
+		return ings[i].Metadata.Name < ings[j].Metadata.Name
+	})
+	type claim struct {
+		ing     kube.Ingress
+		backend *kube.IngressServiceBackend
+	}
+	claims := map[string]claim{}
+	var out []Finding
+	for _, ing := range ings {
+		class := ingressClass(ix, ing)
+		var clashes []string
+		var ev []Evidence
+		for _, r := range ing.Spec.Rules {
+			if r.HTTP == nil {
+				continue
+			}
+			for _, p := range r.HTTP.Paths {
+				if p.Backend.Service == nil {
+					continue
+				}
+				pathType := p.PathType
+				if pathType == "" {
+					pathType = "ImplementationSpecific"
+				}
+				host := r.Host
+				if host == "" {
+					host = "*"
+				}
+				key := strings.Join([]string{ing.Metadata.Namespace, class, host, p.Path, pathType}, "|")
+				c, ok := claims[key]
+				if !ok {
+					claims[key] = claim{ing, p.Backend.Service}
+					continue
+				}
+				if c.ing.Metadata.Name == ing.Metadata.Name || backendString(c.backend) == backendString(p.Backend.Service) {
+					continue
+				}
+				clashes = append(clashes, fmt.Sprintf("%s%s to Service %s, which Ingress %s, created earlier, sends to Service %s",
+					host, p.Path, backendString(p.Backend.Service), c.ing.Metadata.Name, backendString(c.backend)))
+				ev = append(ev, Evidence{Object: c.ing.Ref(), What: fmt.Sprintf("Ingress %s routes %s%s to Service %s", c.ing.Metadata.Name, host, p.Path, backendString(c.backend)),
+					Command: cmdGet("ingress", c.ing.Metadata.Namespace, c.ing.Metadata.Name, "{.metadata.creationTimestamp}{\" \"}{.spec.rules}")})
+			}
+		}
+		if len(clashes) == 0 {
+			continue
+		}
+		ns, name := ing.Metadata.Namespace, ing.Metadata.Name
+		ev = append([]Evidence{{Object: ing.Ref(), What: fmt.Sprintf("Ingress %s's rules", name),
+			Command: cmdGet("ingress", ns, name, "{.metadata.creationTimestamp}{\" \"}{.spec.rules}")}}, ev...)
+		out = append(out, Finding{Rule: "KD263", Title: "Ingresses send the same host and path to different Services", Severity: Warning, Object: ing.Ref(),
+			Cause:    fmt.Sprintf("Ingress %s sends %s; only one of them gets the traffic, which one being up to the controller (ingress-nginx keeps the oldest rule)", name, strings.Join(clashes, "; and ")),
+			Evidence: ev,
+			Fix:      "Give each host and path one Ingress: delete the stale rule, or change the host or path of one of them. For a canary, use the controller's canary feature rather than a second Ingress."})
+	}
+	return out
 }

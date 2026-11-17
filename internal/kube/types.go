@@ -625,8 +625,9 @@ type IngressBackend struct {
 }
 
 type HTTPIngressPath struct {
-	Path    string         `json:"path,omitempty"`
-	Backend IngressBackend `json:"backend"`
+	Path     string         `json:"path,omitempty"`
+	PathType string         `json:"pathType,omitempty"`
+	Backend  IngressBackend `json:"backend"`
 }
 
 type IngressRule struct {
