@@ -302,6 +302,21 @@ func TestUnschedulableInsufficientCPU(t *testing.T) {
 	p.Status.ContainerStatuses = nil
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD140", "Pod shop/web", "requests 64 cpu", "node-1, has 8 allocatable")
+
+	// The request came from a LimitRange default, not the pod template.
+	s.Pods[0].Metadata.Annotations = map[string]string{"kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu, memory request for container web; memory limit for container web"}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD140", "Pod shop/web", "requests 64 cpu", "sets no cpu request for container web: the namespace's LimitRange gave it its default")
+	if !strings.Contains(f.Fix, "defaultRequest for cpu") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	if limitRangerSet(s.Pods[0], "memory") != "web" || limitRangerSet(s.Pods[0], "ephemeral-storage") != "" {
+		t.Errorf("limitRangerSet misreads the annotation")
+	}
+	s.Pods[0].Metadata.Annotations["kubernetes.io/limit-ranger"] = "LimitRanger plugin set: cpu limit for container web"
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "LimitRange") {
+		t.Errorf("a defaulted limit is not a defaulted request: %s", f.Cause)
+	}
 }
 
 func TestUnschedulableNodeSelector(t *testing.T) {

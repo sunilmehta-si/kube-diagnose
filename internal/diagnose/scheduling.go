@@ -288,6 +288,15 @@ func insufficient(ix *index, p kube.Pod, res string, nodes int) (*problem, strin
 	} else if req > 0 {
 		cause = fmt.Sprintf("the pod requests %s %s and no node has that much free (other pods hold the rest)", kube.FormatQuantity(res, req), res)
 	}
+	if c := limitRangerSet(p, res); c != "" && req > 0 {
+		cause += fmt.Sprintf("; the pod template sets no %s request for container %s: the namespace's LimitRange gave it its default", res, c)
+		fix = fmt.Sprintf("Set container %s's own %s request in the pod template, or lower the defaultRequest for %s in the namespace's LimitRange.", c, res, res)
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the LimitRanger admission plugin set container %s's %s request", c, res),
+			Detail:  p.Metadata.Annotations[limitRangerAnnotation],
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.metadata.annotations.kubernetes\.io/limit-ranger}`)},
+			Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: p.Metadata.Namespace, Name: "*"}, What: "the namespace's LimitRanges",
+				Command: "kubectl get limitranges -n " + p.Metadata.Namespace + " -o yaml"})
+	}
 	if bestNode != "" {
 		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Node", Name: bestNode},
 			What:    fmt.Sprintf("the largest node, %s, has %s %s allocatable", bestNode, kube.FormatQuantity(res, best), res),
@@ -386,4 +395,25 @@ func nodeMissing(ix *index, p kube.Pod) *problem {
 	return newProblem(p, "", "KD240", "Pod is bound to a node that does not exist", Critical,
 		fmt.Sprintf("the pod sets spec.nodeName %s, which bypasses the scheduler, and the cluster has no such node (it has %s), so no kubelet runs the pod and the pod garbage collector deletes it", node, strings.Join(names, ", ")),
 		"nonode|"+node, "Remove nodeName from the pod template and let the scheduler place the pod; to pin it to a node, use a nodeSelector on kubernetes.io/hostname with a node that exists.", ev...)
+}
+
+const limitRangerAnnotation = "kubernetes.io/limit-ranger"
+
+// limitRangerSet returns the first container whose request for res the LimitRanger admission plugin filled in from
+// a LimitRange default, as its annotation records: "LimitRanger plugin set: cpu, memory request for container web;
+// cpu limit for container web".
+func limitRangerSet(p kube.Pod, res string) string {
+	a := strings.TrimPrefix(p.Metadata.Annotations[limitRangerAnnotation], "LimitRanger plugin set: ")
+	for _, clause := range strings.Split(a, ";") {
+		what, container, ok := strings.Cut(strings.TrimSpace(clause), " request for container ")
+		if !ok {
+			continue
+		}
+		for _, r := range strings.Split(what, ",") {
+			if strings.TrimSpace(r) == res {
+				return strings.TrimSpace(container)
+			}
+		}
+	}
+	return ""
 }
