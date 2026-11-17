@@ -63,6 +63,8 @@ type redactor struct {
 	images map[string]string // image repository -> pseudonym
 	ips    map[string]string
 	nameRe *regexp.Regexp
+	// svcRe finds a name in a cluster DNS name, service.namespace.svc, where a dot comes before it.
+	svcRe *regexp.Regexp
 }
 
 func (r *redactor) pseudonym(prefix, value string) string {
@@ -309,6 +311,7 @@ func (r *redactor) build() {
 	})
 	// Names never contain "_", and the kubelet writes pods as name_namespace(uid), so "_" ends a name.
 	r.nameRe = regexp.MustCompile(`(^|[^A-Za-z0-9.-])(` + strings.Join(names, "|") + `)($|[^A-Za-z0-9-]|\.[^A-Za-z0-9])`)
+	r.svcRe = regexp.MustCompile(`(\.)(` + strings.Join(names, "|") + `)(\.svc(?:$|[^A-Za-z0-9-]))`)
 }
 
 var reIPv4 = regexp.MustCompile(`\b(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})\b`)
@@ -345,7 +348,10 @@ func (r *redactor) text(s string) string {
 		}
 		s = next
 	}
-	return s
+	return r.svcRe.ReplaceAllStringFunc(s, func(m string) string {
+		sub := r.svcRe.FindStringSubmatch(m)
+		return sub[1] + r.names[sub[2]] + sub[3]
+	})
 }
 
 func (r *redactor) walk(v any) any {

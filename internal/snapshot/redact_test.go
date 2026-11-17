@@ -52,10 +52,11 @@ func TestRedactKeepsTokensWhole(t *testing.T) {
 	r := &redactor{key: []byte("k"), names: map[string]string{}, images: map[string]string{}, ips: map[string]string{}}
 	r.addName("svc", "web")
 	r.addName("pod", "web-rs-a")
+	r.addName("ns", "shop")
 	r.addImage("ghcr.io/acme/web:2.0")
 	r.build()
-	got := r.text(`pod "web-rs-a" for Service web, webhook web.shop.svc, image ghcr.io/acme/web:2.0 at 10.244.0.7:8080`)
-	for _, gone := range []string{`"web-rs-a"`, "Service web,", "ghcr.io/acme/web", "10.244.0.7"} {
+	got := r.text(`pod "web-rs-a" for Service web, webhook web.shop.svc, image ghcr.io/acme/web:2.0 at 10.244.0.7:8080, wget http://api.shop.svc.cluster.local/`)
+	for _, gone := range []string{`"web-rs-a"`, "Service web,", "ghcr.io/acme/web", "10.244.0.7", ".shop.svc"} {
 		if strings.Contains(got, gone) {
 			t.Errorf("%q still in %q", gone, got)
 		}
