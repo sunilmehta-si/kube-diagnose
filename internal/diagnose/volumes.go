@@ -190,3 +190,64 @@ func volumeFileProblem(p kube.Pod, container string, m kube.Mount, cause string,
 	return newProblem(p, container, "KD230", "File is missing from a ConfigMap or Secret volume", Critical, cause,
 		"volfile|"+m.Name+"|"+first, fix, append(ev, mountEvidence(p, container, m))...)
 }
+
+// fileMode is the mode the kubelet gives a file of a ConfigMap, Secret or projected volume: the item's mode, else
+// the volume's defaultMode, else 0644.
+func fileMode(m kube.Mount) (int32, string, bool) {
+	first := strings.SplitN(m.Rel, "/", 2)[0]
+	var items []kube.KeyToPath
+	var def *int32
+	switch v := m.Volume; {
+	case v.ConfigMap != nil:
+		items, def = v.ConfigMap.Items, v.ConfigMap.DefaultMode
+	case v.Secret != nil:
+		items, def = v.Secret.Items, v.Secret.DefaultMode
+	case v.Projected != nil:
+		def = v.Projected.DefaultMode
+	default:
+		return 0, "", false
+	}
+	for _, it := range items {
+		if it.Path == first && it.Mode != nil {
+			return *it.Mode, "the item's mode", true
+		}
+	}
+	if def != nil {
+		return *def, "defaultMode", true
+	}
+	return 0o644, "the default mode, as no defaultMode is set", true
+}
+
+var reExecDenied = regexp.MustCompile(`exec: "([^"]+)": permission denied`)
+
+// notExecutable explains a command the runtime may not execute. When it comes from a ConfigMap, Secret or projected
+// volume, the volume's file mode is why: those files are 0644 unless the volume says otherwise.
+func notExecutable(p kube.Pod, container, path, detail string, ev []Evidence) *problem {
+	cause := fmt.Sprintf("container %s's command %s is not executable (permission denied)", container, path)
+	fix := fmt.Sprintf("Make %s executable in the image (chmod +x when building it), or run it through its interpreter, for example command: [\"sh\", %q].", path, path)
+	key := "noexecbit|" + path
+	if m, ok := p.MountAt(container, path); ok {
+		if mode, from, ok := fileMode(m); ok && mode&0o111 == 0 {
+			cause = fmt.Sprintf("container %s runs %s from %s, whose files have mode %04o (%s), so it is not executable", container, path, m.Volume.Source(), mode, from)
+			fix = fmt.Sprintf("Set defaultMode: 0755 on volume %s (or mode: 0755 on its item), or run the script through its interpreter, for example command: [\"sh\", %q].", m.Name, path)
+			ev = append(ev, mountEvidence(p, container, m))
+		}
+	}
+	if detail != "" {
+		cause += fmt.Sprintf("; %q", clip(detail, 160))
+	}
+	return newProblem(p, container, "KD200", "Command is not executable", Critical, cause, key, fix, ev...)
+}
+
+// deniedScript finds a script a shell could not run (exit code 126, permission denied) under a volume mount.
+func deniedScript(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !strings.Contains(strings.ToLower(lines[i]), "permission denied") {
+			continue
+		}
+		if path, _, ok := mountedPath(p, cs.Name, lines[i]); ok {
+			return notExecutable(p, cs.Name, path, lines[i], ev)
+		}
+	}
+	return nil
+}

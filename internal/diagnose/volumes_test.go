@@ -137,3 +137,44 @@ func TestCommandMissingFromAConfigMapVolume(t *testing.T) {
 	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "run.sh")}
 	expect(t, only(t, Diagnose(s)), "KD230", "Deployment shop/web", "runs /scripts/start.sh, which does not exist", "has no key start.sh (it has run.sh)")
 }
+
+func TestCommandNotExecutable(t *testing.T) {
+	startErr := func(path string) *kube.ContainerStateTerminated {
+		return &kube.ContainerStateTerminated{ExitCode: 128, Reason: "StartError",
+			Message: `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "` + path + `": permission denied: unknown`}
+	}
+	s := snap()
+	p := volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "scripts"}}, "/scripts", false)
+	p.Spec.Containers[0].Command = []string{"/scripts/run.sh"}
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated = startErr("/scripts/run.sh")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "run.sh")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD200", "Deployment shop/web", "runs /scripts/run.sh from ConfigMap scripts, whose files have mode 0644 (the default mode")
+	if !strings.Contains(f.Fix, "defaultMode: 0755 on volume data") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// An item's own mode wins over defaultMode.
+	mode, def := int32(0o640), int32(0o755)
+	p.Spec.Volumes[0].ConfigMap.DefaultMode = &def
+	p.Spec.Volumes[0].ConfigMap.Items = []kube.KeyToPath{{Key: "run.sh", Path: "run.sh", Mode: &mode}}
+	expect(t, only(t, Diagnose(s)), "KD200", "Deployment shop/web", "mode 0640 (the item's mode)")
+
+	// A file in the image: the fix is in the image.
+	s = snap()
+	p = volumePod(s, kube.Volume{EmptyDir: &kube.EmptyDirVolumeSource{}}, "/data", false)
+	p.Spec.Containers[0].Command = []string{"/app/server"}
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated = startErr("/app/server")
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD200", "Deployment shop/web", "command /app/server is not executable")
+	if !strings.Contains(f.Fix, "chmod +x") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A shell running the script exits 126.
+	s = snap()
+	p = volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "scripts"}}, "/scripts", false, "sh: /scripts/run.sh: Permission denied")
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.ExitCode = 126
+	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "run.sh")}
+	expect(t, only(t, Diagnose(s)), "KD200", "Deployment shop/web", "whose files have mode 0644", "sh: /scripts/run.sh: Permission denied")
+}

@@ -680,6 +680,8 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	switch {
 	case reExecFormat.MatchString(msg):
 		return execFormat(p, cs, ev)
+	case reExecDenied.MatchString(msg):
+		return notExecutable(p, cs.Name, reExecDenied.FindStringSubmatch(msg)[1], "", ev)
 	case reNoExec.MatchString(msg):
 		if len(c.Command) > 0 {
 			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
@@ -740,6 +742,11 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	ev := []Evidence{terminatedEvidence(p, cs, t)}
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
+	}
+	if t.ExitCode == 126 {
+		if pr := deniedScript(p, cs, log.Lines, ev); pr != nil {
+			return pr
+		}
 	}
 	if pr := fileNotInVolume(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr

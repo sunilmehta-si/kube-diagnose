@@ -48,7 +48,7 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
 - **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 69 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 92 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
+It knows 93 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
 no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or of
 the wrong type, crashes (with the exit code explained and the log line that reads like the error quoted, and traced to
 the Service the app could not resolve or reach, the port another container holds, the NetworkPolicy that blocks DNS or
