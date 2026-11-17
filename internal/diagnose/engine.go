@@ -96,6 +96,7 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	}
 
 	r.Findings = append(r.Findings, rolloutFindings(ix, explained)...)
+	r.Findings = append(r.Findings, cronJobFindings(ix, explained)...)
 	r.Findings = append(r.Findings, hpaFindings(ix)...)
 	r.Findings = append(r.Findings, pdbFindings(ix)...)
 	r.Findings = append(r.Findings, statefulSetFindings(ix)...)
