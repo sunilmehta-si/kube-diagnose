@@ -111,6 +111,7 @@ var Rules = []Rule{
 	{"KD261", "Pod on the host network cannot resolve cluster names", Critical, "A container of a pod with hostNetwork: true exits after a failed lookup of a Service or *.svc name, and the pod's dnsPolicy is ClusterFirst (the default), which on the host network uses the node's resolver; ClusterFirstWithHostNet is the policy that uses cluster DNS.", "The log line with the failed lookup, and the pod's hostNetwork and dnsPolicy."},
 	{"KD262", "NetworkPolicy selects no pods", Warning, "A NetworkPolicy's podSelector matches no pod and no pod template of a workload, Job or CronJob in its namespace, so it restricts nothing; the closest pod labels are named.", "The policy's podSelector and the pod labels in the namespace."},
 	{"KD263", "Ingresses send the same host and path to different Services", Warning, "Two Ingresses of one IngressClass route the same host, path and pathType to different Service ports. Only one gets the traffic, which one being up to the controller (ingress-nginx keeps the oldest rule); the finding is on the newer Ingress.", "Both Ingresses' rules and creation times."},
+	{"KD264", "Service has no selector and no endpoints", Warning, "A Service without a selector, whose endpoints someone must manage by hand, has no EndpointSlice with a ready address, so connections to it fail.", "The Service's selector and its EndpointSlices."},
 }
 
 // RuleByID finds a rule.

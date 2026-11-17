@@ -25,6 +25,11 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 		if f := externalNameIP(svc); f != nil {
 			out = append(out, *f)
 		}
+		if len(svc.Spec.Selector) == 0 && svc.Spec.Type != "ExternalName" {
+			if f := noSelectorNoEndpoints(ix, svc); f != nil {
+				out = append(out, *f)
+			}
+		}
 		if len(svc.Spec.Selector) == 0 || svc.Spec.Type == "ExternalName" {
 			continue
 		}
@@ -345,4 +350,23 @@ func externalNameIP(svc kube.Service) *Finding {
 		Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has type ExternalName and externalName %s", name, ip),
 			Command: cmdGet("service", ns, name, `{.spec.type}{" "}{.spec.externalName}`)}},
 		Fix: fmt.Sprintf("ExternalName takes a DNS name. To send Service %s to the address %s, make it a Service without a selector and give it an EndpointSlice with that address.", name, ip)}
+}
+
+// noSelectorNoEndpoints finds a Service without a selector and without a ready address in any EndpointSlice: no
+// controller fills in endpoints for such a Service, so whoever made it was meant to, and connections to it fail.
+func noSelectorNoEndpoints(ix *index, svc kube.Service) *Finding {
+	if !ix.read("endpointslices.discovery.k8s.io") || readyEndpoints(ix, svc) > 0 {
+		return nil
+	}
+	ns, name := svc.Metadata.Namespace, svc.Metadata.Name
+	slices := ix.slices[nsName{ns, name}]
+	have := "no EndpointSlice"
+	if len(slices) > 0 {
+		have = fmt.Sprintf("%s with no ready address", plural(len(slices), "EndpointSlice"))
+	}
+	return &Finding{Rule: "KD264", Title: "Service has no selector and no endpoints", Severity: Warning, Object: svc.Ref(),
+		Cause: fmt.Sprintf("Service %s has no selector, so Kubernetes keeps no endpoints for it, and it has %s: connections to it fail", name, have),
+		Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no selector", name), Command: cmdGet("service", ns, name, "{.spec.selector}")},
+			{Object: svc.Ref(), What: fmt.Sprintf("Service %s has %s", name, have), Command: "kubectl get endpointslices -n " + ns + " -l kubernetes.io/service-name=" + name}},
+		Fix: fmt.Sprintf("Give Service %s a selector that matches the pods it fronts, or create an EndpointSlice labelled kubernetes.io/service-name: %s with the addresses it should send to.", name, name)}
 }

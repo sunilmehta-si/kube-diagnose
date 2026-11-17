@@ -2020,3 +2020,24 @@ func TestStatefulSetWaitsForItsFirstPod(t *testing.T) {
 		t.Errorf("Parallel: %s", f.Cause)
 	}
 }
+
+func TestServiceWithoutSelectorOrEndpoints(t *testing.T) {
+	s := snap()
+	s.Services = []kube.Service{service("payments", nil, port(8080))}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD264", "Service shop/payments", "has no selector", "no EndpointSlice: connections to it fail")
+	if !strings.Contains(f.Fix, "kubernetes.io/service-name: payments") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	s.EndpointSlices = []kube.EndpointSlice{slice("payments", 0)}
+	expect(t, only(t, Diagnose(s)), "KD264", "Service shop/payments", "1 EndpointSlice with no ready address")
+	s.EndpointSlices = []kube.EndpointSlice{slice("payments", 1)}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("hand-managed endpoints: %+v", r.Findings)
+	}
+	s.EndpointSlices = nil
+	s.Gaps = []snapshot.Gap{{Resource: "endpointslices.discovery.k8s.io", Namespace: "shop", Error: "forbidden"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("unread EndpointSlices: %+v", r.Findings)
+	}
+}

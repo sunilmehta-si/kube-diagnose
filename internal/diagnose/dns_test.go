@@ -88,6 +88,7 @@ func TestHostNetworkPodResolvesWithTheNodesDNS(t *testing.T) {
 	crashed(&p, 1, "Error", 3)
 	s.Pods = []kube.Pod{p}
 	s.Services = []kube.Service{service("api", nil, port(8080))} // its endpoints are managed by hand
+	s.EndpointSlices = []kube.EndpointSlice{slice("api", 1)}
 	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address 'api.shop.svc.cluster.local'"}}}
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD261", "Deployment shop/web", "api.shop.svc.cluster.local does not resolve", "dnsPolicy ClusterFirst")
