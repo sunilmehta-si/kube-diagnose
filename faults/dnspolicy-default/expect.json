@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-dnspolicy-default",
+  "description": "A pod sets dnsPolicy Default, so it resolves with the node's DNS, cannot find the api Service, and exits.",
+  "rule": "KD261",
+  "object": "Deployment/client",
+  "keywords": [
+    [
+      "dnsPolicy Default"
+    ],
+    [
+      "node"
+    ]
+  ]
+}
