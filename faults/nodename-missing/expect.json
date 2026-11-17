@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-nodename-missing",
+  "description": "A Deployment pins its pods with nodeName to a node the cluster does not have, so nothing runs them and nothing says why.",
+  "rule": "KD240",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "nodeName"
+    ],
+    [
+      "kd-worker-9"
+    ]
+  ]
+}
