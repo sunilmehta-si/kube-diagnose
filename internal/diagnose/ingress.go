@@ -273,8 +273,12 @@ func ingressConflicts(ix *index) []Finding {
 				if c.ing.Metadata.Name == ing.Metadata.Name || backendString(c.backend) == backendString(p.Backend.Service) {
 					continue
 				}
-				clashes = append(clashes, fmt.Sprintf("%s%s to Service %s, which Ingress %s, created earlier, sends to Service %s",
-					host, p.Path, backendString(p.Backend.Service), c.ing.Metadata.Name, backendString(c.backend)))
+				earlier := ""
+				if c.ing.Metadata.CreationTimestamp.Before(ing.Metadata.CreationTimestamp) {
+					earlier = ", created earlier,"
+				}
+				clashes = append(clashes, fmt.Sprintf("%s%s to Service %s, which Ingress %s%s sends to Service %s",
+					host, p.Path, backendString(p.Backend.Service), c.ing.Metadata.Name, earlier, backendString(c.backend)))
 				ev = append(ev, Evidence{Object: c.ing.Ref(), What: fmt.Sprintf("Ingress %s routes %s%s to Service %s", c.ing.Metadata.Name, host, p.Path, backendString(c.backend)),
 					Command: cmdGet("ingress", c.ing.Metadata.Namespace, c.ing.Metadata.Name, "{.metadata.creationTimestamp}{\" \"}{.spec.rules}")})
 			}

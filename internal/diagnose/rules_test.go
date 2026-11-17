@@ -1954,6 +1954,11 @@ func TestIngressesClaimTheSameHostAndPath(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD263", "Ingress shop/shop-v2", "shop.example.com/api to Service web-v2:80, which Ingress shop, created earlier, sends to Service web:80", "ingress-nginx keeps the oldest rule")
 
+	// Created in the same second: the names break the tie, and neither is called earlier.
+	s.Ingresses[0].Metadata.CreationTimestamp = s.Ingresses[1].Metadata.CreationTimestamp
+	expect(t, only(t, Diagnose(s)), "KD263", "Ingress shop/shop-v2", "which Ingress shop sends to Service web:80")
+	s.Ingresses[0].Metadata.CreationTimestamp = t0.Add(-time.Hour)
+
 	// The same backend twice is redundant, not a conflict.
 	s.Ingresses[0] = ingress("shop-v2", "web", 80, "")
 	if r := Diagnose(s); len(r.Findings) != 0 {
