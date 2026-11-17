@@ -55,7 +55,7 @@ Usage:
   kube-diagnose --snapshot s.json.gz      diagnose a recorded snapshot instead of a cluster
   kube-diagnose record -n shop -o s.json.gz   save what it reads, to diagnose later or elsewhere
   kube-diagnose record -n shop --redact -o s.json.gz   the same with names replaced, to share in an issue
-  kube-diagnose rules [KD101 | words]     list the rules, explain one, or find those that mention words
+  kube-diagnose rules [KD101 | KD14 | words]   list the rules, explain one, list a range, or find those that mention words
   kube-diagnose version
 
 Flags:
@@ -246,12 +246,30 @@ func record(args []string, env Env) int {
 	return 0
 }
 
-var reRuleID = regexp.MustCompile(`(?i)^KD\d{3}$`)
+var (
+	reRuleID     = regexp.MustCompile(`(?i)^KD\d{3}$`)
+	reRulePrefix = regexp.MustCompile(`(?i)^KD\d{1,2}$`)
+)
 
 func rules(args []string, env Env) int {
 	if len(args) == 0 {
 		for _, r := range diagnose.Rules {
 			fmt.Fprintf(env.Stdout, "%s  %-8s  %s\n", r.ID, r.Severity, r.Title)
+		}
+		return 0
+	}
+	if len(args) == 1 && reRulePrefix.MatchString(args[0]) {
+		// A range: KD2 is every KD2xx rule, KD14 every rule about scheduling.
+		prefix, n := strings.ToUpper(args[0]), 0
+		for _, r := range diagnose.Rules {
+			if strings.HasPrefix(r.ID, prefix) {
+				fmt.Fprintf(env.Stdout, "%s  %-8s  %s\n", r.ID, r.Severity, r.Title)
+				n++
+			}
+		}
+		if n == 0 {
+			fmt.Fprintf(env.Stderr, "kube-diagnose: no rule starts with %s (kube-diagnose rules lists them)\n", prefix)
+			return 2
 		}
 		return 0
 	}

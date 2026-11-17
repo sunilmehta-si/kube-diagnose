@@ -96,6 +96,7 @@ kubectl diagnose record -n shop -o shop.snapshot.json.gz   # save what it read
 kube-diagnose --snapshot shop.snapshot.json.gz           # diagnose it later, anywhere, without a cluster
 kube-diagnose rules KD161              # what a rule detects and from which evidence
 kube-diagnose rules cronjob            # the rules that mention every word given
+kube-diagnose rules KD14               # a range: KD14 is scheduling (docs/rules.md lists the ranges)
 ```
 
 It needs permission to `get` and `list` pods, events, Services, EndpointSlices, Ingresses, workloads, Jobs, CronJobs,

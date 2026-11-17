@@ -29,7 +29,8 @@
 - A StatefulSet whose claim a ResourceQuota rejects is said to be unable to create that claim, not pods (KD170).
 - An emptyDir volume evicted for exceeding its sizeLimit (KD193).
 - 21 fault scenarios, 87 broken namespaces in all, one or more for each new rule and change above.
-- `kube-diagnose rules <words>` lists the rules whose title or description mentions every word.
+- `kube-diagnose rules <words>` lists the rules whose title or description mentions every word, and
+  `kube-diagnose rules KD14` the rules in a range.
 - The collector reads CronJobs. The snapshot holds volume mounts, volume file modes, hostPath and emptyDir sources,
   the pod's security context, hostNetwork and dnsPolicy, ingress path types, a Job's start time and a StatefulSet's
   podManagementPolicy.

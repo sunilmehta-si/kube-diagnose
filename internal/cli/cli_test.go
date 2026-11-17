@@ -203,7 +203,15 @@ func TestVersionAndRules(t *testing.T) {
 	if Run([]string{"rules", "read-only", "configmap"}, env) != 0 || !strings.Contains(out.String(), "KD138") || strings.Contains(out.String(), "KD118") {
 		t.Errorf("rules read-only configmap (every word must match):\n%s", out)
 	}
+	env, out, _, _ = testEnv(nil)
+	if Run([]string{"rules", "kd26"}, env) != 0 || strings.Count(out.String(), "\n") != 5 || !strings.HasPrefix(out.String(), "KD260") {
+		t.Errorf("rules kd26 (KD260-KD264):\n%s", out)
+	}
 	env, _, errb, _ := testEnv(nil)
+	if Run([]string{"rules", "KD9"}, env) != 2 || !strings.Contains(errb.String(), "no rule starts with KD9") {
+		t.Errorf("rules KD9: %s", errb)
+	}
+	env, _, errb, _ = testEnv(nil)
 	if Run([]string{"rules", "no-such-thing"}, env) != 2 || !strings.Contains(errb.String(), "no rule mentions no-such-thing") {
 		t.Errorf("rules no-such-thing: %s", errb)
 	}
