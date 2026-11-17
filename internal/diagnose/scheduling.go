@@ -360,3 +360,30 @@ func gated(ix *index, p kube.Pod) *problem {
 	}
 	return newProblem(p, "", "KD146", "Pod is held by a scheduling gate", Critical, cause, "gate|"+gates, fix, ev...)
 }
+
+// nodeMissing finds a pod bound by spec.nodeName to a node the cluster does not have. nodeName skips the scheduler,
+// so nothing reports it: no kubelet picks the pod up, and the pod garbage collector deletes it as an orphan, which
+// its controller answers with a new pod bound the same way.
+func nodeMissing(ix *index, p kube.Pod) *problem {
+	if p.Status.Phase != "Pending" || p.Spec.NodeName == "" || !ix.read("nodes") || len(ix.s.Nodes) == 0 {
+		return nil
+	}
+	names := make([]string, 0, len(ix.s.Nodes))
+	for _, n := range ix.s.Nodes {
+		if n.Metadata.Name == p.Spec.NodeName {
+			return nil
+		}
+		names = append(names, n.Metadata.Name)
+	}
+	if len(names) > 5 {
+		names = append(names[:5], fmt.Sprintf("and %d more", len(names)-5))
+	}
+	node := p.Spec.NodeName
+	ev := []Evidence{
+		{Object: p.Ref(), What: fmt.Sprintf("pod sets spec.nodeName %s", node), Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.nodeName}")},
+		{Object: kube.Ref{Kind: "Node", Name: node}, What: fmt.Sprintf("there is no node %s", node), Command: "kubectl get nodes"},
+	}
+	return newProblem(p, "", "KD240", "Pod is bound to a node that does not exist", Critical,
+		fmt.Sprintf("the pod sets spec.nodeName %s, which bypasses the scheduler, and the cluster has no such node (it has %s), so no kubelet runs the pod and the pod garbage collector deletes it", node, strings.Join(names, ", ")),
+		"nonode|"+node, "Remove nodeName from the pod template and let the scheduler place the pod; to pin it to a node, use a nodeSelector on kubernetes.io/hostname with a node that exists.", ev...)
+}

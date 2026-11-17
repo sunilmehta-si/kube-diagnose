@@ -1870,3 +1870,23 @@ func TestLivenessProbeThatCannotRun(t *testing.T) {
 		t.Errorf("severity %s", f.Severity)
 	}
 }
+
+func TestPodBoundToAMissingNode(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.NodeName = "worker-9"
+	p.Status = kube.PodStatus{Phase: "Pending"}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD240", "Deployment shop/web", "spec.nodeName worker-9", "no such node (it has node-1)")
+
+	// A node list the user may not read proves nothing.
+	s.Gaps = []snapshot.Gap{{Resource: "nodes", Error: "forbidden"}}
+	s.Nodes = nil
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD240" {
+			t.Errorf("KD240 without the node list: %+v", f)
+		}
+	}
+}

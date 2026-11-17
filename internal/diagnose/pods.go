@@ -45,6 +45,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 		return unschedulable(ix, p, c)
 	}
+	if pr := nodeMissing(ix, p); pr != nil {
+		return pr
+	}
 	if pr := unclaimed(ix, p); pr != nil {
 		return pr
 	}
