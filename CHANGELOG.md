@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-11-17
+
+- The fault suite's committed run (44028804687): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 87 of 87 faults and raises no false alarm; k8sgpt v0.4.41 names 33, 15 of them first.
+
 ### Added
 - 13 rules, 102 in all (`docs/rules.md`):
   - volumes: permission denied on a mounted volume, with the volume, the user the container runs as, and what to
@@ -23,12 +28,19 @@
 - A StatefulSet stuck on a pod that is not ready names the pods it has not created because of it (OrderedReady).
 - A StatefulSet whose claim a ResourceQuota rejects is said to be unable to create that claim, not pods (KD170).
 - An emptyDir volume evicted for exceeding its sizeLimit (KD193).
+- 21 fault scenarios, 87 broken namespaces in all, one or more for each new rule and change above.
+- `kube-diagnose rules <words>` lists the rules whose title or description mentions every word.
 - The collector reads CronJobs. The snapshot holds volume mounts, volume file modes, hostPath and emptyDir sources,
   the pod's security context, hostNetwork and dnsPolicy, ingress path types, a Job's start time and a StatefulSet's
   podManagementPolicy.
 
+### Changed
+- The README's account of k8sgpt's output follows this run: for the liveness probe on the wrong port it now gives
+  the termination reason, where in the 0.4.0 run it reported nothing.
+
 ### Fixed
-- Redaction now covers the ConfigMaps and Secrets a projected volume names.
+- Redaction now covers the ConfigMaps and Secrets a projected volume names, and a namespace inside a cluster DNS name
+  (api.shop.svc.cluster.local), as in a container's command.
 
 ## [0.4.0] - 2026-11-16
 
