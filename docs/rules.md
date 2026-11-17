@@ -2,6 +2,8 @@
 
 Every finding names one of these rules. IDs are stable: a rule is retired, never renumbered. `kube-diagnose rules KD101` prints one. This file is generated from `internal/diagnose/catalog.go` (`make docs`).
 
+The tens digit says where the problem is: x00-x29 pulling the image and running the container, x30-x39 its configuration and volumes, x40-x49 scheduling, x50-x59 storage, x60-x69 Services and networking, x70-x79 creating pods, x80-x89 workloads and x90-x99 nodes. KD2xx continues an area once its KD1xx numbers are used up.
+
 | Rule | Title | Severity | Detects | Evidence |
 |---|---|---|---|---|
 | KD100 | Image cannot be pulled | critical | A container waits in ErrImagePull or ImagePullBackOff for a reason none of KD101-KD103 recognises. | The container's waiting state and the newest pull-failure event. |

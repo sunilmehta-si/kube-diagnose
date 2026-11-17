@@ -52,7 +52,10 @@ func rulesDoc() string {
 	b := &strings.Builder{}
 	b.WriteString("# Rules\n\nEvery finding names one of these rules. IDs are stable: a rule is retired, never renumbered. ")
 	b.WriteString("`kube-diagnose rules KD101` prints one. This file is generated from `internal/diagnose/catalog.go` ")
-	b.WriteString("(`make docs`).\n\n| Rule | Title | Severity | Detects | Evidence |\n|---|---|---|---|---|\n")
+	b.WriteString("(`make docs`).\n\nThe tens digit says where the problem is: x00-x29 pulling the image and running the container, ")
+	b.WriteString("x30-x39 its configuration and volumes, x40-x49 scheduling, x50-x59 storage, x60-x69 Services and ")
+	b.WriteString("networking, x70-x79 creating pods, x80-x89 workloads and x90-x99 nodes. KD2xx continues an area once its KD1xx ")
+	b.WriteString("numbers are used up.\n\n| Rule | Title | Severity | Detects | Evidence |\n|---|---|---|---|---|\n")
 	ids := make([]string, 0, len(Rules))
 	for _, r := range Rules {
 		ids = append(ids, r.ID)
