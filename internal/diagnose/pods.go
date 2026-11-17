@@ -1177,6 +1177,7 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 }
 
 var (
+	reEmptyDirLimit  = regexp.MustCompile(`Usage of EmptyDir volume "([^"]+)" exceeds the limit "([^"]+)"`)
 	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?\s*$)`)
 	reNodeLow        = regexp.MustCompile(`The node was low on resource: ([a-z.-]+)`)
 )
@@ -1185,6 +1186,11 @@ func evicted(p kube.Pod) *problem {
 	msg := p.Status.Message
 	ev := []Evidence{{Object: p.Ref(), What: "pod status is Failed, reason Evicted", Detail: msg,
 		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.status.message}")}}
+	if m := reEmptyDirLimit.FindStringSubmatch(msg); m != nil {
+		return &problem{rule: "KD193", title: "emptyDir volume exceeded its size limit", severity: Warning, pod: p,
+			cause: fmt.Sprintf("the pod was evicted because emptyDir volume %s holds more than its %s sizeLimit", m[1], m[2]), key: "KD193|emptydir|" + m[1], evidence: ev,
+			fix: fmt.Sprintf("Raise the sizeLimit of emptyDir volume %s, or have the app clean up what it writes there. With medium: Memory, what it holds also counts against the containers' memory limits.", m[1])}
+	}
 	if m := reEphemeralLimit.FindStringSubmatch(msg); m != nil {
 		cause := fmt.Sprintf("the pod was evicted for writing more to its local disk than its ephemeral-storage limit (%s)", m[3])
 		if m[1] != "" {
