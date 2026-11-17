@@ -2,6 +2,34 @@
 
 ## [Unreleased]
 
+### Added
+- 13 rules, 102 in all (`docs/rules.md`):
+  - volumes: permission denied on a mounted volume, with the volume, the user the container runs as, and what to
+    change: fsGroup, the owner of a hostPath directory (fsGroup does not apply there), or a Secret or ConfigMap
+    volume's file mode (KD137); writes to a read-only volume, ConfigMap, Secret, projected and downward API volumes
+    always being read-only (KD138); a file the app reads or runs that its ConfigMap or Secret volume does not have,
+    with the keys it does have (KD230); a command that is not executable, with the volume's file mode when it comes
+    from a ConfigMap (KD200);
+  - scheduling: pods bound by nodeName to a node that does not exist (KD240), and WaitForFirstConsumer claims that
+    never bind because their pod bypasses the scheduler with nodeName (KD159);
+  - networking: ExternalName Services set to an IP address (KD260), pods that resolve names with the node's DNS
+    through dnsPolicy Default or the host network (KD261), NetworkPolicies that select no pods (KD262), Ingresses that
+    send one host and path to different Services (KD263), and Services with no selector and no endpoints (KD264);
+  - CronJobs: runs skipped because the last one is still running under concurrencyPolicy Forbid (KD188), and
+    suspended CronJobs (KD189, a note).
+- KD2xx: once an area's KD1xx numbers are used up, its rules continue at KD2xx; `docs/rules.md` says what each range
+  covers.
+- A pod that does not fit because of a LimitRange's default request, not one in its template, says so (KD140).
+- A StatefulSet stuck on a pod that is not ready names the pods it has not created because of it (OrderedReady).
+- A StatefulSet whose claim a ResourceQuota rejects is said to be unable to create that claim, not pods (KD170).
+- An emptyDir volume evicted for exceeding its sizeLimit (KD193).
+- The collector reads CronJobs. The snapshot holds volume mounts, volume file modes, hostPath and emptyDir sources,
+  the pod's security context, hostNetwork and dnsPolicy, ingress path types, a Job's start time and a StatefulSet's
+  podManagementPolicy.
+
+### Fixed
+- Redaction now covers the ConfigMaps and Secrets a projected volume names.
+
 ## [0.4.0] - 2026-11-16
 
 - The fault suite's committed run (43810509539): kube-diagnose names the root cause in its first finding, with the
