@@ -161,6 +161,12 @@ func (r *redactor) collect(s *Snapshot) {
 		r.addName(strings.ToLower(w.Kind), w.Metadata.Name)
 		r.addName("svc", w.Spec.ServiceName)
 	}
+	for _, c := range s.CronJobs {
+		r.addName("cronjob", c.Metadata.Name)
+		for _, a := range c.Status.Active {
+			r.addName("job", a.Name)
+		}
+	}
 	for _, j := range s.Jobs {
 		r.addName("job", j.Metadata.Name)
 		for _, o := range j.Metadata.OwnerReferences {

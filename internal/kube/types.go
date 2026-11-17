@@ -735,6 +735,7 @@ type Job struct {
 		Template              PodTemplate `json:"template"`
 	} `json:"spec"`
 	Status struct {
+		StartTime  *time.Time  `json:"startTime,omitempty"`
 		Active     int32       `json:"active,omitempty"`
 		Succeeded  int32       `json:"succeeded,omitempty"`
 		Failed     int32       `json:"failed,omitempty"`
@@ -744,6 +745,28 @@ type Job struct {
 
 func (j Job) Ref() Ref {
 	return Ref{Kind: "Job", Namespace: j.Metadata.Namespace, Name: j.Metadata.Name}
+}
+
+// CronJob creates a Job on a schedule.
+type CronJob struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Schedule          string  `json:"schedule"`
+		TimeZone          *string `json:"timeZone,omitempty"`
+		ConcurrencyPolicy string  `json:"concurrencyPolicy,omitempty"`
+		Suspend           *bool   `json:"suspend,omitempty"`
+	} `json:"spec"`
+	Status struct {
+		Active []struct {
+			Name string `json:"name"`
+		} `json:"active,omitempty"`
+		LastScheduleTime   *time.Time `json:"lastScheduleTime,omitempty"`
+		LastSuccessfulTime *time.Time `json:"lastSuccessfulTime,omitempty"`
+	} `json:"status"`
+}
+
+func (c CronJob) Ref() Ref {
+	return Ref{Kind: "CronJob", Namespace: c.Metadata.Namespace, Name: c.Metadata.Name}
 }
 
 // ---- Autoscaling ----

@@ -93,7 +93,7 @@ kube-diagnose --snapshot shop.snapshot.json.gz           # diagnose it later, an
 kube-diagnose rules KD161              # what a rule detects and from which evidence
 ```
 
-It needs permission to `get` and `list` pods, events, Services, EndpointSlices, Ingresses, workloads, Jobs,
+It needs permission to `get` and `list` pods, events, Services, EndpointSlices, Ingresses, workloads, Jobs, CronJobs,
 HorizontalPodAutoscalers, PodDisruptionBudgets, claims, NetworkPolicies, ResourceQuotas, ServiceAccounts,
 ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses and PersistentVolumes in the cluster,
 and to read pod logs. With less, it diagnoses from the rest and lists what it could not read.
