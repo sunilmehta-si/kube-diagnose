@@ -736,6 +736,12 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
 	}
+	if pr := readOnlyVolume(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := volumeDenied(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
