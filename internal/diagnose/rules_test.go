@@ -2041,3 +2041,30 @@ func TestServiceWithoutSelectorOrEndpoints(t *testing.T) {
 		t.Errorf("unread EndpointSlices: %+v", r.Findings)
 	}
 }
+
+func TestClaimWaitsForAPodThatBypassesTheScheduler(t *testing.T) {
+	s := snap()
+	s.StorageClasses = []kube.StorageClass{{Metadata: kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}},
+		Provisioner: "rancher.io/local-path", VolumeBindingMode: "WaitForFirstConsumer"}}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "WaitForFirstConsumer", "waiting for first consumer to be created before binding", 0)}
+	deployment(s, "db", 1, 0)
+	p := pod("db-rs-a", "db")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	waiting(&p, "ContainerCreating", "")
+	p.Status.Phase, p.Status.Conditions = "Pending", nil
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD159", "Deployment shop/db", "claim data's StorageClass standard", "sets nodeName node-1, which bypasses the scheduler")
+
+	// Once the scheduler has picked a node, the claim's wait is the provisioner's.
+	s.PVCs[0].Metadata.Annotations = map[string]string{"volume.kubernetes.io/selected-node": "node-1"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD159" {
+			t.Errorf("selected-node set: %+v", f)
+		}
+	}
+}

@@ -48,6 +48,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if pr := nodeMissing(ix, p); pr != nil {
 		return pr
 	}
+	if pr := claimWaitsForBypass(ix, p); pr != nil {
+		return pr
+	}
 	if pr := unclaimed(ix, p); pr != nil {
 		return pr
 	}
