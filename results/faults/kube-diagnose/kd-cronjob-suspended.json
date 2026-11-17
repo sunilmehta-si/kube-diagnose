@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cronjob-suspended"
+  ],
+  "collectedAt": "2026-11-17 06:11 UTC",
+  "findings": [
+    {
+      "rule": "KD189",
+      "title": "CronJob is suspended",
+      "severity": "info",
+      "object": {
+        "kind": "CronJob",
+        "namespace": "kd-cronjob-suspended",
+        "name": "report"
+      },
+      "cause": "CronJob report is suspended (spec.suspend: true), so its schedule \"* * * * *\" starts no Jobs; it has never started one",
+      "evidence": [
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-suspended",
+            "name": "report"
+          },
+          "what": "CronJob has spec.suspend: true",
+          "command": "kubectl get cronjob report -n kd-cronjob-suspended -o jsonpath='{.spec.suspend}{\" \"}{.status.lastScheduleTime}'"
+        }
+      ],
+      "fix": "Resume it if it should run: kubectl patch cronjob report -n kd-cronjob-suspended --type=merge -p '{\"spec\":{\"suspend\":false}}'. Runs missed while it was suspended are not started, unless startingDeadlineSeconds still covers them."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

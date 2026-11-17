@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-emptydir-size-limit",
+  "description": "A container writes 20 MiB into an emptyDir with a 10 MiB sizeLimit, so the kubelet evicts its pods.",
+  "rule": "KD193",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "emptyDir"
+    ],
+    [
+      "sizeLimit",
+      "size limit"
+    ]
+  ]
+}

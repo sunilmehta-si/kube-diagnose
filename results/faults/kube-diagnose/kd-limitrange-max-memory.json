@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-limitrange-max-memory"
   ],
-  "collectedAt": "2026-11-16 05:34 UTC",
+  "collectedAt": "2026-11-17 06:13 UTC",
   "findings": [
     {
       "rule": "KD174",
@@ -24,7 +24,7 @@
             "name": "web-6bc7c8f797"
           },
           "what": "event FailedCreate (7 times)",
-          "detail": "(combined from similar events): Error creating: pods \"web-6bc7c8f797-bjw5m\" is forbidden: maximum memory usage per Container is 64Mi, but limit is 128Mi",
+          "detail": "(combined from similar events): Error creating: pods \"web-6bc7c8f797-jp88l\" is forbidden: maximum memory usage per Container is 64Mi, but limit is 128Mi",
           "command": "kubectl get events -n kd-limitrange-max-memory --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-6bc7c8f797"
         },
         {

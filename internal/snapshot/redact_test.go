@@ -52,10 +52,11 @@ func TestRedactKeepsTokensWhole(t *testing.T) {
 	r := &redactor{key: []byte("k"), names: map[string]string{}, images: map[string]string{}, ips: map[string]string{}}
 	r.addName("svc", "web")
 	r.addName("pod", "web-rs-a")
+	r.addName("ns", "shop")
 	r.addImage("ghcr.io/acme/web:2.0")
 	r.build()
-	got := r.text(`pod "web-rs-a" for Service web, webhook web.shop.svc, image ghcr.io/acme/web:2.0 at 10.244.0.7:8080`)
-	for _, gone := range []string{`"web-rs-a"`, "Service web,", "ghcr.io/acme/web", "10.244.0.7"} {
+	got := r.text(`pod "web-rs-a" for Service web, webhook web.shop.svc, image ghcr.io/acme/web:2.0 at 10.244.0.7:8080, wget http://api.shop.svc.cluster.local/`)
+	for _, gone := range []string{`"web-rs-a"`, "Service web,", "ghcr.io/acme/web", "10.244.0.7", ".shop.svc"} {
 		if strings.Contains(got, gone) {
 			t.Errorf("%q still in %q", gone, got)
 		}
@@ -75,6 +76,13 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	p.Spec.Containers = []kube.Container{{Name: "web", Image: "nginx", EnvFrom: []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "web-config"}}},
 		Env: []kube.EnvVar{{Name: "DB", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db-password", Key: "pw"}}}}}}
 	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "orders-data"}}}
+	projected := kube.ProjectedSource{ConfigMap: &kube.ConfigMapVolumeSource{Name: "feature-flags"}}
+	projected.Secret = &struct {
+		Name     string           `json:"name"`
+		Items    []kube.KeyToPath `json:"items,omitempty"`
+		Optional *bool            `json:"optional,omitempty"`
+	}{Name: "partner-api-keys"}
+	p.Spec.Volumes = append(p.Spec.Volumes, kube.Volume{Name: "bundle", Projected: &kube.ProjectedVolumeSource{Sources: []kube.ProjectedSource{projected}}})
 	p.Spec.ImagePullSecrets = []kube.LocalObjectReference{{Name: "regcred"}}
 	var ss kube.Workload
 	ss.Kind, ss.Metadata = "StatefulSet", kube.ObjectMeta{Name: "db", Namespace: "shop"}
@@ -96,15 +104,20 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	pv.Metadata.Name = "orders-pv"
 	pv.Spec.ClaimRef = &kube.ClaimReference{Namespace: "shop", Name: "orders-data-old"}
 	job.Metadata.Labels = map[string]string{"kueue.x-k8s.io/queue-name": "team-payments"}
+	var cj kube.CronJob
+	cj.Metadata = kube.ObjectMeta{Name: "invoice-sweep", Namespace: "shop"}
+	cj.Status.Active = append(cj.Status.Active, struct {
+		Name string `json:"name"`
+	}{Name: "invoice-sweep-29002"})
 	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Pods: []kube.Pod{p}, Workloads: []kube.Workload{ss},
-		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}, Jobs: []kube.Job{job}, PVs: []kube.PersistentVolume{pv}}
+		Ingresses: []kube.Ingress{ing}, Services: []kube.Service{svc}, Jobs: []kube.Job{job}, CronJobs: []kube.CronJob{cj}, PVs: []kube.PersistentVolume{pv}}
 	red, err := redactWithKey(s, []byte("k"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	b, _ := json.Marshal(red)
 	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export",
-		"orders-pv", "orders-data-old", "team-payments"} {
+		"orders-pv", "orders-data-old", "team-payments", "invoice-sweep", "feature-flags", "partner-api-keys"} {
 		if strings.Contains(string(b), name) {
 			t.Errorf("redacted snapshot still contains %q", name)
 		}

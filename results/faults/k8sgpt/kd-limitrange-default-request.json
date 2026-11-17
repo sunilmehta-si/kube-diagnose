@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-limitrange-default-request/web",
+      "error": [
+        {
+          "Text": "Deployment kd-limitrange-default-request/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-default-request",
+              "Masked": "NlJKMzN2UVBGUjpCJy9EaWkvX1NIdzgyd2VVdmU="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Nmwk"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-limitrange-default-request/web-54b9bbc47f-5mc5j",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

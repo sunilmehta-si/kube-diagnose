@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-statefulset-first-pod-unready",
+  "description": "A three-replica StatefulSet's first pod never passes its readiness probe, so the StatefulSet never creates the other two.",
+  "rule": "KD120",
+  "object": "StatefulSet/db",
+  "keywords": [
+    [
+      "readiness"
+    ],
+    [
+      "in order",
+      "db-1"
+    ]
+  ]
+}

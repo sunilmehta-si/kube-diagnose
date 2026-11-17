@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,6 +21,14 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 	for _, svc := range ix.s.Services {
 		if f := loadBalancerPending(ix, svc); f != nil {
 			out = append(out, *f)
+		}
+		if f := externalNameIP(svc); f != nil {
+			out = append(out, *f)
+		}
+		if len(svc.Spec.Selector) == 0 && svc.Spec.Type != "ExternalName" {
+			if f := noSelectorNoEndpoints(ix, svc); f != nil {
+				out = append(out, *f)
+			}
 		}
 		if len(svc.Spec.Selector) == 0 || svc.Spec.Type == "ExternalName" {
 			continue
@@ -327,4 +336,37 @@ func selectorString(s kube.LabelSelector) string {
 		out += fmt.Sprintf("%s %s (%s)", e.Key, e.Operator, strings.Join(e.Values, ","))
 	}
 	return out
+}
+
+// externalNameIP finds an ExternalName Service whose externalName is an IP address. Cluster DNS answers a lookup of
+// such a Service with a CNAME to the address written as a name, which resolves to nothing.
+func externalNameIP(svc kube.Service) *Finding {
+	if svc.Spec.Type != "ExternalName" || net.ParseIP(svc.Spec.ExternalName) == nil {
+		return nil
+	}
+	ns, name, ip := svc.Metadata.Namespace, svc.Metadata.Name, svc.Spec.ExternalName
+	return &Finding{Rule: "KD260", Title: "ExternalName Service names an IP address", Severity: Warning, Object: svc.Ref(),
+		Cause: fmt.Sprintf("Service %s is of type ExternalName with externalName %s, an IP address: cluster DNS answers %s.%s.svc with a CNAME to the name %q, which does not resolve, so clients of the Service get no address", name, ip, name, ns, ip),
+		Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has type ExternalName and externalName %s", name, ip),
+			Command: cmdGet("service", ns, name, `{.spec.type}{" "}{.spec.externalName}`)}},
+		Fix: fmt.Sprintf("ExternalName takes a DNS name. To send Service %s to the address %s, make it a Service without a selector and give it an EndpointSlice with that address.", name, ip)}
+}
+
+// noSelectorNoEndpoints finds a Service without a selector and without a ready address in any EndpointSlice: no
+// controller fills in endpoints for such a Service, so whoever made it was meant to, and connections to it fail.
+func noSelectorNoEndpoints(ix *index, svc kube.Service) *Finding {
+	if !ix.read("endpointslices.discovery.k8s.io") || readyEndpoints(ix, svc) > 0 {
+		return nil
+	}
+	ns, name := svc.Metadata.Namespace, svc.Metadata.Name
+	slices := ix.slices[nsName{ns, name}]
+	have := "no EndpointSlice"
+	if len(slices) > 0 {
+		have = fmt.Sprintf("%s with no ready address", plural(len(slices), "EndpointSlice"))
+	}
+	return &Finding{Rule: "KD264", Title: "Service has no selector and no endpoints", Severity: Warning, Object: svc.Ref(),
+		Cause: fmt.Sprintf("Service %s has no selector, so Kubernetes keeps no endpoints for it, and it has %s: connections to it fail", name, have),
+		Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no selector", name), Command: cmdGet("service", ns, name, "{.spec.selector}")},
+			{Object: svc.Ref(), What: fmt.Sprintf("Service %s has %s", name, have), Command: "kubectl get endpointslices -n " + ns + " -l kubernetes.io/service-name=" + name}},
+		Fix: fmt.Sprintf("Give Service %s a selector that matches the pods it fronts, or create an EndpointSlice labelled kubernetes.io/service-name: %s with the addresses it should send to.", name, name)}
 }

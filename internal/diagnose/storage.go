@@ -28,6 +28,11 @@ func storageFindings(ix *index) []Finding {
 }
 
 func pendingClaim(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
+	for _, p := range ix.s.Pods {
+		if bypassesScheduler(ix, p, pvc) {
+			return nil // the pod's finding (KD159) is the cause
+		}
+	}
 	ns, name := pvc.Metadata.Namespace, pvc.Metadata.Name
 	ref := pvc.Ref()
 	state := Evidence{Object: ref, What: "PersistentVolumeClaim is Pending", Command: cmdGet("pvc", ns, name, "{.status.phase}")}
@@ -237,4 +242,62 @@ func resizeFailed(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
 		Evidence: []Evidence{{Object: pvc.Ref(), What: fmt.Sprintf("claim requests %s, capacity is %s", want, have), Command: cmdGet("pvc", ns, name, "{.spec.resources.requests.storage} {.status.capacity.storage} {.status.conditions}")},
 			eventEvidence(pvc.Ref(), evs[0])},
 		Fix: "Read the resize error in the evidence: the StorageClass must allow volume expansion and its CSI driver must support it; some volumes can only grow while detached or only once in a few hours. A claim cannot be shrunk back."}
+}
+
+// claimClass is the StorageClass a claim gets: its storageClassName, or the default class when it names none.
+func claimClass(ix *index, pvc kube.PersistentVolumeClaim) (*kube.StorageClass, bool) {
+	name := defaultClass(ix)
+	if pvc.Spec.StorageClassName != nil {
+		name = *pvc.Spec.StorageClassName
+	}
+	sc, ok := ix.classes[name]
+	return sc, ok
+}
+
+const selectedNodeAnnotation = "volume.kubernetes.io/selected-node"
+
+// bypassesScheduler reports whether pod p waits for claim pvc that will never bind because of p: the claim's class
+// binds when the scheduler places its first consumer (WaitForFirstConsumer), the scheduler records that node on
+// the claim, and p sets nodeName, so the scheduler never places it.
+func bypassesScheduler(ix *index, p kube.Pod, pvc kube.PersistentVolumeClaim) bool {
+	if p.Status.Phase != "Pending" || p.Spec.NodeName == "" || pvc.Status.Phase != "Pending" ||
+		pvc.Metadata.Annotations[selectedNodeAnnotation] != "" || p.Metadata.Namespace != pvc.Metadata.Namespace {
+		return false
+	}
+	sc, ok := claimClass(ix, pvc)
+	if !ok || sc.VolumeBindingMode != "WaitForFirstConsumer" {
+		return false
+	}
+	for _, v := range p.Spec.Volumes {
+		if v.PersistentVolumeClaim != nil && v.PersistentVolumeClaim.ClaimName == pvc.Metadata.Name {
+			return true
+		}
+	}
+	return false
+}
+
+// claimWaitsForBypass finds the pods for which bypassesScheduler holds, for a pod's claims.
+func claimWaitsForBypass(ix *index, p kube.Pod) *problem {
+	for _, v := range p.Spec.Volumes {
+		if v.PersistentVolumeClaim == nil {
+			continue
+		}
+		pvc, ok := ix.pvcs[nsName{p.Metadata.Namespace, v.PersistentVolumeClaim.ClaimName}]
+		if !ok || !bypassesScheduler(ix, p, *pvc) {
+			continue
+		}
+		sc, _ := claimClass(ix, *pvc)
+		ns, claim := pvc.Metadata.Namespace, pvc.Metadata.Name
+		ev := []Evidence{
+			{Object: p.Ref(), What: fmt.Sprintf("pod sets spec.nodeName %s", p.Spec.NodeName), Command: cmdGet("pod", ns, p.Metadata.Name, "{.spec.nodeName}")},
+			{Object: pvc.Ref(), What: fmt.Sprintf("claim %s is Pending, with no %s annotation", claim, selectedNodeAnnotation),
+				Command: cmdGet("pvc", ns, claim, "{.status.phase}{\" \"}{.metadata.annotations}")},
+			{Object: kube.Ref{Kind: "StorageClass", Name: sc.Metadata.Name}, What: fmt.Sprintf("StorageClass %s has volumeBindingMode WaitForFirstConsumer", sc.Metadata.Name),
+				Command: "kubectl get storageclass " + sc.Metadata.Name + " -o jsonpath={.volumeBindingMode}"},
+		}
+		return newProblem(p, "", "KD159", "Claim waits for a pod that bypasses the scheduler", Critical,
+			fmt.Sprintf("claim %s's StorageClass %s provisions a volume only once the scheduler places the pod that uses it, and the pod sets nodeName %s, which bypasses the scheduler, so the claim never binds and the pod never starts", claim, sc.Metadata.Name, p.Spec.NodeName),
+			"bypass|"+claim, "Remove nodeName from the pod template and use a nodeSelector on kubernetes.io/hostname instead, so the scheduler places the pod and the claim binds on that node.", ev...)
+	}
+	return nil
 }

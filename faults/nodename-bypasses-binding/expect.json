@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-nodename-bypasses-binding",
+  "description": "A Deployment pins its pod with nodeName and mounts a claim of the WaitForFirstConsumer class, which binds only when the scheduler places the pod, so it never binds.",
+  "rule": "KD159",
+  "object": "Deployment/db",
+  "keywords": [
+    [
+      "nodeName"
+    ],
+    [
+      "WaitForFirstConsumer",
+      "bypasses the scheduler"
+    ]
+  ]
+}

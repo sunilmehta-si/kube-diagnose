@@ -1,6 +1,7 @@
 package diagnose
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
@@ -75,6 +76,48 @@ func TestRefusedServiceByCurl(t *testing.T) {
 	} {
 		if svc, _, ok := refusedService(ix, "shop", []string{line}); !ok || svc.Metadata.Name != "db" {
 			t.Errorf("%q: %v %v", line, svc.Metadata.Name, ok)
+		}
+	}
+}
+
+func TestHostNetworkPodResolvesWithTheNodesDNS(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.HostNetwork, p.Spec.DNSPolicy = true, "ClusterFirst"
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("api", nil, port(8080))} // its endpoints are managed by hand
+	s.EndpointSlices = []kube.EndpointSlice{slice("api", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address 'api.shop.svc.cluster.local'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD261", "Deployment shop/web", "api.shop.svc.cluster.local does not resolve", "dnsPolicy ClusterFirst")
+	if !strings.Contains(f.Fix, "ClusterFirstWithHostNet") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The right policy: the lookup failed for another reason.
+	s.Pods[0].Spec.DNSPolicy = "ClusterFirstWithHostNet"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD261" {
+			t.Errorf("ClusterFirstWithHostNet is the fix, not the fault: %+v", f)
+		}
+	}
+	// dnsPolicy Default does the same off the host network.
+	s.Pods[0].Spec.HostNetwork, s.Pods[0].Spec.DNSPolicy = false, "Default"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD261", "Deployment shop/web", "dnsPolicy Default, which means the node's resolver")
+	if !strings.Contains(f.Fix, "dnsPolicy: ClusterFirst") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	s.Pods[0].Spec.HostNetwork = true
+
+	// An outside name is the node resolver's to answer.
+	s.Pods[0].Spec.DNSPolicy = ""
+	s.Logs[0].Lines = []string{"wget: bad address 'db.example.com'"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD261" {
+			t.Errorf("an outside name: %+v", f)
 		}
 	}
 }

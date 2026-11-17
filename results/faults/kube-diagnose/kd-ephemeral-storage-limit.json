@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-ephemeral-storage-limit"
   ],
-  "collectedAt": "2026-11-16 05:33 UTC",
+  "collectedAt": "2026-11-17 06:11 UTC",
   "findings": [
     {
       "rule": "KD193",
@@ -15,17 +15,17 @@
         "namespace": "kd-ephemeral-storage-limit",
         "name": "web"
       },
-      "cause": "the pod was evicted for writing more to its local disk than its ephemeral-storage limit (10Mi); Deployment web has 0 of 1 replicas ready",
+      "cause": "the pod was evicted for writing more to its local disk than its ephemeral-storage limit (10Mi); Deployment web has 1 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-ephemeral-storage-limit",
-            "name": "web-84cfc45967-27pbk"
+            "name": "web-84cfc45967-7j4gn"
           },
           "what": "pod status is Failed, reason Evicted",
           "detail": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
-          "command": "kubectl get pod web-84cfc45967-27pbk -n kd-ephemeral-storage-limit -o jsonpath='{.status.message}'"
+          "command": "kubectl get pod web-84cfc45967-7j4gn -n kd-ephemeral-storage-limit -o jsonpath='{.status.message}'"
         }
       ],
       "fix": "Raise the container's ephemeral-storage limit, or move what it writes (logs, caches, scratch files) to a volume.",
@@ -33,77 +33,92 @@
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-27pbk"
+          "name": "web-84cfc45967-7j4gn"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-5qqw4"
+          "name": "web-84cfc45967-8f9cc"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-8kjwf"
+          "name": "web-84cfc45967-9h2c7"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-c98rr"
+          "name": "web-84cfc45967-bbxcl"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-hvgnm"
+          "name": "web-84cfc45967-bc9nn"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-hw2pm"
+          "name": "web-84cfc45967-dgvcv"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-l5lbv"
+          "name": "web-84cfc45967-fnjxx"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-m8nq7"
+          "name": "web-84cfc45967-fztwh"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-pxnck"
+          "name": "web-84cfc45967-k7qr7"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-qwb77"
+          "name": "web-84cfc45967-l6jn6"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-sftdp"
+          "name": "web-84cfc45967-mxdh5"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-swzlg"
+          "name": "web-84cfc45967-n8xp4"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-trqbs"
+          "name": "web-84cfc45967-pmkfl"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-wl2bg"
+          "name": "web-84cfc45967-qsgmj"
         },
         {
           "kind": "Pod",
           "namespace": "kd-ephemeral-storage-limit",
-          "name": "web-84cfc45967-zznqh"
+          "name": "web-84cfc45967-rdgbw"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-ephemeral-storage-limit",
+          "name": "web-84cfc45967-shbwg"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-ephemeral-storage-limit",
+          "name": "web-84cfc45967-w4l45"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-ephemeral-storage-limit",
+          "name": "web-84cfc45967-zbh5z"
         }
       ]
     }
@@ -112,81 +127,96 @@
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-27pbk -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-27pbk\" not found"
+      "error": "kubectl logs web-84cfc45967-7j4gn -n kd-ephemeral-storage-limit -c web --tail=20: Error from server (BadRequest): container \"web\" in pod \"web-84cfc45967-7j4gn\" is terminated"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-5qqw4 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-5qqw4\" not found"
+      "error": "kubectl logs web-84cfc45967-8f9cc -n kd-ephemeral-storage-limit -c web --tail=20: Error from server (BadRequest): container \"web\" in pod \"web-84cfc45967-8f9cc\" is terminated"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-8kjwf -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-8kjwf\" not found"
+      "error": "kubectl logs web-84cfc45967-9h2c7 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-9h2c7\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-c98rr -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-c98rr\" not found"
+      "error": "kubectl logs web-84cfc45967-bbxcl -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-bbxcl\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-hvgnm -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-hvgnm\" not found"
+      "error": "kubectl logs web-84cfc45967-bc9nn -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-bc9nn\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-hw2pm -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-hw2pm\" not found"
+      "error": "kubectl logs web-84cfc45967-dgvcv -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-dgvcv\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-l5lbv -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-l5lbv\" not found"
+      "error": "kubectl logs web-84cfc45967-fnjxx -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-fnjxx\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-m8nq7 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-m8nq7\" not found"
+      "error": "kubectl logs web-84cfc45967-fztwh -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-fztwh\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-pxnck -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-pxnck\" not found"
+      "error": "kubectl logs web-84cfc45967-k7qr7 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-k7qr7\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-qwb77 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-qwb77\" not found"
+      "error": "kubectl logs web-84cfc45967-l6jn6 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-l6jn6\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-sftdp -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-sftdp\" not found"
+      "error": "kubectl logs web-84cfc45967-mxdh5 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-mxdh5\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-swzlg -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-swzlg\" not found"
+      "error": "kubectl logs web-84cfc45967-n8xp4 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-n8xp4\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-trqbs -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-trqbs\" not found"
+      "error": "kubectl logs web-84cfc45967-pmkfl -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-pmkfl\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-wl2bg -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-wl2bg\" not found"
+      "error": "kubectl logs web-84cfc45967-qsgmj -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-qsgmj\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-ephemeral-storage-limit",
-      "error": "kubectl logs web-84cfc45967-zznqh -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-zznqh\" not found"
+      "error": "kubectl logs web-84cfc45967-rdgbw -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-rdgbw\" not found"
+    },
+    {
+      "resource": "logs",
+      "namespace": "kd-ephemeral-storage-limit",
+      "error": "kubectl logs web-84cfc45967-shbwg -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-shbwg\" not found"
+    },
+    {
+      "resource": "logs",
+      "namespace": "kd-ephemeral-storage-limit",
+      "error": "kubectl logs web-84cfc45967-w4l45 -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-w4l45\" not found"
+    },
+    {
+      "resource": "logs",
+      "namespace": "kd-ephemeral-storage-limit",
+      "error": "kubectl logs web-84cfc45967-zbh5z -n kd-ephemeral-storage-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-84cfc45967-zbh5z\" not found"
     }
   ],
   "checked": {
-    "pods": 16,
+    "pods": 19,
     "services": 0,
     "persistentVolumeClaims": 0,
     "nodes": 1

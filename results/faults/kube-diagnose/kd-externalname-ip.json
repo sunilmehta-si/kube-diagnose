@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-externalname-ip"
+  ],
+  "collectedAt": "2026-11-17 06:12 UTC",
+  "findings": [
+    {
+      "rule": "KD260",
+      "title": "ExternalName Service names an IP address",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-externalname-ip",
+        "name": "legacy-db"
+      },
+      "cause": "Service legacy-db is of type ExternalName with externalName 10.96.200.15, an IP address: cluster DNS answers legacy-db.kd-externalname-ip.svc with a CNAME to the name \"10.96.200.15\", which does not resolve, so clients of the Service get no address",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-externalname-ip",
+            "name": "legacy-db"
+          },
+          "what": "Service legacy-db has type ExternalName and externalName 10.96.200.15",
+          "command": "kubectl get service legacy-db -n kd-externalname-ip -o jsonpath='{.spec.type}{\" \"}{.spec.externalName}'"
+        }
+      ],
+      "fix": "ExternalName takes a DNS name. To send Service legacy-db to the address 10.96.200.15, make it a Service without a selector and give it an EndpointSlice with that address."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

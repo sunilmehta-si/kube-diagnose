@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-port-in-use",
-              "Masked": "U1VqVDhRXyIrcWF8Nms="
+              "Masked": "cTV4MXMibDRaSS1oKCc="
             },
             {
               "Unmasked": "web",
-              "Masked": "WEso"
+              "Masked": "bDEs"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-port-in-use/web-64496df69d-lx2t6",
+      "name": "kd-port-in-use/web-64496df69d-bsr7c",
       "error": [
         {
-          "Text": "the last termination reason is Error container=metrics pod=web-64496df69d-lx2t6",
+          "Text": "the termination reason is Error exitCode=1 container=metrics pod=web-64496df69d-bsr7c",
           "KubernetesDoc": "",
           "Sensitive": []
         }

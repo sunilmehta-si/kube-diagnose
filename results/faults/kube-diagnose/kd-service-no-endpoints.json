@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-no-endpoints"
+  ],
+  "collectedAt": "2026-11-17 06:15 UTC",
+  "findings": [
+    {
+      "rule": "KD264",
+      "title": "Service has no selector and no endpoints",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-no-endpoints",
+        "name": "payments"
+      },
+      "cause": "Service payments has no selector, so Kubernetes keeps no endpoints for it, and it has no EndpointSlice: connections to it fail",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-no-endpoints",
+            "name": "payments"
+          },
+          "what": "Service payments has no selector",
+          "command": "kubectl get service payments -n kd-service-no-endpoints -o jsonpath='{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-no-endpoints",
+            "name": "payments"
+          },
+          "what": "Service payments has no EndpointSlice",
+          "command": "kubectl get endpointslices -n kd-service-no-endpoints -l kubernetes.io/service-name=payments"
+        }
+      ],
+      "fix": "Give Service payments a selector that matches the pods it fronts, or create an EndpointSlice labelled kubernetes.io/service-name: payments with the addresses it should send to."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

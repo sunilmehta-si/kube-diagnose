@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-volume-mounted-read-only"
+  ],
+  "collectedAt": "2026-11-17 06:16 UTC",
+  "findings": [
+    {
+      "rule": "KD138",
+      "title": "Container writes to a read-only volume",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-volume-mounted-read-only",
+        "name": "web"
+      },
+      "cause": "container web exits because it writes to /data/started, which is read-only: the mount of volume data at /data sets readOnly: true; its log says: \"sh: can't create /data/started: Read-only file system\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-volume-mounted-read-only",
+            "name": "web-645896979d-4l8ds"
+          },
+          "what": "container web exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod web-645896979d-4l8ds -n kd-volume-mounted-read-only -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-volume-mounted-read-only",
+            "name": "web-645896979d-4l8ds"
+          },
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "sh: can't create /data/started: Read-only file system",
+          "command": "kubectl logs web-645896979d-4l8ds -n kd-volume-mounted-read-only -c web --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-volume-mounted-read-only",
+            "name": "web-645896979d-4l8ds"
+          },
+          "what": "container web mounts volume data (emptyDir) at /data with readOnly: true",
+          "command": "kubectl get pod web-645896979d-4l8ds -n kd-volume-mounted-read-only -o jsonpath='{.spec.volumes[?(@.name==\"data\")]}'"
+        }
+      ],
+      "fix": "Remove readOnly: true from the mount of volume data at /data if the container is meant to write there, or point the app at a writable volume.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-volume-mounted-read-only",
+          "name": "web-645896979d-4l8ds"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

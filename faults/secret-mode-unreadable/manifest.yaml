@@ -1,0 +1,45 @@
+# A container that runs as user 1000 reads a Secret volume mounted with defaultMode 0400, so its files are readable by root only and it exits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-secret-mode-unreadable
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tls
+  namespace: kd-secret-mode-unreadable
+stringData:
+  tls.key: not-a-real-key
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-secret-mode-unreadable
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      securityContext:
+        runAsUser: 1000
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "cat /etc/tls/tls.key > /dev/null && sleep 3600"]
+          volumeMounts:
+            - name: tls
+              mountPath: /etc/tls
+      volumes:
+        - name: tls
+          secret:
+            secretName: tls
+            defaultMode: 0400

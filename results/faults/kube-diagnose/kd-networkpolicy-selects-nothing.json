@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-selects-nothing"
+  ],
+  "collectedAt": "2026-11-17 06:14 UTC",
+  "findings": [
+    {
+      "rule": "KD262",
+      "title": "NetworkPolicy selects no pods",
+      "severity": "warning",
+      "object": {
+        "kind": "NetworkPolicy",
+        "namespace": "kd-networkpolicy-selects-nothing",
+        "name": "web-ingress"
+      },
+      "cause": "NetworkPolicy web-ingress selects pods with app=webapp, and no pod or workload in namespace kd-networkpolicy-selects-nothing has those labels, so it restricts nothing (the closest pod labels are app=web)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-selects-nothing",
+            "name": "web-ingress"
+          },
+          "what": "the policy's podSelector",
+          "command": "kubectl get networkpolicy web-ingress -n kd-networkpolicy-selects-nothing -o jsonpath='{.spec.podSelector}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-selects-nothing",
+            "name": "*"
+          },
+          "what": "pod labels in the namespace",
+          "command": "kubectl get pods -n kd-networkpolicy-selects-nothing --show-labels"
+        }
+      ],
+      "fix": "Change the policy's podSelector to match the pods it should restrict (app=web)."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

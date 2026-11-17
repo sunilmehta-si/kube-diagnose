@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-configmap-command-missing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-configmap-command-missing/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-configmap-command-missing",
+              "Masked": "ViU5KnVWWy9oPnxNeCZAXnl6ei5rNHFrT250eQ=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "VEs4"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-configmap-command-missing/web-547879c54f-ww8g9",
+      "error": [
+        {
+          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/scripts/start.sh\": stat /scripts/start.sh: no such file or directory",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

@@ -1,0 +1,46 @@
+# A Deployment pins its pod with nodeName and mounts a claim of the WaitForFirstConsumer class, which binds only when the scheduler places the pod, so it never binds.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-nodename-bypasses-binding
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: kd-nodename-bypasses-binding
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 64Mi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: kd-nodename-bypasses-binding
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      nodeName: kd-faults-control-plane
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data

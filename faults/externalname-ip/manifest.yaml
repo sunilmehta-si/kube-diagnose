@@ -1,0 +1,15 @@
+# An ExternalName Service points at an IP address, which cluster DNS turns into a CNAME that resolves to nothing.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-externalname-ip
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: legacy-db
+  namespace: kd-externalname-ip
+spec:
+  type: ExternalName
+  externalName: 10.96.200.15

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-nodename-bypasses-binding/db",
+      "error": [
+        {
+          "Text": "Deployment kd-nodename-bypasses-binding/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodename-bypasses-binding",
+              "Masked": "LHgpaVg1KVhye2pWRlhyUmxEMWgsfUxfakBFbw=="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "bUo="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-nodename-bypasses-binding/db-68946d5798-kgntn",
+      "error": [
+        {
+          "Text": "Unable to attach or mount volumes: unmounted volumes=[data], unattached volumes=[], failed to process volumes=[data]: error processing PVC kd-nodename-bypasses-binding/data: PVC is not bound",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    }
+  ]
+}

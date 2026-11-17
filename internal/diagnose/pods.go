@@ -45,6 +45,12 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 		return unschedulable(ix, p, c)
 	}
+	if pr := nodeMissing(ix, p); pr != nil {
+		return pr
+	}
+	if pr := claimWaitsForBypass(ix, p); pr != nil {
+		return pr
+	}
 	if pr := unclaimed(ix, p); pr != nil {
 		return pr
 	}
@@ -680,7 +686,14 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	switch {
 	case reExecFormat.MatchString(msg):
 		return execFormat(p, cs, ev)
+	case reExecDenied.MatchString(msg):
+		return notExecutable(p, cs.Name, reExecDenied.FindStringSubmatch(msg)[1], "", ev)
 	case reNoExec.MatchString(msg):
+		if len(c.Command) > 0 {
+			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
+				return volumeFileProblem(p, cs.Name, m, fmt.Sprintf("container %s runs %s, which does not exist: %s", cs.Name, c.Command[0], what), ev)
+			}
+		}
 		cmd := strings.Join(append(append([]string{}, c.Command...), c.Args...), " ")
 		cause := fmt.Sprintf("container %s's command is not in image %s", cs.Name, imageOf(p, cs))
 		if cmd != "" {
@@ -736,10 +749,27 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
 	}
+	if t.ExitCode == 126 {
+		if pr := deniedScript(p, cs, log.Lines, ev); pr != nil {
+			return pr
+		}
+	}
+	if pr := fileNotInVolume(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := readOnlyVolume(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := volumeDenied(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := portInUse(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := nodeDNS(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {
@@ -1150,6 +1180,7 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 }
 
 var (
+	reEmptyDirLimit  = regexp.MustCompile(`Usage of EmptyDir volume "([^"]+)" exceeds the limit "([^"]+)"`)
 	reEphemeralLimit = regexp.MustCompile(`(?i)(?:Container (\S+) exceeded its local ephemeral storage limit "([^"]+)"|Pod ephemeral local storage usage exceeds the total limit of containers (\S+?)\.?\s*$)`)
 	reNodeLow        = regexp.MustCompile(`The node was low on resource: ([a-z.-]+)`)
 )
@@ -1158,6 +1189,11 @@ func evicted(p kube.Pod) *problem {
 	msg := p.Status.Message
 	ev := []Evidence{{Object: p.Ref(), What: "pod status is Failed, reason Evicted", Detail: msg,
 		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.status.message}")}}
+	if m := reEmptyDirLimit.FindStringSubmatch(msg); m != nil {
+		return &problem{rule: "KD193", title: "emptyDir volume exceeded its size limit", severity: Warning, pod: p,
+			cause: fmt.Sprintf("the pod was evicted because emptyDir volume %s holds more than its %s sizeLimit", m[1], m[2]), key: "KD193|emptydir|" + m[1], evidence: ev,
+			fix: fmt.Sprintf("Raise the sizeLimit of emptyDir volume %s, or have the app clean up what it writes there. With medium: Memory, what it holds also counts against the containers' memory limits.", m[1])}
+	}
 	if m := reEphemeralLimit.FindStringSubmatch(msg); m != nil {
 		cause := fmt.Sprintf("the pod was evicted for writing more to its local disk than its ephemeral-storage limit (%s)", m[3])
 		if m[1] != "" {

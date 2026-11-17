@@ -302,6 +302,21 @@ func TestUnschedulableInsufficientCPU(t *testing.T) {
 	p.Status.ContainerStatuses = nil
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD140", "Pod shop/web", "requests 64 cpu", "node-1, has 8 allocatable")
+
+	// The request came from a LimitRange default, not the pod template.
+	s.Pods[0].Metadata.Annotations = map[string]string{"kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu, memory request for container web; memory limit for container web"}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD140", "Pod shop/web", "requests 64 cpu", "sets no cpu request for container web: the namespace's LimitRange gave it its default")
+	if !strings.Contains(f.Fix, "defaultRequest for cpu") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	if limitRangerSet(s.Pods[0], "memory") != "web" || limitRangerSet(s.Pods[0], "ephemeral-storage") != "" {
+		t.Errorf("limitRangerSet misreads the annotation")
+	}
+	s.Pods[0].Metadata.Annotations["kubernetes.io/limit-ranger"] = "LimitRanger plugin set: cpu limit for container web"
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "LimitRange") {
+		t.Errorf("a defaulted limit is not a defaulted request: %s", f.Cause)
+	}
 }
 
 func TestUnschedulableNodeSelector(t *testing.T) {
@@ -434,6 +449,24 @@ func TestQuotaExhausted(t *testing.T) {
 	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
 	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate", `Error creating: pods "web-rs-x7k2q" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=2, limited: pods=2`, 0)}
 	expect(t, only(t, Diagnose(s)), "KD170", "Deployment shop/web", "ResourceQuota pod-limit is used up", "limit pods=2")
+}
+
+func TestQuotaStopsAStatefulSetsClaim(t *testing.T) {
+	s := snap()
+	var replicas int32 = 1
+	ss := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "db", Namespace: "shop"}}
+	ss.Spec.Replicas, ss.Spec.ServiceName = &replicas, "db"
+	s.Workloads = []kube.Workload{ss}
+	headless := service("db", nil, port(5432))
+	headless.Spec.ClusterIP = "None"
+	s.Services = []kube.Service{headless}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db", 1)}
+	s.Events = []kube.Event{event("StatefulSet", "db", "FailedCreate", `create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims "data-db-0" is forbidden: exceeded quota: storage, requested: requests.storage=1Gi, used: requests.storage=0, limited: requests.storage=100Mi`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD170", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates", "ResourceQuota storage is used up", "limit requests.storage=100Mi")
+	if !strings.Contains(f.Fix, "volumeClaimTemplates") {
+		t.Errorf("fix %q", f.Fix)
+	}
 }
 
 func TestServiceAccountMissing(t *testing.T) {
@@ -737,6 +770,11 @@ func TestEvictions(t *testing.T) {
 	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 1Gi."))), "KD193", "Pod shop/web", "limit (1Gi)")
 	// The kubelet's message ends with a space, as recorded on Kubernetes 1.37 in the fault suite.
 	expect(t, only(t, Diagnose(evict("Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. "))), "KD193", "Pod shop/web", "limit (10Mi)")
+	f := only(t, Diagnose(evict(`Usage of EmptyDir volume "cache" exceeds the limit "10Mi". `)))
+	expect(t, f, "KD193", "Pod shop/web", "emptyDir volume cache holds more than its 10Mi sizeLimit")
+	if f.Title != "emptyDir volume exceeded its size limit" || !strings.Contains(f.Fix, "sizeLimit of emptyDir volume cache") {
+		t.Errorf("title %q fix %q", f.Title, f.Fix)
+	}
 	expect(t, only(t, Diagnose(evict("The node was low on resource: ephemeral-storage. Threshold quantity: 3Gi, available: 1Gi. Container web was using 2Gi, request is 0, has larger consumption of ephemeral-storage. "))),
 		"KD192", "Pod shop/web", "the node ran low on ephemeral-storage")
 }
@@ -1868,5 +1906,183 @@ func TestLivenessProbeThatCannotRun(t *testing.T) {
 	expect(t, f, "KD129", "Deployment shop/web", "liveness probe runs curl, which is not in image", "checks nothing")
 	if f.Severity != Warning {
 		t.Errorf("severity %s", f.Severity)
+	}
+}
+
+func TestPodBoundToAMissingNode(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.NodeName = "worker-9"
+	p.Status = kube.PodStatus{Phase: "Pending"}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD240", "Deployment shop/web", "spec.nodeName worker-9", "no such node (it has node-1)")
+
+	// A node list the user may not read proves nothing.
+	s.Gaps = []snapshot.Gap{{Resource: "nodes", Error: "forbidden"}}
+	s.Nodes = nil
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD240" {
+			t.Errorf("KD240 without the node list: %+v", f)
+		}
+	}
+}
+
+func TestExternalNameWithAnIPAddress(t *testing.T) {
+	s := snap()
+	svc := service("legacy-db", nil, port(5432))
+	svc.Spec.Type, svc.Spec.ExternalName = "ExternalName", "10.20.0.15"
+	s.Services = []kube.Service{svc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD260", "Service shop/legacy-db", "externalName 10.20.0.15, an IP address", "CNAME")
+	if !strings.Contains(f.Fix, "EndpointSlice") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	s.Services[0].Spec.ExternalName = "db.example.com"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a DNS name is what ExternalName takes: %+v", r.Findings)
+	}
+}
+
+func TestNetworkPolicySelectsNoPods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "web-ingress", Namespace: "shop"}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "webapp"}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD262", "NetworkPolicy shop/web-ingress", "selects pods with app=webapp", "restricts nothing", "closest pod labels are app=web")
+
+	// A CronJob's pods exist only while it runs; its template counts.
+	var cj kube.CronJob
+	cj.Metadata = kube.ObjectMeta{Name: "report", Namespace: "shop"}
+	cj.Spec.JobTemplate.Spec.Template.Metadata.Labels = map[string]string{"app": "webapp"}
+	s.CronJobs = []kube.CronJob{cj}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("the policy selects the CronJob's pods: %+v", r.Findings)
+	}
+	// An empty selector selects every pod.
+	s.CronJobs = nil
+	s.NetworkPolicies[0].Spec.PodSelector = kube.LabelSelector{}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("an empty selector: %+v", r.Findings)
+	}
+	// CronJobs not read: a template we cannot see might match.
+	s.NetworkPolicies[0].Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "webapp"}}
+	s.Gaps = []snapshot.Gap{{Resource: "cronjobs.batch", Namespace: "shop", Error: "forbidden"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("unread CronJobs: %+v", r.Findings)
+	}
+}
+
+func TestIngressesClaimTheSameHostAndPath(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http")), service("web-v2", map[string]string{"app": "web"}, named("http"))}
+	s.Services[0].Spec.Ports[0].Port, s.Services[1].Spec.Ports[0].Port = 80, 80
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1), slice("web-v2", 1)}
+	older, newer := ingress("shop", "web", 80, ""), ingress("shop-v2", "web-v2", 80, "")
+	older.Metadata.CreationTimestamp, newer.Metadata.CreationTimestamp = t0.Add(-48*time.Hour), t0.Add(-time.Hour)
+	s.Ingresses = []kube.Ingress{newer, older}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD263", "Ingress shop/shop-v2", "shop.example.com/api to Service web-v2:80, which Ingress shop, created earlier, sends to Service web:80", "ingress-nginx keeps the oldest rule")
+
+	// Created in the same second: the names break the tie, and neither is called earlier.
+	s.Ingresses[0].Metadata.CreationTimestamp = s.Ingresses[1].Metadata.CreationTimestamp
+	expect(t, only(t, Diagnose(s)), "KD263", "Ingress shop/shop-v2", "which Ingress shop sends to Service web:80")
+	s.Ingresses[0].Metadata.CreationTimestamp = t0.Add(-time.Hour)
+
+	// The same backend twice is redundant, not a conflict.
+	s.Ingresses[0] = ingress("shop-v2", "web", 80, "")
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("same backend: %+v", r.Findings)
+	}
+	// Different classes are different controllers.
+	s.Ingresses[0] = newer
+	s.Ingresses[0].Spec.IngressClassName = strp("internal")
+	s.IngressClasses = append(s.IngressClasses, kube.IngressClass{Metadata: kube.ObjectMeta{Name: "internal"}})
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("different classes: %+v", r.Findings)
+	}
+}
+
+func TestStatefulSetWaitsForItsFirstPod(t *testing.T) {
+	s := snap()
+	var replicas int32 = 3
+	ss := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "db", Namespace: "shop"}}
+	ss.Spec.Replicas, ss.Spec.ServiceName = &replicas, "db"
+	ss.Spec.Template.Metadata.Labels = map[string]string{"app": "web"}
+	ss.Status.Replicas = 1
+	s.Workloads = []kube.Workload{ss}
+	headless := service("db", map[string]string{"app": "web"}, named("http"))
+	headless.Spec.ClusterIP = "None"
+	s.Services = []kube.Service{headless}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db", 0)}
+	p := pod("db-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "db", Controller: yes()}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"cat", "/tmp/ready"}}}
+	notReady(&p)
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "db-0", "Unhealthy", "Readiness probe failed: cat: can't open '/tmp/ready': No such file or directory", 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD120", "StatefulSet shop/db", "has 0 of 3 replicas ready", "creates its pods in order", "db-1, db-2 are not created yet")
+
+	// Parallel creates them all at once: a missing pod is not waiting for this one.
+	s.Workloads[0].Spec.PodManagementPolicy = "Parallel"
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "in order") {
+		t.Errorf("Parallel: %s", f.Cause)
+	}
+}
+
+func TestServiceWithoutSelectorOrEndpoints(t *testing.T) {
+	s := snap()
+	s.Services = []kube.Service{service("payments", nil, port(8080))}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD264", "Service shop/payments", "has no selector", "no EndpointSlice: connections to it fail")
+	if !strings.Contains(f.Fix, "kubernetes.io/service-name: payments") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	s.EndpointSlices = []kube.EndpointSlice{slice("payments", 0)}
+	expect(t, only(t, Diagnose(s)), "KD264", "Service shop/payments", "1 EndpointSlice with no ready address")
+	s.EndpointSlices = []kube.EndpointSlice{slice("payments", 1)}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("hand-managed endpoints: %+v", r.Findings)
+	}
+	s.EndpointSlices = nil
+	s.Gaps = []snapshot.Gap{{Resource: "endpointslices.discovery.k8s.io", Namespace: "shop", Error: "forbidden"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("unread EndpointSlices: %+v", r.Findings)
+	}
+}
+
+func TestClaimWaitsForAPodThatBypassesTheScheduler(t *testing.T) {
+	s := snap()
+	s.StorageClasses = []kube.StorageClass{{Metadata: kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}},
+		Provisioner: "rancher.io/local-path", VolumeBindingMode: "WaitForFirstConsumer"}}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "WaitForFirstConsumer", "waiting for first consumer to be created before binding", 0)}
+	deployment(s, "db", 1, 0)
+	p := pod("db-rs-a", "db")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	waiting(&p, "ContainerCreating", "")
+	p.Status.Phase, p.Status.Conditions = "Pending", nil
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD159", "Deployment shop/db", "claim data's StorageClass standard", "sets nodeName node-1, which bypasses the scheduler")
+
+	// Once the scheduler has picked a node, the claim's wait is the provisioner's.
+	s.PVCs[0].Metadata.Annotations = map[string]string{"volume.kubernetes.io/selected-node": "node-1"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD159" {
+			t.Errorf("selected-node set: %+v", f)
+		}
 	}
 }

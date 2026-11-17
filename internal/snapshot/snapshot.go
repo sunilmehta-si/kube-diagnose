@@ -53,6 +53,7 @@ type Snapshot struct {
 	IngressClasses  []kube.IngressClass            `json:"ingressClasses"`
 	Workloads       []kube.Workload                `json:"workloads"`
 	Jobs            []kube.Job                     `json:"jobs"`
+	CronJobs        []kube.CronJob                 `json:"cronJobs"`
 	HPAs            []kube.HorizontalPodAutoscaler `json:"horizontalPodAutoscalers"`
 	PDBs            []kube.PodDisruptionBudget     `json:"podDisruptionBudgets"`
 	PVCs            []kube.PersistentVolumeClaim   `json:"persistentVolumeClaims"`

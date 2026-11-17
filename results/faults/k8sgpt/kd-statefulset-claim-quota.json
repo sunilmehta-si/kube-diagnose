@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Service",
+      "name": "kd-statefulset-claim-quota/db",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=db",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "app",
+              "Masked": "d19H"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "W0k="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-statefulset-claim-quota/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "kd-statefulset-claim-quota/db",
+      "error": [
+        {
+          "Text": "Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims \"data-db-0\" is forbidden: exceeded quota: storage, requested: requests.storage=1Gi, used: requests.storage=0, limited: requests.storage=100Mi",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

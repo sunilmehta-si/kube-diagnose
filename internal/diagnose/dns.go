@@ -274,3 +274,44 @@ func readyBehind(ix *index, svc kube.Service) int {
 	}
 	return n
 }
+
+// nodeDNS finds a container that exits because a cluster name does not resolve, in a pod that uses the node's
+// resolver instead of cluster DNS: dnsPolicy Default, or a pod on the host network with dnsPolicy ClusterFirst (the
+// default), which there falls back to the node's resolver. The node's resolver knows no Services.
+func nodeDNS(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	policy := p.Spec.DNSPolicy
+	if policy == "" {
+		policy = "ClusterFirst"
+	}
+	hostNet := p.Spec.HostNetwork && policy == "ClusterFirst"
+	if !hostNet && policy != "Default" {
+		return nil
+	}
+	host, line := unresolvedHost(lines)
+	if host == "" {
+		return nil
+	}
+	lower := strings.ToLower(host)
+	if !strings.HasSuffix(lower, ".svc") && !strings.Contains(lower, ".svc.") {
+		svcNS, svc, isSvc := serviceName(p.Metadata.Namespace, host)
+		if !isSvc {
+			return nil
+		}
+		if exists, _ := ix.serviceExists(svcNS, svc); !exists {
+			return nil
+		}
+	}
+	why := "the pod sets dnsPolicy Default, which means the node's resolver"
+	fix := "Set dnsPolicy: ClusterFirst (or remove dnsPolicy), so the pod uses cluster DNS and falls back to the node's resolver for outside names."
+	what := "the pod sets dnsPolicy Default"
+	if hostNet {
+		why = "the pod runs on the host network with dnsPolicy ClusterFirst, which for such pods means the node's resolver"
+		fix = "Set dnsPolicy: ClusterFirstWithHostNet in the pod spec, so a pod on the host network uses cluster DNS."
+		what = "the pod sets hostNetwork: true and dnsPolicy ClusterFirst"
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: what,
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.hostNetwork}{" "}{.spec.dnsPolicy}`)})
+	return newProblem(p, cs.Name, "KD261", "Pod resolves names with the node's DNS", Critical,
+		fmt.Sprintf("container %s exits because %s does not resolve: %s, and that resolver knows no Services; its log says: %q", cs.Name, host, why, clip(line, 160)),
+		"nodedns|"+what, fix, ev...)
+}

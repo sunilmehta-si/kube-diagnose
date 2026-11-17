@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-configmap-command-missing",
+  "description": "A container runs /scripts/start.sh from a ConfigMap volume whose key is run.sh, so the runtime cannot find the command.",
+  "rule": "KD230",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "start.sh"
+    ],
+    [
+      "run.sh"
+    ]
+  ]
+}

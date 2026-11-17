@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "CronJob",
+      "name": "kd-cronjob-suspended/report",
+      "error": [
+        {
+          "Text": "CronJob report is suspended",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-cronjob-suspended",
+              "Masked": "djo0VzVHb2oub09lNG55Zl9vREg="
+            },
+            {
+              "Unmasked": "report",
+              "Masked": "IVp6dTI5"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-cronjob-suspended/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

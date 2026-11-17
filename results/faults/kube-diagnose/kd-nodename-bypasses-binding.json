@@ -1,0 +1,63 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-nodename-bypasses-binding"
+  ],
+  "collectedAt": "2026-11-17 06:14 UTC",
+  "findings": [
+    {
+      "rule": "KD159",
+      "title": "Claim waits for a pod that bypasses the scheduler",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-nodename-bypasses-binding",
+        "name": "db"
+      },
+      "cause": "claim data's StorageClass standard provisions a volume only once the scheduler places the pod that uses it, and the pod sets nodeName kd-faults-control-plane, which bypasses the scheduler, so the claim never binds and the pod never starts; Deployment db has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodename-bypasses-binding",
+            "name": "db-68946d5798-kgntn"
+          },
+          "what": "pod sets spec.nodeName kd-faults-control-plane",
+          "command": "kubectl get pod db-68946d5798-kgntn -n kd-nodename-bypasses-binding -o jsonpath='{.spec.nodeName}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-nodename-bypasses-binding",
+            "name": "data"
+          },
+          "what": "claim data is Pending, with no volume.kubernetes.io/selected-node annotation",
+          "command": "kubectl get pvc data -n kd-nodename-bypasses-binding -o jsonpath='{.status.phase}{\" \"}{.metadata.annotations}'"
+        },
+        {
+          "object": {
+            "kind": "StorageClass",
+            "name": "standard"
+          },
+          "what": "StorageClass standard has volumeBindingMode WaitForFirstConsumer",
+          "command": "kubectl get storageclass standard -o jsonpath={.volumeBindingMode}"
+        }
+      ],
+      "fix": "Remove nodeName from the pod template and use a nodeSelector on kubernetes.io/hostname instead, so the scheduler places the pod and the claim binds on that node.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-bypasses-binding",
+          "name": "db-68946d5798-kgntn"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

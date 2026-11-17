@@ -1,0 +1,17 @@
+# A Service without a selector, meant for endpoints managed by hand, has none, so connections to it fail.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-service-no-endpoints
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments
+  namespace: kd-service-no-endpoints
+spec:
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080

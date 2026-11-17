@@ -1,0 +1,83 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-limitrange-default-request"
+  ],
+  "collectedAt": "2026-11-17 06:13 UTC",
+  "findings": [
+    {
+      "rule": "KD140",
+      "title": "No node has enough cpu",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-limitrange-default-request",
+        "name": "web"
+      },
+      "cause": "the pod requests 64 cpu, more than any node can offer (the largest, kd-faults-control-plane, has 4 allocatable); the pod template sets no cpu request for container web: the namespace's LimitRange gave it its default; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-limitrange-default-request",
+            "name": "web-54b9bbc47f-5mc5j"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod web-54b9bbc47f-5mc5j -n kd-limitrange-default-request -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-limitrange-default-request",
+            "name": "web-54b9bbc47f-5mc5j"
+          },
+          "what": "pod requests 64 cpu",
+          "command": "kubectl get pod web-54b9bbc47f-5mc5j -n kd-limitrange-default-request -o jsonpath='{.spec.containers[*].resources.requests}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-limitrange-default-request",
+            "name": "web-54b9bbc47f-5mc5j"
+          },
+          "what": "the LimitRanger admission plugin set container web's cpu request",
+          "detail": "LimitRanger plugin set: cpu request for container web",
+          "command": "kubectl get pod web-54b9bbc47f-5mc5j -n kd-limitrange-default-request -o jsonpath='{.metadata.annotations.kubernetes\\.io/limit-ranger}'"
+        },
+        {
+          "object": {
+            "kind": "LimitRange",
+            "namespace": "kd-limitrange-default-request",
+            "name": "*"
+          },
+          "what": "the namespace's LimitRanges",
+          "command": "kubectl get limitranges -n kd-limitrange-default-request -o yaml"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "kd-faults-control-plane"
+          },
+          "what": "the largest node, kd-faults-control-plane, has 4 cpu allocatable",
+          "command": "kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.allocatable.cpu"
+        }
+      ],
+      "fix": "Set container web's own cpu request in the pod template, or lower the defaultRequest for cpu in the namespace's LimitRange.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-limitrange-default-request",
+          "name": "web-54b9bbc47f-5mc5j"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

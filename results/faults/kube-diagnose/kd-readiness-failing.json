@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readiness-failing"
   ],
-  "collectedAt": "2026-11-16 05:35 UTC",
+  "collectedAt": "2026-11-17 06:15 UTC",
   "findings": [
     {
       "rule": "KD120",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-gwbw8"
+            "name": "web-ff6bfb896-27pgv"
           },
-          "what": "event Unhealthy (104 times)",
+          "what": "event Unhealthy (105 times)",
           "detail": "Readiness probe failed: HTTP probe failed with statuscode: 404",
-          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-gwbw8"
+          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-27pgv"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-gwbw8"
+            "name": "web-ff6bfb896-27pgv"
           },
           "what": "container web is running but not ready",
-          "command": "kubectl get pod web-ff6bfb896-gwbw8 -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+          "command": "kubectl get pod web-ff6bfb896-27pgv -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
         }
       ],
       "fix": "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready.",
@@ -42,12 +42,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-gwbw8"
+          "name": "web-ff6bfb896-27pgv"
         },
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-hdsfh"
+          "name": "web-ff6bfb896-x8c54"
         },
         {
           "kind": "Service",

@@ -1,0 +1,12 @@
+{
+  "namespace": "kd-hostnetwork-dns",
+  "description": "A pod on the host network keeps the default dnsPolicy, so it resolves with the node's DNS, cannot find the api Service, and exits.",
+  "rule": "KD261",
+  "object": "Deployment/client",
+  "keywords": [
+    [
+      "ClusterFirstWithHostNet",
+      "host network"
+    ]
+  ]
+}

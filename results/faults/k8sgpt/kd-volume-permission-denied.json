@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-volume-permission-denied/web",
+      "error": [
+        {
+          "Text": "Deployment kd-volume-permission-denied/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-volume-permission-denied",
+              "Masked": "cG42UlooYSoxTmRYbXxuJ0gjZSRjTHpKNmZ8"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "TyFx"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-volume-permission-denied/web-6577bc675f-jvfwb",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-6577bc675f-jvfwb",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

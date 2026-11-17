@@ -1,0 +1,45 @@
+# A container runs /scripts/start.sh from a ConfigMap volume whose key is run.sh, so the runtime cannot find the command.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-configmap-command-missing
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scripts
+  namespace: kd-configmap-command-missing
+data:
+  run.sh: |
+    #!/bin/sh
+    exec sleep 3600
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-configmap-command-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["/scripts/start.sh"]
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: scripts
+            defaultMode: 0755

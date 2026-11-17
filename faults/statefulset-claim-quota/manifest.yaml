@@ -1,0 +1,62 @@
+# A ResourceQuota allows 100 MiB of storage and the StatefulSet's volumeClaimTemplate asks for 1 GiB, so its first claim, and so its first pod, is never created.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-statefulset-claim-quota
+
+---
+apiVersion: v1
+kind: ResourceQuota
+metadata:
+  name: storage
+  namespace: kd-statefulset-claim-quota
+spec:
+  hard:
+    requests.storage: 100Mi
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: kd-statefulset-claim-quota
+spec:
+  clusterIP: None
+  selector:
+    app: db
+  ports:
+    - name: db
+      port: 5432
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: kd-statefulset-claim-quota
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi

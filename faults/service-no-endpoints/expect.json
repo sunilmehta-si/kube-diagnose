@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-service-no-endpoints",
+  "description": "A Service without a selector, meant for endpoints managed by hand, has none, so connections to it fail.",
+  "rule": "KD264",
+  "object": "Service/payments",
+  "keywords": [
+    [
+      "no selector"
+    ],
+    [
+      "endpoint"
+    ]
+  ]
+}

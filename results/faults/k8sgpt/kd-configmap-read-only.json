@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-configmap-read-only/web",
+      "error": [
+        {
+          "Text": "Deployment kd-configmap-read-only/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-configmap-read-only",
+              "Masked": "ciRvL1chZVpkfFFHOSM2SlExSys0Xg=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "UC5d"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-configmap-read-only/web-64487c79c4-k2fkk",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-64487c79c4-k2fkk",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

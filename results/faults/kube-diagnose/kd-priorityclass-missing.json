@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-priorityclass-missing"
   ],
-  "collectedAt": "2026-11-16 05:35 UTC",
+  "collectedAt": "2026-11-17 06:14 UTC",
   "findings": [
     {
       "rule": "KD175",
@@ -23,7 +23,7 @@
             "namespace": "kd-priorityclass-missing",
             "name": "web-55fb7dbd6f"
           },
-          "what": "event FailedCreate (16 times)",
+          "what": "event FailedCreate (17 times)",
           "detail": "Error creating: pods \"web-55fb7dbd6f-\" is forbidden: no PriorityClass with name business-critical was found",
           "command": "kubectl get events -n kd-priorityclass-missing --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-55fb7dbd6f"
         },

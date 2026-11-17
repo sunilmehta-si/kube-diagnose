@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-nodename-missing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-nodename-missing/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodename-missing",
+              "Masked": "LmgwKEtqbkwrXjk4M3NMKF9weQ=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "OF84"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-limitrange-default-request",
+  "description": "The namespace's LimitRange gives every container a default cpu request of 64, which no node has, and the Deployment sets no request of its own.",
+  "rule": "KD140",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "LimitRange"
+    ],
+    [
+      "cpu"
+    ]
+  ]
+}

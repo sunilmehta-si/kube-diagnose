@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-ingress-route-conflict",
+  "description": "A second Ingress sends the same host and path as the first to a new Service, so only one of them gets the traffic.",
+  "rule": "KD263",
+  "object": "Ingress/shop-v2",
+  "keywords": [
+    [
+      "same host"
+    ],
+    [
+      "web-v2"
+    ]
+  ]
+}

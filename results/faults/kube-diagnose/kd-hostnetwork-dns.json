@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hostnetwork-dns"
+  ],
+  "collectedAt": "2026-11-17 06:12 UTC",
+  "findings": [
+    {
+      "rule": "KD261",
+      "title": "Pod resolves names with the node's DNS",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-hostnetwork-dns",
+        "name": "client"
+      },
+      "cause": "container client exits because api.kd-hostnetwork-dns.svc.cluster.local does not resolve: the pod runs on the host network with dnsPolicy ClusterFirst, which for such pods means the node's resolver, and that resolver knows no Services; its log says: \"wget: bad address 'api.kd-hostnetwork-dns.svc.cluster.local'\"; Deployment client has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostnetwork-dns",
+            "name": "client-5fb5b6c577-zb4qp"
+          },
+          "what": "container client exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod client-5fb5b6c577-zb4qp -n kd-hostnetwork-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostnetwork-dns",
+            "name": "client-5fb5b6c577-zb4qp"
+          },
+          "what": "last lines of container client's log (current run)",
+          "detail": "wget: bad address 'api.kd-hostnetwork-dns.svc.cluster.local'",
+          "command": "kubectl logs client-5fb5b6c577-zb4qp -n kd-hostnetwork-dns -c client --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostnetwork-dns",
+            "name": "client-5fb5b6c577-zb4qp"
+          },
+          "what": "the pod sets hostNetwork: true and dnsPolicy ClusterFirst",
+          "command": "kubectl get pod client-5fb5b6c577-zb4qp -n kd-hostnetwork-dns -o jsonpath='{.spec.hostNetwork}{\" \"}{.spec.dnsPolicy}'"
+        }
+      ],
+      "fix": "Set dnsPolicy: ClusterFirstWithHostNet in the pod spec, so a pod on the host network uses cluster DNS.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-hostnetwork-dns",
+          "name": "client-5fb5b6c577-zb4qp"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -5,6 +5,41 @@
   "problems": 3,
   "results": [
     {
+      "kind": "Deployment",
+      "name": "kd-pv-reserved-elsewhere/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pv-reserved-elsewhere/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-reserved-elsewhere",
+              "Masked": "VF1ROWswMnt5eT8qRlp3OEhza204Q0Bo"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "LUw="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pv-reserved-elsewhere/db-56f8666648-p62sp",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    },
+    {
       "kind": "PersistentVolumeClaim",
       "name": "kd-pv-reserved-elsewhere/data",
       "error": [
@@ -16,41 +51,6 @@
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "Deployment",
-      "name": "kd-pv-reserved-elsewhere/db",
-      "error": [
-        {
-          "Text": "Deployment kd-pv-reserved-elsewhere/db has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pv-reserved-elsewhere",
-              "Masked": "SD41KjIiIl5LTkM2LGhbPjhxKXxFPTtS"
-            },
-            {
-              "Unmasked": "db",
-              "Masked": "dj0="
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-pv-reserved-elsewhere/db-56f8666648-n7f79",
-      "error": [
-        {
-          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/db"
     }
   ]
 }

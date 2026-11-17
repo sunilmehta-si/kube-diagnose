@@ -92,6 +92,7 @@ func TestCollect(t *testing.T) {
 			"get ingressclasses.networking.k8s.io":     `{"items":[{"metadata":{"name":"nginx","annotations":{"ingressclass.kubernetes.io/is-default-class":"true"}},"spec":{"controller":"k8s.io/ingress-nginx"}}]}`,
 			"get poddisruptionbudgets.policy":          `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"minAvailable":"100%"},"status":{"disruptionsAllowed":0,"currentHealthy":2,"desiredHealthy":2,"expectedPods":2}}]}`,
 			"get horizontalpodautoscalers.autoscaling": `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"scaleTargetRef":{"kind":"Deployment","name":"web"},"maxReplicas":5},"status":{"conditions":[{"type":"ScalingActive","status":"False","reason":"FailedGetResourceMetric"}]}}]}`,
+			"get cronjobs.batch":                       `{"items":[{"metadata":{"name":"nightly","namespace":"shop"},"spec":{"schedule":"0 2 * * *","concurrencyPolicy":"Forbid","suspend":false},"status":{"active":[{"kind":"Job","name":"nightly-29001"}],"lastScheduleTime":"2026-11-13T02:00:00Z"}}]}`,
 			"get configmaps":                           "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
 			"get secrets":                              "shop\tdb\tOpaque\tpassword,user,\n",
 			"logs web-1 web":                           "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
@@ -117,6 +118,10 @@ func TestCollect(t *testing.T) {
 	}
 	if len(s.HPAs) != 1 || s.HPAs[0].Spec.MaxReplicas != 5 || s.HPAs[0].Spec.ScaleTargetRef.Name != "web" {
 		t.Errorf("hpas %+v", s.HPAs)
+	}
+	if len(s.CronJobs) != 1 || s.CronJobs[0].Spec.ConcurrencyPolicy != "Forbid" || s.CronJobs[0].Status.Active[0].Name != "nightly-29001" ||
+		s.CronJobs[0].Status.LastScheduleTime == nil {
+		t.Errorf("cronjobs %+v", s.CronJobs)
 	}
 	if len(s.Pods) != 2 || len(s.Workloads) != 1 || s.Workloads[0].Kind != "Deployment" {
 		t.Errorf("pods %d workloads %+v", len(s.Pods), s.Workloads)
