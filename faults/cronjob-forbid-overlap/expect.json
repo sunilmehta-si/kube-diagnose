@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-cronjob-forbid-overlap",
+  "description": "A CronJob runs every minute with concurrencyPolicy Forbid, and its first run never ends, so every later run is skipped.",
+  "rule": "KD188",
+  "object": "CronJob/report",
+  "keywords": [
+    [
+      "Forbid"
+    ],
+    [
+      "still running",
+      "skipped"
+    ]
+  ]
+}
