@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-configmap-file-missing",
+  "description": "An app reads /etc/app/config.yaml, but its ConfigMap's key is config.yml, so the file is not in the volume and the app exits.",
+  "rule": "KD230",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "config.yaml"
+    ],
+    [
+      "config.yml"
+    ]
+  ]
+}
