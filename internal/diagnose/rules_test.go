@@ -1890,3 +1890,19 @@ func TestPodBoundToAMissingNode(t *testing.T) {
 		}
 	}
 }
+
+func TestExternalNameWithAnIPAddress(t *testing.T) {
+	s := snap()
+	svc := service("legacy-db", nil, port(5432))
+	svc.Spec.Type, svc.Spec.ExternalName = "ExternalName", "10.20.0.15"
+	s.Services = []kube.Service{svc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD260", "Service shop/legacy-db", "externalName 10.20.0.15, an IP address", "CNAME")
+	if !strings.Contains(f.Fix, "EndpointSlice") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	s.Services[0].Spec.ExternalName = "db.example.com"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a DNS name is what ExternalName takes: %+v", r.Findings)
+	}
+}

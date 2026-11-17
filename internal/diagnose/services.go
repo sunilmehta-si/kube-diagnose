@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"net"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,6 +20,9 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 	blocked := map[kube.Ref][]kube.Ref{} // Service -> its pods that are not ready
 	for _, svc := range ix.s.Services {
 		if f := loadBalancerPending(ix, svc); f != nil {
+			out = append(out, *f)
+		}
+		if f := externalNameIP(svc); f != nil {
 			out = append(out, *f)
 		}
 		if len(svc.Spec.Selector) == 0 || svc.Spec.Type == "ExternalName" {
@@ -327,4 +331,18 @@ func selectorString(s kube.LabelSelector) string {
 		out += fmt.Sprintf("%s %s (%s)", e.Key, e.Operator, strings.Join(e.Values, ","))
 	}
 	return out
+}
+
+// externalNameIP finds an ExternalName Service whose externalName is an IP address. Cluster DNS answers a lookup of
+// such a Service with a CNAME to the address written as a name, which resolves to nothing.
+func externalNameIP(svc kube.Service) *Finding {
+	if svc.Spec.Type != "ExternalName" || net.ParseIP(svc.Spec.ExternalName) == nil {
+		return nil
+	}
+	ns, name, ip := svc.Metadata.Namespace, svc.Metadata.Name, svc.Spec.ExternalName
+	return &Finding{Rule: "KD260", Title: "ExternalName Service names an IP address", Severity: Warning, Object: svc.Ref(),
+		Cause: fmt.Sprintf("Service %s is of type ExternalName with externalName %s, an IP address: cluster DNS answers %s.%s.svc with a CNAME to the name %q, which does not resolve, so clients of the Service get no address", name, ip, name, ns, ip),
+		Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has type ExternalName and externalName %s", name, ip),
+			Command: cmdGet("service", ns, name, `{.spec.type}{" "}{.spec.externalName}`)}},
+		Fix: fmt.Sprintf("ExternalName takes a DNS name. To send Service %s to the address %s, make it a Service without a selector and give it an EndpointSlice with that address.", name, ip)}
 }
