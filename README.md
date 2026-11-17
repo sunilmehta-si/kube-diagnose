@@ -95,6 +95,7 @@ kubectl diagnose -n shop --ignore KD168      # leave out a rule's findings (here
 kubectl diagnose record -n shop -o shop.snapshot.json.gz   # save what it read
 kube-diagnose --snapshot shop.snapshot.json.gz           # diagnose it later, anywhere, without a cluster
 kube-diagnose rules KD161              # what a rule detects and from which evidence
+kube-diagnose rules cronjob            # the rules that mention every word given
 ```
 
 It needs permission to `get` and `list` pods, events, Services, EndpointSlices, Ingresses, workloads, Jobs, CronJobs,
