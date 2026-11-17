@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-script-not-executable",
+  "description": "A container runs a script from a ConfigMap volume that sets no defaultMode, so the file is 0644 and the runtime cannot execute it.",
+  "rule": "KD200",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "not executable",
+      "permission denied"
+    ],
+    [
+      "defaultMode",
+      "0644"
+    ]
+  ]
+}
