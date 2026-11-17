@@ -451,6 +451,24 @@ func TestQuotaExhausted(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD170", "Deployment shop/web", "ResourceQuota pod-limit is used up", "limit pods=2")
 }
 
+func TestQuotaStopsAStatefulSetsClaim(t *testing.T) {
+	s := snap()
+	var replicas int32 = 1
+	ss := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "db", Namespace: "shop"}}
+	ss.Spec.Replicas, ss.Spec.ServiceName = &replicas, "db"
+	s.Workloads = []kube.Workload{ss}
+	headless := service("db", nil, port(5432))
+	headless.Spec.ClusterIP = "None"
+	s.Services = []kube.Service{headless}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db", 1)}
+	s.Events = []kube.Event{event("StatefulSet", "db", "FailedCreate", `create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims "data-db-0" is forbidden: exceeded quota: storage, requested: requests.storage=1Gi, used: requests.storage=0, limited: requests.storage=100Mi`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD170", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates", "ResourceQuota storage is used up", "limit requests.storage=100Mi")
+	if !strings.Contains(f.Fix, "volumeClaimTemplates") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}
+
 func TestServiceAccountMissing(t *testing.T) {
 	s := snap()
 	deployment(s, "web", 1, 0)

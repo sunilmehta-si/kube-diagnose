@@ -12,6 +12,7 @@ import (
 var (
 	reQuota         = regexp.MustCompile(`exceeded quota: ([^,]+), requested: ([^,]+(?:,[^,:]+)*), used: ([^,]+(?:,[^,:]+)*), limited: (.+)$`)
 	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
+	reCreateClaim   = regexp.MustCompile(`^create Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
 	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
 	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)
@@ -64,6 +65,11 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 	msg := e.Message
 	ns := owner.Namespace
 	f := Finding{Object: owner, Severity: Critical, Evidence: ev}
+	// A StatefulSet creates each pod's claims from its volumeClaimTemplates first; when that fails, the pod waits.
+	claim := ""
+	if m := reCreateClaim.FindStringSubmatch(msg); m != nil {
+		claim = m[1]
+	}
 	switch {
 	case reQuota.MatchString(msg):
 		m := reQuota.FindStringSubmatch(msg)
@@ -72,6 +78,10 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "ResourceQuota", Namespace: ns, Name: m[1]},
 			What: "quota usage", Command: cmdGet("resourcequota", ns, m[1], "{.status}")})
 		f.Fix = fmt.Sprintf("Raise ResourceQuota %s, lower what %s asks for, or remove workloads that hold the quota.", m[1], owner)
+		if claim != "" {
+			f.Cause = fmt.Sprintf("%s cannot create PersistentVolumeClaim %s from its volumeClaimTemplates, so the pod that mounts it is never created: ResourceQuota %s is used up (requested %s, used %s, limit %s)", owner, claim, m[1], m[2], m[3], m[4])
+			f.Fix = fmt.Sprintf("Raise ResourceQuota %s, lower the storage the volumeClaimTemplates ask for, or delete claims that hold the quota (a StatefulSet keeps its claims after its pods are gone).", m[1])
+		}
 	case strings.Contains(msg, "forbidden: failed quota") || reQuotaM.MatchString(msg) && strings.Contains(msg, "quota"):
 		f.Rule, f.Title = "KD170", "ResourceQuota is exhausted"
 		f.Cause = fmt.Sprintf("%s cannot create pods: a ResourceQuota in %s rejects them (%s)", owner, ns, clip(msg, 200))
