@@ -94,6 +94,12 @@ func volumeDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evid
 			cause += fmt.Sprintf("; hostPath %s belongs to the node, and fsGroup does not change its owner", m.Volume.HostPath.Path)
 			fix = fmt.Sprintf("Give %s on the node to %s, or chown it from an init container that runs as root, or run the container as the directory's owner. fsGroup does not apply to hostPath volumes.", m.Volume.HostPath.Path, user)
 		case m.Volume.AlwaysReadOnly():
+			if mode, from, ok := fileMode(m); ok {
+				cause += fmt.Sprintf("; the volume's files have mode %04o (%s) and belong to root", mode, from)
+				if !fsGroup {
+					cause += ", and the pod sets no fsGroup"
+				}
+			}
 			fix = fmt.Sprintf("Let the container read the files: set fsGroup in the pod's securityContext and a defaultMode that gives the group read access (0440), or a mode readable by everyone (0444), on %s.", m.Volume.Source())
 		case fsGroup:
 			cause += fmt.Sprintf("; the pod sets fsGroup %d, which the volume's driver may not apply", *p.Spec.SecurityContext.FSGroup)

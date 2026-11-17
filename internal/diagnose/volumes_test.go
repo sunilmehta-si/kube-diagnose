@@ -53,7 +53,7 @@ func TestVolumeAccessDenied(t *testing.T) {
 	volumePod(s, kube.Volume{Secret: &kube.SecretVolumeSource{SecretName: "tls"}}, "/etc/tls", false,
 		"cat: can't open '/etc/tls/tls.key': Permission denied")
 	f = only(t, Diagnose(s))
-	expect(t, f, "KD137", "Deployment shop/web", "/etc/tls/tls.key", "Secret tls")
+	expect(t, f, "KD137", "Deployment shop/web", "/etc/tls/tls.key", "Secret tls", "mode 0644 (the default mode, as no defaultMode is set) and belong to root, and the pod sets no fsGroup")
 	if !strings.Contains(f.Fix, "defaultMode") {
 		t.Errorf("a Secret's fix is its mode: %q", f.Fix)
 	}
