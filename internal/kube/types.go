@@ -275,6 +275,10 @@ type ProjectedSource struct {
 		Items    []KeyToPath `json:"items,omitempty"`
 		Optional *bool       `json:"optional,omitempty"`
 	} `json:"secret,omitempty"`
+	// The other sources put files of their own in the volume; only that they are there matters here.
+	DownwardAPI         *struct{} `json:"downwardAPI,omitempty"`
+	ServiceAccountToken *struct{} `json:"serviceAccountToken,omitempty"`
+	ClusterTrustBundle  *struct{} `json:"clusterTrustBundle,omitempty"`
 }
 
 type ProjectedVolumeSource struct {

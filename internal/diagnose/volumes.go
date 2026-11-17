@@ -123,6 +123,8 @@ func (ix *index) volumeFiles(ns string, v kube.Volume) (kind, name string, files
 		kind, name, items = "ConfigMap", v.ConfigMap.Name, v.ConfigMap.Items
 	case v.Secret != nil:
 		kind, name, items = "Secret", v.Secret.SecretName, v.Secret.Items
+	case v.Projected != nil:
+		return ix.projectedFiles(ns, *v.Projected)
 	default:
 		return "", "", nil, false
 	}
@@ -190,6 +192,9 @@ func volumeFileProblem(p kube.Pod, container string, m kube.Mount, cause string,
 	first := strings.SplitN(m.Rel, "/", 2)[0]
 	src := m.Volume.Source()
 	fix := fmt.Sprintf("Add key %s to %s, or point the app at a file the volume has.", first, src)
+	if m.Volume.Projected != nil {
+		fix = fmt.Sprintf("Add key %s to one of the ConfigMaps or Secrets the projected volume draws from, or point the app at a file the volume has.", first)
+	}
 	if (m.Volume.ConfigMap != nil && len(m.Volume.ConfigMap.Items) > 0) || (m.Volume.Secret != nil && len(m.Volume.Secret.Items) > 0) {
 		fix = fmt.Sprintf("Add %s to the volume's items (and the key to %s), or point the app at a file the volume projects.", first, src)
 	}
@@ -210,6 +215,14 @@ func fileMode(m kube.Mount) (int32, string, bool) {
 		items, def = v.Secret.Items, v.Secret.DefaultMode
 	case v.Projected != nil:
 		def = v.Projected.DefaultMode
+		for _, src := range v.Projected.Sources {
+			if src.ConfigMap != nil {
+				items = append(items, src.ConfigMap.Items...)
+			}
+			if src.Secret != nil {
+				items = append(items, src.Secret.Items...)
+			}
+		}
 	default:
 		return 0, "", false
 	}
@@ -256,4 +269,35 @@ func deniedScript(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evid
 		}
 	}
 	return nil
+}
+
+// projectedFiles lists the files of a projected volume made only of ConfigMaps and Secrets. Other sources (a
+// ServiceAccount token, the downward API) add files whose names are not all in the spec, so the list is not known.
+func (ix *index) projectedFiles(ns string, v kube.ProjectedVolumeSource) (kind, name string, files []string, known bool) {
+	var names []string
+	for _, src := range v.Sources {
+		var items []kube.KeyToPath
+		var srcKind, srcName string
+		switch {
+		case src.ConfigMap != nil:
+			srcKind, srcName, items = "configmap", src.ConfigMap.Name, src.ConfigMap.Items
+		case src.Secret != nil:
+			srcKind, srcName, items = "secret", src.Secret.Name, src.Secret.Items
+		default:
+			return "", "", nil, false
+		}
+		names = append(names, kindName(srcKind)+" "+srcName)
+		if len(items) > 0 {
+			for _, it := range items {
+				files = append(files, it.Path)
+			}
+			continue
+		}
+		ks, exists, read := ix.keySet(srcKind, ns, srcName)
+		if !exists || !read {
+			return "", "", nil, false
+		}
+		files = append(files, ks.Keys...)
+	}
+	return "projected volume of", strings.Join(names, " and "), files, true
 }

@@ -178,3 +178,33 @@ func TestCommandNotExecutable(t *testing.T) {
 	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "run.sh")}
 	expect(t, only(t, Diagnose(s)), "KD200", "Deployment shop/web", "whose files have mode 0644", "sh: /scripts/run.sh: Permission denied")
 }
+
+func TestFileMissingFromAProjectedVolume(t *testing.T) {
+	projected := func(sources ...kube.ProjectedSource) kube.Volume {
+		return kube.Volume{Projected: &kube.ProjectedVolumeSource{Sources: sources}}
+	}
+	cm := kube.ProjectedSource{ConfigMap: &kube.ConfigMapVolumeSource{Name: "app"}}
+	s := snap()
+	volumePod(s, projected(cm), "/etc/app", false, "cat: can't open '/etc/app/config.yaml': No such file or directory")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "app", "config.yml")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD230", "Deployment shop/web", "projected volume of ConfigMap app, mounted at /etc/app, has no key config.yaml (it has config.yml)")
+	if !strings.Contains(f.Fix, "one of the ConfigMaps or Secrets") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A ServiceAccount token source adds files the spec does not list: no claim about what is missing.
+	s = snap()
+	volumePod(s, projected(cm, kube.ProjectedSource{ServiceAccountToken: &struct{}{}}), "/etc/app", false,
+		"cat: can't open '/etc/app/config.yaml': No such file or directory")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "app", "config.yml")}
+	expect(t, only(t, Diagnose(s)), "KD110", "Deployment shop/web")
+
+	// A script from a projected volume takes the item's mode, else the volume's defaultMode.
+	s = snap()
+	mode := int32(0o600)
+	withItem := kube.ProjectedSource{ConfigMap: &kube.ConfigMapVolumeSource{Name: "scripts", Items: []kube.KeyToPath{{Key: "run.sh", Path: "run.sh", Mode: &mode}}}}
+	p := volumePod(s, projected(withItem), "/scripts", false, "sh: /scripts/run.sh: Permission denied")
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.ExitCode = 126
+	expect(t, only(t, Diagnose(s)), "KD200", "Deployment shop/web", "whose files have mode 0600 (the item's mode)")
+}

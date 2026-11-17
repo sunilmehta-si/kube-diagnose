@@ -14,7 +14,7 @@
     volume's file mode (KD137); writes to a read-only volume, ConfigMap, Secret, projected and downward API volumes
     always being read-only (KD138); a file the app reads or runs that its ConfigMap or Secret volume does not have,
     with the keys it does have (KD230); a command that is not executable, with the volume's file mode when it comes
-    from a ConfigMap (KD200);
+    from a ConfigMap (KD200); KD230 and KD200 read projected volumes made of ConfigMaps and Secrets too;
   - scheduling: pods bound by nodeName to a node that does not exist (KD240), and WaitForFirstConsumer claims that
     never bind because their pod bypasses the scheduler with nodeName (KD159);
   - networking: ExternalName Services set to an IP address (KD260), pods that resolve names with the node's DNS
