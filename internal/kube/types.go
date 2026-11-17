@@ -755,6 +755,11 @@ type CronJob struct {
 		TimeZone          *string `json:"timeZone,omitempty"`
 		ConcurrencyPolicy string  `json:"concurrencyPolicy,omitempty"`
 		Suspend           *bool   `json:"suspend,omitempty"`
+		JobTemplate       struct {
+			Spec struct {
+				Template PodTemplate `json:"template"`
+			} `json:"spec"`
+		} `json:"jobTemplate"`
 	} `json:"spec"`
 	Status struct {
 		Active []struct {
@@ -894,6 +899,10 @@ type NetworkPolicy struct {
 		Ingress     []NetworkPolicyRule `json:"ingress,omitempty"`
 		Egress      []NetworkPolicyRule `json:"egress,omitempty"`
 	} `json:"spec"`
+}
+
+func (n NetworkPolicy) Ref() Ref {
+	return Ref{Kind: "NetworkPolicy", Namespace: n.Metadata.Namespace, Name: n.Metadata.Name}
 }
 
 // AppliesToIngress reports whether the policy restricts ingress, following the API's defaulting: a policy with no

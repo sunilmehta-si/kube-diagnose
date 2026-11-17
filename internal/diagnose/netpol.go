@@ -166,3 +166,64 @@ func policyBlocksService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines [
 			cs.Name, svc.Metadata.Name, np, dir, bport, clip(line, 200)),
 		"npblock|"+svc.Metadata.Name+"|"+np, fix, ev...)
 }
+
+// policySelectsNothing reports a NetworkPolicy whose pod selector matches no pod and no pod template in its
+// namespace (Deployments and the like, Jobs and CronJobs): it restricts nothing, usually because its labels do not
+// match the pods it was written for. An empty selector selects every pod.
+func policySelectsNothing(ix *index, np kube.NetworkPolicy) *Finding {
+	sel := np.Spec.PodSelector
+	if len(sel.MatchLabels) == 0 && len(sel.MatchExpressions) == 0 || !ix.read("pods") {
+		return nil
+	}
+	ns := np.Metadata.Namespace
+	var templates []map[string]string
+	for _, p := range ix.s.Pods {
+		if p.Metadata.Namespace == ns {
+			templates = append(templates, p.Metadata.Labels)
+		}
+	}
+	for _, w := range ix.s.Workloads {
+		if w.Metadata.Namespace == ns {
+			templates = append(templates, w.Spec.Template.Metadata.Labels)
+		}
+	}
+	for _, j := range ix.s.Jobs {
+		if j.Metadata.Namespace == ns {
+			templates = append(templates, j.Spec.Template.Metadata.Labels)
+		}
+	}
+	for _, c := range ix.s.CronJobs {
+		if c.Metadata.Namespace == ns {
+			templates = append(templates, c.Spec.JobTemplate.Spec.Template.Metadata.Labels)
+		}
+	}
+	for _, l := range templates {
+		if sel.Matches(l) {
+			return nil
+		}
+	}
+	if !ix.read("deployments.apps") || !ix.read("jobs.batch") || !ix.read("cronjobs.batch") {
+		return nil // a template we could not read might match
+	}
+	cause := fmt.Sprintf("NetworkPolicy %s selects pods with %s, and no pod or workload in namespace %s has those labels, so it restricts nothing",
+		np.Metadata.Name, selectorString(sel), ns)
+	fix := "Change the policy's podSelector to match the pods it should restrict, or delete it if they are gone."
+	if near := nearestLabels(ix, ns, sel.MatchLabels); near != "" {
+		cause += fmt.Sprintf(" (the closest pod labels are %s)", near)
+		fix = fmt.Sprintf("Change the policy's podSelector to match the pods it should restrict (%s).", near)
+	}
+	return &Finding{Rule: "KD262", Title: "NetworkPolicy selects no pods", Severity: Warning, Object: np.Ref(), Cause: cause,
+		Evidence: []Evidence{{Object: np.Ref(), What: "the policy's podSelector", Command: cmdGet("networkpolicy", ns, np.Metadata.Name, "{.spec.podSelector}")},
+			{Object: kube.Ref{Kind: "Pod", Namespace: ns, Name: "*"}, What: "pod labels in the namespace", Command: "kubectl get pods -n " + ns + " --show-labels"}},
+		Fix: fix}
+}
+
+func networkPolicyFindings(ix *index) []Finding {
+	var out []Finding
+	for _, np := range ix.s.NetworkPolicies {
+		if f := policySelectsNothing(ix, np); f != nil {
+			out = append(out, *f)
+		}
+	}
+	return out
+}

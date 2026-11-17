@@ -1906,3 +1906,36 @@ func TestExternalNameWithAnIPAddress(t *testing.T) {
 		t.Errorf("a DNS name is what ExternalName takes: %+v", r.Findings)
 	}
 }
+
+func TestNetworkPolicySelectsNoPods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "web-ingress", Namespace: "shop"}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "webapp"}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD262", "NetworkPolicy shop/web-ingress", "selects pods with app=webapp", "restricts nothing", "closest pod labels are app=web")
+
+	// A CronJob's pods exist only while it runs; its template counts.
+	var cj kube.CronJob
+	cj.Metadata = kube.ObjectMeta{Name: "report", Namespace: "shop"}
+	cj.Spec.JobTemplate.Spec.Template.Metadata.Labels = map[string]string{"app": "webapp"}
+	s.CronJobs = []kube.CronJob{cj}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("the policy selects the CronJob's pods: %+v", r.Findings)
+	}
+	// An empty selector selects every pod.
+	s.CronJobs = nil
+	s.NetworkPolicies[0].Spec.PodSelector = kube.LabelSelector{}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("an empty selector: %+v", r.Findings)
+	}
+	// CronJobs not read: a template we cannot see might match.
+	s.NetworkPolicies[0].Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "webapp"}}
+	s.Gaps = []snapshot.Gap{{Resource: "cronjobs.batch", Namespace: "shop", Error: "forbidden"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("unread CronJobs: %+v", r.Findings)
+	}
+}

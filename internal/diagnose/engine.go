@@ -99,6 +99,7 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	r.Findings = append(r.Findings, cronJobFindings(ix, explained)...)
 	r.Findings = append(r.Findings, hpaFindings(ix)...)
 	r.Findings = append(r.Findings, pdbFindings(ix)...)
+	r.Findings = append(r.Findings, networkPolicyFindings(ix)...)
 	r.Findings = append(r.Findings, statefulSetFindings(ix)...)
 	r.Findings = append(r.Findings, nodeFindings(ix)...)
 	sort.SliceStable(r.Findings, func(i, j int) bool {
