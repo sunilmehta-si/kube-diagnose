@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dns-missing-service"
   ],
-  "collectedAt": "2026-11-16 05:33 UTC",
+  "collectedAt": "2026-11-17 06:11 UTC",
   "findings": [
     {
       "rule": "KD121",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dns-missing-service",
-            "name": "web-9969d4d5c-fw22m"
+            "name": "web-9969d4d5c-jtf2f"
           },
           "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-9969d4d5c-fw22m -n kd-dns-missing-service -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "command": "kubectl get pod web-9969d4d5c-jtf2f -n kd-dns-missing-service -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dns-missing-service",
-            "name": "web-9969d4d5c-fw22m"
+            "name": "web-9969d4d5c-jtf2f"
           },
           "what": "last lines of container web's log (current run)",
           "detail": "calling payments:8080\nwget: bad address 'payments:8080'",
-          "command": "kubectl logs web-9969d4d5c-fw22m -n kd-dns-missing-service -c web --tail=20"
+          "command": "kubectl logs web-9969d4d5c-jtf2f -n kd-dns-missing-service -c web --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dns-missing-service",
-          "name": "web-9969d4d5c-fw22m"
+          "name": "web-9969d4d5c-jtf2f"
         }
       ]
     }

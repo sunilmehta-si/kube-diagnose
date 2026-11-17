@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-hostnetwork-dns/client",
+      "error": [
+        {
+          "Text": "Deployment kd-hostnetwork-dns/client has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-hostnetwork-dns",
+              "Masked": "eVBETV9ePU4kJj5VLiJnakhx"
+            },
+            {
+              "Unmasked": "client",
+              "Masked": "c2VET09z"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-hostnetwork-dns/client-5fb5b6c577-zb4qp",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=client pod=client-5fb5b6c577-zb4qp",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/client"
+    }
+  ]
+}

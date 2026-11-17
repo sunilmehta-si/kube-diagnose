@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-volume-mounted-read-only/web",
+      "error": [
+        {
+          "Text": "Deployment kd-volume-mounted-read-only/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-volume-mounted-read-only",
+              "Masked": "NSwxPGtDfVtiT0sqaWY1cFpWIkRmNzY1M0lN"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "ISNP"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-volume-mounted-read-only/web-645896979d-4l8ds",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-645896979d-4l8ds",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

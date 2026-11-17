@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-configmap-file-missing"
+  ],
+  "collectedAt": "2026-11-17 06:11 UTC",
+  "findings": [
+    {
+      "rule": "KD230",
+      "title": "File is missing from a ConfigMap or Secret volume",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-configmap-file-missing",
+        "name": "web"
+      },
+      "cause": "container web exits because /etc/app/config.yaml does not exist: ConfigMap app, mounted at /etc/app, has no key config.yaml (it has config.yml); its log says: \"cat: can't open '/etc/app/config.yaml': No such file or directory\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-configmap-file-missing",
+            "name": "web-8545878979-ngmhz"
+          },
+          "what": "container web exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-8545878979-ngmhz -n kd-configmap-file-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-configmap-file-missing",
+            "name": "web-8545878979-ngmhz"
+          },
+          "what": "last lines of container web's log (current run)",
+          "detail": "cat: can't open '/etc/app/config.yaml': No such file or directory",
+          "command": "kubectl logs web-8545878979-ngmhz -n kd-configmap-file-missing -c web --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-configmap-file-missing",
+            "name": "web-8545878979-ngmhz"
+          },
+          "what": "container web mounts volume config (ConfigMap app) at /etc/app",
+          "command": "kubectl get pod web-8545878979-ngmhz -n kd-configmap-file-missing -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
+        }
+      ],
+      "fix": "Add key config.yaml to ConfigMap app, or point the app at a file the volume has.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-configmap-file-missing",
+          "name": "web-8545878979-ngmhz"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

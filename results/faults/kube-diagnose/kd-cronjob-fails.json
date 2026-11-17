@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-fails"
   ],
-  "collectedAt": "2026-11-16 05:33 UTC",
+  "collectedAt": "2026-11-17 06:11 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29913451-pbzjv"
+            "name": "backup-29914929-zbhzs"
           },
           "what": "container backup exited with code 2 (Error)",
-          "command": "kubectl get pod backup-29913451-pbzjv -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
+          "command": "kubectl get pod backup-29914929-zbhzs -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29913451-pbzjv"
+            "name": "backup-29914929-zbhzs"
           },
           "what": "last lines of container backup's log (current run)",
           "detail": "starting backup\nERROR: BACKUP_TARGET is not set",
-          "command": "kubectl logs backup-29913451-pbzjv -n kd-cronjob-fails -c backup --tail=20"
+          "command": "kubectl logs backup-29914929-zbhzs -n kd-cronjob-fails -c backup --tail=20"
         }
       ],
       "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
@@ -42,12 +42,17 @@
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29913451-pbzjv"
+          "name": "backup-29914929-zbhzs"
         },
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29913452-gzvh8"
+          "name": "backup-29914930-d2f5t"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-cronjob-fails",
+          "name": "backup-29914931-tb8fm"
         }
       ]
     }

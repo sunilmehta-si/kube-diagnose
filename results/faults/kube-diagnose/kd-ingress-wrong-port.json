@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-ingress-wrong-port"
   ],
-  "collectedAt": "2026-11-16 05:34 UTC",
+  "collectedAt": "2026-11-17 06:12 UTC",
   "findings": [
     {
       "rule": "KD166",

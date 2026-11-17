@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dnspolicy-default/client",
+      "error": [
+        {
+          "Text": "Deployment kd-dnspolicy-default/client has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dnspolicy-default",
+              "Masked": "YSVKNXZYRkJQU2ImUy9yZmpfZyk="
+            },
+            {
+              "Unmasked": "client",
+              "Masked": "JypUeC8y"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-dnspolicy-default/client-554dbd98f8-smr4g",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=client pod=client-554dbd98f8-smr4g",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/client"
+    }
+  ]
+}

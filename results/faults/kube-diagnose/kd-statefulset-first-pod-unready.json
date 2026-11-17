@@ -1,0 +1,61 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-statefulset-first-pod-unready"
+  ],
+  "collectedAt": "2026-11-17 06:16 UTC",
+  "findings": [
+    {
+      "rule": "KD120",
+      "title": "Readiness probe failing",
+      "severity": "critical",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-statefulset-first-pod-unready",
+        "name": "db"
+      },
+      "cause": "container db runs but fails its readiness probe (command cat /tmp/ready), so it gets no traffic; StatefulSet db has 0 of 3 replicas ready, and it creates its pods in order, each once the one before is ready, so db-1, db-2 are not created yet",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-statefulset-first-pod-unready",
+            "name": "db-0"
+          },
+          "what": "event Unhealthy (63 times)",
+          "detail": "Readiness probe failed: cat: can't open '/tmp/ready': No such file or directory\n",
+          "command": "kubectl get events -n kd-statefulset-first-pod-unready --field-selector involvedObject.kind=Pod,involvedObject.name=db-0"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-statefulset-first-pod-unready",
+            "name": "db-0"
+          },
+          "what": "container db is running but not ready",
+          "command": "kubectl get pod db-0 -n kd-statefulset-first-pod-unready -o jsonpath='{.status.containerStatuses[?(@.name==\"db\")].ready}'"
+        }
+      ],
+      "fix": "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-statefulset-first-pod-unready",
+          "name": "db-0"
+        },
+        {
+          "kind": "Service",
+          "namespace": "kd-statefulset-first-pod-unready",
+          "name": "db"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

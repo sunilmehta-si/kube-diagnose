@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-bad-image-tag"
   ],
-  "collectedAt": "2026-11-16 05:32 UTC",
+  "collectedAt": "2026-11-17 06:10 UTC",
   "findings": [
     {
       "rule": "KD101",
@@ -21,21 +21,21 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-bad-image-tag",
-            "name": "web-6847787ffb-hw2bk"
+            "name": "web-6847787ffb-t7f7m"
           },
           "what": "container web is waiting: ImagePullBackOff",
           "detail": "Back-off pulling image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
-          "command": "kubectl get pod web-6847787ffb-hw2bk -n kd-bad-image-tag -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "command": "kubectl get pod web-6847787ffb-t7f7m -n kd-bad-image-tag -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-bad-image-tag",
-            "name": "web-6847787ffb-hw2bk"
+            "name": "web-6847787ffb-t7f7m"
           },
           "what": "event Failed (4 times)",
           "detail": "Failed to pull image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
-          "command": "kubectl get events -n kd-bad-image-tag --field-selector involvedObject.kind=Pod,involvedObject.name=web-6847787ffb-hw2bk"
+          "command": "kubectl get events -n kd-bad-image-tag --field-selector involvedObject.kind=Pod,involvedObject.name=web-6847787ffb-t7f7m"
         }
       ],
       "fix": "Correct the image tag or digest, or push that tag to the registry.",
@@ -43,12 +43,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-bad-image-tag",
-          "name": "web-6847787ffb-hw2bk"
+          "name": "web-6847787ffb-t7f7m"
         },
         {
           "kind": "Pod",
           "namespace": "kd-bad-image-tag",
-          "name": "web-6847787ffb-qcdtd"
+          "name": "web-6847787ffb-vrn6z"
         }
       ]
     }

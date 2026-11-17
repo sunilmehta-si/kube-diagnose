@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-statefulset-claim-quota"
+  ],
+  "collectedAt": "2026-11-17 06:15 UTC",
+  "findings": [
+    {
+      "rule": "KD170",
+      "title": "ResourceQuota is exhausted",
+      "severity": "critical",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-statefulset-claim-quota",
+        "name": "db"
+      },
+      "cause": "StatefulSet kd-statefulset-claim-quota/db cannot create pods: ResourceQuota storage is used up (requested requests.storage=1Gi, used requests.storage=0, limit requests.storage=100Mi)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "StatefulSet",
+            "namespace": "kd-statefulset-claim-quota",
+            "name": "db"
+          },
+          "what": "event FailedCreate (17 times)",
+          "detail": "Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims \"data-db-0\" is forbidden: exceeded quota: storage, requested: requests.storage=1Gi, used: requests.storage=0, limited: requests.storage=100Mi",
+          "command": "kubectl get events -n kd-statefulset-claim-quota --field-selector involvedObject.kind=StatefulSet,involvedObject.name=db"
+        },
+        {
+          "object": {
+            "kind": "ResourceQuota",
+            "namespace": "kd-statefulset-claim-quota",
+            "name": "storage"
+          },
+          "what": "quota usage",
+          "command": "kubectl get resourcequota storage -n kd-statefulset-claim-quota -o jsonpath='{.status}'"
+        }
+      ],
+      "fix": "Raise ResourceQuota storage, lower what StatefulSet kd-statefulset-claim-quota/db asks for, or remove workloads that hold the quota."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

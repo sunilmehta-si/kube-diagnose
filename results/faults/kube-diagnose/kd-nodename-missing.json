@@ -1,0 +1,54 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-nodename-missing"
+  ],
+  "collectedAt": "2026-11-17 06:14 UTC",
+  "findings": [
+    {
+      "rule": "KD240",
+      "title": "Pod is bound to a node that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-nodename-missing",
+        "name": "web"
+      },
+      "cause": "the pod sets spec.nodeName kd-worker-9, which bypasses the scheduler, and the cluster has no such node (it has kd-faults-control-plane), so no kubelet runs the pod and the pod garbage collector deletes it; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodename-missing",
+            "name": "web-78cccf7c5c-r6rs9"
+          },
+          "what": "pod sets spec.nodeName kd-worker-9",
+          "command": "kubectl get pod web-78cccf7c5c-r6rs9 -n kd-nodename-missing -o jsonpath='{.spec.nodeName}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "kd-worker-9"
+          },
+          "what": "there is no node kd-worker-9",
+          "command": "kubectl get nodes"
+        }
+      ],
+      "fix": "Remove nodeName from the pod template and let the scheduler place the pod; to pin it to a node, use a nodeSelector on kubernetes.io/hostname with a node that exists.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-missing",
+          "name": "web-78cccf7c5c-r6rs9"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

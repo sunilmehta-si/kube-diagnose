@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-ingress-route-conflict"
+  ],
+  "collectedAt": "2026-11-17 06:12 UTC",
+  "findings": [
+    {
+      "rule": "KD263",
+      "title": "Ingresses send the same host and path to different Services",
+      "severity": "warning",
+      "object": {
+        "kind": "Ingress",
+        "namespace": "kd-ingress-route-conflict",
+        "name": "shop-v2"
+      },
+      "cause": "Ingress shop-v2 sends shop.example.com/ to Service web-v2:80, which Ingress shop sends to Service web:80; only one of them gets the traffic, which one being up to the controller (ingress-nginx keeps the oldest rule)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-route-conflict",
+            "name": "shop-v2"
+          },
+          "what": "Ingress shop-v2's rules",
+          "command": "kubectl get ingress shop-v2 -n kd-ingress-route-conflict -o jsonpath='{.metadata.creationTimestamp}{\" \"}{.spec.rules}'"
+        },
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-route-conflict",
+            "name": "shop"
+          },
+          "what": "Ingress shop routes shop.example.com/ to Service web:80",
+          "command": "kubectl get ingress shop -n kd-ingress-route-conflict -o jsonpath='{.metadata.creationTimestamp}{\" \"}{.spec.rules}'"
+        }
+      ],
+      "fix": "Give each host and path one Ingress: delete the stale rule, or change the host or path of one of them. For a canary, use the controller's canary feature rather than a second Ingress."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 2,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

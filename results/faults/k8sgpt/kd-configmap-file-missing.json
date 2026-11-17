@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-configmap-file-missing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-configmap-file-missing/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-configmap-file-missing",
+              "Masked": "aEc6NzRpZ0tMSkZ8ZE8mRD1Fd0gpUyp3cg=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "OSR1"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-configmap-file-missing/web-8545878979-ngmhz",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-8545878979-ngmhz",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}
