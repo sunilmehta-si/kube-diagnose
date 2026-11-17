@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-statefulset-claim-quota",
+  "description": "A ResourceQuota allows 100 MiB of storage and the StatefulSet's volumeClaimTemplate asks for 1 GiB, so its first claim, and so its first pod, is never created.",
+  "rule": "KD170",
+  "object": "StatefulSet/db",
+  "keywords": [
+    [
+      "quota"
+    ],
+    [
+      "data-db-0",
+      "claim"
+    ]
+  ]
+}
