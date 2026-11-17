@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-volume-mounted-read-only",
+  "description": "A container writes to a volume its mount sets readOnly: true, so it exits with read-only file system.",
+  "rule": "KD138",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "read-only"
+    ],
+    [
+      "readOnly"
+    ]
+  ]
+}
