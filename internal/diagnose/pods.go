@@ -769,7 +769,7 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := portInUse(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
-	if pr := hostNetworkDNS(ix, p, cs, log.Lines, ev); pr != nil {
+	if pr := nodeDNS(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {

@@ -103,6 +103,15 @@ func TestHostNetworkPodResolvesWithTheNodesDNS(t *testing.T) {
 			t.Errorf("ClusterFirstWithHostNet is the fix, not the fault: %+v", f)
 		}
 	}
+	// dnsPolicy Default does the same off the host network.
+	s.Pods[0].Spec.HostNetwork, s.Pods[0].Spec.DNSPolicy = false, "Default"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD261", "Deployment shop/web", "dnsPolicy Default, which means the node's resolver")
+	if !strings.Contains(f.Fix, "dnsPolicy: ClusterFirst") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	s.Pods[0].Spec.HostNetwork = true
+
 	// An outside name is the node resolver's to answer.
 	s.Pods[0].Spec.DNSPolicy = ""
 	s.Logs[0].Lines = []string{"wget: bad address 'db.example.com'"}
