@@ -125,3 +125,47 @@ func TestWorkloadDesiredAndControllerAndPolicyDefaults(t *testing.T) {
 		t.Error("an egress-only policy does not restrict ingress")
 	}
 }
+
+func TestPodMountsAndUser(t *testing.T) {
+	var p Pod
+	err := json.Unmarshal([]byte(`{"metadata":{"name":"web","namespace":"shop"},"spec":{
+	  "hostNetwork":true,"dnsPolicy":"ClusterFirst","securityContext":{"runAsUser":1000,"fsGroup":2000},
+	  "containers":[{"name":"web","image":"busybox","securityContext":{"runAsUser":1001},"volumeMounts":[
+	    {"name":"data","mountPath":"/data"},{"name":"conf","mountPath":"/data/conf/","readOnly":true},
+	    {"name":"scripts","mountPath":"/scripts"}]},
+	    {"name":"side","image":"busybox","volumeMounts":[{"name":"data","mountPath":"/var/data","subPath":"side"}]}],
+	  "volumes":[{"name":"data","hostPath":{"path":"/var/lib/data","type":"DirectoryOrCreate"}},
+	    {"name":"conf","configMap":{"name":"app","defaultMode":420,"items":[{"key":"a","path":"a.yaml","mode":493}]}},
+	    {"name":"scripts","emptyDir":{"sizeLimit":"10Mi"}}]}}`), &p)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !p.Spec.HostNetwork || p.Spec.DNSPolicy != "ClusterFirst" || *p.Spec.SecurityContext.FSGroup != 2000 {
+		t.Errorf("pod spec fields not decoded: %+v", p.Spec)
+	}
+	m, ok := p.MountAt("web", "/data/conf/a.yaml")
+	if !ok || m.Name != "conf" || m.Rel != "a.yaml" || !m.ReadOnly || !m.Volume.AlwaysReadOnly() ||
+		m.Volume.Source() != "ConfigMap app" || *m.Volume.ConfigMap.DefaultMode != 420 || *m.Volume.ConfigMap.Items[0].Mode != 493 {
+		t.Errorf("MountAt(/data/conf/a.yaml) = %+v, %v", m, ok)
+	}
+	if m, ok := p.MountAt("web", "/data/x"); !ok || m.Name != "data" || m.Rel != "x" || m.Volume.Source() != "hostPath /var/lib/data" {
+		t.Errorf("MountAt(/data/x) = %+v, %v", m, ok)
+	}
+	if m, ok := p.MountAt("web", "/scripts"); !ok || m.Rel != "" || m.Volume.EmptyDir.SizeLimit != "10Mi" {
+		t.Errorf("MountAt(/scripts) = %+v, %v", m, ok)
+	}
+	for _, path := range []string{"/datax/y", "/etc/x"} {
+		if m, ok := p.MountAt("web", path); ok {
+			t.Errorf("MountAt(%s) = %+v; want no mount", path, m)
+		}
+	}
+	if m, ok := p.MountAt("side", "/var/data/f"); !ok || m.SubPath != "side" {
+		t.Errorf("MountAt(side, /var/data/f) = %+v, %v", m, ok)
+	}
+	if u, ok := p.RunAsUser("web"); !ok || u != 1001 {
+		t.Errorf("RunAsUser(web) = %d, %v; want the container's 1001", u, ok)
+	}
+	if u, ok := p.RunAsUser("side"); !ok || u != 1000 {
+		t.Errorf("RunAsUser(side) = %d, %v; want the pod's 1000", u, ok)
+	}
+}

@@ -5,6 +5,7 @@ package kube
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -195,6 +196,22 @@ type SecurityContext struct {
 	ReadOnlyRootFilesystem *bool  `json:"readOnlyRootFilesystem,omitempty"`
 	RunAsNonRoot           *bool  `json:"runAsNonRoot,omitempty"`
 	RunAsUser              *int64 `json:"runAsUser,omitempty"`
+	RunAsGroup             *int64 `json:"runAsGroup,omitempty"`
+}
+
+// PodSecurityContext holds the pod-wide user and group settings; a container's own securityContext overrides them.
+type PodSecurityContext struct {
+	RunAsUser  *int64 `json:"runAsUser,omitempty"`
+	RunAsGroup *int64 `json:"runAsGroup,omitempty"`
+	FSGroup    *int64 `json:"fsGroup,omitempty"`
+}
+
+// VolumeMount places a pod volume in a container's filesystem.
+type VolumeMount struct {
+	Name      string `json:"name"`
+	MountPath string `json:"mountPath"`
+	SubPath   string `json:"subPath,omitempty"`
+	ReadOnly  bool   `json:"readOnly,omitempty"`
 }
 
 type Container struct {
@@ -212,24 +229,39 @@ type Container struct {
 	StartupProbe    *Probe           `json:"startupProbe,omitempty"`
 	SecurityContext *SecurityContext `json:"securityContext,omitempty"`
 	Lifecycle       *Lifecycle       `json:"lifecycle,omitempty"`
+	VolumeMounts    []VolumeMount    `json:"volumeMounts,omitempty"`
 	// RestartPolicy is Always on a sidecar: an init container that keeps running beside the app containers.
 	RestartPolicy string `json:"restartPolicy,omitempty"`
 }
 
 type KeyToPath struct {
-	Key string `json:"key"`
+	Key  string `json:"key"`
+	Path string `json:"path,omitempty"`
+	Mode *int32 `json:"mode,omitempty"`
 }
 
 type ConfigMapVolumeSource struct {
-	Name     string      `json:"name"`
-	Items    []KeyToPath `json:"items,omitempty"`
-	Optional *bool       `json:"optional,omitempty"`
+	Name        string      `json:"name"`
+	Items       []KeyToPath `json:"items,omitempty"`
+	Optional    *bool       `json:"optional,omitempty"`
+	DefaultMode *int32      `json:"defaultMode,omitempty"`
 }
 
 type SecretVolumeSource struct {
-	SecretName string      `json:"secretName"`
-	Items      []KeyToPath `json:"items,omitempty"`
-	Optional   *bool       `json:"optional,omitempty"`
+	SecretName  string      `json:"secretName"`
+	Items       []KeyToPath `json:"items,omitempty"`
+	Optional    *bool       `json:"optional,omitempty"`
+	DefaultMode *int32      `json:"defaultMode,omitempty"`
+}
+
+type HostPathVolumeSource struct {
+	Path string `json:"path"`
+	Type string `json:"type,omitempty"`
+}
+
+type EmptyDirVolumeSource struct {
+	Medium    string `json:"medium,omitempty"`
+	SizeLimit string `json:"sizeLimit,omitempty"`
 }
 
 type PVCVolumeSource struct {
@@ -246,7 +278,8 @@ type ProjectedSource struct {
 }
 
 type ProjectedVolumeSource struct {
-	Sources []ProjectedSource `json:"sources,omitempty"`
+	Sources     []ProjectedSource `json:"sources,omitempty"`
+	DefaultMode *int32            `json:"defaultMode,omitempty"`
 }
 
 type Volume struct {
@@ -255,6 +288,9 @@ type Volume struct {
 	Secret                *SecretVolumeSource    `json:"secret,omitempty"`
 	PersistentVolumeClaim *PVCVolumeSource       `json:"persistentVolumeClaim,omitempty"`
 	Projected             *ProjectedVolumeSource `json:"projected,omitempty"`
+	HostPath              *HostPathVolumeSource  `json:"hostPath,omitempty"`
+	EmptyDir              *EmptyDirVolumeSource  `json:"emptyDir,omitempty"`
+	DownwardAPI           *struct{}              `json:"downwardAPI,omitempty"`
 }
 
 type Toleration struct {
@@ -270,6 +306,9 @@ type LocalObjectReference struct {
 
 type PodSpec struct {
 	NodeName           string                 `json:"nodeName,omitempty"`
+	HostNetwork        bool                   `json:"hostNetwork,omitempty"`
+	DNSPolicy          string                 `json:"dnsPolicy,omitempty"`
+	SecurityContext    *PodSecurityContext    `json:"securityContext,omitempty"`
 	SchedulerName      string                 `json:"schedulerName,omitempty"`
 	NodeSelector       map[string]string      `json:"nodeSelector,omitempty"`
 	ServiceAccountName string                 `json:"serviceAccountName,omitempty"`
@@ -359,6 +398,79 @@ func (p Pod) IsSidecar(name string) bool {
 		}
 	}
 	return false
+}
+
+// Mount is a path's place in a container's filesystem: the volume mount it is under and the volume behind it.
+type Mount struct {
+	VolumeMount
+	Volume Volume
+	// Rel is the path below the mount point, without a leading slash; empty when the path is the mount point.
+	Rel string
+}
+
+// MountAt finds the volume mount of the named container that holds path: the one with the longest mount path that
+// is the path or one of its parent directories.
+func (p Pod) MountAt(container, path string) (Mount, bool) {
+	var best Mount
+	found := false
+	for _, c := range append(append([]Container{}, p.Spec.InitContainers...), p.Spec.Containers...) {
+		if c.Name != container {
+			continue
+		}
+		for _, m := range c.VolumeMounts {
+			mp := strings.TrimRight(m.MountPath, "/")
+			if path != mp && !strings.HasPrefix(path, mp+"/") || found && len(mp) <= len(strings.TrimRight(best.MountPath, "/")) {
+				continue
+			}
+			for _, v := range p.Spec.Volumes {
+				if v.Name == m.Name {
+					best, found = Mount{VolumeMount: m, Volume: v, Rel: strings.TrimPrefix(strings.TrimPrefix(path, mp), "/")}, true
+				}
+			}
+		}
+	}
+	return best, found
+}
+
+// Source names what a volume is: "ConfigMap app-config", "emptyDir", "hostPath /var/lib/x" and so on.
+func (v Volume) Source() string {
+	switch {
+	case v.ConfigMap != nil:
+		return "ConfigMap " + v.ConfigMap.Name
+	case v.Secret != nil:
+		return "Secret " + v.Secret.SecretName
+	case v.PersistentVolumeClaim != nil:
+		return "PersistentVolumeClaim " + v.PersistentVolumeClaim.ClaimName
+	case v.Projected != nil:
+		return "projected volume"
+	case v.HostPath != nil:
+		return "hostPath " + v.HostPath.Path
+	case v.EmptyDir != nil:
+		return "emptyDir"
+	case v.DownwardAPI != nil:
+		return "downwardAPI volume"
+	}
+	return "volume"
+}
+
+// AlwaysReadOnly reports whether the kubelet mounts the volume read-only whatever the mount says: ConfigMap, Secret,
+// projected and downward API volumes are.
+func (v Volume) AlwaysReadOnly() bool {
+	return v.ConfigMap != nil || v.Secret != nil || v.Projected != nil || v.DownwardAPI != nil
+}
+
+// RunAsUser is the user ID the named container runs as when the pod or container sets one; the container's own
+// setting wins.
+func (p Pod) RunAsUser(container string) (int64, bool) {
+	for _, c := range append(append([]Container{}, p.Spec.InitContainers...), p.Spec.Containers...) {
+		if c.Name == container && c.SecurityContext != nil && c.SecurityContext.RunAsUser != nil {
+			return *c.SecurityContext.RunAsUser, true
+		}
+	}
+	if p.Spec.SecurityContext != nil && p.Spec.SecurityContext.RunAsUser != nil {
+		return *p.Spec.SecurityContext.RunAsUser, true
+	}
+	return 0, false
 }
 
 // Ready reports whether the pod's Ready condition is True.
