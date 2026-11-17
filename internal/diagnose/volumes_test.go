@@ -90,3 +90,50 @@ func TestWritesToAReadOnlyVolume(t *testing.T) {
 	p.Spec.Containers[0].SecurityContext = &kube.SecurityContext{ReadOnlyRootFilesystem: yes()}
 	expect(t, only(t, Diagnose(s)), "KD118", "Deployment shop/web")
 }
+
+func TestFileMissingFromAConfigMapVolume(t *testing.T) {
+	s := snap()
+	volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "app"}}, "/etc/app", false,
+		"cat: can't open '/etc/app/config.yaml': No such file or directory")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "app", "config.yml")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD230", "Deployment shop/web", "/etc/app/config.yaml does not exist", "ConfigMap app, mounted at /etc/app, has no key config.yaml (it has config.yml)")
+	if !strings.Contains(f.Fix, "Add key config.yaml to ConfigMap app") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Items project only some keys.
+	s = snap()
+	volumePod(s, kube.Volume{Secret: &kube.SecretVolumeSource{SecretName: "tls", Items: []kube.KeyToPath{{Key: "tls.crt", Path: "cert.pem"}}}},
+		"/etc/tls", false, "open /etc/tls/key.pem: no such file or directory")
+	s.Secrets = []kube.KeySet{keys("shop", "tls", "tls.crt", "tls.key")}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD230", "Deployment shop/web", "projects only the items cert.pem, not key.pem")
+	if !strings.Contains(f.Fix, "items") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The file is there: something else is wrong, so this is no volume finding.
+	s = snap()
+	volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "app"}}, "/etc/app", false,
+		"open /etc/app/config.yaml/extra: no such file or directory")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "app", "config.yaml")}
+	expect(t, only(t, Diagnose(s)), "KD110", "Deployment shop/web")
+
+	// Keys not read: no claim about what the ConfigMap lacks.
+	s = snap()
+	volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "app"}}, "/etc/app", false,
+		"cat: can't open '/etc/app/config.yaml': No such file or directory")
+	s.Gaps = []snapshot.Gap{{Resource: "configmaps", Namespace: "shop", Error: "forbidden"}}
+	expect(t, only(t, Diagnose(s)), "KD110", "Deployment shop/web")
+}
+
+func TestCommandMissingFromAConfigMapVolume(t *testing.T) {
+	s := snap()
+	p := volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "scripts"}}, "/scripts", false)
+	p.Spec.Containers[0].Command = []string{"/scripts/start.sh"}
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated = &kube.ContainerStateTerminated{ExitCode: 128, Reason: "StartError",
+		Message: `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "/scripts/start.sh": stat /scripts/start.sh: no such file or directory: unknown`}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "run.sh")}
+	expect(t, only(t, Diagnose(s)), "KD230", "Deployment shop/web", "runs /scripts/start.sh, which does not exist", "has no key start.sh (it has run.sh)")
+}

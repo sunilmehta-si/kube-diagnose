@@ -681,6 +681,11 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	case reExecFormat.MatchString(msg):
 		return execFormat(p, cs, ev)
 	case reNoExec.MatchString(msg):
+		if len(c.Command) > 0 {
+			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
+				return volumeFileProblem(p, cs.Name, m, fmt.Sprintf("container %s runs %s, which does not exist: %s", cs.Name, c.Command[0], what), ev)
+			}
+		}
 		cmd := strings.Join(append(append([]string{}, c.Command...), c.Args...), " ")
 		cause := fmt.Sprintf("container %s's command is not in image %s", cs.Name, imageOf(p, cs))
 		if cmd != "" {
@@ -735,6 +740,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	ev := []Evidence{terminatedEvidence(p, cs, t)}
 	if len(log.Lines) > 0 {
 		ev = append(ev, logEvidence(p, cs.Name, log))
+	}
+	if pr := fileNotInVolume(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
 	}
 	if pr := readOnlyVolume(p, cs, log.Lines, ev); pr != nil {
 		return pr

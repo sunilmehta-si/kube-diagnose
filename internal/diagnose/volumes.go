@@ -107,3 +107,86 @@ func volumeDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evid
 	}
 	return nil
 }
+
+// volumeFiles lists the files a ConfigMap or Secret volume puts at its mount point: the items it projects, or every
+// key. known is false when the object's keys could not be read.
+func (ix *index) volumeFiles(ns string, v kube.Volume) (kind, name string, files []string, known bool) {
+	var items []kube.KeyToPath
+	switch {
+	case v.ConfigMap != nil:
+		kind, name, items = "ConfigMap", v.ConfigMap.Name, v.ConfigMap.Items
+	case v.Secret != nil:
+		kind, name, items = "Secret", v.Secret.SecretName, v.Secret.Items
+	default:
+		return "", "", nil, false
+	}
+	if len(items) > 0 {
+		for _, it := range items {
+			files = append(files, it.Path)
+		}
+		return kind, name, files, true
+	}
+	ks, exists, read := ix.keySet(strings.ToLower(kind), ns, name)
+	if !exists || !read {
+		return kind, name, nil, false
+	}
+	return kind, name, ks.Keys, true
+}
+
+// missingVolumeFile finds a path a container fails to open, or to run, because the ConfigMap or Secret volume it
+// lies under has no such file.
+func missingVolumeFile(ix *index, p kube.Pod, container, path string) (kube.Mount, string, bool) {
+	m, ok := p.MountAt(container, path)
+	if !ok || m.SubPath != "" || m.Rel == "" {
+		return m, "", false
+	}
+	kind, name, files, known := ix.volumeFiles(p.Metadata.Namespace, m.Volume)
+	if !known {
+		return m, "", false
+	}
+	first := strings.SplitN(m.Rel, "/", 2)[0]
+	for _, f := range files {
+		if f == first || strings.HasPrefix(f, first+"/") {
+			return m, "", false
+		}
+	}
+	have := "no keys"
+	if len(files) > 0 {
+		have = strings.Join(files, ", ")
+	}
+	what := fmt.Sprintf("%s %s, mounted at %s, has no key %s (it has %s)", kind, name, m.MountPath, first, have)
+	if (m.Volume.ConfigMap != nil && len(m.Volume.ConfigMap.Items) > 0) || (m.Volume.Secret != nil && len(m.Volume.Secret.Items) > 0) {
+		what = fmt.Sprintf("the volume of %s %s, mounted at %s, projects only the items %s, not %s", kind, name, m.MountPath, have, first)
+	}
+	return m, what, true
+}
+
+var reNoSuchFile = regexp.MustCompile(`(?i)no such file or directory`)
+
+// fileNotInVolume finds a container that exits because a file it opens is not in the ConfigMap or Secret volume it
+// expects it in: usually a key named differently from the file the app reads.
+func fileNotInVolume(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !reNoSuchFile.MatchString(lines[i]) {
+			continue
+		}
+		for _, pm := range rePath.FindAllStringSubmatch(lines[i], -1) {
+			if m, what, ok := missingVolumeFile(ix, p, cs.Name, pm[1]); ok {
+				cause := fmt.Sprintf("container %s exits because %s does not exist: %s; its log says: %q", cs.Name, pm[1], what, clip(lines[i], 160))
+				return volumeFileProblem(p, cs.Name, m, cause, ev)
+			}
+		}
+	}
+	return nil
+}
+
+func volumeFileProblem(p kube.Pod, container string, m kube.Mount, cause string, ev []Evidence) *problem {
+	first := strings.SplitN(m.Rel, "/", 2)[0]
+	src := m.Volume.Source()
+	fix := fmt.Sprintf("Add key %s to %s, or point the app at a file the volume has.", first, src)
+	if (m.Volume.ConfigMap != nil && len(m.Volume.ConfigMap.Items) > 0) || (m.Volume.Secret != nil && len(m.Volume.Secret.Items) > 0) {
+		fix = fmt.Sprintf("Add %s to the volume's items (and the key to %s), or point the app at a file the volume projects.", first, src)
+	}
+	return newProblem(p, container, "KD230", "File is missing from a ConfigMap or Secret volume", Critical, cause,
+		"volfile|"+m.Name+"|"+first, fix, append(ev, mountEvidence(p, container, m))...)
+}
