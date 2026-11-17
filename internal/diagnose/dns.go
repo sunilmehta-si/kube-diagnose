@@ -274,3 +274,35 @@ func readyBehind(ix *index, svc kube.Service) int {
 	}
 	return n
 }
+
+// hostNetworkDNS finds a container on the host network that exits because a cluster name does not resolve. With
+// hostNetwork, dnsPolicy ClusterFirst (the default) falls back to the node's resolver, which knows no Services;
+// ClusterFirstWithHostNet is the policy that uses cluster DNS.
+func hostNetworkDNS(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	if !p.Spec.HostNetwork || p.Spec.DNSPolicy == "ClusterFirstWithHostNet" || p.Spec.DNSPolicy == "None" {
+		return nil
+	}
+	host, line := unresolvedHost(lines)
+	if host == "" {
+		return nil
+	}
+	lower := strings.ToLower(host)
+	if !strings.HasSuffix(lower, ".svc") && !strings.Contains(lower, ".svc.") {
+		svcNS, svc, isSvc := serviceName(p.Metadata.Namespace, host)
+		if !isSvc {
+			return nil
+		}
+		if exists, _ := ix.serviceExists(svcNS, svc); !exists {
+			return nil
+		}
+	}
+	policy := p.Spec.DNSPolicy
+	if policy == "" {
+		policy = "ClusterFirst"
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the pod sets hostNetwork: true and dnsPolicy %s", policy),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.hostNetwork}{" "}{.spec.dnsPolicy}`)})
+	return newProblem(p, cs.Name, "KD261", "Pod on the host network cannot resolve cluster names", Critical,
+		fmt.Sprintf("container %s exits because %s does not resolve: the pod runs on the host network with dnsPolicy %s, which for such pods means the node's resolver, and that resolver knows no Services; its log says: %q", cs.Name, host, policy, clip(line, 160)),
+		"hostnetdns|"+policy, "Set dnsPolicy: ClusterFirstWithHostNet in the pod spec, so a pod on the host network uses cluster DNS.", ev...)
+}
