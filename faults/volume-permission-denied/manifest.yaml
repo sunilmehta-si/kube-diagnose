@@ -1,0 +1,37 @@
+# A container that runs as user 1000 writes to a hostPath directory the kubelet created for root, so it exits with permission denied.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-volume-permission-denied
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-volume-permission-denied
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      securityContext:
+        runAsUser: 1000
+        fsGroup: 1000
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "touch /data/ready && sleep 3600"]
+          volumeMounts:
+            - name: state
+              mountPath: /data
+      volumes:
+        - name: state
+          hostPath:
+            path: /var/lib/kd-volume-permission-denied
+            type: DirectoryOrCreate

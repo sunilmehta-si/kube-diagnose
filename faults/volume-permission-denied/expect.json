@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-volume-permission-denied",
+  "description": "A container that runs as user 1000 writes to a hostPath directory the kubelet created for root, so it exits with permission denied.",
+  "rule": "KD137",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "denied"
+    ],
+    [
+      "hostPath"
+    ]
+  ]
+}

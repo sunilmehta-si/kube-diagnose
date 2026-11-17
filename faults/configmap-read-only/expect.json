@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-configmap-read-only",
+  "description": "A container rewrites a file of the ConfigMap volume it mounts, which the kubelet always mounts read-only, so it exits.",
+  "rule": "KD138",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "read-only"
+    ],
+    [
+      "ConfigMap"
+    ]
+  ]
+}
