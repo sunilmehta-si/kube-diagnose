@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-networkpolicy-selects-nothing",
+  "description": "A NetworkPolicy meant for the web pods selects app=webapp, a label no pod has, so it restricts nothing.",
+  "rule": "KD262",
+  "object": "NetworkPolicy/web-ingress",
+  "keywords": [
+    [
+      "restricts nothing",
+      "selects no pods"
+    ],
+    [
+      "webapp"
+    ]
+  ]
+}
