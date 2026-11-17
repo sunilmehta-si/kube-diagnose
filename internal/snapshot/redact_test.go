@@ -75,6 +75,13 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	p.Spec.Containers = []kube.Container{{Name: "web", Image: "nginx", EnvFrom: []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "web-config"}}},
 		Env: []kube.EnvVar{{Name: "DB", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db-password", Key: "pw"}}}}}}
 	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "orders-data"}}}
+	projected := kube.ProjectedSource{ConfigMap: &kube.ConfigMapVolumeSource{Name: "feature-flags"}}
+	projected.Secret = &struct {
+		Name     string           `json:"name"`
+		Items    []kube.KeyToPath `json:"items,omitempty"`
+		Optional *bool            `json:"optional,omitempty"`
+	}{Name: "partner-api-keys"}
+	p.Spec.Volumes = append(p.Spec.Volumes, kube.Volume{Name: "bundle", Projected: &kube.ProjectedVolumeSource{Sources: []kube.ProjectedSource{projected}}})
 	p.Spec.ImagePullSecrets = []kube.LocalObjectReference{{Name: "regcred"}}
 	var ss kube.Workload
 	ss.Kind, ss.Metadata = "StatefulSet", kube.ObjectMeta{Name: "db", Namespace: "shop"}
@@ -109,7 +116,7 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	}
 	b, _ := json.Marshal(red)
 	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export",
-		"orders-pv", "orders-data-old", "team-payments", "invoice-sweep"} {
+		"orders-pv", "orders-data-old", "team-payments", "invoice-sweep", "feature-flags", "partner-api-keys"} {
 		if strings.Contains(string(b), name) {
 			t.Errorf("redacted snapshot still contains %q", name)
 		}

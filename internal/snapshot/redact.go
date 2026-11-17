@@ -151,6 +151,16 @@ func (r *redactor) collect(s *Snapshot) {
 			if v.PersistentVolumeClaim != nil {
 				r.addName("pvc", v.PersistentVolumeClaim.ClaimName)
 			}
+			if v.Projected != nil {
+				for _, src := range v.Projected.Sources {
+					if src.ConfigMap != nil {
+						r.addName("cm", src.ConfigMap.Name)
+					}
+					if src.Secret != nil {
+						r.addName("secret", src.Secret.Name)
+					}
+				}
+			}
 		}
 	}
 	for _, n := range s.Nodes {
