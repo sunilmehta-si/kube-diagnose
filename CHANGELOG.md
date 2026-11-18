@@ -2,6 +2,24 @@
 
 ## [Unreleased]
 
+### Added
+- 11 rules, 113 in all (`docs/rules.md`):
+  - containers: a command or args written as one string, ["sleep 3600"] for ["sleep", "3600"], with the list to write
+    instead (KD201); an OOM kill caused by a memory-backed emptyDir, whose tmpfs pages count against the limit of
+    the container that writes them and outlive its restarts (KD204);
+  - probes: an httpGet probe with scheme HTTPS against a port that answers plain HTTP (KD202), and a probe that names
+    a port the container does not declare, which the kubelet reports as errored: a readiness or startup probe never
+    passes, and a liveness probe checks nothing, a warning (KD203);
+  - volumes: a subPath that names a key the ConfigMap or Secret does not have, which the kubelet turns into an empty
+    directory: the app finds a directory where it expects its file, or the runtime cannot mount it over a file the
+    image has (KD234);
+  - scheduling and the kubelet: a pod held back because another pod uses its ReadWriteOncePod claim, with the holder
+    named (KD147); pods the kubelet rejects for a sysctl it does not allow (KD232) or a resource the node lacks, as when
+    spec.nodeName skips the scheduler (KD241);
+  - controllers that fail without a word: a CronJob whose concurrencyPolicy Replace deletes each run before it
+    finishes (KD280), a DaemonSet that matches no node (KD282), and a Job with parallelism 0 (KD283).
+- 12 fault scenarios for them.
+
 ## [0.5.0] - 2026-11-17
 
 - The fault suite's committed run (44028804687): kube-diagnose names the root cause in its first finding, with the
