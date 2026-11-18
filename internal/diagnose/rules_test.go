@@ -2296,3 +2296,28 @@ func TestJobWithParallelismZero(t *testing.T) {
 		t.Errorf("a completed Job is not reported: %+v", r.Findings)
 	}
 }
+
+func TestStartupProbeThatCannotPass(t *testing.T) {
+	// A startup probe on a port name the container lacks: the container is never marked started, so it never
+	// becomes ready, and its readiness probe never runs.
+	s := snap()
+	p := pod("api", "")
+	notReady(&p)
+	p.Spec.Containers[0].StartupProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/healthz", Port: named("admin")}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/", Port: named("http")}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD203", "Pod shop/api", `startup probe names port "admin"`, "never marked started")
+	if f.Severity != Critical {
+		t.Errorf("a startup probe that cannot pass keeps the pod out of service: %s", f.Severity)
+	}
+
+	// A startup probe that speaks HTTPS to plain HTTP: the kubelet restarts the container before it starts.
+	p = pod("api", "")
+	p.Spec.Containers[0].StartupProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/", Port: port(8080), Scheme: "HTTPS"}}
+	crashed(&p, 143, "Error", 6)
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "api", "Unhealthy", `Startup probe failed: Get "https://10.244.0.9:8080/": http: server gave HTTP response to HTTPS client`, time.Minute),
+		event("Pod", "api", "Killing", "Container web failed startup probe, will be restarted", time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD202", "Pod shop/api", "startup probe uses scheme HTTPS", "before it is ever marked started (6 restarts)")
+}
