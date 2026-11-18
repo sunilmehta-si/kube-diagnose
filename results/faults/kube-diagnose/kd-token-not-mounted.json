@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-token-not-mounted"
   ],
-  "collectedAt": "2026-11-17 06:16 UTC",
+  "collectedAt": "2026-11-18 08:54 UTC",
   "findings": [
     {
       "rule": "KD125",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-token-not-mounted",
-            "name": "watcher-7975754ccb-2kn97"
+            "name": "watcher-7975754ccb-8zqn9"
           },
           "what": "container watcher exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod watcher-7975754ccb-2kn97 -n kd-token-not-mounted -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].lastState.terminated}'"
+          "command": "kubectl get pod watcher-7975754ccb-8zqn9 -n kd-token-not-mounted -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-token-not-mounted",
-            "name": "watcher-7975754ccb-2kn97"
+            "name": "watcher-7975754ccb-8zqn9"
           },
-          "what": "last lines of container watcher's log (run that exited)",
+          "what": "last lines of container watcher's log (current run)",
           "detail": "loading in-cluster config\ncat: can't open '/var/run/secrets/kubernetes.io/serviceaccount/token': No such file or directory",
-          "command": "kubectl logs watcher-7975754ccb-2kn97 -n kd-token-not-mounted -c watcher --tail=20 --previous"
+          "command": "kubectl logs watcher-7975754ccb-8zqn9 -n kd-token-not-mounted -c watcher --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-token-not-mounted",
-          "name": "watcher-7975754ccb-2kn97"
+          "name": "watcher-7975754ccb-8zqn9"
         }
       ]
     }

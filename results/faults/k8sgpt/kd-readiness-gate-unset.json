@@ -5,6 +5,19 @@
   "problems": 2,
   "results": [
     {
+      "kind": "Service",
+      "name": "kd-readiness-gate-unset/web",
+      "error": [
+        {
+          "Text": "Service has not ready endpoints, pods: [Pod/web-54495c8f84-cjqvw], expected 1",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Deployment",
       "name": "kd-readiness-gate-unset/web",
       "error": [
@@ -14,26 +27,13 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-gate-unset",
-              "Masked": "M1puZ0w7IURvR0lBNT5ATlh4Ym9kKzM="
+              "Masked": "dSklUTRBJmtqOXdlSFokQ3VhYSp3Xmk="
             },
             {
               "Unmasked": "web",
-              "Masked": "e19e"
+              "Masked": "WHsi"
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Service",
-      "name": "kd-readiness-gate-unset/web",
-      "error": [
-        {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-54495c8f84-5svjt], expected 1",
-          "KubernetesDoc": "",
-          "Sensitive": []
         }
       ],
       "details": "",

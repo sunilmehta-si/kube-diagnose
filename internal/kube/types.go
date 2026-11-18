@@ -160,8 +160,9 @@ type Resources struct {
 }
 
 type HTTPGetAction struct {
-	Path string      `json:"path,omitempty"`
-	Port IntOrString `json:"port"`
+	Path   string      `json:"path,omitempty"`
+	Port   IntOrString `json:"port"`
+	Scheme string      `json:"scheme,omitempty"`
 }
 
 type TCPSocketAction struct {
@@ -737,6 +738,7 @@ type Job struct {
 	Spec     struct {
 		BackoffLimit          *int32      `json:"backoffLimit,omitempty"`
 		Completions           *int32      `json:"completions,omitempty"`
+		Parallelism           *int32      `json:"parallelism,omitempty"`
 		ActiveDeadlineSeconds *int64      `json:"activeDeadlineSeconds,omitempty"`
 		Suspend               *bool       `json:"suspend,omitempty"`
 		Template              PodTemplate `json:"template"`

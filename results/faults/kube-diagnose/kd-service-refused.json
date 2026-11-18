@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-refused"
   ],
-  "collectedAt": "2026-11-17 06:15 UTC",
+  "collectedAt": "2026-11-18 08:54 UTC",
   "findings": [
     {
       "rule": "KD124",
@@ -15,26 +15,26 @@
         "namespace": "kd-service-refused",
         "name": "web"
       },
-      "cause": "container web exits because Service db refuses its connection: the Service has no ready pods (no pod has its selector's labels app=db); its log says: \"wget: can't connect to remote host (10.96.95.128): Connection refused\"; Deployment web has 0 of 1 replicas ready",
+      "cause": "container web exits because Service db refuses its connection: the Service has no ready pods (no pod has its selector's labels app=db); its log says: \"wget: can't connect to remote host (10.96.132.0): Connection refused\"; Deployment web has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-refused",
-            "name": "web-bc988964d-kxtf2"
+            "name": "web-bc988964d-ng4m8"
           },
-          "what": "container web exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod web-bc988964d-kxtf2 -n kd-service-refused -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-bc988964d-ng4m8 -n kd-service-refused -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-refused",
-            "name": "web-bc988964d-kxtf2"
+            "name": "web-bc988964d-ng4m8"
           },
           "what": "last lines of container web's log (run that exited)",
-          "detail": "calling db\nwget: can't connect to remote host (10.96.95.128): Connection refused",
-          "command": "kubectl logs web-bc988964d-kxtf2 -n kd-service-refused -c web --tail=20 --previous"
+          "detail": "calling db\nwget: can't connect to remote host (10.96.132.0): Connection refused",
+          "command": "kubectl logs web-bc988964d-ng4m8 -n kd-service-refused -c web --tail=20 --previous"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-service-refused",
-          "name": "web-bc988964d-kxtf2"
+          "name": "web-bc988964d-ng4m8"
         }
       ]
     }

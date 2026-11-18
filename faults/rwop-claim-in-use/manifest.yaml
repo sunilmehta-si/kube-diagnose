@@ -1,0 +1,65 @@
+# Two replicas mount one ReadWriteOncePod claim: the first runs, and the scheduler keeps the second Pending because only one pod may use the claim.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rwop-claim-in-use
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kd-rwop-claim-in-use
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: ["ReadWriteOncePod"]
+  storageClassName: ""
+  persistentVolumeReclaimPolicy: Delete
+  claimRef:
+    namespace: kd-rwop-claim-in-use
+    name: data
+  hostPath:
+    path: /tmp/kd-rwop-claim-in-use
+    type: DirectoryOrCreate
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: kd-rwop-claim-in-use
+spec:
+  accessModes: ["ReadWriteOncePod"]
+  storageClassName: ""
+  volumeName: kd-rwop-claim-in-use
+  resources:
+    requests:
+      storage: 1Gi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: kd-rwop-claim-in-use
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data

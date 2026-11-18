@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-emptydir-size-limit"
   ],
-  "collectedAt": "2026-11-17 06:11 UTC",
+  "collectedAt": "2026-11-18 08:51 UTC",
   "findings": [
     {
       "rule": "KD193",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-emptydir-size-limit",
-            "name": "web-5bd8db9957-6xllc"
+            "name": "web-5bd8db9957-bndml"
           },
           "what": "pod status is Failed, reason Evicted",
           "detail": "Usage of EmptyDir volume \"cache\" exceeds the limit \"10Mi\". ",
-          "command": "kubectl get pod web-5bd8db9957-6xllc -n kd-emptydir-size-limit -o jsonpath='{.status.message}'"
+          "command": "kubectl get pod web-5bd8db9957-bndml -n kd-emptydir-size-limit -o jsonpath='{.status.message}'"
         }
       ],
       "fix": "Raise the sizeLimit of emptyDir volume cache, or have the app clean up what it writes there. With medium: Memory, what it holds also counts against the containers' memory limits.",
@@ -33,22 +33,17 @@
         {
           "kind": "Pod",
           "namespace": "kd-emptydir-size-limit",
-          "name": "web-5bd8db9957-6xllc"
+          "name": "web-5bd8db9957-bndml"
         },
         {
           "kind": "Pod",
           "namespace": "kd-emptydir-size-limit",
-          "name": "web-5bd8db9957-lw8cw"
+          "name": "web-5bd8db9957-gnjsd"
         },
         {
           "kind": "Pod",
           "namespace": "kd-emptydir-size-limit",
-          "name": "web-5bd8db9957-ntxcz"
-        },
-        {
-          "kind": "Pod",
-          "namespace": "kd-emptydir-size-limit",
-          "name": "web-5bd8db9957-zfr5g"
+          "name": "web-5bd8db9957-twcw8"
         }
       ]
     }
@@ -57,26 +52,21 @@
     {
       "resource": "logs",
       "namespace": "kd-emptydir-size-limit",
-      "error": "kubectl logs web-5bd8db9957-6xllc -n kd-emptydir-size-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-5bd8db9957-6xllc\" not found"
+      "error": "kubectl logs web-5bd8db9957-bndml -n kd-emptydir-size-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-5bd8db9957-bndml\" not found"
     },
     {
       "resource": "logs",
       "namespace": "kd-emptydir-size-limit",
-      "error": "kubectl logs web-5bd8db9957-lw8cw -n kd-emptydir-size-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-5bd8db9957-lw8cw\" not found"
+      "error": "kubectl logs web-5bd8db9957-gnjsd -n kd-emptydir-size-limit -c web --tail=20: Error from server (BadRequest): container \"web\" in pod \"web-5bd8db9957-gnjsd\" is terminated"
     },
     {
       "resource": "logs",
       "namespace": "kd-emptydir-size-limit",
-      "error": "kubectl logs web-5bd8db9957-ntxcz -n kd-emptydir-size-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-5bd8db9957-ntxcz\" not found"
-    },
-    {
-      "resource": "logs",
-      "namespace": "kd-emptydir-size-limit",
-      "error": "kubectl logs web-5bd8db9957-zfr5g -n kd-emptydir-size-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-5bd8db9957-zfr5g\" not found"
+      "error": "kubectl logs web-5bd8db9957-twcw8 -n kd-emptydir-size-limit -c web --tail=20 --previous: Error from server (BadRequest): previous terminated container \"web\" in pod \"web-5bd8db9957-twcw8\" not found"
     }
   ],
   "checked": {
-    "pods": 5,
+    "pods": 4,
     "services": 0,
     "persistentVolumeClaims": 0,
     "nodes": 1

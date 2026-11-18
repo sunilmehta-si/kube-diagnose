@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-command-one-string",
+  "description": "A Deployment's command is one string, \"sleep 3600\", so the runtime looks for an executable with that whole name and cannot start the container.",
+  "rule": "KD201",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "sleep 3600"
+    ],
+    [
+      "one string",
+      "single string"
+    ]
+  ]
+}

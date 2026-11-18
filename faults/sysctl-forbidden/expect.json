@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-sysctl-forbidden",
+  "description": "A Redis pod sets the sysctl net.core.somaxconn, which the kubelet does not allow by default, so it rejects the pod with SysctlForbidden and the pod never runs.",
+  "rule": "KD232",
+  "object": "Pod/redis",
+  "keywords": [
+    [
+      "net.core.somaxconn"
+    ],
+    [
+      "allowed-unsafe-sysctls",
+      "allowlist"
+    ]
+  ]
+}

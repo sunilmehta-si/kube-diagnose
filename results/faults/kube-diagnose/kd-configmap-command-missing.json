@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-configmap-command-missing"
   ],
-  "collectedAt": "2026-11-17 06:10 UTC",
+  "collectedAt": "2026-11-18 08:51 UTC",
   "findings": [
     {
       "rule": "KD230",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-command-missing",
-            "name": "web-547879c54f-ww8g9"
+            "name": "web-547879c54f-jqzdd"
           },
           "what": "container web did not start",
           "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/scripts/start.sh\": stat /scripts/start.sh: no such file or directory",
-          "command": "kubectl get pod web-547879c54f-ww8g9 -n kd-configmap-command-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
+          "command": "kubectl get pod web-547879c54f-jqzdd -n kd-configmap-command-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-command-missing",
-            "name": "web-547879c54f-ww8g9"
+            "name": "web-547879c54f-jqzdd"
           },
           "what": "container web mounts volume scripts (ConfigMap scripts) at /scripts",
-          "command": "kubectl get pod web-547879c54f-ww8g9 -n kd-configmap-command-missing -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
+          "command": "kubectl get pod web-547879c54f-jqzdd -n kd-configmap-command-missing -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
         }
       ],
       "fix": "Add key start.sh to ConfigMap scripts, or point the app at a file the volume has.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-configmap-command-missing",
-          "name": "web-547879c54f-ww8g9"
+          "name": "web-547879c54f-jqzdd"
         }
       ]
     }

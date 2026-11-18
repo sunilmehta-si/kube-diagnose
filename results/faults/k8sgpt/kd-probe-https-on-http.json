@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-probe-https-on-http/web",
+      "error": [
+        {
+          "Text": "Deployment kd-probe-https-on-http/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-https-on-http",
+              "Masked": "RkByQyk7QSFwe3Y5bDBAajdyKGRSNw=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "WUZn"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-probe-https-on-http/web-5d98948766-47knr",
+      "error": [
+        {
+          "Text": "Readiness probe failed: Get \"https://10.244.0.56:8080/\": http: server gave HTTP response to HTTPS client",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

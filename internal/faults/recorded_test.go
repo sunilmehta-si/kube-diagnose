@@ -100,9 +100,8 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 	if got, _ := text("kd-crashloop-missing-env"); !strings.Contains(got, "the termination reason is Error exitCode=1") || strings.Contains(got, "DATABASE_URL") {
 		t.Errorf("crash: %s", got)
 	}
-	if got, _ := text("kd-liveness-wrong-port"); !strings.Contains(got, "the last termination reason is Error") ||
-		strings.Contains(strings.ToLower(got), "probe") { // the namespace's name says liveness; the text must not say probe
-		t.Errorf("liveness: the README says k8sgpt gave only the termination reason: %s", got)
+	if got, n := text("kd-liveness-wrong-port"); n != 0 {
+		t.Errorf("liveness: the README says k8sgpt reported nothing: %s", got)
 	}
 	sel, _ := text("kd-node-selector")
 	if !strings.Contains(sel, "didn't match Pod's node affinity/selector") || strings.Contains(sel, "disktype") {

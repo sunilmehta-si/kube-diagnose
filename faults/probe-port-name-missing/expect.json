@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-probe-port-name-missing",
+  "description": "A readiness probe names port health, but the container declares only a port named http, so the kubelet cannot run the probe and the pod never becomes ready.",
+  "rule": "KD203",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "health"
+    ],
+    [
+      "port"
+    ]
+  ]
+}

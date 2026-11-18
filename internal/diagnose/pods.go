@@ -39,6 +39,11 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if p.Status.Reason == "Evicted" {
 		return evicted(p)
 	}
+	if p.Status.Phase == "Failed" {
+		if pr := nodeRejected(ix, p); pr != nil {
+			return pr
+		}
+	}
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
 		if c.Reason == "SchedulingGated" {
 			return gated(ix, p)
@@ -72,6 +77,11 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	for _, cs := range p.Status.ContainerStatuses {
+		if pr := probePortMissing(ix, p, cs, "startup", "readiness"); pr != nil {
+			return pr
+		}
+	}
+	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probeProblem(ix, p, cs); pr != nil {
 			return pr
 		}
@@ -81,6 +91,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	}
 	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probeCannotRun(ix, p, cs); pr != nil {
+			return pr
+		}
+		if pr := probePortMissing(ix, p, cs, "liveness"); pr != nil {
 			return pr
 		}
 	}
@@ -683,12 +696,18 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("container %s did not start", cs.Name), Detail: msg,
 		Command: cmdContainerState(p, cs.Name, "state")}}
 	c, _ := containerSpec(p, cs.Name)
+	if pr := subPathOntoFile(ix, p, cs.Name, msg, ev); pr != nil {
+		return pr
+	}
 	switch {
 	case reExecFormat.MatchString(msg):
 		return execFormat(p, cs, ev)
 	case reExecDenied.MatchString(msg):
 		return notExecutable(p, cs.Name, reExecDenied.FindStringSubmatch(msg)[1], "", ev)
 	case reNoExec.MatchString(msg):
+		if pr := commandOneString(p, cs, c, msg, ev); pr != nil {
+			return pr
+		}
 		if len(c.Command) > 0 {
 			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
 				return volumeFileProblem(p, cs.Name, m, fmt.Sprintf("container %s runs %s, which does not exist: %s", cs.Name, c.Command[0], what), ev)
@@ -703,6 +722,38 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			"Correct the command (or the image's entrypoint): use a path that exists in the image.", ev...)
 	}
 	return nil
+}
+
+var reNoExecName = regexp.MustCompile(`exec: "([^"]+)": (?:executable file not found|stat [^:]+: no such file or directory)`)
+
+// commandOneString finds a command written as one string, ["sleep 3600"] for ["sleep", "3600"]: the runtime looks for
+// an executable whose name is the whole string, spaces included, and does not find it.
+func commandOneString(p kube.Pod, cs kube.ContainerStatus, c kube.Container, msg string, ev []Evidence) *problem {
+	m := reNoExecName.FindStringSubmatch(msg)
+	if m == nil || !strings.ContainsAny(m[1], " \t") {
+		return nil
+	}
+	exe, field := m[1], "command"
+	if len(c.Command) == 0 || c.Command[0] != exe {
+		if len(c.Command) > 0 || len(c.Args) == 0 || c.Args[0] != exe {
+			return nil
+		}
+		field = "args" // no command: the image has no entrypoint, and the runtime runs args as the command
+	}
+	split := strings.Fields(exe)
+	want := `["sh", "-c", ` + strconv.Quote(exe) + `]`
+	if !strings.ContainsAny(exe, "|&;<>$`'\"*?(){}") {
+		var q []string
+		for _, w := range split {
+			q = append(q, strconv.Quote(w))
+		}
+		want = "[" + strings.Join(q, ", ") + "]"
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's %s is %q, one string", cs.Name, field, exe),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].%s}`, cs.Name, field))})
+	return newProblem(p, cs.Name, "KD201", "Command and its arguments are one string", Critical,
+		fmt.Sprintf("container %s's %s is the single string %q, so the runtime looks for an executable named %q, spaces included, and there is none; each argument has to be its own list item", cs.Name, field, exe, exe),
+		"onestring|"+exe, fmt.Sprintf("Write the %s as a list with one item per word: %s instead of [%s].", field, want, strconv.Quote(exe)), ev...)
 }
 
 func execFormat(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem {
@@ -741,8 +792,10 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		// SIGKILL with no probe or hook behind it, in a container with a memory limit: the kernel's OOM killer. The
 		// runtime sometimes reports such a kill as Error rather than OOMKilled, when it lands as the container starts.
 		pr := oomKilled(ix, p, cs)
-		pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
-			cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+		if pr.rule == "KD111" {
+			pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
+				cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+		}
 		return pr
 	}
 	ev := []Evidence{terminatedEvidence(p, cs, t)}
@@ -753,6 +806,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := deniedScript(p, cs, log.Lines, ev); pr != nil {
 			return pr
 		}
+	}
+	if pr := subPathIsADirectory(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
 	}
 	if pr := fileNotInVolume(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
@@ -1032,8 +1088,40 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name,
 				fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].resources.limits.memory}`, cs.Name))})
 	}
+	if pr := memoryEmptyDir(p, cs, c, limit, ev); pr != nil {
+		return pr
+	}
 	return newProblem(p, cs.Name, "KD111", "Container runs out of memory", Critical, cause, "oom|"+limit,
 		"Raise the container's memory limit to what it needs at peak, or reduce the app's memory use.", ev...)
+}
+
+// memoryEmptyDir finds an OOMKilled container that mounts an emptyDir with medium Memory: a tmpfs whose pages are
+// charged to the memory limit of the container that writes them, and which keeps its files across restarts, so a
+// container that fills it is killed again each time it starts.
+func memoryEmptyDir(p kube.Pod, cs kube.ContainerStatus, c kube.Container, limit string, ev []Evidence) *problem {
+	for _, vm := range c.VolumeMounts {
+		for _, v := range p.Spec.Volumes {
+			if v.Name != vm.Name || v.EmptyDir == nil || v.EmptyDir.Medium != "Memory" {
+				continue
+			}
+			size := "no sizeLimit"
+			if v.EmptyDir.SizeLimit != "" {
+				size = "sizeLimit " + v.EmptyDir.SizeLimit
+			}
+			lim := "its memory limit"
+			if limit != "" {
+				lim = "its " + limit + " memory limit"
+			}
+			ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("volume %s is an emptyDir with medium Memory (%s), mounted by container %s at %s", v.Name, size, cs.Name, vm.MountPath),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, v.Name))})
+			return newProblem(p, cs.Name, "KD204", "Memory-backed emptyDir fills the memory limit", Critical,
+				fmt.Sprintf("container %s is OOMKilled, and it writes to emptyDir %s at %s, which has medium Memory: the volume is a tmpfs whose files count against %s, and they outlive each restart, so the container is killed again as it starts",
+					cs.Name, v.Name, vm.MountPath, lim),
+				"memdir|"+v.Name,
+				fmt.Sprintf("Raise %s's memory limit above what it keeps in %s plus its own use, set a sizeLimit on the volume so writes fail with no space instead, or drop medium: Memory to keep the files on the node's disk.", cs.Name, v.Name), ev...)
+		}
+	}
+	return nil
 }
 
 // probeKilled returns the newest event saying the kubelet restarted the container because a probe failed.
@@ -1059,6 +1147,11 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	probe, kind := c.LivenessProbe, "liveness"
 	if probe == nil && c.StartupProbe != nil {
 		probe, kind = c.StartupProbe, "startup"
+	}
+	for _, k := range []string{"startup", "liveness"} {
+		if pr := probeScheme(ix, p, cs, k); pr != nil {
+			return pr
+		}
 	}
 	var ev []Evidence
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy", "Killing") {
@@ -1157,6 +1250,9 @@ func declaresPort(c kube.Container, port kube.IntOrString) bool {
 func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if cs.Ready || cs.State.Running == nil {
 		return nil
+	}
+	if pr := probeScheme(ix, p, cs, "readiness"); pr != nil {
+		return pr
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
 		if !mentionsContainer(e, cs.Name) || !strings.Contains(strings.ToLower(e.Message), "readiness probe") {

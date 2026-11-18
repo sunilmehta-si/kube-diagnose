@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-cronjob-replace-never-finishes",
+  "description": "A CronJob runs every minute with concurrencyPolicy Replace, and each run takes an hour, so every run is deleted by the next before it can finish.",
+  "rule": "KD280",
+  "object": "CronJob/sync",
+  "keywords": [
+    [
+      "Replace"
+    ],
+    [
+      "before it finishes",
+      "never finishes"
+    ]
+  ]
+}

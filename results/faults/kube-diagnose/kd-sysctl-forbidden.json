@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-sysctl-forbidden"
+  ],
+  "collectedAt": "2026-11-18 08:54 UTC",
+  "findings": [
+    {
+      "rule": "KD232",
+      "title": "Node forbids the pod's sysctl",
+      "severity": "critical",
+      "object": {
+        "kind": "Pod",
+        "namespace": "kd-sysctl-forbidden",
+        "name": "redis"
+      },
+      "cause": "the pod sets sysctl net.core.somaxconn, which is not on the kubelet's allowlist on node kd-faults-control-plane (its safe set plus --allowed-unsafe-sysctls), so the kubelet rejects the pod (SysctlForbidden)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-sysctl-forbidden",
+            "name": "redis"
+          },
+          "what": "pod status is Failed, reason SysctlForbidden",
+          "detail": "Pod was rejected: forbidden sysctl: \"net.core.somaxconn\" not allowlisted",
+          "command": "kubectl get pod redis -n kd-sysctl-forbidden -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-sysctl-forbidden",
+            "name": "redis"
+          },
+          "what": "the pod's sysctls",
+          "command": "kubectl get pod redis -n kd-sysctl-forbidden -o jsonpath='{.spec.securityContext.sysctls}'"
+        }
+      ],
+      "fix": "Drop net.core.somaxconn from securityContext.sysctls, or allow it on the nodes that should run the pod (kubelet --allowed-unsafe-sysctls=net.core.somaxconn, then a nodeSelector or taint to keep the pod there); Pod Security baseline also refuses unsafe sysctls."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

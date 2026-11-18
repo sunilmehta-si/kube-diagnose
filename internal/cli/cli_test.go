@@ -204,6 +204,18 @@ func TestVersionAndRules(t *testing.T) {
 		t.Errorf("rules read-only configmap (every word must match):\n%s", out)
 	}
 	env, out, _, _ = testEnv(nil)
+	if Run([]string{"rules", "subPath"}, env) != 0 || !strings.Contains(out.String(), "KD234") {
+		t.Errorf("rules subPath:\n%s", out)
+	}
+	env, out, _, _ = testEnv(nil)
+	if Run([]string{"rules", "probe", "names", "port"}, env) != 0 || !strings.Contains(out.String(), "KD203") || strings.Contains(out.String(), "KD202") {
+		t.Errorf("rules probe names port:\n%s", out)
+	}
+	env, out, _, _ = testEnv(nil)
+	if Run([]string{"rules", "kd28"}, env) != 0 || !strings.Contains(out.String(), "KD280") || !strings.Contains(out.String(), "KD283") {
+		t.Errorf("rules kd28 (KD280-KD283):\n%s", out)
+	}
+	env, out, _, _ = testEnv(nil)
 	if Run([]string{"rules", "kd26"}, env) != 0 || strings.Count(out.String(), "\n") != 5 || !strings.HasPrefix(out.String(), "KD260") {
 		t.Errorf("rules kd26 (KD260-KD264):\n%s", out)
 	}

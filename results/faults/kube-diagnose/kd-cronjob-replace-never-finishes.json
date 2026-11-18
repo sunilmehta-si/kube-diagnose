@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cronjob-replace-never-finishes"
+  ],
+  "collectedAt": "2026-11-18 08:51 UTC",
+  "findings": [
+    {
+      "rule": "KD280",
+      "title": "CronJob replaces each run before it finishes",
+      "severity": "warning",
+      "object": {
+        "kind": "CronJob",
+        "namespace": "kd-cronjob-replace-never-finishes",
+        "name": "sync"
+      },
+      "cause": "CronJob sync has concurrencyPolicy Replace and schedule \"* * * * *\", and its runs take longer than that: each new run deletes the one still going, so none finishes; it deleted 2 Jobs (sync-29916529, sync-29916530), and it has never completed a run",
+      "evidence": [
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-replace-never-finishes",
+            "name": "sync"
+          },
+          "what": "event SuccessfulDelete",
+          "detail": "Deleted job sync-29916530",
+          "command": "kubectl get events -n kd-cronjob-replace-never-finishes --field-selector involvedObject.kind=CronJob,involvedObject.name=sync"
+        },
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-replace-never-finishes",
+            "name": "sync"
+          },
+          "what": "CronJob sync has concurrencyPolicy Replace and schedule \"* * * * *\", and Job sync-29916531 is active",
+          "command": "kubectl get cronjob sync -n kd-cronjob-replace-never-finishes -o jsonpath='{.spec.schedule}{\" \"}{.spec.concurrencyPolicy}{\" \"}{.status}'"
+        }
+      ],
+      "fix": "Make a run finish within the schedule's interval (its pods' logs show where the time goes), or space the schedule out beyond how long a run takes; concurrencyPolicy Forbid lets a run finish and skips the starts that overlap it."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -3,6 +3,7 @@ package diagnose
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
@@ -300,4 +301,95 @@ func (ix *index) projectedFiles(ns string, v kube.ProjectedVolumeSource) (kind, 
 		files = append(files, ks.Keys...)
 	}
 	return "projected volume of", strings.Join(names, " and "), files, true
+}
+
+// subPathMissing finds a mount of the container whose subPath names a file its ConfigMap or Secret volume does not
+// have. The kubelet then makes an empty directory in its place, so the container finds a directory where it expects a
+// file, or the runtime cannot mount that directory over a file the image already has. at, when set, is the mount path.
+func subPathMissing(ix *index, p kube.Pod, container, at string) (vm kube.VolumeMount, kind, name string, files []string, ok bool) {
+	c, _ := containerSpec(p, container)
+	for _, vm := range c.VolumeMounts {
+		if vm.SubPath == "" || (at != "" && strings.TrimRight(vm.MountPath, "/") != strings.TrimRight(at, "/")) {
+			continue
+		}
+		for _, v := range p.Spec.Volumes {
+			if v.Name != vm.Name {
+				continue
+			}
+			kind, name, files, known := ix.volumeFiles(p.Metadata.Namespace, v)
+			if !known || slices.Contains(files, vm.SubPath) {
+				continue
+			}
+			// A subPath under a projected directory (items with dir/file paths) is not a missing file.
+			under := false
+			for _, f := range files {
+				if strings.HasPrefix(f, vm.SubPath+"/") {
+					under = true
+				}
+			}
+			if !under {
+				return vm, kind, name, files, true
+			}
+		}
+	}
+	return kube.VolumeMount{}, "", "", nil, false
+}
+
+// subPathProblem reports a subPath that names a file the volume does not have, with what happened as a result.
+func subPathProblem(ix *index, p kube.Pod, container, at, result string, ev []Evidence) *problem {
+	vm, kind, name, files, ok := subPathMissing(ix, p, container, at)
+	if !ok {
+		return nil
+	}
+	have := "no keys"
+	if len(files) > 0 {
+		have = strings.Join(files, ", ")
+	}
+	ev = append(ev, Evidence{Object: kube.Ref{Kind: kind, Namespace: p.Metadata.Namespace, Name: name},
+		What:    fmt.Sprintf("%s %s has %s, not %s", kind, name, have, vm.SubPath),
+		Command: cmdGet(strings.ToLower(kind), p.Metadata.Namespace, name, "{.data}")},
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s mounts volume %s at %s with subPath %s", container, vm.Name, vm.MountPath, vm.SubPath),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].volumeMounts}`, container))})
+	return newProblem(p, container, "KD234", "subPath names a file the volume does not have", Critical,
+		fmt.Sprintf("container %s mounts %s with subPath %s, but %s %s has no such key (it has %s), so the kubelet made an empty directory in its place: %s", container, vm.MountPath, vm.SubPath, kind, name, have, result),
+		"subpath|"+vm.Name+"|"+vm.SubPath,
+		fmt.Sprintf("Make subPath name a key %s %s has, or add key %s to it; then delete the pod, because the directory the kubelet made stays until the pod is replaced (and a subPath mount never sees later updates to the %s).", kind, name, vm.SubPath, kind), ev...)
+}
+
+var reMountOntoFile = regexp.MustCompile(`to rootfs at "([^"]+)"[^\n]*(?:not a directory|Are you trying to mount a directory onto a file)`)
+
+// subPathOntoFile finds a container that cannot start because the runtime may not mount a directory, the one the
+// kubelet made for a missing subPath, over a file the image has.
+func subPathOntoFile(ix *index, p kube.Pod, container, msg string, ev []Evidence) *problem {
+	m := reMountOntoFile.FindStringSubmatch(msg)
+	if m == nil {
+		return nil
+	}
+	return subPathProblem(ix, p, container, m[1], fmt.Sprintf("the runtime cannot mount that directory over the file %s in the image, so the container never starts", m[1]), ev)
+}
+
+var reIsADirectory = regexp.MustCompile(`(?i)is a directory`)
+
+// subPathIsADirectory finds a container that exits because the file it reads at a subPath mount is a directory.
+func subPathIsADirectory(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !reIsADirectory.MatchString(lines[i]) {
+			continue
+		}
+		c, _ := containerSpec(p, cs.Name)
+		for _, vm := range c.VolumeMounts {
+			if vm.SubPath != "" && strings.Contains(lines[i], vm.MountPath) {
+				if pr := subPathProblem(ix, p, cs.Name, vm.MountPath, fmt.Sprintf("the container finds a directory at %s and exits; its log says: %q", vm.MountPath, clip(lines[i], 200)), ev); pr != nil {
+					return pr
+				}
+			}
+		}
+		// Tools such as cat do not name the path ("cat: read error: Is a directory"): a missing subPath is the one
+		// directory the container did not ask for.
+		if vm, _, _, _, ok := subPathMissing(ix, p, cs.Name, ""); ok {
+			return subPathProblem(ix, p, cs.Name, vm.MountPath, fmt.Sprintf("the container finds a directory at %s and exits; its log says: %q", vm.MountPath, clip(lines[i], 200)), ev)
+		}
+		return nil
+	}
+	return nil
 }

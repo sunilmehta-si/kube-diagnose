@@ -1,43 +1,7 @@
 {
   "provider": "",
   "errors": null,
-  "status": "ProblemDetected",
-  "problems": 2,
-  "results": [
-    {
-      "kind": "Deployment",
-      "name": "kd-liveness-wrong-port/web",
-      "error": [
-        {
-          "Text": "Deployment kd-liveness-wrong-port/web has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-liveness-wrong-port",
-              "Masked": "dihhXz4uVWxycGpPby4uIjJKI2tYcQ=="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "Z3Nq"
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-liveness-wrong-port/web-67fbcb44db-4xmzc",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=web pod=web-67fbcb44db-4xmzc",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
-    }
-  ]
+  "status": "OK",
+  "problems": 0,
+  "results": null
 }

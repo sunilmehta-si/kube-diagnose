@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-blocks-dns"
   ],
-  "collectedAt": "2026-11-17 06:13 UTC",
+  "collectedAt": "2026-11-18 08:53 UTC",
   "findings": [
     {
       "rule": "KD123",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-dns",
-            "name": "web-bc988964d-kcmj6"
+            "name": "web-bc988964d-5g58p"
           },
           "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-bc988964d-kcmj6 -n kd-networkpolicy-blocks-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+          "command": "kubectl get pod web-bc988964d-5g58p -n kd-networkpolicy-blocks-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-dns",
-            "name": "web-bc988964d-kcmj6"
+            "name": "web-bc988964d-5g58p"
           },
           "what": "last lines of container web's log (current run)",
           "detail": "calling db\nwget: bad address 'db'",
-          "command": "kubectl logs web-bc988964d-kcmj6 -n kd-networkpolicy-blocks-dns -c web --tail=20"
+          "command": "kubectl logs web-bc988964d-5g58p -n kd-networkpolicy-blocks-dns -c web --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-blocks-dns",
-          "name": "web-bc988964d-kcmj6"
+          "name": "web-bc988964d-5g58p"
         }
       ]
     }

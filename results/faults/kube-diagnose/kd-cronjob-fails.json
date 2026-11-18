@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-fails"
   ],
-  "collectedAt": "2026-11-17 06:11 UTC",
+  "collectedAt": "2026-11-18 08:51 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29914929-zbhzs"
+            "name": "backup-29916529-zzzzs"
           },
           "what": "container backup exited with code 2 (Error)",
-          "command": "kubectl get pod backup-29914929-zbhzs -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
+          "command": "kubectl get pod backup-29916529-zzzzs -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29914929-zbhzs"
+            "name": "backup-29916529-zzzzs"
           },
           "what": "last lines of container backup's log (current run)",
           "detail": "starting backup\nERROR: BACKUP_TARGET is not set",
-          "command": "kubectl logs backup-29914929-zbhzs -n kd-cronjob-fails -c backup --tail=20"
+          "command": "kubectl logs backup-29916529-zzzzs -n kd-cronjob-fails -c backup --tail=20"
         }
       ],
       "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
@@ -42,17 +42,17 @@
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29914929-zbhzs"
+          "name": "backup-29916529-zzzzs"
         },
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29914930-d2f5t"
+          "name": "backup-29916530-wsxk4"
         },
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29914931-tb8fm"
+          "name": "backup-29916531-x2p9q"
         }
       ]
     }

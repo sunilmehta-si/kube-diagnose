@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-configmap-read-only",
-              "Masked": "ciRvL1chZVpkfFFHOSM2SlExSys0Xg=="
+              "Masked": "N2huOW4kSDdyKVgicXlKVEArTG9aJA=="
             },
             {
               "Unmasked": "web",
-              "Masked": "UC5d"
+              "Masked": "YVhr"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-configmap-read-only/web-64487c79c4-k2fkk",
+      "name": "kd-configmap-read-only/web-64487c79c4-lkkjd",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-64487c79c4-k2fkk",
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-64487c79c4-lkkjd",
           "KubernetesDoc": "",
           "Sensitive": []
         }

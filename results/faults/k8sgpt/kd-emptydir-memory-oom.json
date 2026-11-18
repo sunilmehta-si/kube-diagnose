@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-emptydir-memory-oom/cache",
+      "error": [
+        {
+          "Text": "Deployment kd-emptydir-memory-oom/cache has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-emptydir-memory-oom",
+              "Masked": "b3V5NWtZc1tYKVc5Q2NIMkxPOnQpYw=="
+            },
+            {
+              "Unmasked": "cache",
+              "Masked": "K11ma1Q="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-emptydir-memory-oom/cache-888b88f6f-xzs5z",
+      "error": [
+        {
+          "Text": "the termination reason is OOMKilled exitCode=137 container=warm pod=cache-888b88f6f-xzs5z",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/cache"
+    }
+  ]
+}

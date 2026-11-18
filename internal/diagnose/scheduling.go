@@ -3,6 +3,7 @@ package diagnose
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -153,6 +154,9 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 			"Uncordon a node (kubectl uncordon) once its maintenance is done, or add nodes.",
 			Evidence{Object: kube.Ref{Kind: "Node", Name: "*"}, What: "cordoned nodes",
 				Command: `kubectl get nodes -o custom-columns=NAME:.metadata.name,UNSCHEDULABLE:.spec.unschedulable`}), cause
+	case strings.Contains(r.text, "ReadWriteOncePod"):
+		pr := claimHeld(ix, p, r.text)
+		return pr, pr.cause
 	case strings.Contains(r.text, "PersistentVolumeClaim") || strings.Contains(r.text, "persistentvolumeclaim"):
 		return pvcBlocked(ix, p, r.text), "it waits for a PersistentVolumeClaim"
 	case strings.Contains(r.text, "topology spread constraints") || strings.Contains(r.text, "pod affinity rules") ||
@@ -306,6 +310,52 @@ func insufficient(ix *index, p kube.Pod, res string, nodes int) (*problem, strin
 }
 
 // pvcBlocked points the pod at the claim it waits for, so it joins that claim's finding.
+// claimHeld explains a pod the scheduler holds back because a ReadWriteOncePod claim it mounts is in use by another
+// pod: only one pod in the cluster may use such a claim, so a second replica waits until the first is gone.
+func claimHeld(ix *index, p kube.Pod, text string) *problem {
+	ns := p.Metadata.Namespace
+	for _, v := range p.Spec.Volumes {
+		if v.PersistentVolumeClaim == nil {
+			continue
+		}
+		claim := v.PersistentVolumeClaim.ClaimName
+		pvc, ok := ix.pvcs[nsName{ns, claim}]
+		if !ok || !slices.Contains(pvc.Spec.AccessModes, "ReadWriteOncePod") {
+			continue
+		}
+		ev := []Evidence{{Object: kube.Ref{Kind: "PersistentVolumeClaim", Namespace: ns, Name: claim},
+			What: fmt.Sprintf("PersistentVolumeClaim %s has access mode ReadWriteOncePod", claim), Command: cmdGet("pvc", ns, claim, "{.spec.accessModes}")}}
+		holder := "another pod"
+		for _, o := range ix.s.Pods {
+			if o.Metadata.Namespace != ns || o.Metadata.Name == p.Metadata.Name || o.Spec.NodeName == "" || o.Status.Phase == "Succeeded" || o.Status.Phase == "Failed" {
+				continue
+			}
+			for _, ov := range o.Spec.Volumes {
+				if ov.PersistentVolumeClaim != nil && ov.PersistentVolumeClaim.ClaimName == claim {
+					holder = "pod " + o.Metadata.Name
+					ev = append(ev, Evidence{Object: o.Ref(), What: fmt.Sprintf("pod %s mounts %s on node %s", o.Metadata.Name, claim, o.Spec.NodeName),
+						Command: cmdGet("pod", ns, o.Metadata.Name, "{.spec.nodeName}")})
+				}
+			}
+			if holder != "another pod" {
+				break
+			}
+		}
+		owner := "the workload"
+		if o := ix.owner(p); o != p.Ref() {
+			owner = o.Kind + " " + o.Name
+		}
+		return newProblem(p, "", "KD147", "Another pod holds the ReadWriteOncePod claim", Critical,
+			fmt.Sprintf("the pod mounts PersistentVolumeClaim %s, whose access mode ReadWriteOncePod lets only one pod in the cluster use it, and %s already does, so the scheduler keeps this one Pending", claim, holder),
+			"rwop|"+claim,
+			fmt.Sprintf("Run one replica of %s (a claim per replica needs a StatefulSet's volumeClaimTemplates), or use ReadWriteOnce if pods on one node may share the volume; with a rolling update, use strategy Recreate so the old pod lets go of the claim first.", owner),
+			ev...)
+	}
+	return newProblem(p, "", "KD147", "Another pod holds the ReadWriteOncePod claim", Critical,
+		"a ReadWriteOncePod claim the pod mounts is in use by another pod: "+text, "rwop|"+text,
+		"Only one pod may use a ReadWriteOncePod claim: run one replica, or give each pod its own claim.")
+}
+
 func pvcBlocked(ix *index, p kube.Pod, text string) *problem {
 	for _, v := range p.Spec.Volumes {
 		if v.PersistentVolumeClaim == nil {
