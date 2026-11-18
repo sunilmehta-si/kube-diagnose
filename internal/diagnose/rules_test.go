@@ -2249,3 +2249,50 @@ func TestNodeRejectsAPodThatBypassedTheScheduler(t *testing.T) {
 		t.Errorf("a scheduled pod should not be said to skip the scheduler: %s %s", f.Rule, f.Cause)
 	}
 }
+
+func TestDaemonSetMatchesNoNode(t *testing.T) {
+	s := snap()
+	s.Nodes = []kube.Node{node("node-1", "4", "16Gi")}
+	ds := kube.Workload{Kind: "DaemonSet", Metadata: kube.ObjectMeta{Name: "agent", Namespace: "shop", CreationTimestamp: t0.Add(-time.Hour)}}
+	ds.Spec.Template.Spec.NodeSelector = map[string]string{"disktype": "ssd"}
+	s.Workloads = []kube.Workload{ds}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD282", "DaemonSet shop/agent", "requires the labels disktype=ssd", "none of the cluster's 1 node has them", "runs no pods")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "kubectl label node NODE disktype=ssd") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// A taint every node has and the pods do not tolerate.
+	ds.Spec.Template.Spec.NodeSelector = nil
+	s.Nodes[0].Spec.Taints = []kube.Taint{{Key: "dedicated", Value: "gpu", Effect: "NoSchedule"}}
+	s.Workloads = []kube.Workload{ds}
+	expect(t, only(t, Diagnose(s)), "KD282", "DaemonSet shop/agent", "every node has a taint")
+
+	// Tolerated: the reason is not the nodes.
+	ds.Spec.Template.Spec.Tolerations = []kube.Toleration{{Key: "dedicated", Operator: "Exists"}}
+	s.Workloads = []kube.Workload{ds}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a DaemonSet that tolerates the taint is not reported: %+v", r.Findings)
+	}
+}
+
+func TestJobWithParallelismZero(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "migrate", Namespace: "shop", CreationTimestamp: t0.Add(-10 * time.Minute)}
+	zero := int32(0)
+	j.Spec.Parallelism = &zero
+	s.Jobs = []kube.Job{j}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD283", "Job shop/migrate", "parallelism 0", "none in 10m0s", "never complete")
+	if !strings.Contains(f.Fix, `"parallelism":1`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A Job that completed before it was paused is fine.
+	j.Status.Conditions = []kube.Condition{{Type: "Complete", Status: "True"}}
+	s.Jobs = []kube.Job{j}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a completed Job is not reported: %+v", r.Findings)
+	}
+}

@@ -156,6 +156,13 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 	for _, j := range ix.s.Jobs {
 		if f := suspendedJob(ix, j); f != nil && !explained[j.Ref()] {
 			out = append(out, *f)
+		} else if f := noParallelism(ix, j); f != nil && !explained[j.Ref()] {
+			out = append(out, *f)
+		}
+	}
+	for _, w := range ix.s.Workloads {
+		if f := daemonSetNoNodes(ix, w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
 		}
 	}
 	for _, w := range ix.s.Workloads {
@@ -234,4 +241,80 @@ func suspendedJob(ix *index, j kube.Job) *Finding {
 		f.Fix = fmt.Sprintf("Read the Job's Workload (its QuotaReserved and Admitted conditions say why it waits): the ClusterQueue behind LocalQueue %s has no quota left for its flavor, or the LocalQueue does not exist. Do not unsuspend it by hand: Kueue would suspend it again.", q)
 	}
 	return f
+}
+
+// noParallelism finds a Job with parallelism 0 that has not finished: it starts no pods, so it never completes, and
+// nothing reports an error. Setting parallelism to 0 is a way to pause a Job; left there, it looks like a hung Job.
+func noParallelism(ix *index, j kube.Job) *Finding {
+	if j.Spec.Parallelism == nil || *j.Spec.Parallelism != 0 || j.Status.Active > 0 || ix.s.CollectedAt.Sub(j.Metadata.CreationTimestamp) < suspendedAfter {
+		return nil
+	}
+	for _, t := range []string{"Complete", "Failed"} {
+		if c, ok := kube.FindCondition(j.Status.Conditions, t); ok && c.Status == "True" {
+			return nil
+		}
+	}
+	ns, name := j.Metadata.Namespace, j.Metadata.Name
+	age := ix.s.CollectedAt.Sub(j.Metadata.CreationTimestamp).Round(time.Minute)
+	return &Finding{Rule: "KD283", Title: "Job runs no pods: parallelism is 0", Severity: Warning, Object: j.Ref(),
+		Cause: fmt.Sprintf("Job %s has parallelism 0, so it starts no pods: it has run none in %s and will never complete (%d succeeded, %d failed)", name, age, j.Status.Succeeded, j.Status.Failed),
+		Evidence: []Evidence{{Object: j.Ref(), What: fmt.Sprintf("Job %s has spec.parallelism 0 and no active pods", name),
+			Command: cmdGet("job", ns, name, `{.spec.parallelism}{" "}{.status}`)}},
+		Fix: fmt.Sprintf("Set parallelism to the number of pods to run at once: kubectl patch job %s -n %s --type=merge -p '{\"spec\":{\"parallelism\":1}}'; to pause a Job, spec.suspend says so plainly.", name, ns)}
+}
+
+// daemonSetNoNodes finds a DaemonSet that should run on no node: its nodeSelector matches none, or every node has a
+// taint its pods do not tolerate. It creates no pods, so nothing fails and nothing says why.
+func daemonSetNoNodes(ix *index, w kube.Workload) *Finding {
+	if w.Kind != "DaemonSet" || w.Status.DesiredNumberScheduled != 0 || len(ix.s.Nodes) == 0 || !ix.read("nodes") ||
+		ix.s.CollectedAt.Sub(w.Metadata.CreationTimestamp) < suspendedAfter {
+		return nil
+	}
+	ns, name, spec := w.Metadata.Namespace, w.Metadata.Name, w.Spec.Template.Spec
+	if sel := spec.NodeSelector; len(sel) > 0 {
+		for _, n := range ix.s.Nodes {
+			if kube.MatchesMap(sel, n.Metadata.Labels) {
+				return nil // a node matches: the reason is elsewhere (affinity, taints)
+			}
+		}
+		s := kube.FormatMap(sel)
+		return &Finding{Rule: "KD282", Title: "DaemonSet matches no node", Severity: Warning, Object: w.Ref(),
+			Cause: fmt.Sprintf("DaemonSet %s's nodeSelector requires the labels %s, and none of the cluster's %s has them, so it runs no pods and nothing reports an error", name, s, plural(len(ix.s.Nodes), "node")),
+			Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("DaemonSet %s should run on 0 nodes; its pods require node labels %s", name, s),
+				Command: cmdGet("daemonset", ns, name, `{.spec.template.spec.nodeSelector}{" "}{.status.desiredNumberScheduled}`)},
+				{Object: kube.Ref{Kind: "Node", Name: "*"}, What: fmt.Sprintf("none of the %d nodes has %s", len(ix.s.Nodes), s), Command: "kubectl get nodes -l " + s}},
+			Fix: "Label the nodes it should run on (kubectl label node NODE " + strings.ReplaceAll(s, ",", " ") + "), or correct the nodeSelector."}
+	}
+	for _, n := range ix.s.Nodes {
+		if tolerated(spec.Tolerations, n.Spec.Taints) {
+			return nil
+		}
+	}
+	return &Finding{Rule: "KD282", Title: "DaemonSet matches no node", Severity: Warning, Object: w.Ref(),
+		Cause: fmt.Sprintf("every node has a taint DaemonSet %s's pods do not tolerate, so it runs no pods and nothing reports an error", name),
+		Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("DaemonSet %s should run on 0 nodes", name), Command: cmdGet("daemonset", ns, name, `{.spec.template.spec.tolerations}{" "}{.status.desiredNumberScheduled}`)},
+			{Object: kube.Ref{Kind: "Node", Name: "*"}, What: "node taints", Command: `kubectl get nodes -o custom-columns=NAME:.metadata.name,TAINTS:.spec.taints`}},
+		Fix: "Add tolerations for the nodes' taints to the DaemonSet's pod template if it belongs on them, or remove the taints."}
+}
+
+// tolerated reports whether the tolerations let a pod onto a node with these taints (NoSchedule and NoExecute;
+// PreferNoSchedule does not keep a pod off).
+func tolerated(tols []kube.Toleration, taints []kube.Taint) bool {
+	for _, t := range taints {
+		if t.Effect == "PreferNoSchedule" {
+			continue
+		}
+		ok := false
+		for _, tol := range tols {
+			if (tol.Effect == "" || tol.Effect == t.Effect) &&
+				((tol.Operator == "Exists" && (tol.Key == "" || tol.Key == t.Key)) || (tol.Key == t.Key && tol.Value == t.Value)) {
+				ok = true
+				break
+			}
+		}
+		if !ok {
+			return false
+		}
+	}
+	return true
 }
