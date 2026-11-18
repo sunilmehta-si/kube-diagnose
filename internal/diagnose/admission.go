@@ -9,7 +9,7 @@ import (
 )
 
 var (
-	reSysctl   = regexp.MustCompile(`forbidden sysctl: "([^"]+)"`)
+	reSysctl   = regexp.MustCompile(`forbidden sysctl: "([^"]+)"`) // "Pod was rejected: forbidden sysctl: \"net.core.somaxconn\" not allowlisted"
 	reOutOfRes = regexp.MustCompile(`Node didn't have enough resource: ([a-zA-Z0-9./-]+), requested: (\d+), used: (\d+), capacity: (\d+)`)
 )
 
@@ -30,7 +30,7 @@ func nodeRejected(ix *index, p kube.Pod) *problem {
 		ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's sysctls",
 			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.securityContext.sysctls}")})
 		return newProblem(p, "", "KD232", "Node forbids the pod's sysctl", Critical,
-			fmt.Sprintf("the pod sets sysctl %s, which is not in the kubelet's safe set and not allowed on %s, so the kubelet rejects the pod (SysctlForbidden)", name, orNode(node)),
+			fmt.Sprintf("the pod sets sysctl %s, which is not on the kubelet's allowlist on %s (its safe set plus --allowed-unsafe-sysctls), so the kubelet rejects the pod (SysctlForbidden)", name, orNode(node)),
 			"sysctl|"+name,
 			fmt.Sprintf("Drop %s from securityContext.sysctls, or allow it on the nodes that should run the pod (kubelet --allowed-unsafe-sysctls=%s, then a nodeSelector or taint to keep the pod there); Pod Security baseline also refuses unsafe sysctls.", name, name), ev...)
 	case strings.HasPrefix(reason, "OutOf"):

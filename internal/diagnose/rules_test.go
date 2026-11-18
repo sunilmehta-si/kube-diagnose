@@ -2221,11 +2221,11 @@ func TestNodeForbidsTheSysctl(t *testing.T) {
 	s := snap()
 	p := pod("web-x7k2p", "web")
 	p.Status.Phase, p.Status.Reason = "Failed", "SysctlForbidden"
-	p.Status.Message = `Pod forbidden sysctl: "net.core.somaxconn" not allowlisted`
+	p.Status.Message = `Pod was rejected: forbidden sysctl: "net.core.somaxconn" not allowlisted`
 	p.Status.Conditions, p.Status.ContainerStatuses = nil, nil
 	s.Pods = []kube.Pod{p}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD232", "ReplicaSet shop/web-rs", "sysctl net.core.somaxconn", "SysctlForbidden", "not allowed on node node-1")
+	expect(t, f, "KD232", "ReplicaSet shop/web-rs", "sysctl net.core.somaxconn", "SysctlForbidden", "not on the kubelet's allowlist on node node-1")
 	if !strings.Contains(f.Fix, "--allowed-unsafe-sysctls=net.core.somaxconn") {
 		t.Errorf("the fix should name the kubelet flag with the sysctl: %s", f.Fix)
 	}
