@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-rwop-claim-in-use",
+  "description": "Two replicas mount one ReadWriteOncePod claim: the first runs, and the scheduler keeps the second Pending because only one pod may use the claim.",
+  "rule": "KD147",
+  "object": "Deployment/db",
+  "keywords": [
+    [
+      "ReadWriteOncePod"
+    ],
+    [
+      "data"
+    ]
+  ]
+}
