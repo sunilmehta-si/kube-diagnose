@@ -1,0 +1,24 @@
+# A CronJob runs every minute with concurrencyPolicy Replace, and each run takes an hour, so every run is deleted by the next before it can finish.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-cronjob-replace-never-finishes
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sync
+  namespace: kd-cronjob-replace-never-finishes
+spec:
+  schedule: "* * * * *"
+  concurrencyPolicy: Replace
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: sync
+              image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+              command: ["sleep", "3600"]
