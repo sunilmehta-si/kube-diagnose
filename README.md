@@ -50,25 +50,29 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
 
 It knows 113 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited,
 have no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or
-of the wrong type, crashes (with the exit code explained and the log line that reads like the error quoted, and traced
-to the Service the app could not resolve or reach, the DNS policy that sends its lookups to the node's resolver, the
-volume it may not write to or that is read-only, the file its ConfigMap volume does not have, the script mounted
-without an executable mode, the port another container holds, the NetworkPolicy that blocks DNS or drops the
-connection, the RBAC permission its ServiceAccount lacks, or the token automounting turned off), out-of-memory kills,
-probes on the wrong port or running a command the image does not have, init containers that never finish (sidecars are
-told apart), readiness gates nobody sets, failing lifecycle hooks, runAsNonRoot with a root image, writes to a
-read-only root filesystem, missing ConfigMaps, Secrets and keys, pods no node can take (with the request and the
-largest node's capacity, or the spread rule, host port, volume zone, scheduling gate or missing scheduler that stops
-them), pod sandboxes the network plugin cannot set up, hostPath volumes the node does not have, pods bound by nodeName
-to a node that does not exist or past the scheduler their claim waits for, pods stuck terminating, volumes still
-attached to another node, claims for StorageClasses that do not exist, access modes they cannot provide or a named
-volume they cannot bind to, Services and Ingresses that send traffic nowhere, Services with no selector and no
-endpoints, ExternalName Services set to an IP address, Ingresses that claim one host and path for different Services,
-Ingress TLS Secrets that are missing, LoadBalancer Services that never get an address, StatefulSets without their
-headless Service, NetworkPolicies that shut a Service off or select no pods, exhausted quotas, LimitRange,
-PriorityClass, RuntimeClass, ServiceAccount, Pod Security and webhook rejections, Deployments left paused, HPAs that
-cannot scale, PodDisruptionBudgets that block drains or select nothing, evictions (an emptyDir past its sizeLimit
-among them), failed Jobs and CronJobs, CronJobs that skip runs or are suspended, and nodes that are not ready.
+of the wrong type, commands written as one string, crashes (with the exit code explained and the log line that reads
+like the error quoted, and traced to the Service the app could not resolve or reach, the DNS policy that sends its
+lookups to the node's resolver, the volume it may not write to or that is read-only, the file its ConfigMap volume
+does not have, the script mounted without an executable mode, the port another container holds, the NetworkPolicy that
+blocks DNS or drops the connection, the RBAC permission its ServiceAccount lacks, or the token automounting turned
+off), out-of-memory kills (a memory-backed emptyDir among them), probes on the wrong port, speaking HTTPS to plain
+HTTP, naming a port the container does not have or running a command the image does not have, init containers that
+never finish (sidecars are told apart), readiness gates nobody sets, failing lifecycle hooks, runAsNonRoot with a root
+image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys, subPaths that name a key the
+volume does not have, pods no node can take (with the request and the largest node's capacity, or the spread rule,
+host port, volume zone, scheduling gate, missing scheduler or ReadWriteOncePod claim another pod holds that stops
+them), pods the kubelet rejects for a sysctl it forbids or a resource the node lacks, pod sandboxes the network plugin
+cannot set up, hostPath volumes the node does not have, pods bound by nodeName to a node that does not exist or past
+the scheduler their claim waits for, pods stuck terminating, volumes still attached to another node, claims for
+StorageClasses that do not exist, access modes they cannot provide or a named volume they cannot bind to, Services and
+Ingresses that send traffic nowhere, Services with no selector and no endpoints, ExternalName Services set to an IP
+address, Ingresses that claim one host and path for different Services, Ingress TLS Secrets that are missing,
+LoadBalancer Services that never get an address, StatefulSets without their headless Service, NetworkPolicies that
+shut a Service off or select no pods, exhausted quotas, LimitRange, PriorityClass, RuntimeClass, ServiceAccount, Pod
+Security and webhook rejections, Deployments left paused, HPAs that cannot scale, PodDisruptionBudgets that block
+drains or select nothing, evictions (an emptyDir past its sizeLimit among them), failed Jobs and CronJobs, CronJobs
+that skip runs, are suspended or replace each run before it finishes, DaemonSets that match no node, Jobs with
+parallelism 0, and nodes that are not ready.
 
 ## Install
 
