@@ -127,3 +127,29 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 		}
 	}
 }
+
+// TestRedactKeepsASliceNamedForItsService covers an EndpointSlice named for its Service: after redaction it is still
+// named for the Service's pseudonym, so KD264 can link a slice that lacks its label, and a suffix someone wrote is
+// replaced, not kept.
+func TestRedactKeepsASliceNamedForItsService(t *testing.T) {
+	var svc kube.Service
+	svc.Metadata = kube.ObjectMeta{Name: "payments", Namespace: "shop"}
+	gen := kube.EndpointSlice{Metadata: kube.ObjectMeta{Name: "payments-1", Namespace: "shop"}}
+	wrote := kube.EndpointSlice{Metadata: kube.ObjectMeta{Name: "payments-acme-internal", Namespace: "shop"}}
+	other := kube.EndpointSlice{Metadata: kube.ObjectMeta{Name: "paymentsdb", Namespace: "shop"}}
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Services: []kube.Service{svc}, EndpointSlices: []kube.EndpointSlice{gen, wrote, other}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := red.Services[0].Metadata.Name
+	if got := red.EndpointSlices[0].Metadata.Name; got != p+"-1" {
+		t.Errorf("slice payments-1 became %q, want %q", got, p+"-1")
+	}
+	if got := red.EndpointSlices[1].Metadata.Name; !strings.HasPrefix(got, p+"-") || strings.Contains(got, "acme") || strings.Contains(got, "internal") {
+		t.Errorf("slice payments-acme-internal became %q", got)
+	}
+	if got := red.EndpointSlices[2].Metadata.Name; strings.HasPrefix(got, p) || strings.Contains(got, "payments") {
+		t.Errorf("slice paymentsdb became %q", got)
+	}
+}

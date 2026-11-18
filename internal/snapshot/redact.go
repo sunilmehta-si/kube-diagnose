@@ -82,6 +82,33 @@ func (r *redactor) addName(prefix, name string) {
 	}
 }
 
+// addSliceName gives an EndpointSlice named for a Service (the Service's name and a suffix, as slices are named) the
+// Service's pseudonym and the same suffix, so the slice still reads as the Service's after redaction; KD264 links a
+// slice that lacks its label by that name. Services must be added first.
+func (r *redactor) addSliceName(name string) {
+	if _, ok := r.names[name]; ok || name == "" {
+		return
+	}
+	best := ""
+	for svc, pseudo := range r.names {
+		if strings.HasPrefix(pseudo, "svc-") && len(svc) > len(best) && len(name) > len(svc)+1 && strings.HasPrefix(name, svc) && name[len(svc)] == '-' {
+			best = svc
+		}
+	}
+	if best == "" {
+		r.addName("eps", name)
+		return
+	}
+	suffix := name[len(best)+1:]
+	if !reGeneratedSuffix.MatchString(suffix) {
+		suffix = r.pseudonym("eps", name)[len("eps-"):] // a suffix someone wrote may say something: replaced too
+	}
+	r.names[name] = r.names[best] + "-" + suffix
+}
+
+// reGeneratedSuffix is a suffix a controller or a person adds to tell slices apart: a number or a few random characters.
+var reGeneratedSuffix = regexp.MustCompile(`^[a-z0-9]{1,5}$`)
+
 func (r *redactor) addImage(image string) {
 	repo := imageRepository(image)
 	if repo != "" {
@@ -206,7 +233,7 @@ func (r *redactor) collect(s *Snapshot) {
 		}
 	}
 	for _, x := range s.EndpointSlices {
-		r.addName("eps", x.Metadata.Name)
+		r.addSliceName(x.Metadata.Name)
 	}
 	for _, x := range s.Ingresses {
 		r.addName("ing", x.Metadata.Name)
