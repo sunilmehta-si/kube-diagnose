@@ -2191,3 +2191,28 @@ func TestMemoryBackedEmptyDirFillsTheLimit(t *testing.T) {
 	p.Spec.Volumes[0].EmptyDir.Medium = ""
 	expect(t, only(t, Diagnose(s)), "KD111", "Pod shop/cache", "32Mi memory limit")
 }
+
+func TestAnotherPodHoldsTheReadWriteOncePodClaim(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteOncePod"}
+	pvc.Status.Phase = "Bound"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	vol := []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	first := pod("db-1", "db")
+	first.Spec.Volumes = vol
+	second := pod("db-2", "db")
+	second.Spec.NodeName = ""
+	second.Spec.Volumes = vol
+	second.Status.Phase = "Pending"
+	second.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 node has pod using PersistentVolumeClaim with the same name and ReadWriteOncePod access mode. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod."}}
+	second.Status.ContainerStatuses = nil
+	s.Pods = []kube.Pod{first, second}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD147", "ReplicaSet shop/db-rs", "PersistentVolumeClaim data", "ReadWriteOncePod", "pod db-1 already does")
+	if !strings.Contains(f.Fix, "ReplicaSet db-rs") {
+		t.Errorf("the fix should name the workload: %s", f.Fix)
+	}
+}
