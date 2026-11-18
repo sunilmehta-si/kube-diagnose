@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-job-parallelism-zero",
+  "description": "A Job sets parallelism 0, so it starts no pods and never completes, and nothing reports an error.",
+  "rule": "KD283",
+  "object": "Job/migrate",
+  "keywords": [
+    [
+      "parallelism"
+    ],
+    [
+      "no pods",
+      "starts no"
+    ]
+  ]
+}
