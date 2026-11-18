@@ -160,8 +160,9 @@ type Resources struct {
 }
 
 type HTTPGetAction struct {
-	Path string      `json:"path,omitempty"`
-	Port IntOrString `json:"port"`
+	Path   string      `json:"path,omitempty"`
+	Port   IntOrString `json:"port"`
+	Scheme string      `json:"scheme,omitempty"`
 }
 
 type TCPSocketAction struct {

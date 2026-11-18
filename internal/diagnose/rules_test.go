@@ -2118,3 +2118,55 @@ func TestCommandIsOneString(t *testing.T) {
 	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.Message = `exec: "webserver": executable file not found in $PATH: unknown`
 	expect(t, only(t, Diagnose(s)), "KD114", "Pod shop/web", `runs "webserver"`)
 }
+
+func TestProbeSpeaksHTTPSToPlainHTTP(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	notReady(&p)
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/", Port: port(8080), Scheme: "HTTPS"}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Unhealthy", `Readiness probe failed: Get "https://10.244.0.7:8080/": http: server gave HTTP response to HTTPS client`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD202", "Pod shop/web", "readiness probe uses scheme HTTPS", "plain HTTP on port 8080", "never becomes ready")
+
+	// A liveness probe with the same mistake restarts the container.
+	p = pod("web", "")
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/", Port: port(8080), Scheme: "HTTPS"}}
+	crashed(&p, 137, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Unhealthy", `Liveness probe failed: Get "https://10.244.0.7:8080/": http: server gave HTTP response to HTTPS client`, time.Minute),
+		event("Pod", "web", "Killing", "Container web failed liveness probe, will be restarted", time.Minute)}
+	expect(t, only(t, Diagnose(s)), "KD202", "Pod shop/web", "liveness probe uses scheme HTTPS", "restarts the container (4 restarts)")
+}
+
+func TestProbeNamesAPortTheContainerLacks(t *testing.T) {
+	s := snap()
+	p := pod("api", "")
+	notReady(&p)
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 8080}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/", Port: named("health")}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "api", "Unhealthy", `Readiness probe errored: couldn't find port: health in {...}`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD203", "Pod shop/api", `readiness probe names port "health"`, "declares ports http (8080)", "never becomes ready")
+	if f.Severity != Critical || len(f.Evidence) != 3 {
+		t.Errorf("a readiness probe that cannot run is critical, with the event, the probe and the ports: %s %d", f.Severity, len(f.Evidence))
+	}
+
+	// A liveness probe that cannot run checks nothing: a warning, on an otherwise healthy pod.
+	p = pod("api", "")
+	p.Spec.Containers[0].Ports = nil
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: named("health")}}
+	s.Pods, s.Events = []kube.Pod{p}, nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD203", "Pod shop/api", `liveness probe names port "health"`, "declares no ports", "checks nothing")
+	if f.Severity != Warning {
+		t.Errorf("a liveness probe that checks nothing is a warning: %s", f.Severity)
+	}
+
+	// A declared name is fine.
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "health", ContainerPort: 8080}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a probe on a declared port name is fine: %+v", r.Findings)
+	}
+}

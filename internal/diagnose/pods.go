@@ -72,6 +72,11 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	for _, cs := range p.Status.ContainerStatuses {
+		if pr := probePortMissing(ix, p, cs, "startup", "readiness"); pr != nil {
+			return pr
+		}
+	}
+	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probeProblem(ix, p, cs); pr != nil {
 			return pr
 		}
@@ -81,6 +86,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	}
 	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probeCannotRun(ix, p, cs); pr != nil {
+			return pr
+		}
+		if pr := probePortMissing(ix, p, cs, "liveness"); pr != nil {
 			return pr
 		}
 	}
@@ -1095,6 +1103,11 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if probe == nil && c.StartupProbe != nil {
 		probe, kind = c.StartupProbe, "startup"
 	}
+	for _, k := range []string{"startup", "liveness"} {
+		if pr := probeScheme(ix, p, cs, k); pr != nil {
+			return pr
+		}
+	}
 	var ev []Evidence
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy", "Killing") {
 		if mentionsContainer(e, cs.Name) && strings.Contains(strings.ToLower(e.Message), "probe") {
@@ -1192,6 +1205,9 @@ func declaresPort(c kube.Container, port kube.IntOrString) bool {
 func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if cs.Ready || cs.State.Running == nil {
 		return nil
+	}
+	if pr := probeScheme(ix, p, cs, "readiness"); pr != nil {
+		return pr
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
 		if !mentionsContainer(e, cs.Name) || !strings.Contains(strings.ToLower(e.Message), "readiness probe") {
