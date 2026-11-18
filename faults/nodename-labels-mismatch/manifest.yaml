@@ -1,0 +1,24 @@
+# A Job pins its pod with nodeName to the cluster's node and also asks for a disktype=ssd label the node does not have; the scheduler is bypassed, so the kubelet itself rejects each pod with NodeAffinity until the Job gives up.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-nodename-labels-mismatch
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: batch
+  namespace: kd-nodename-labels-mismatch
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      nodeName: kd-faults-control-plane
+      nodeSelector:
+        disktype: ssd
+      containers:
+        - name: batch
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo done"]

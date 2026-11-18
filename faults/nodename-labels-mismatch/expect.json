@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-nodename-labels-mismatch",
+  "description": "A Job pins its pod with nodeName to the cluster's node and also asks for a disktype=ssd label the node does not have; the scheduler is bypassed, so the kubelet itself rejects each pod with NodeAffinity until the Job gives up.",
+  "rule": "KD242",
+  "object": "Job/batch",
+  "keywords": [
+    [
+      "nodeName"
+    ],
+    [
+      "disktype",
+      "label"
+    ]
+  ]
+}
