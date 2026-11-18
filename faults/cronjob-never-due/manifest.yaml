@@ -1,0 +1,23 @@
+# A CronJob is scheduled for midnight on 30 February; the API accepts the schedule, and the controller finds no next run and never starts a Job.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-cronjob-never-due
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: billing
+  namespace: kd-cronjob-never-due
+spec:
+  schedule: "0 0 30 2 *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: billing
+              image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+              command: ["sh", "-c", "echo closing the month"]
