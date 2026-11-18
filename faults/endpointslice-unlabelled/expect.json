@@ -1,0 +1,12 @@
+{
+  "namespace": "kd-endpointslice-unlabelled",
+  "description": "A Service without a selector points at an outside database through an EndpointSlice written by hand, which lacks the kubernetes.io/service-name label; nothing links the slice to the Service, so the Service has no endpoints.",
+  "rule": "KD264",
+  "object": "Service/payments",
+  "keywords": [
+    [
+      "kubernetes.io/service-name",
+      "label"
+    ]
+  ]
+}

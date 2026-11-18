@@ -1,0 +1,34 @@
+# A Service without a selector points at an outside database through an EndpointSlice written by hand, which lacks the kubernetes.io/service-name label; nothing links the slice to the Service, so the Service has no endpoints.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-endpointslice-unlabelled
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments
+  namespace: kd-endpointslice-unlabelled
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: 5432
+
+---
+apiVersion: discovery.k8s.io/v1
+kind: EndpointSlice
+metadata:
+  name: payments-1
+  namespace: kd-endpointslice-unlabelled
+addressType: IPv4
+ports:
+  - name: postgres
+    port: 5432
+    protocol: TCP
+endpoints:
+  - addresses:
+      - 192.0.2.10
+    conditions:
+      ready: true
