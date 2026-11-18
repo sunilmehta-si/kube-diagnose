@@ -1158,6 +1158,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := probeScheme(ix, p, cs, k); pr != nil {
 			return pr
 		}
+		if pr := probeHost(ix, p, cs, k); pr != nil {
+			return pr
+		}
 	}
 	var ev []Evidence
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy", "Killing") {
@@ -1258,6 +1261,9 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return nil
 	}
 	if pr := probeScheme(ix, p, cs, "readiness"); pr != nil {
+		return pr
+	}
+	if pr := probeHost(ix, p, cs, "readiness"); pr != nil {
 		return pr
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {

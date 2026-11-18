@@ -162,12 +162,16 @@ type Resources struct {
 }
 
 type HTTPGetAction struct {
+	// Host is the address the kubelet connects to; empty means the pod's IP.
+	Host   string      `json:"host,omitempty"`
 	Path   string      `json:"path,omitempty"`
 	Port   IntOrString `json:"port"`
 	Scheme string      `json:"scheme,omitempty"`
 }
 
 type TCPSocketAction struct {
+	// Host is the address the kubelet connects to; empty means the pod's IP.
+	Host string      `json:"host,omitempty"`
 	Port IntOrString `json:"port"`
 }
 
@@ -386,6 +390,8 @@ type PodStatus struct {
 	InitContainerStatuses []ContainerStatus `json:"initContainerStatuses,omitempty"`
 	ContainerStatuses     []ContainerStatus `json:"containerStatuses,omitempty"`
 	StartTime             *time.Time        `json:"startTime,omitempty"`
+	// PodIP is the pod's address, which a probe without host connects to.
+	PodIP string `json:"podIP,omitempty"`
 }
 
 type Pod struct {

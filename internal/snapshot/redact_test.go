@@ -74,7 +74,10 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	var p kube.Pod
 	p.Metadata = kube.ObjectMeta{Name: "web-1", Namespace: "shop"}
 	p.Spec.Containers = []kube.Container{{Name: "web", Image: "nginx", EnvFrom: []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "web-config"}}},
-		Env: []kube.EnvVar{{Name: "DB", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db-password", Key: "pw"}}}}}}
+		Env:            []kube.EnvVar{{Name: "DB", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db-password", Key: "pw"}}}},
+		ReadinessProbe: &kube.Probe{HTTPGet: &kube.HTTPGetAction{Host: "health.corp.acme.example", Port: kube.IntOrString{Int: 8080}}},
+		LivenessProbe:  &kube.Probe{TCPSocket: &kube.TCPSocketAction{Host: "192.168.40.12", Port: kube.IntOrString{Int: 8080}}}}}
+	p.Status.PodIP = "172.16.9.4"
 	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "orders-data"}}}
 	projected := kube.ProjectedSource{ConfigMap: &kube.ConfigMapVolumeSource{Name: "feature-flags"}}
 	projected.Secret = &struct {
@@ -117,7 +120,8 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	}
 	b, _ := json.Marshal(red)
 	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export",
-		"orders-pv", "orders-data-old", "team-payments", "invoice-sweep", "feature-flags", "partner-api-keys"} {
+		"orders-pv", "orders-data-old", "team-payments", "invoice-sweep", "feature-flags", "partner-api-keys",
+		"health.corp.acme.example", "192.168.40.12", "172.16.9.4"} {
 		if strings.Contains(string(b), name) {
 			t.Errorf("redacted snapshot still contains %q", name)
 		}

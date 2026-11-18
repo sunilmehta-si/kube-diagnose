@@ -129,6 +129,15 @@ func (r *redactor) collect(s *Snapshot) {
 					r.addName("secret", e.SecretRef.Name)
 				}
 			}
+			// A probe's host may name a machine; an IP address is replaced with the other addresses.
+			for _, pr := range []*kube.Probe{c.LivenessProbe, c.ReadinessProbe, c.StartupProbe} {
+				if pr != nil && pr.HTTPGet != nil && !reIPv4.MatchString(pr.HTTPGet.Host) && pr.HTTPGet.Host != "localhost" {
+					r.addName("host", pr.HTTPGet.Host)
+				}
+				if pr != nil && pr.TCPSocket != nil && !reIPv4.MatchString(pr.TCPSocket.Host) && pr.TCPSocket.Host != "localhost" {
+					r.addName("host", pr.TCPSocket.Host)
+				}
+			}
 			for _, e := range c.Env {
 				if e.ValueFrom != nil && e.ValueFrom.ConfigMapKeyRef != nil {
 					r.addName("cm", e.ValueFrom.ConfigMapKeyRef.Name)

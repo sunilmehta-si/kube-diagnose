@@ -2295,6 +2295,42 @@ func TestCommandRefersToAnUndefinedVariable(t *testing.T) {
 	}
 }
 
+func TestProbeChecksAHostOtherThanThePod(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Host: "127.0.0.1", Path: "/healthz", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: Get "http://127.0.0.1:8080/healthz": dial tcp 127.0.0.1:8080: connect: connection refused`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD206", "ReplicaSet shop/web-rs", "readiness probe sets host", "on the node itself", "port 8080", "never becomes ready")
+	if !strings.Contains(f.Fix, "httpHeaders") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A liveness probe aimed at another address kills the container.
+	p = pod("web-5c7d9-qwert", "web")
+	crashed(&p, 137, "Error", 5)
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Host: "10.0.0.9", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{
+		event("Pod", p.Metadata.Name, "Unhealthy", "Liveness probe failed: dial tcp 10.0.0.9:8080: i/o timeout", time.Minute),
+		event("Pod", p.Metadata.Name, "Killing", "Container web failed liveness probe, will be restarted", time.Minute),
+	}
+	expect(t, only(t, Diagnose(s)), "KD206", "ReplicaSet shop/web-rs", "connects to host 10.0.0.9, not the pod", "5 restarts")
+
+	// host set to the pod's own IP is the default spelled out: not this rule.
+	p = pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	p.Status.PodIP = "10.244.0.7"
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Host: "10.244.0.7", Path: "/healthz", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: HTTP probe failed with statuscode: 503`, time.Minute)}
+	if f := only(t, Diagnose(s)); f.Rule == "KD206" {
+		t.Errorf("a probe on the pod's own IP was blamed on its host: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
