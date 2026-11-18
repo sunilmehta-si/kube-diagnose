@@ -212,12 +212,28 @@ func TestVersionAndRules(t *testing.T) {
 		t.Errorf("rules probe names port:\n%s", out)
 	}
 	env, out, _, _ = testEnv(nil)
-	if Run([]string{"rules", "kd28"}, env) != 0 || !strings.Contains(out.String(), "KD280") || !strings.Contains(out.String(), "KD283") {
-		t.Errorf("rules kd28 (KD280-KD283):\n%s", out)
+	if Run([]string{"rules", "kd28"}, env) != 0 || !strings.Contains(out.String(), "KD280") || !strings.Contains(out.String(), "KD284") {
+		t.Errorf("rules kd28 (KD280-KD284):\n%s", out)
+	}
+	for _, c := range []struct {
+		words []string
+		want  string
+	}{
+		{[]string{"subdomain"}, "KD266"},
+		{[]string{"activeDeadlineSeconds"}, "KD195"},
+		{[]string{"30", "February"}, "KD284"},
+		{[]string{"headless", "targetPort"}, "KD265"},
+		{[]string{"NodePorts"}, "KD243"},
+		{[]string{"NodeAffinity"}, "KD242"},
+	} {
+		env, out, _, _ = testEnv(nil)
+		if Run(append([]string{"rules"}, c.words...), env) != 0 || !strings.Contains(out.String(), c.want) {
+			t.Errorf("rules %s: want %s in\n%s", strings.Join(c.words, " "), c.want, out)
+		}
 	}
 	env, out, _, _ = testEnv(nil)
-	if Run([]string{"rules", "kd26"}, env) != 0 || strings.Count(out.String(), "\n") != 5 || !strings.HasPrefix(out.String(), "KD260") {
-		t.Errorf("rules kd26 (KD260-KD264):\n%s", out)
+	if Run([]string{"rules", "kd26"}, env) != 0 || strings.Count(out.String(), "\n") != 7 || !strings.HasPrefix(out.String(), "KD260") {
+		t.Errorf("rules kd26 (KD260-KD266):\n%s", out)
 	}
 	env, _, errb, _ := testEnv(nil)
 	if Run([]string{"rules", "KD9"}, env) != 2 || !strings.Contains(errb.String(), "no rule starts with KD9") {

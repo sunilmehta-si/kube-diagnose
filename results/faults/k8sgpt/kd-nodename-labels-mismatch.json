@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Job",
+      "name": "kd-nodename-labels-mismatch/batch",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodename-labels-mismatch",
+              "Masked": "PlVRNlUvTixQXl9wNHM7PV9JdUhnKjF1Tk9I"
+            },
+            {
+              "Unmasked": "batch",
+              "Masked": "RVUtRnU="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

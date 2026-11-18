@@ -69,6 +69,46 @@ func probeScheme(ix *index, p kube.Pod, cs kube.ContainerStatus, kind string) *p
 		eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, kind))
 }
 
+// probeHost finds a failing httpGet or tcpSocket probe that sets host. The kubelet connects to that address instead of
+// the pod's IP, from the node: localhost or 127.0.0.1 is the node itself, where the app is not listening, and any other
+// address checks something other than this container.
+func probeHost(ix *index, p kube.Pod, cs kube.ContainerStatus, kind string) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	pr := probeOf(c, kind)
+	if pr == nil {
+		return nil
+	}
+	host, port := "", ""
+	switch {
+	case pr.HTTPGet != nil:
+		host, port = pr.HTTPGet.Host, pr.HTTPGet.Port.String()
+	case pr.TCPSocket != nil:
+		host, port = pr.TCPSocket.Host, pr.TCPSocket.Port.String()
+	}
+	if host == "" || host == p.Status.PodIP {
+		return nil
+	}
+	e, ok := probeEvent(ix, p, cs.Name, kind, reAnyProbeFailure)
+	if !ok {
+		return nil
+	}
+	where := "host " + host + ", not the pod"
+	if loopback(host) {
+		where = "host " + host + ", which the kubelet reaches on the node itself, not in the pod, where nothing listens on port " + port
+	}
+	return newProblem(p, cs.Name, "KD206", "Probe checks a host other than the pod", Critical,
+		fmt.Sprintf("container %s's %s probe sets host, so the kubelet connects to %s, and the probe fails, %s", cs.Name, kind, where, probeEffect(kind, cs.RestartCount)),
+		"host|"+kind+"|"+host,
+		"Remove host from the probe so the kubelet connects to the pod's IP; to send a Host header for a virtual host, use httpGet.httpHeaders with name Host instead.",
+		eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, kind))
+}
+
+var reAnyProbeFailure = regexp.MustCompile(`(?i)probe (failed|errored)`)
+
+func loopback(host string) bool {
+	return host == "localhost" || strings.HasPrefix(host, "127.") || host == "::1" || host == "[::1]"
+}
+
 var reProbePort = regexp.MustCompile(`(?i)probe errored`)
 
 // probePortMissing finds a probe that names a port (port: health) the container does not declare. The kubelet cannot

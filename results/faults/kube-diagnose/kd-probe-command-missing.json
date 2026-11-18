@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-command-missing"
   ],
-  "collectedAt": "2026-11-18 08:53 UTC",
+  "collectedAt": "2026-11-18 11:48 UTC",
   "findings": [
     {
       "rule": "KD129",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-command-missing",
-            "name": "web-6cf8bd5cc7-k7cd6"
+            "name": "web-6cf8bd5cc7-dzsgk"
           },
           "what": "event Unhealthy",
-          "detail": "Liveness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"836e48f371269af1c10e47de90581e1366fe483827f8dc558e8675e74dd8c126\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"curl\": executable file not found in $PATH",
-          "command": "kubectl get events -n kd-probe-command-missing --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cf8bd5cc7-k7cd6"
+          "detail": "Liveness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"067a1f67e769135b6e8fb1da01979984a87b6feb28e537733f4b832d8dca733d\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"curl\": executable file not found in $PATH",
+          "command": "kubectl get events -n kd-probe-command-missing --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cf8bd5cc7-dzsgk"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-command-missing",
-            "name": "web-6cf8bd5cc7-k7cd6"
+            "name": "web-6cf8bd5cc7-dzsgk"
           },
           "what": "container web's liveness probe runs curl -f http://localhost:8080/",
-          "command": "kubectl get pod web-6cf8bd5cc7-k7cd6 -n kd-probe-command-missing -o jsonpath='{.spec.containers[?(@.name==\"web\")].livenessProbe}'"
+          "command": "kubectl get pod web-6cf8bd5cc7-dzsgk -n kd-probe-command-missing -o jsonpath='{.spec.containers[?(@.name==\"web\")].livenessProbe}'"
         }
       ],
       "fix": "Use a command the image has (distroless images have no shell or curl, busybox has wget but no curl), or replace the exec probe with an httpGet or tcpSocket probe, which the kubelet runs itself and needs nothing in the image; curl is the command to replace.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-command-missing",
-          "name": "web-6cf8bd5cc7-k7cd6"
+          "name": "web-6cf8bd5cc7-dzsgk"
         }
       ]
     }

@@ -200,14 +200,7 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 			"Make a node in the volume's zone available to the pod (capacity, taints, nodeSelector), or use a StorageClass with volumeBindingMode: WaitForFirstConsumer so new volumes are created where the pod can run.",
 			ev...), cause
 	case strings.Contains(r.text, "didn't have free ports"):
-		var ports []string
-		for _, c := range p.Spec.Containers {
-			for _, cp := range c.Ports {
-				if cp.HostPort != 0 {
-					ports = append(ports, strconv.Itoa(int(cp.HostPort)))
-				}
-			}
-		}
+		ports := hostPorts(p)
 		cause := nodesVerb(r.nodes, "has", "have") + " the pod's hostPort in use already"
 		if len(ports) > 0 {
 			cause = fmt.Sprintf("%s hostPort %s in use already", nodesVerb(r.nodes, "has", "have"), strings.Join(ports, ", "))

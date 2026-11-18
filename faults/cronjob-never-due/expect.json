@@ -1,0 +1,13 @@
+{
+  "namespace": "kd-cronjob-never-due",
+  "description": "A CronJob is scheduled for midnight on 30 February; the API accepts the schedule, and the controller finds no next run and never starts a Job.",
+  "rule": "KD284",
+  "object": "CronJob/billing",
+  "keywords": [
+    [
+      "30",
+      "february",
+      "never"
+    ]
+  ]
+}

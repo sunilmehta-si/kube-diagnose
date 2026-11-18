@@ -39,6 +39,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if p.Status.Reason == "Evicted" {
 		return evicted(p)
 	}
+	if p.Status.Phase == "Failed" && p.Status.Reason == "DeadlineExceeded" {
+		return deadlineExceeded(ix, p)
+	}
 	if p.Status.Phase == "Failed" {
 		if pr := nodeRejected(ix, p); pr != nil {
 			return pr
@@ -96,6 +99,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		if pr := probePortMissing(ix, p, cs, "liveness"); pr != nil {
 			return pr
 		}
+	}
+	if p.Status.Phase == "Running" {
+		return subdomainProblem(ix, p, nil, nil, nil)
 	}
 	return nil
 }
@@ -807,6 +813,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			return pr
 		}
 	}
+	if pr := undefinedVar(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := subPathIsADirectory(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -841,6 +850,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := rbacDenied(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := subdomainProblem(ix, p, &cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {
@@ -1152,6 +1164,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := probeScheme(ix, p, cs, k); pr != nil {
 			return pr
 		}
+		if pr := probeHost(ix, p, cs, k); pr != nil {
+			return pr
+		}
 	}
 	var ev []Evidence
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy", "Killing") {
@@ -1254,6 +1269,9 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := probeScheme(ix, p, cs, "readiness"); pr != nil {
 		return pr
 	}
+	if pr := probeHost(ix, p, cs, "readiness"); pr != nil {
+		return pr
+	}
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
 		if !mentionsContainer(e, cs.Name) || !strings.Contains(strings.ToLower(e.Message), "readiness probe") {
 			continue
@@ -1306,6 +1324,26 @@ func evicted(p kube.Pod) *problem {
 	return &problem{rule: "KD192", title: "Pod was evicted", severity: Warning, pod: p,
 		cause: cause, key: "KD192|" + msg, evidence: ev,
 		fix: "Set requests close to real use (pods over their requests are evicted first) and check the node's disk and memory pressure; delete evicted pods once handled."}
+}
+
+// deadlineExceeded explains a pod the kubelet stopped at its own spec.activeDeadlineSeconds. In a Job's pod template the
+// field limits each attempt, not the Job, so a pod that needs longer fails every retry; the Job's
+// spec.activeDeadlineSeconds is the one that bounds the whole Job.
+func deadlineExceeded(ix *index, p kube.Pod) *problem {
+	ev := []Evidence{{Object: p.Ref(), What: "pod status is Failed, reason DeadlineExceeded", Detail: p.Status.Message,
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.activeDeadlineSeconds}{\"\\n\"}{.status.message}")}}
+	limit := "its spec.activeDeadlineSeconds"
+	if d := p.Spec.ActiveDeadlineSeconds; d != nil {
+		limit = fmt.Sprintf("its spec.activeDeadlineSeconds (%d s)", *d)
+	}
+	cause := fmt.Sprintf("the kubelet stopped the pod when it had run longer than %s (DeadlineExceeded), whatever its containers were doing", limit)
+	fix := "Raise or remove activeDeadlineSeconds in the pod spec, or find why the pod runs that long (its logs)."
+	if o, ok := p.Metadata.Controller(); ok && o.Kind == "Job" {
+		cause += "; in a Job's pod template the deadline applies to each attempt, so every retry is stopped the same way"
+		fix = "Remove activeDeadlineSeconds from the Job's pod template, or raise it above how long one attempt takes; to bound the whole Job, set the Job's own spec.activeDeadlineSeconds."
+	}
+	return &problem{rule: "KD195", title: "Pod ran past its activeDeadlineSeconds", severity: Critical, pod: p,
+		cause: cause, key: "KD195", evidence: ev, fix: fix}
 }
 
 // sortedKeys returns a map's keys in order.

@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-headless-port-remap"
+  ],
+  "collectedAt": "2026-11-18 11:46 UTC",
+  "findings": [
+    {
+      "rule": "KD265",
+      "title": "Headless Service maps a port it cannot map",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-headless-port-remap",
+        "name": "peers"
+      },
+      "cause": "Service peers is headless (clusterIP: None) and maps port 80 to targetPort 8080 (8080), but a headless Service has no proxy: its name resolves to the pods' own addresses, so a client that dials port 80 reaches the pods on port 80, where they do not listen; only SRV lookups return port 8080",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-headless-port-remap",
+            "name": "peers"
+          },
+          "what": "Service peers has clusterIP None, port 80 and targetPort 8080",
+          "command": "kubectl get service peers -n kd-headless-port-remap -o jsonpath='{.spec.clusterIP}{\" \"}{.spec.ports}'"
+        }
+      ],
+      "fix": "Make port equal the port the pods listen on (port: 8080) so clients dial that, or give the Service a cluster IP (remove clusterIP: None, which takes recreating it) if clients need port 80 mapped."
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

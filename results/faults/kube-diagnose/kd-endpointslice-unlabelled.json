@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-endpointslice-unlabelled"
+  ],
+  "collectedAt": "2026-11-18 11:46 UTC",
+  "findings": [
+    {
+      "rule": "KD264",
+      "title": "Service has no selector and no endpoints",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-endpointslice-unlabelled",
+        "name": "payments"
+      },
+      "cause": "Service payments has no selector and no EndpointSlice of its own: EndpointSlice payments-1, named for it, lacks the label kubernetes.io/service-name: payments, which is the only link between a slice and its Service, so kube-proxy and DNS never use its addresses and connections to the Service fail",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-endpointslice-unlabelled",
+            "name": "payments"
+          },
+          "what": "Service payments has no selector",
+          "command": "kubectl get service payments -n kd-endpointslice-unlabelled -o jsonpath='{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-endpointslice-unlabelled",
+            "name": "payments"
+          },
+          "what": "Service payments has no EndpointSlice",
+          "command": "kubectl get endpointslices -n kd-endpointslice-unlabelled -l kubernetes.io/service-name=payments"
+        },
+        {
+          "object": {
+            "kind": "EndpointSlice",
+            "namespace": "kd-endpointslice-unlabelled",
+            "name": "payments-1"
+          },
+          "what": "EndpointSlice payments-1 has no kubernetes.io/service-name label",
+          "command": "kubectl get endpointslice payments-1 -n kd-endpointslice-unlabelled -o jsonpath='{.metadata.labels}'"
+        }
+      ],
+      "fix": "Label it: kubectl label endpointslice payments-1 -n kd-endpointslice-unlabelled kubernetes.io/service-name=payments, and keep the label in the manifest that creates it."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

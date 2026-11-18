@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-probe-host-localhost"
+  ],
+  "collectedAt": "2026-11-18 11:48 UTC",
+  "findings": [
+    {
+      "rule": "KD206",
+      "title": "Probe checks a host other than the pod",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-probe-host-localhost",
+        "name": "web"
+      },
+      "cause": "container web's readiness probe sets host, so the kubelet connects to host 127.0.0.1, which the kubelet reaches on the node itself, not in the pod, where nothing listens on port 8080, and the probe fails, so the container never becomes ready and gets no traffic; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-host-localhost",
+            "name": "web-6558876bf4-8pp2p"
+          },
+          "what": "event Unhealthy (63 times)",
+          "detail": "Readiness probe failed: Get \"http://127.0.0.1:8080/\": dial tcp 127.0.0.1:8080: connect: connection refused",
+          "command": "kubectl get events -n kd-probe-host-localhost --field-selector involvedObject.kind=Pod,involvedObject.name=web-6558876bf4-8pp2p"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-host-localhost",
+            "name": "web-6558876bf4-8pp2p"
+          },
+          "what": "container web's readiness probe",
+          "command": "kubectl get pod web-6558876bf4-8pp2p -n kd-probe-host-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
+        }
+      ],
+      "fix": "Remove host from the probe so the kubelet connects to the pod's IP; to send a Host header for a virtual host, use httpGet.httpHeaders with name Host instead.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-probe-host-localhost",
+          "name": "web-6558876bf4-8pp2p"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

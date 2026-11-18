@@ -1,0 +1,71 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-nodename-hostport-taken"
+  ],
+  "collectedAt": "2026-11-18 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD243",
+      "title": "Node rejects the pod: its host port is taken",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-nodename-hostport-taken",
+        "name": "agent"
+      },
+      "cause": "the pod names node kd-faults-control-plane in spec.nodeName, which skips the scheduler, and asks for host port 8080, which another pod on that node already holds, so the kubelet rejects it (NodePorts)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodename-hostport-taken",
+            "name": "agent-9x842"
+          },
+          "what": "pod status is Failed, reason NodePorts",
+          "detail": "Pod was rejected: Predicate NodePorts failed: node(s) didn't have free ports for the requested pod ports",
+          "command": "kubectl get pod agent-9x842 -n kd-nodename-hostport-taken -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodename-hostport-taken",
+            "name": "agent-9x842"
+          },
+          "what": "the pod's host ports",
+          "command": "kubectl get pod agent-9x842 -n kd-nodename-hostport-taken -o jsonpath='{.spec.containers[*].ports[*].hostPort}'"
+        }
+      ],
+      "fix": "Drop hostPort if a Service can reach the pod instead, or leave spec.nodeName unset so the scheduler puts the pod on a node where the port is free (kubectl get pods -A -o wide shows what runs on the node).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-hostport-taken",
+          "name": "agent-9x842"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-hostport-taken",
+          "name": "agent-bbhfk"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-hostport-taken",
+          "name": "agent-ctxm5"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-hostport-taken",
+          "name": "agent-x96qg"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 4,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

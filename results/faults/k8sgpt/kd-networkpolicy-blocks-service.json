@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-blocks-service",
-              "Masked": "SHw0N1JDIVZ7UVBORWRtbWtNUnR2Nj8qZXV1NlFvWg=="
+              "Masked": "fXE0LCVeWi0jWFZXRWhVUFBAfCJ0SGFMRkZiMSxpOQ=="
             },
             {
               "Unmasked": "web",
-              "Masked": "P0t1"
+              "Masked": "QSpP"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-networkpolicy-blocks-service/web-645cb7cf7b-x7gjz",
+      "name": "kd-networkpolicy-blocks-service/web-645cb7cf7b-r9rxm",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-645cb7cf7b-x7gjz",
+          "Text": "the last termination reason is Error container=web pod=web-645cb7cf7b-r9rxm",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -74,7 +74,10 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	var p kube.Pod
 	p.Metadata = kube.ObjectMeta{Name: "web-1", Namespace: "shop"}
 	p.Spec.Containers = []kube.Container{{Name: "web", Image: "nginx", EnvFrom: []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "web-config"}}},
-		Env: []kube.EnvVar{{Name: "DB", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db-password", Key: "pw"}}}}}}
+		Env:            []kube.EnvVar{{Name: "DB", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db-password", Key: "pw"}}}},
+		ReadinessProbe: &kube.Probe{HTTPGet: &kube.HTTPGetAction{Host: "health.corp.acme.example", Port: kube.IntOrString{Int: 8080}}},
+		LivenessProbe:  &kube.Probe{TCPSocket: &kube.TCPSocketAction{Host: "192.168.40.12", Port: kube.IntOrString{Int: 8080}}}}}
+	p.Status.PodIP = "172.16.9.4"
 	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "orders-data"}}}
 	projected := kube.ProjectedSource{ConfigMap: &kube.ConfigMapVolumeSource{Name: "feature-flags"}}
 	projected.Secret = &struct {
@@ -117,9 +120,36 @@ func TestRedactNamesObjectsThatDoNotExist(t *testing.T) {
 	}
 	b, _ := json.Marshal(red)
 	for _, name := range []string{"web-config", "db-password", "orders-data", "regcred", "db-headless", "storefront", "acme-tls", "shop.acme.example", "a1b2.elb.acme.example", "nightly-export",
-		"orders-pv", "orders-data-old", "team-payments", "invoice-sweep", "feature-flags", "partner-api-keys"} {
+		"orders-pv", "orders-data-old", "team-payments", "invoice-sweep", "feature-flags", "partner-api-keys",
+		"health.corp.acme.example", "192.168.40.12", "172.16.9.4"} {
 		if strings.Contains(string(b), name) {
 			t.Errorf("redacted snapshot still contains %q", name)
 		}
+	}
+}
+
+// TestRedactKeepsASliceNamedForItsService covers an EndpointSlice named for its Service: after redaction it is still
+// named for the Service's pseudonym, so KD264 can link a slice that lacks its label, and a suffix someone wrote is
+// replaced, not kept.
+func TestRedactKeepsASliceNamedForItsService(t *testing.T) {
+	var svc kube.Service
+	svc.Metadata = kube.ObjectMeta{Name: "payments", Namespace: "shop"}
+	gen := kube.EndpointSlice{Metadata: kube.ObjectMeta{Name: "payments-1", Namespace: "shop"}}
+	wrote := kube.EndpointSlice{Metadata: kube.ObjectMeta{Name: "payments-acme-internal", Namespace: "shop"}}
+	other := kube.EndpointSlice{Metadata: kube.ObjectMeta{Name: "paymentsdb", Namespace: "shop"}}
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Services: []kube.Service{svc}, EndpointSlices: []kube.EndpointSlice{gen, wrote, other}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	p := red.Services[0].Metadata.Name
+	if got := red.EndpointSlices[0].Metadata.Name; got != p+"-1" {
+		t.Errorf("slice payments-1 became %q, want %q", got, p+"-1")
+	}
+	if got := red.EndpointSlices[1].Metadata.Name; !strings.HasPrefix(got, p+"-") || strings.Contains(got, "acme") || strings.Contains(got, "internal") {
+		t.Errorf("slice payments-acme-internal became %q", got)
+	}
+	if got := red.EndpointSlices[2].Metadata.Name; strings.HasPrefix(got, p) || strings.Contains(got, "payments") {
+		t.Errorf("slice paymentsdb became %q", got)
 	}
 }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-fails"
   ],
-  "collectedAt": "2026-11-18 08:51 UTC",
+  "collectedAt": "2026-11-18 11:45 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29916529-zzzzs"
+            "name": "backup-29916703-f5zxh"
           },
           "what": "container backup exited with code 2 (Error)",
-          "command": "kubectl get pod backup-29916529-zzzzs -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
+          "command": "kubectl get pod backup-29916703-f5zxh -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29916529-zzzzs"
+            "name": "backup-29916703-f5zxh"
           },
           "what": "last lines of container backup's log (current run)",
           "detail": "starting backup\nERROR: BACKUP_TARGET is not set",
-          "command": "kubectl logs backup-29916529-zzzzs -n kd-cronjob-fails -c backup --tail=20"
+          "command": "kubectl logs backup-29916703-f5zxh -n kd-cronjob-fails -c backup --tail=20"
         }
       ],
       "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
@@ -42,17 +42,17 @@
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29916529-zzzzs"
+          "name": "backup-29916703-f5zxh"
         },
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29916530-wsxk4"
+          "name": "backup-29916704-tq2w7"
         },
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29916531-x2p9q"
+          "name": "backup-29916705-c4556"
         }
       ]
     }

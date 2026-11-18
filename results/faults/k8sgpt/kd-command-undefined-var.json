@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-command-undefined-var/worker",
+      "error": [
+        {
+          "Text": "Deployment kd-command-undefined-var/worker has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-command-undefined-var",
+              "Masked": "fUZxcFshO090IU0pUT5bSC1yRyczQE5A"
+            },
+            {
+              "Unmasked": "worker",
+              "Masked": "Wlp0bk9o"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-command-undefined-var/worker-69b5d4bd7-tj6xc",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=worker-69b5d4bd7-tj6xc",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/worker"
+    }
+  ]
+}

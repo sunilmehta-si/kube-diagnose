@@ -1,0 +1,28 @@
+# A Job runs two pods at once, pinned with nodeName to the cluster's node, and each asks for host port 8080; the kubelet admits the first and rejects the other with NodePorts, again for each replacement.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-nodename-hostport-taken
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: agent
+  namespace: kd-nodename-hostport-taken
+spec:
+  parallelism: 2
+  completions: 2
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: Never
+      nodeName: kd-faults-control-plane
+      containers:
+        - name: agent
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          ports:
+            - name: http
+              containerPort: 8080
+              hostPort: 8080

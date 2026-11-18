@@ -9,8 +9,9 @@ import (
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
 
-// cronJobFindings covers CronJobs that start no Jobs although nothing is wrong with the Jobs' pods: a run that is
-// still going holds the next one back (concurrencyPolicy Forbid), or the CronJob is suspended. A CronJob whose pods
+// cronJobFindings covers CronJobs that start no Jobs although nothing is wrong with the Jobs' pods: a schedule that
+// names a date that never comes, a run that is still going holds the next one back (concurrencyPolicy Forbid), or the
+// CronJob is suspended. A CronJob whose pods
 // fail is explained by the pods' finding.
 func cronJobFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 	var out []Finding
@@ -18,7 +19,9 @@ func cronJobFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		if explained[cj.Ref()] {
 			continue
 		}
-		if f := cronJobSkips(ix, cj); f != nil {
+		if f := cronJobNeverFires(ix, cj); f != nil {
+			out = append(out, *f)
+		} else if f := cronJobSkips(ix, cj); f != nil {
 			out = append(out, *f)
 		} else if f := cronJobReplaces(ix, cj); f != nil {
 			out = append(out, *f)
@@ -126,4 +129,104 @@ func cronJobReplaces(ix *index, cj kube.CronJob) *Finding {
 				Command: cmdGet("cronjob", ns, name, `{.spec.schedule}{" "}{.spec.concurrencyPolicy}{" "}{.status}`)}},
 		Fix: "Make a run finish within the schedule's interval (its pods' logs show where the time goes), or space the schedule out beyond how long a run takes; " +
 			"concurrencyPolicy Forbid lets a run finish and skips the starts that overlap it."}
+}
+
+// cronJobNeverFires finds a CronJob whose schedule is valid cron but names a date that never comes, such as
+// "0 0 30 2 *" (30 February). The API accepts it; the controller finds no next run, says so once with an
+// InvalidSchedule event, and never starts a Job. Without the event (events expire), the schedule itself is checked.
+func cronJobNeverFires(ix *index, cj kube.CronJob) *Finding {
+	ns, name, sched := cj.Metadata.Namespace, cj.Metadata.Name, cj.Spec.Schedule
+	ev := []Evidence{{Object: cj.Ref(), What: fmt.Sprintf("CronJob %s has schedule %q", name, sched),
+		Command: cmdGet("cronjob", ns, name, `{.spec.schedule}{" "}{.status.lastScheduleTime}`)}}
+	why, never := impossibleDate(sched)
+	evs := ix.eventsFor(cj.Ref(), "InvalidSchedule")
+	if len(evs) > 0 {
+		ev = append([]Evidence{eventEvidence(cj.Ref(), evs[0])}, ev...)
+	} else if !never {
+		return nil
+	}
+	cause := fmt.Sprintf("CronJob %s's schedule %q never comes due", name, sched)
+	if never {
+		cause += ": " + why
+	}
+	cause += ", so the controller finds no next run and starts no Job"
+	if len(evs) > 0 {
+		cause += " (InvalidSchedule)"
+	}
+	return &Finding{Rule: "KD284", Title: "CronJob's schedule never comes due", Severity: Critical, Object: cj.Ref(), Cause: cause,
+		Evidence: ev,
+		Fix:      "Write a schedule for a day the intended months have: day 28 or earlier runs every month. For the last day of the month, schedule days 28-31 and have the job exit unless tomorrow is the 1st; Kubernetes cron has no L for last day."}
+}
+
+var monthDays = [13]int{0, 31, 29, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31}
+
+var monthNames = map[string]int{"jan": 1, "feb": 2, "mar": 3, "apr": 4, "may": 5, "jun": 6, "jul": 7, "aug": 8, "sep": 9, "oct": 10, "nov": 11, "dec": 12}
+
+// impossibleDate reports whether a five-field cron schedule restricts the day of the month to days none of its months
+// has, such as 30 or 31 in February, or 31 in April. A restricted day of the week makes the schedule fire on those
+// days instead (cron ORs the two), so only a * or ? there can leave it never due. Fields it cannot read with
+// certainty (steps, names it does not know) count as possible.
+func impossibleDate(sched string) (string, bool) {
+	f := strings.Fields(sched)
+	if len(f) != 5 || (f[4] != "*" && f[4] != "?") {
+		return "", false
+	}
+	days, ok := cronSet(f[2], nil)
+	if !ok {
+		return "", false
+	}
+	months, ok := cronSet(f[3], monthNames)
+	if !ok {
+		months = []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12}
+		if f[3] != "*" && f[3] != "?" {
+			return "", false
+		}
+	}
+	for _, m := range months {
+		if m < 1 || m > 12 {
+			return "", false
+		}
+		for _, d := range days {
+			if d >= 1 && d <= monthDays[m] {
+				return "", false
+			}
+		}
+	}
+	return fmt.Sprintf("day %s of month %s does not exist", f[2], f[3]), true
+}
+
+// cronSet reads a cron field made of numbers, ranges and (with names) month names, separated by commas. A * or ?, a
+// step, or anything else it does not know returns false.
+func cronSet(field string, names map[string]int) ([]int, bool) {
+	num := func(s string) (int, bool) {
+		if n, ok := names[strings.ToLower(s)]; ok {
+			return n, true
+		}
+		n := 0
+		for _, r := range s {
+			if r < '0' || r > '9' {
+				return 0, false
+			}
+			n = n*10 + int(r-'0')
+		}
+		return n, s != ""
+	}
+	var out []int
+	for _, part := range strings.Split(field, ",") {
+		lo, hi, isRange := strings.Cut(part, "-")
+		a, ok := num(lo)
+		if !ok {
+			return nil, false
+		}
+		b := a
+		if isRange {
+			if b, ok = num(hi); !ok || b < a {
+				return nil, false
+			}
+		}
+		for n := a; n <= b; n++ {
+			out = append(out, n)
+		}
+	}
+	return out, true
 }

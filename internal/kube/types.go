@@ -150,6 +150,8 @@ type NameRef struct {
 }
 
 type EnvFromSource struct {
+	// Prefix is put before each key's name to make the variable's name.
+	Prefix       string   `json:"prefix,omitempty"`
 	ConfigMapRef *NameRef `json:"configMapRef,omitempty"`
 	SecretRef    *NameRef `json:"secretRef,omitempty"`
 }
@@ -160,12 +162,16 @@ type Resources struct {
 }
 
 type HTTPGetAction struct {
+	// Host is the address the kubelet connects to; empty means the pod's IP.
+	Host   string      `json:"host,omitempty"`
 	Path   string      `json:"path,omitempty"`
 	Port   IntOrString `json:"port"`
 	Scheme string      `json:"scheme,omitempty"`
 }
 
 type TCPSocketAction struct {
+	// Host is the address the kubelet connects to; empty means the pod's IP.
+	Host string      `json:"host,omitempty"`
 	Port IntOrString `json:"port"`
 }
 
@@ -330,6 +336,12 @@ type PodSpec struct {
 	ReadinessGates []PodReadinessGate `json:"readinessGates,omitempty"`
 	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
 	SchedulingGates []SchedulingGate `json:"schedulingGates,omitempty"`
+	// Hostname and Subdomain give the pod the DNS name hostname.subdomain.namespace.svc, which exists only while a
+	// headless Service named subdomain selects the pod.
+	Hostname  string `json:"hostname,omitempty"`
+	Subdomain string `json:"subdomain,omitempty"`
+	// ActiveDeadlineSeconds is how long the kubelet lets the pod run, from its start, before it stops it.
+	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
 }
 
 type PodReadinessGate struct {
@@ -382,6 +394,8 @@ type PodStatus struct {
 	InitContainerStatuses []ContainerStatus `json:"initContainerStatuses,omitempty"`
 	ContainerStatuses     []ContainerStatus `json:"containerStatuses,omitempty"`
 	StartTime             *time.Time        `json:"startTime,omitempty"`
+	// PodIP is the pod's address, which a probe without host connects to.
+	PodIP string `json:"podIP,omitempty"`
 }
 
 type Pod struct {

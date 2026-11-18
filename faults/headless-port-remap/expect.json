@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-headless-port-remap",
+  "description": "A headless Service (clusterIP: None) maps port 80 to targetPort 8080 for web servers on 8080; with no proxy to map it, clients that dial peers:80 reach the pods on port 80 and are refused.",
+  "rule": "KD265",
+  "object": "Service/peers",
+  "keywords": [
+    [
+      "headless",
+      "clusterIP"
+    ],
+    [
+      "8080"
+    ]
+  ]
+}

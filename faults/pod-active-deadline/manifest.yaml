@@ -1,0 +1,22 @@
+# A Job's pod template sets activeDeadlineSeconds: 10 for work that takes a minute; the kubelet stops each attempt at 10 seconds (DeadlineExceeded) until the Job gives up.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pod-active-deadline
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: report
+  namespace: kd-pod-active-deadline
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      activeDeadlineSeconds: 10
+      containers:
+        - name: report
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo building report; sleep 60; echo done"]

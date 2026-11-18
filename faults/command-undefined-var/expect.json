@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-command-undefined-var",
+  "description": "A Deployment runs [\"sleep\", \"$(SLEEP_SECONDS)\"] but its env defines SLEEP_SECOND; the kubelet passes the literal $(SLEEP_SECONDS), and sleep exits on it.",
+  "rule": "KD205",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "SLEEP_SECONDS"
+    ]
+  ]
+}

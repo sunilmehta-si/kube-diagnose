@@ -1234,7 +1234,7 @@ func TestStatefulSetGoverningService(t *testing.T) {
 	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 1)}
 	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is not headless (it has clusterIP 10.96.4.20)")
 
-	s.Services[0].Spec.ClusterIP = "None"
+	s.Services[0].Spec.ClusterIP, s.Services[0].Spec.Ports[0].Port = "None", 8080 // headless, so its port is the pods' port
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("a headless governing Service: %+v", r.Findings)
 	}
@@ -2020,7 +2020,7 @@ func TestStatefulSetWaitsForItsFirstPod(t *testing.T) {
 	ss.Status.Replicas = 1
 	s.Workloads = []kube.Workload{ss}
 	headless := service("db", map[string]string{"app": "web"}, named("http"))
-	headless.Spec.ClusterIP = "None"
+	headless.Spec.ClusterIP, headless.Spec.Ports[0].Port = "None", 8080
 	s.Services = []kube.Service{headless}
 	s.EndpointSlices = []kube.EndpointSlice{slice("db", 0)}
 	p := pod("db-0", "")
@@ -2053,6 +2053,21 @@ func TestServiceWithoutSelectorOrEndpoints(t *testing.T) {
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("hand-managed endpoints: %+v", r.Findings)
 	}
+
+	// A slice made for it by hand without the label that links it: the slice and the label are named.
+	unlinked := slice("payments", 1)
+	unlinked.Metadata.Name, unlinked.Metadata.Labels = "payments-1", nil
+	s.EndpointSlices = []kube.EndpointSlice{unlinked}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD264", "Service shop/payments", "EndpointSlice payments-1, named for it, lacks the label kubernetes.io/service-name: payments")
+	if !strings.Contains(f.Fix, "kubectl label endpointslice payments-1 -n shop kubernetes.io/service-name=payments") || len(f.Evidence) != 3 {
+		t.Errorf("fix %q, %d evidence", f.Fix, len(f.Evidence))
+	}
+	// An unlabelled slice named for something else is not tied to this Service.
+	unlinked.Metadata.Name = "billing-1"
+	s.EndpointSlices = []kube.EndpointSlice{unlinked}
+	expect(t, only(t, Diagnose(s)), "KD264", "Service shop/payments", "no EndpointSlice: connections to it fail")
+
 	s.EndpointSlices = nil
 	s.Gaps = []snapshot.Gap{{Resource: "endpointslices.discovery.k8s.io", Namespace: "shop", Error: "forbidden"}}
 	if r := Diagnose(s); len(r.Findings) != 0 {
@@ -2248,6 +2263,237 @@ func TestNodeRejectsAPodThatBypassedTheScheduler(t *testing.T) {
 	if f.Rule != "KD241" || strings.Contains(f.Cause, "nodeName") {
 		t.Errorf("a scheduled pod should not be said to skip the scheduler: %s %s", f.Rule, f.Cause)
 	}
+}
+
+func TestCommandRefersToAnUndefinedVariable(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"sleep", "$(SLEEP_SECONDS)"}
+	c.Env = []kube.EnvVar{{Name: "SLEEP_SECOND", Value: "30"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"sleep: invalid number '$(SLEEP_SECONDS)'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD205", "ReplicaSet shop/worker-rs", "command uses $(SLEEP_SECONDS)", "define no SLEEP_SECONDS", "image's ENV", "invalid number")
+
+	// Under sh -c the shell runs the name as a command; the variable comes from args here.
+	c.Command, c.Args = []string{"sh", "-c"}, []string{"exec server --port $(APP_PORT)"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"sh: APP_PORT: not found", "server: missing value for --port"}
+	expect(t, only(t, Diagnose(s)), "KD205", "ReplicaSet shop/worker-rs", "args uses $(APP_PORT)")
+
+	// A Service named app makes the kubelet define APP_PORT: not this rule.
+	s.Services = []kube.Service{service("app", map[string]string{"app": "other"}, port(8080))}
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD205" {
+			t.Errorf("a Service link variable was called undefined: %s", f.Cause)
+		}
+	}
+	s.Services = nil
+
+	// Defined through envFrom with a prefix: not this rule.
+	c.EnvFrom = []kube.EnvFromSource{{Prefix: "APP_", ConfigMapRef: &kube.NameRef{Name: "settings"}}}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "settings", "PORT")}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD205" {
+		t.Errorf("a variable from envFrom with a prefix was called undefined: %s", f.Cause)
+	}
+
+	// An envFrom source the snapshot cannot list: no claim.
+	c.EnvFrom = []kube.EnvFromSource{{SecretRef: &kube.NameRef{Name: "unlisted"}}}
+	s.ConfigMaps = nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD205" {
+		t.Errorf("claimed an undefined variable with an unlisted envFrom source: %s", f.Cause)
+	}
+}
+
+func TestProbeChecksAHostOtherThanThePod(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Host: "127.0.0.1", Path: "/healthz", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: Get "http://127.0.0.1:8080/healthz": dial tcp 127.0.0.1:8080: connect: connection refused`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD206", "ReplicaSet shop/web-rs", "readiness probe sets host", "on the node itself", "port 8080", "never becomes ready")
+	if !strings.Contains(f.Fix, "httpHeaders") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A liveness probe aimed at another address kills the container.
+	p = pod("web-5c7d9-qwert", "web")
+	crashed(&p, 137, "Error", 5)
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Host: "10.0.0.9", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{
+		event("Pod", p.Metadata.Name, "Unhealthy", "Liveness probe failed: dial tcp 10.0.0.9:8080: i/o timeout", time.Minute),
+		event("Pod", p.Metadata.Name, "Killing", "Container web failed liveness probe, will be restarted", time.Minute),
+	}
+	expect(t, only(t, Diagnose(s)), "KD206", "ReplicaSet shop/web-rs", "connects to host 10.0.0.9, not the pod", "5 restarts")
+
+	// host set to the pod's own IP is the default spelled out: not this rule.
+	p = pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	p.Status.PodIP = "10.244.0.7"
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Host: "10.244.0.7", Path: "/healthz", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: HTTP probe failed with statuscode: 503`, time.Minute)}
+	if f := only(t, Diagnose(s)); f.Rule == "KD206" {
+		t.Errorf("a probe on the pod's own IP was blamed on its host: %s", f.Cause)
+	}
+}
+
+func TestHeadlessServiceMapsAPortItCannotMap(t *testing.T) {
+	s := snap()
+	p := pod("peer-0", "peer")
+	s.Pods = []kube.Pod{p}
+	svc := service("peers", p.Metadata.Labels, port(8080))
+	svc.Spec.ClusterIP = "None"
+	svc.Spec.Ports[0].Port = 80
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("peers", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD265", "Service shop/peers", "headless (clusterIP: None)", "port 80 to targetPort 8080", "reaches the pods on port 80", "SRV")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+
+	// A named targetPort that resolves to the same number, and a Service with a cluster IP: nothing to say.
+	svc.Spec.Ports[0].Port, svc.Spec.Ports[0].TargetPort = 8080, named("http")
+	s.Services = []kube.Service{svc}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a headless Service whose named port is its port: %v", r.Findings)
+	}
+	svc.Spec.ClusterIP, svc.Spec.Ports[0].Port, svc.Spec.Ports[0].TargetPort = "10.96.0.12", 80, port(8080)
+	s.Services = []kube.Service{svc}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a Service with a cluster IP maps its port: %v", r.Findings)
+	}
+}
+
+func TestPodSubdomainWithoutAHeadlessService(t *testing.T) {
+	s := snap()
+	p := pod("train-0-x8k2q", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "train", Controller: yes()}}
+	p.Spec.Hostname, p.Spec.Subdomain = "train-0", "workers"
+	crashed(&p, 1, "Error", 0)
+	p.Status.Phase = "Running"
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"waiting for peers", "nslookup: can't resolve 'train-1.workers'", "server can't find train-1.workers: NXDOMAIN"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD266", "Job shop/train", "cannot resolve train-1.workers", "there is no Service workers in namespace shop")
+	if f.Severity != Critical || !strings.Contains(f.Fix, "headless Service named workers") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Running and healthy: the name it was given does not exist, a warning.
+	p = pod("train-0-x8k2q", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "train", Controller: yes()}}
+	p.Spec.Hostname, p.Spec.Subdomain = "train-0", "workers"
+	s.Pods, s.Logs = []kube.Pod{p}, nil
+	svc := service("workers", map[string]string{"app": "web"}, port(8080))
+	svc.Spec.ClusterIP = "10.96.3.3"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("workers", 1)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD266", "Job shop/train", "train-0.workers.shop.svc", "Service workers is not headless")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+
+	// Headless but selecting other pods.
+	svc.Spec.ClusterIP, svc.Spec.Ports[0].Port = "None", 8080
+	svc.Spec.Selector = map[string]string{"app": "other"}
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = nil
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD266" && !strings.Contains(f.Cause, "does not select the pod") {
+			t.Errorf("cause %s", f.Cause)
+		}
+	}
+
+	// Served: nothing to say. A StatefulSet's pods are left to KD182.
+	svc.Spec.Selector = map[string]string{"app": "web"}
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("workers", 1)}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a served subdomain: %v", r.Findings)
+	}
+	s.Services, s.EndpointSlices = nil, nil
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "db", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD266" {
+			t.Errorf("a StatefulSet pod: %s", f.Cause)
+		}
+	}
+}
+
+func TestPodRanPastItsActiveDeadline(t *testing.T) {
+	s := snap()
+	d := int64(20)
+	p := pod("report-x7k2p", "report")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "report", Controller: yes()}}
+	p.Spec.ActiveDeadlineSeconds = &d
+	p.Status.Phase, p.Status.Reason = "Failed", "DeadlineExceeded"
+	p.Status.Message = "Pod was active on the node longer than the specified deadline"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "app", RestartCount: 0,
+		State: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 137, Reason: "Error"}}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD195", "Job shop/report", "longer than its spec.activeDeadlineSeconds (20 s)", "DeadlineExceeded", "each attempt")
+	if !strings.Contains(f.Fix, "Job's own spec.activeDeadlineSeconds") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A bare pod: no word about Jobs, and not mistaken for a crash by its exit code 137.
+	p.Metadata.OwnerReferences = nil
+	s.Pods = []kube.Pod{p}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD195", "Pod shop/report-x7k2p", "stopped the pod")
+	if strings.Contains(f.Cause, "Job") {
+		t.Errorf("a bare pod's cause mentions a Job: %s", f.Cause)
+	}
+}
+
+func TestNodeRejectsAPodWhoseLabelsDoNotMatch(t *testing.T) {
+	s := snap()
+	n := node("kd-faults-control-plane", "4", "16Gi")
+	n.Metadata.Labels = map[string]string{"kubernetes.io/hostname": "kd-faults-control-plane", "disktype": "hdd"}
+	s.Nodes = []kube.Node{n}
+	p := pod("batch-7kq2m", "batch")
+	p.Spec.NodeName = "kd-faults-control-plane"
+	p.Spec.NodeSelector = map[string]string{"disktype": "ssd", "kubernetes.io/hostname": "kd-faults-control-plane"}
+	p.Status.Phase, p.Status.Reason = "Failed", "NodeAffinity"
+	p.Status.Message = "Pod was rejected: Predicate NodeAffinity failed: node(s) didn't match Pod's node affinity/selector"
+	p.Status.Conditions, p.Status.ContainerStatuses = nil, nil
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD242", "ReplicaSet shop/batch-rs", "names node kd-faults-control-plane in spec.nodeName",
+		"nodeSelector disktype=ssd", "the node lacks disktype=ssd)", "NodeAffinity")
+
+	// Affinity instead of a nodeSelector, and a node the snapshot does not hold: no labels to compare.
+	p.Spec.NodeSelector = nil
+	s.Nodes, s.Pods = nil, []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD242", "ReplicaSet shop/batch-rs", "its node affinity does not match")
+	if strings.Contains(f.Cause, "lacks") {
+		t.Errorf("no node to compare, yet the cause names missing labels: %s", f.Cause)
+	}
+}
+
+func TestNodeRejectsAPodWhoseHostPortIsTaken(t *testing.T) {
+	s := snap()
+	p := pod("agent-5f8wd", "agent")
+	p.Spec.NodeName = "kd-faults-control-plane"
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 8080, HostPort: 8080}}
+	p.Status.Phase, p.Status.Reason = "Failed", "NodePorts"
+	p.Status.Message = "Pod was rejected: Predicate NodePorts failed: node(s) didn't have free ports for the requested pod ports"
+	p.Status.Conditions, p.Status.ContainerStatuses = nil, nil
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD243", "ReplicaSet shop/agent-rs", "asks for host port 8080", "another pod on that node already holds", "NodePorts")
 }
 
 func TestDaemonSetMatchesNoNode(t *testing.T) {

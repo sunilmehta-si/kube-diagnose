@@ -1,0 +1,71 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-nodename-labels-mismatch"
+  ],
+  "collectedAt": "2026-11-18 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD242",
+      "title": "Node rejects the pod: its labels do not match",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-nodename-labels-mismatch",
+        "name": "batch"
+      },
+      "cause": "the pod names node kd-faults-control-plane in spec.nodeName, which skips the scheduler, but its nodeSelector disktype=ssd (the node lacks disktype=ssd) does not match that node's labels, so the kubelet rejects it (NodeAffinity)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodename-labels-mismatch",
+            "name": "batch-fhr8d"
+          },
+          "what": "pod status is Failed, reason NodeAffinity",
+          "detail": "Pod was rejected: Predicate NodeAffinity failed: node(s) didn't match Pod's node affinity/selector",
+          "command": "kubectl get pod batch-fhr8d -n kd-nodename-labels-mismatch -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodename-labels-mismatch",
+            "name": "batch-fhr8d"
+          },
+          "what": "the pod's nodeName, nodeSelector and affinity",
+          "command": "kubectl get pod batch-fhr8d -n kd-nodename-labels-mismatch -o jsonpath='{.spec.nodeName}{\"\\n\"}{.spec.nodeSelector}{\"\\n\"}{.spec.affinity}'"
+        }
+      ],
+      "fix": "Choose one way to place the pod: drop spec.nodeName and let the scheduler use the nodeSelector or affinity, or name a node whose labels match (kubectl get nodes --show-labels).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-labels-mismatch",
+          "name": "batch-fhr8d"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-labels-mismatch",
+          "name": "batch-kxw8k"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-labels-mismatch",
+          "name": "batch-q4bfk"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodename-labels-mismatch",
+          "name": "batch-t7sck"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 4,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -2,6 +2,35 @@
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-11-18
+
+- The fault suite's committed run (44296881025): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 108 of 108 faults and raises no false alarm; k8sgpt v0.4.41 names 42, 22 of them first.
+
+### Added
+- 8 rules, 121 in all (`docs/rules.md`):
+  - commands and probes: a command or args using $(NAME) for a variable the container's env and envFrom do not
+    define, which the kubelet passes on as the literal text, not reading the image's ENV (KD205); a probe that sets
+    host, so the kubelet checks that address, the node itself for localhost, instead of the pod (KD206);
+  - the kubelet: a pod that names its node in spec.nodeName, skipping the scheduler, and is rejected for the node's
+    labels (KD242) or a host port another pod on it holds (KD243); a pod stopped at its own activeDeadlineSeconds,
+    which in a Job's pod template fails every attempt (KD195);
+  - Services and DNS: a headless Service whose targetPort differs from its port, which nothing maps (KD265), and a pod
+    subdomain no headless Service serves, so an Indexed Job's workers cannot resolve each other (KD266);
+  - CronJobs: a schedule that names a date that never comes, such as 30 February (KD284).
+- 9 fault scenarios, 108 broken namespaces in all, one or more for each new rule and the KD264 change.
+- The snapshot holds a pod's IP, hostname and subdomain and activeDeadlineSeconds, a probe's host and an envFrom
+  prefix. `record --redact` gives a probe's host name a pseudonym, as it does other names.
+
+### Changed
+- KD264 names an EndpointSlice made for a selectorless Service that lacks the kubernetes.io/service-name label, the
+  only link between a slice and its Service, and how to add it.
+- `record --redact` gives an EndpointSlice named for its Service (the Service's name and a suffix) the Service's
+  pseudonym and the suffix, so KD264 still finds a slice that lacks its label; a suffix longer than five characters
+  is replaced too.
+- The README's account of k8sgpt's output follows this run: for the liveness probe on the wrong port it gave the
+  termination reason, as in the 0.5.0 run, where in the 0.6.0 run it reported nothing.
+
 ## [0.6.0] - 2026-11-18
 
 - The fault suite's committed run (44269976066): kube-diagnose names the root cause in its first finding, with the
