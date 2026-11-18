@@ -96,3 +96,37 @@ func TestCronJobReplacesEachRunBeforeItFinishes(t *testing.T) {
 		t.Errorf("a CronJob whose runs complete is fine: %+v", r.Findings)
 	}
 }
+
+func TestCronJobScheduleNeverComesDue(t *testing.T) {
+	s := snap()
+	cj := cronJob("billing", "Allow")
+	cj.Spec.Schedule = "0 0 30 2 *"
+	s.CronJobs = []kube.CronJob{cj}
+	e := event("CronJob", "billing", "InvalidSchedule", "invalid schedule: 0 0 30 2 * : time difference between two schedules is less than 1 second", 3*time.Minute)
+	s.Events = []kube.Event{e}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD284", "CronJob shop/billing", `schedule "0 0 30 2 *" never comes due`, "day 30 of month 2 does not exist", "InvalidSchedule")
+	if f.Severity != Critical || len(f.Evidence) != 2 {
+		t.Errorf("severity %s, %d evidence", f.Severity, len(f.Evidence))
+	}
+
+	// The event has expired: the schedule alone shows it.
+	s.Events = nil
+	expect(t, only(t, Diagnose(s)), "KD284", "CronJob shop/billing", "day 30 of month 2 does not exist")
+
+	for sched, never := range map[string]bool{
+		"0 0 31 4,6,9,11 *": true,
+		"0 0 30,31 feb *":   true,
+		"0 0 31 apr-jun *":  false, // May has 31 days
+		"0 0 29 2 *":        false, // leap years
+		"0 0 31 * *":        false,
+		"0 0 31 2 1":        false, // a weekday too: cron runs it every Monday in February
+		"0 0 */31 2 *":      false, // a step it does not read: no claim
+		"*/5 * * * *":       false,
+		"@monthly":          false,
+	} {
+		if _, got := impossibleDate(sched); got != never {
+			t.Errorf("impossibleDate(%q) = %v, want %v", sched, got, never)
+		}
+	}
+}

@@ -127,6 +127,7 @@ var Rules = []Rule{
 	{"KD280", "CronJob replaces each run before it finishes", Warning, "A CronJob with concurrencyPolicy Replace starts each run while the last is still going, and so deletes it: its runs take longer than the schedule allows and none completes, while no pod fails.", "SuccessfulDelete events saying Deleted job on the CronJob, its schedule and concurrencyPolicy, its active Job and the time of its last successful run."},
 	{"KD282", "DaemonSet matches no node", Warning, "A DaemonSet should run on no node: its nodeSelector requires labels no node has, or every node has a taint its pods do not tolerate. It creates no pods, so nothing fails and nothing says why.", "The DaemonSet's desiredNumberScheduled, its nodeSelector and tolerations, and the nodes' labels and taints."},
 	{"KD283", "Job runs no pods: parallelism is 0", Warning, "A Job that has not finished has spec.parallelism 0 for more than two minutes, so it starts no pods and never completes, and nothing reports an error.", "The Job's parallelism, active, succeeded and failed counts, and its conditions."},
+	{"KD284", "CronJob's schedule never comes due", Critical, "A CronJob's schedule is valid cron but names a date that never comes, such as 30 February or 31 April: the API accepts it, and the controller finds no next run and starts no Job.", "The controller's InvalidSchedule event and the schedule, whose day of the month no listed month has."},
 }
 
 // RuleByID finds a rule.
