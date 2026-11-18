@@ -2216,3 +2216,36 @@ func TestAnotherPodHoldsTheReadWriteOncePodClaim(t *testing.T) {
 		t.Errorf("the fix should name the workload: %s", f.Fix)
 	}
 }
+
+func TestNodeForbidsTheSysctl(t *testing.T) {
+	s := snap()
+	p := pod("web-x7k2p", "web")
+	p.Status.Phase, p.Status.Reason = "Failed", "SysctlForbidden"
+	p.Status.Message = `Pod forbidden sysctl: "net.core.somaxconn" not allowlisted`
+	p.Status.Conditions, p.Status.ContainerStatuses = nil, nil
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD232", "ReplicaSet shop/web-rs", "sysctl net.core.somaxconn", "SysctlForbidden", "not allowed on node node-1")
+	if !strings.Contains(f.Fix, "--allowed-unsafe-sysctls=net.core.somaxconn") {
+		t.Errorf("the fix should name the kubelet flag with the sysctl: %s", f.Fix)
+	}
+}
+
+func TestNodeRejectsAPodThatBypassedTheScheduler(t *testing.T) {
+	s := snap()
+	p := pod("batch-2xq9z", "batch")
+	p.Spec.NodeName = "kd-faults-control-plane"
+	p.Status.Phase, p.Status.Reason = "Failed", "OutOfcpu"
+	p.Status.Message = "Pod was rejected: Node didn't have enough resource: cpu, requested: 1000000, used: 950, capacity: 4000"
+	p.Status.Conditions, p.Status.ContainerStatuses = nil, nil
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD241", "ReplicaSet shop/batch-rs", "node kd-faults-control-plane does not have enough cpu", "asks for 1000000, 950 of the node's 4000", "OutOfcpu", "spec.nodeName")
+
+	// A scheduled pod rejected in a race is not blamed on nodeName.
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "True"}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	if f.Rule != "KD241" || strings.Contains(f.Cause, "nodeName") {
+		t.Errorf("a scheduled pod should not be said to skip the scheduler: %s %s", f.Rule, f.Cause)
+	}
+}

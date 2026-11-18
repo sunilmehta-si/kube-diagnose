@@ -39,6 +39,11 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if p.Status.Reason == "Evicted" {
 		return evicted(p)
 	}
+	if p.Status.Phase == "Failed" {
+		if pr := nodeRejected(ix, p); pr != nil {
+			return pr
+		}
+	}
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
 		if c.Reason == "SchedulingGated" {
 			return gated(ix, p)
