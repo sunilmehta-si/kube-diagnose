@@ -1,0 +1,44 @@
+# A container mounts a ConfigMap key over /etc/group with subPath, but the key is not in the ConfigMap; the kubelet makes a directory in its place, and the runtime cannot mount a directory onto the image's file.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-subpath-onto-file
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-config
+  namespace: kd-subpath-onto-file
+data:
+  group: |
+    root:x:0:
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: app
+  namespace: kd-subpath-onto-file
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: app
+  template:
+    metadata:
+      labels:
+        app: app
+    spec:
+      containers:
+        - name: app
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          volumeMounts:
+            - name: config
+              mountPath: /etc/group
+              subPath: groups
+      volumes:
+        - name: config
+          configMap:
+            name: app-config

@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-subpath-onto-file",
+  "description": "A container mounts a ConfigMap key over /etc/group with subPath, but the key is not in the ConfigMap; the kubelet makes a directory in its place, and the runtime cannot mount a directory onto the image's file.",
+  "rule": "KD234",
+  "object": "Deployment/app",
+  "keywords": [
+    [
+      "subPath"
+    ],
+    [
+      "groups"
+    ]
+  ]
+}
