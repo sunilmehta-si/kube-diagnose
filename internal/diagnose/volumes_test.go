@@ -208,3 +208,32 @@ func TestFileMissingFromAProjectedVolume(t *testing.T) {
 	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.ExitCode = 126
 	expect(t, only(t, Diagnose(s)), "KD200", "Deployment shop/web", "whose files have mode 0600 (the item's mode)")
 }
+
+func TestSubPathNamesAFileTheVolumeLacks(t *testing.T) {
+	s := snap()
+	p := volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "app-config"}}, "/etc/app/config.yaml", false,
+		"cat: read error: Is a directory")
+	p.Spec.Containers[0].VolumeMounts[0].SubPath = "config.yaml"
+	s.ConfigMaps = []kube.KeySet{keys("shop", "app-config", "config.yml")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD234", "Deployment shop/web", "subPath config.yaml", "ConfigMap app-config has no such key (it has config.yml)",
+		"empty directory", "finds a directory at /etc/app/config.yaml")
+	if !strings.Contains(f.Fix, "delete the pod") {
+		t.Errorf("the fix should say the directory stays until the pod is replaced: %s", f.Fix)
+	}
+
+	// Over a file the image has, the runtime refuses the mount and the container never starts.
+	s = snap()
+	p = volumePod(s, kube.Volume{ConfigMap: &kube.ConfigMapVolumeSource{Name: "app-config"}}, "/etc/group", false)
+	p.Spec.Containers[0].VolumeMounts[0].SubPath = "groups"
+	crashed(p, 128, "StartError", 3)
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.Message = `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting "/var/lib/kubelet/pods/0b6c/volume-subpaths/data/web/0" to rootfs at "/etc/group": mount src=/var/lib/kubelet/pods/0b6c/volume-subpaths/data/web/0, dst=/etc/group, dstFd=/proc/thread-self/fd/8, flags=MS_BIND|MS_REC: not a directory: unknown: Are you trying to mount a directory onto a file (or vice-versa)? Check if the specified host path exists and is the expected type`
+	s.ConfigMaps = []kube.KeySet{keys("shop", "app-config", "group")}
+	expect(t, only(t, Diagnose(s)), "KD234", "Deployment shop/web", "subPath groups", "(it has group)", "cannot mount that directory over the file /etc/group")
+
+	// A subPath the ConfigMap has is fine; the crash is someone else's.
+	s.ConfigMaps = []kube.KeySet{keys("shop", "app-config", "groups")}
+	if f := only(t, Diagnose(s)); f.Rule == "KD234" {
+		t.Errorf("a subPath the ConfigMap has is not missing: %s", f.Cause)
+	}
+}

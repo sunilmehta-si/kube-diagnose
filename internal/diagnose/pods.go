@@ -696,6 +696,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("container %s did not start", cs.Name), Detail: msg,
 		Command: cmdContainerState(p, cs.Name, "state")}}
 	c, _ := containerSpec(p, cs.Name)
+	if pr := subPathOntoFile(ix, p, cs.Name, msg, ev); pr != nil {
+		return pr
+	}
 	switch {
 	case reExecFormat.MatchString(msg):
 		return execFormat(p, cs, ev)
@@ -803,6 +806,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := deniedScript(p, cs, log.Lines, ev); pr != nil {
 			return pr
 		}
+	}
+	if pr := subPathIsADirectory(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
 	}
 	if pr := fileNotInVolume(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
