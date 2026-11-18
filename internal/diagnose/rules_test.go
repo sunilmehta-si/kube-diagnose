@@ -2250,6 +2250,33 @@ func TestNodeRejectsAPodThatBypassedTheScheduler(t *testing.T) {
 	}
 }
 
+func TestPodRanPastItsActiveDeadline(t *testing.T) {
+	s := snap()
+	d := int64(20)
+	p := pod("report-x7k2p", "report")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "report", Controller: yes()}}
+	p.Spec.ActiveDeadlineSeconds = &d
+	p.Status.Phase, p.Status.Reason = "Failed", "DeadlineExceeded"
+	p.Status.Message = "Pod was active on the node longer than the specified deadline"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "app", RestartCount: 0,
+		State: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 137, Reason: "Error"}}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD195", "Job shop/report", "longer than its spec.activeDeadlineSeconds (20 s)", "DeadlineExceeded", "each attempt")
+	if !strings.Contains(f.Fix, "Job's own spec.activeDeadlineSeconds") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A bare pod: no word about Jobs, and not mistaken for a crash by its exit code 137.
+	p.Metadata.OwnerReferences = nil
+	s.Pods = []kube.Pod{p}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD195", "Pod shop/report-x7k2p", "stopped the pod")
+	if strings.Contains(f.Cause, "Job") {
+		t.Errorf("a bare pod's cause mentions a Job: %s", f.Cause)
+	}
+}
+
 func TestNodeRejectsAPodWhoseLabelsDoNotMatch(t *testing.T) {
 	s := snap()
 	n := node("kd-faults-control-plane", "4", "16Gi")
