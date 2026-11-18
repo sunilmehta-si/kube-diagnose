@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-sysctl-forbidden",
+  "description": "A Deployment's pods set the sysctl net.core.somaxconn, which the kubelet does not allow by default, so it rejects every pod with SysctlForbidden.",
+  "rule": "KD232",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "net.core.somaxconn"
+    ],
+    [
+      "allowed-unsafe-sysctls",
+      "allowlist"
+    ]
+  ]
+}
