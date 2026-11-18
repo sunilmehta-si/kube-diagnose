@@ -150,6 +150,8 @@ type NameRef struct {
 }
 
 type EnvFromSource struct {
+	// Prefix is put before each key's name to make the variable's name.
+	Prefix       string   `json:"prefix,omitempty"`
 	ConfigMapRef *NameRef `json:"configMapRef,omitempty"`
 	SecretRef    *NameRef `json:"secretRef,omitempty"`
 }

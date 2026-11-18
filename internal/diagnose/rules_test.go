@@ -2250,6 +2250,51 @@ func TestNodeRejectsAPodThatBypassedTheScheduler(t *testing.T) {
 	}
 }
 
+func TestCommandRefersToAnUndefinedVariable(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"sleep", "$(SLEEP_SECONDS)"}
+	c.Env = []kube.EnvVar{{Name: "SLEEP_SECOND", Value: "30"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"sleep: invalid number '$(SLEEP_SECONDS)'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD205", "ReplicaSet shop/worker-rs", "command uses $(SLEEP_SECONDS)", "define no SLEEP_SECONDS", "image's ENV", "invalid number")
+
+	// Under sh -c the shell runs the name as a command; the variable comes from args here.
+	c.Command, c.Args = []string{"sh", "-c"}, []string{"exec server --port $(APP_PORT)"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"sh: APP_PORT: not found", "server: missing value for --port"}
+	expect(t, only(t, Diagnose(s)), "KD205", "ReplicaSet shop/worker-rs", "args uses $(APP_PORT)")
+
+	// A Service named app makes the kubelet define APP_PORT: not this rule.
+	s.Services = []kube.Service{service("app", map[string]string{"app": "other"}, port(8080))}
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD205" {
+			t.Errorf("a Service link variable was called undefined: %s", f.Cause)
+		}
+	}
+	s.Services = nil
+
+	// Defined through envFrom with a prefix: not this rule.
+	c.EnvFrom = []kube.EnvFromSource{{Prefix: "APP_", ConfigMapRef: &kube.NameRef{Name: "settings"}}}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "settings", "PORT")}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD205" {
+		t.Errorf("a variable from envFrom with a prefix was called undefined: %s", f.Cause)
+	}
+
+	// An envFrom source the snapshot cannot list: no claim.
+	c.EnvFrom = []kube.EnvFromSource{{SecretRef: &kube.NameRef{Name: "unlisted"}}}
+	s.ConfigMaps = nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD205" {
+		t.Errorf("claimed an undefined variable with an unlisted envFrom source: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
