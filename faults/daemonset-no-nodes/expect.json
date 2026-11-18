@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-daemonset-no-nodes",
+  "description": "A DaemonSet's nodeSelector asks for disktype=ssd, which no node has, so it runs no pods and nothing reports an error.",
+  "rule": "KD282",
+  "object": "DaemonSet/agent",
+  "keywords": [
+    [
+      "disktype"
+    ],
+    [
+      "no node"
+    ]
+  ]
+}

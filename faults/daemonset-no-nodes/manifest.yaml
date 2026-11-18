@@ -1,0 +1,27 @@
+# A DaemonSet's nodeSelector asks for disktype=ssd, which no node has, so it runs no pods and nothing reports an error.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-daemonset-no-nodes
+
+---
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: agent
+  namespace: kd-daemonset-no-nodes
+spec:
+  selector:
+    matchLabels:
+      app: agent
+  template:
+    metadata:
+      labels:
+        app: agent
+    spec:
+      nodeSelector:
+        disktype: ssd
+      containers:
+        - name: agent
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
