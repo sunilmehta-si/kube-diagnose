@@ -121,6 +121,7 @@ var Rules = []Rule{
 	{"KD262", "NetworkPolicy selects no pods", Warning, "A NetworkPolicy's podSelector matches no pod and no pod template of a workload, Job or CronJob in its namespace, so it restricts nothing; the closest pod labels are named.", "The policy's podSelector and the pod labels in the namespace."},
 	{"KD263", "Ingresses send the same host and path to different Services", Warning, "Two Ingresses of one IngressClass route the same host, path and pathType to different Service ports. Only one gets the traffic, which one being up to the controller (ingress-nginx keeps the oldest rule); the finding is on the newer Ingress.", "Both Ingresses' rules and creation times."},
 	{"KD264", "Service has no selector and no endpoints", Warning, "A Service without a selector, whose endpoints someone must manage by hand, has no EndpointSlice with a ready address, so connections to it fail.", "The Service's selector and its EndpointSlices."},
+	{"KD280", "CronJob replaces each run before it finishes", Warning, "A CronJob with concurrencyPolicy Replace starts each run while the last is still going, and so deletes it: its runs take longer than the schedule allows and none completes, while no pod fails.", "SuccessfulDelete events saying Deleted job on the CronJob, its schedule and concurrencyPolicy, its active Job and the time of its last successful run."},
 }
 
 // RuleByID finds a rule.
