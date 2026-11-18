@@ -45,7 +45,7 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
   that refuses anything but `get`, `logs`, `version` and two `config` reads, and the tests hold every command the
   tool prints as evidence to the same allowlist. Secrets are read as key names only, through a kubectl template, so
   their values never reach the process.
-- **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 93 ways on
+- **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 94 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
 It knows 113 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited,
@@ -112,7 +112,7 @@ shows are lost with the logs).
 
 ## The fault suite
 
-[`faults/`](faults) holds 93 broken namespaces and one healthy one. Each broken one is a manifest that breaks it in a
+[`faults/`](faults) holds 94 broken namespaces and one healthy one. Each broken one is a manifest that breaks it in a
 known way (an image tag that does not exist, a liveness probe on the wrong port, a Service selector that matches no
 pod, a claim for a StorageClass that does not exist, a quota that is used up, an image built for another CPU
 architecture, and more) and an `expect.json` with the words that name its root cause. On every push,

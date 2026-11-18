@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-nodename-out-of-cpu",
+  "description": "A Deployment pins its pods with nodeName to the cluster's node and asks for 1000 CPUs; the scheduler is bypassed, so the kubelet itself rejects every pod with OutOfcpu.",
+  "rule": "KD241",
+  "object": "Deployment/batch",
+  "keywords": [
+    [
+      "nodeName"
+    ],
+    [
+      "cpu"
+    ]
+  ]
+}
