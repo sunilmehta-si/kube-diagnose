@@ -1,0 +1,12 @@
+{
+  "namespace": "kd-pod-active-deadline",
+  "description": "A Job's pod template sets activeDeadlineSeconds: 10 for work that takes a minute; the kubelet stops each attempt at 10 seconds (DeadlineExceeded) until the Job gives up.",
+  "rule": "KD195",
+  "object": "Job/report",
+  "keywords": [
+    [
+      "activeDeadlineSeconds",
+      "deadline"
+    ]
+  ]
+}
