@@ -367,11 +367,30 @@ func noSelectorNoEndpoints(ix *index, svc kube.Service) *Finding {
 	if len(slices) > 0 {
 		have = fmt.Sprintf("%s with no ready address", plural(len(slices), "EndpointSlice"))
 	}
+	ev := []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no selector", name), Command: cmdGet("service", ns, name, "{.spec.selector}")},
+		{Object: svc.Ref(), What: fmt.Sprintf("Service %s has %s", name, have), Command: "kubectl get endpointslices -n " + ns + " -l kubernetes.io/service-name=" + name}}
+	cause := fmt.Sprintf("Service %s has no selector, so Kubernetes keeps no endpoints for it, and it has %s: connections to it fail", name, have)
+	fix := fmt.Sprintf("Give Service %s a selector that matches the pods it fronts, or create an EndpointSlice labelled kubernetes.io/service-name: %s with the addresses it should send to.", name, name)
+	if es, ok := unlinkedSlice(ix, ns, name); ok {
+		ref := kube.Ref{Kind: "EndpointSlice", Namespace: ns, Name: es.Metadata.Name}
+		cause = fmt.Sprintf("Service %s has no selector and no EndpointSlice of its own: EndpointSlice %s, named for it, lacks the label kubernetes.io/service-name: %s, which is the only link between a slice and its Service, so kube-proxy and DNS never use its addresses and connections to the Service fail", name, es.Metadata.Name, name)
+		ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("EndpointSlice %s has no kubernetes.io/service-name label", es.Metadata.Name),
+			Command: cmdGet("endpointslice", ns, es.Metadata.Name, "{.metadata.labels}")})
+		fix = fmt.Sprintf("Label it: kubectl label endpointslice %s -n %s kubernetes.io/service-name=%s, and keep the label in the manifest that creates it.", es.Metadata.Name, ns, name)
+	}
 	return &Finding{Rule: "KD264", Title: "Service has no selector and no endpoints", Severity: Warning, Object: svc.Ref(),
-		Cause: fmt.Sprintf("Service %s has no selector, so Kubernetes keeps no endpoints for it, and it has %s: connections to it fail", name, have),
-		Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no selector", name), Command: cmdGet("service", ns, name, "{.spec.selector}")},
-			{Object: svc.Ref(), What: fmt.Sprintf("Service %s has %s", name, have), Command: "kubectl get endpointslices -n " + ns + " -l kubernetes.io/service-name=" + name}},
-		Fix: fmt.Sprintf("Give Service %s a selector that matches the pods it fronts, or create an EndpointSlice labelled kubernetes.io/service-name: %s with the addresses it should send to.", name, name)}
+		Cause: cause, Evidence: ev, Fix: fix}
+}
+
+// unlinkedSlice finds an EndpointSlice in the namespace that names no Service (no kubernetes.io/service-name label) but
+// is named for this one: the Service's name, or its name and a suffix, as slices are usually named.
+func unlinkedSlice(ix *index, ns, svc string) (kube.EndpointSlice, bool) {
+	for _, es := range ix.slices[nsName{ns, ""}] {
+		if n := es.Metadata.Name; n == svc || strings.HasPrefix(n, svc+"-") || strings.HasPrefix(n, svc+".") {
+			return es, true
+		}
+	}
+	return kube.EndpointSlice{}, false
 }
 
 // headlessRemap finds a headless Service (clusterIP: None) whose targetPort differs from its port. DNS answers the

@@ -2053,6 +2053,21 @@ func TestServiceWithoutSelectorOrEndpoints(t *testing.T) {
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("hand-managed endpoints: %+v", r.Findings)
 	}
+
+	// A slice made for it by hand without the label that links it: the slice and the label are named.
+	unlinked := slice("payments", 1)
+	unlinked.Metadata.Name, unlinked.Metadata.Labels = "payments-1", nil
+	s.EndpointSlices = []kube.EndpointSlice{unlinked}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD264", "Service shop/payments", "EndpointSlice payments-1, named for it, lacks the label kubernetes.io/service-name: payments")
+	if !strings.Contains(f.Fix, "kubectl label endpointslice payments-1 -n shop kubernetes.io/service-name=payments") || len(f.Evidence) != 3 {
+		t.Errorf("fix %q, %d evidence", f.Fix, len(f.Evidence))
+	}
+	// An unlabelled slice named for something else is not tied to this Service.
+	unlinked.Metadata.Name = "billing-1"
+	s.EndpointSlices = []kube.EndpointSlice{unlinked}
+	expect(t, only(t, Diagnose(s)), "KD264", "Service shop/payments", "no EndpointSlice: connections to it fail")
+
 	s.EndpointSlices = nil
 	s.Gaps = []snapshot.Gap{{Resource: "endpointslices.discovery.k8s.io", Namespace: "shop", Error: "forbidden"}}
 	if r := Diagnose(s); len(r.Findings) != 0 {
