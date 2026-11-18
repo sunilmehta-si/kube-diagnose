@@ -315,3 +315,76 @@ func nodeDNS(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev 
 		fmt.Sprintf("container %s exits because %s does not resolve: %s, and that resolver knows no Services; its log says: %q", cs.Name, host, why, clip(line, 160)),
 		"nodedns|"+what, fix, ev...)
 }
+
+// subdomainUnserved says why a pod's spec.subdomain gives it no DNS name: cluster DNS answers
+// hostname.subdomain.namespace.svc only for a headless Service named subdomain that selects the pod. A StatefulSet's
+// pods get their subdomain from its serviceName, which KD182 checks. It returns "" when the name exists or the
+// Services were not read.
+func subdomainUnserved(ix *index, p kube.Pod) string {
+	sub := p.Spec.Subdomain
+	if sub == "" || !ix.read("services") {
+		return ""
+	}
+	if o, ok := p.Metadata.Controller(); ok && o.Kind == "StatefulSet" {
+		return ""
+	}
+	for _, svc := range ix.s.Services {
+		if svc.Metadata.Namespace != p.Metadata.Namespace || svc.Metadata.Name != sub {
+			continue
+		}
+		switch {
+		case svc.Spec.ClusterIP != "None":
+			return fmt.Sprintf("Service %s is not headless (it has clusterIP %s), and only a headless Service publishes its pods' own names", sub, svc.Spec.ClusterIP)
+		case len(svc.Spec.Selector) == 0 || !kube.MatchesMap(svc.Spec.Selector, p.Metadata.Labels):
+			return fmt.Sprintf("headless Service %s does not select the pod (its selector is %s)", sub, orNone(kube.FormatMap(svc.Spec.Selector)))
+		}
+		return ""
+	}
+	return fmt.Sprintf("there is no Service %s in namespace %s", sub, p.Metadata.Namespace)
+}
+
+func orNone(s string) string {
+	if s == "" {
+		return "empty"
+	}
+	return s
+}
+
+// podDNSName is the name a pod with a subdomain is meant to have: its hostname (or, for a Job's indexed pods, the
+// name the Job gives it) and subdomain.
+func podDNSName(p kube.Pod) string {
+	h := p.Spec.Hostname
+	if h == "" {
+		h = p.Metadata.Name
+	}
+	return h + "." + p.Spec.Subdomain
+}
+
+// subdomainProblem finds a pod whose spec.subdomain no headless Service serves. A container that fails to resolve a
+// name under that subdomain, as a worker looking up its peers does, makes it critical; otherwise it is a warning that
+// the name the pod was given does not exist.
+func subdomainProblem(ix *index, p kube.Pod, cs *kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	why := subdomainUnserved(ix, p)
+	if why == "" {
+		return nil
+	}
+	sub, ns := p.Spec.Subdomain, p.Metadata.Namespace
+	spec := Evidence{Object: p.Ref(), What: fmt.Sprintf("the pod sets subdomain %s; %s", sub, why),
+		Command: cmdGet("pod", ns, p.Metadata.Name, "{.spec.hostname}{\" \"}{.spec.subdomain}")}
+	svcEv := Evidence{Object: kube.Ref{Kind: "Service", Namespace: ns, Name: sub}, What: "the Service named for the subdomain",
+		Command: cmdGet("service", ns, sub, `{.spec.clusterIP}{" "}{.spec.selector}`)}
+	fix := fmt.Sprintf("Create a headless Service named %s (clusterIP: None) whose selector matches the pods, or point spec.subdomain at the one that does; peers then resolve each other as HOSTNAME.%s.", sub, sub)
+	if cs != nil {
+		host, line := unresolvedHost(lines)
+		labels := strings.Split(strings.ToLower(host), ".")
+		if len(labels) < 2 || labels[1] != strings.ToLower(sub) {
+			return nil
+		}
+		return newProblem(p, cs.Name, "KD266", "Pod's subdomain has no headless Service", Critical,
+			fmt.Sprintf("container %s exits because it cannot resolve %s: pods with subdomain %s get names under it only from a headless Service of that name, and %s; its log says: %q", cs.Name, host, sub, why, clip(line, 200)),
+			"subdomain|"+sub, fix, append(ev, spec, svcEv)...)
+	}
+	return newProblem(p, "", "KD266", "Pod's subdomain has no headless Service", Warning,
+		fmt.Sprintf("the pod sets hostname and subdomain for the DNS name %s.%s.svc, but %s, so that name does not resolve and peers that look it up fail", podDNSName(p), ns, why),
+		"subdomain|"+sub, fix, spec, svcEv)
+}

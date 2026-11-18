@@ -100,6 +100,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
+	if p.Status.Phase == "Running" {
+		return subdomainProblem(ix, p, nil, nil, nil)
+	}
 	return nil
 }
 
@@ -847,6 +850,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := rbacDenied(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := subdomainProblem(ix, p, &cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {

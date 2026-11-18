@@ -2374,6 +2374,64 @@ func TestHeadlessServiceMapsAPortItCannotMap(t *testing.T) {
 	}
 }
 
+func TestPodSubdomainWithoutAHeadlessService(t *testing.T) {
+	s := snap()
+	p := pod("train-0-x8k2q", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "train", Controller: yes()}}
+	p.Spec.Hostname, p.Spec.Subdomain = "train-0", "workers"
+	crashed(&p, 1, "Error", 0)
+	p.Status.Phase = "Running"
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"waiting for peers", "nslookup: can't resolve 'train-1.workers'", "server can't find train-1.workers: NXDOMAIN"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD266", "Job shop/train", "cannot resolve train-1.workers", "there is no Service workers in namespace shop")
+	if f.Severity != Critical || !strings.Contains(f.Fix, "headless Service named workers") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Running and healthy: the name it was given does not exist, a warning.
+	p = pod("train-0-x8k2q", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "train", Controller: yes()}}
+	p.Spec.Hostname, p.Spec.Subdomain = "train-0", "workers"
+	s.Pods, s.Logs = []kube.Pod{p}, nil
+	svc := service("workers", map[string]string{"app": "web"}, port(8080))
+	svc.Spec.ClusterIP = "10.96.3.3"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("workers", 1)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD266", "Job shop/train", "train-0.workers.shop.svc", "Service workers is not headless")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+
+	// Headless but selecting other pods.
+	svc.Spec.ClusterIP, svc.Spec.Ports[0].Port = "None", 8080
+	svc.Spec.Selector = map[string]string{"app": "other"}
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = nil
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD266" && !strings.Contains(f.Cause, "does not select the pod") {
+			t.Errorf("cause %s", f.Cause)
+		}
+	}
+
+	// Served: nothing to say. A StatefulSet's pods are left to KD182.
+	svc.Spec.Selector = map[string]string{"app": "web"}
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("workers", 1)}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a served subdomain: %v", r.Findings)
+	}
+	s.Services, s.EndpointSlices = nil, nil
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "db", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD266" {
+			t.Errorf("a StatefulSet pod: %s", f.Cause)
+		}
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

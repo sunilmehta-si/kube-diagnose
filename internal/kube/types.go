@@ -336,6 +336,10 @@ type PodSpec struct {
 	ReadinessGates []PodReadinessGate `json:"readinessGates,omitempty"`
 	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
 	SchedulingGates []SchedulingGate `json:"schedulingGates,omitempty"`
+	// Hostname and Subdomain give the pod the DNS name hostname.subdomain.namespace.svc, which exists only while a
+	// headless Service named subdomain selects the pod.
+	Hostname  string `json:"hostname,omitempty"`
+	Subdomain string `json:"subdomain,omitempty"`
 	// ActiveDeadlineSeconds is how long the kubelet lets the pod run, from its start, before it stops it.
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
 }
