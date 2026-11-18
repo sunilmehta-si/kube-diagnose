@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-subpath-key-missing",
+  "description": "A container mounts config.yaml from its ConfigMap with subPath, but the ConfigMap's key is config.yml; the kubelet makes an empty directory in its place, and the app exits reading it.",
+  "rule": "KD234",
+  "object": "Deployment/app",
+  "keywords": [
+    [
+      "subPath"
+    ],
+    [
+      "config.yaml"
+    ]
+  ]
+}
