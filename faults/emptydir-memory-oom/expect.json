@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-emptydir-memory-oom",
+  "description": "A container writes 64 MiB into a memory-backed emptyDir with a 32 MiB memory limit; tmpfs pages count against the limit, so it is OOMKilled, and the file outlives each restart.",
+  "rule": "KD204",
+  "object": "Deployment/cache",
+  "keywords": [
+    [
+      "emptyDir",
+      "tmpfs"
+    ],
+    [
+      "Memory",
+      "memory-backed"
+    ]
+  ]
+}
