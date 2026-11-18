@@ -2250,6 +2250,43 @@ func TestNodeRejectsAPodThatBypassedTheScheduler(t *testing.T) {
 	}
 }
 
+func TestNodeRejectsAPodWhoseLabelsDoNotMatch(t *testing.T) {
+	s := snap()
+	n := node("kd-faults-control-plane", "4", "16Gi")
+	n.Metadata.Labels = map[string]string{"kubernetes.io/hostname": "kd-faults-control-plane", "disktype": "hdd"}
+	s.Nodes = []kube.Node{n}
+	p := pod("batch-7kq2m", "batch")
+	p.Spec.NodeName = "kd-faults-control-plane"
+	p.Spec.NodeSelector = map[string]string{"disktype": "ssd", "kubernetes.io/hostname": "kd-faults-control-plane"}
+	p.Status.Phase, p.Status.Reason = "Failed", "NodeAffinity"
+	p.Status.Message = "Pod was rejected: Predicate NodeAffinity failed: node(s) didn't match Pod's node affinity/selector"
+	p.Status.Conditions, p.Status.ContainerStatuses = nil, nil
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD242", "ReplicaSet shop/batch-rs", "names node kd-faults-control-plane in spec.nodeName",
+		"nodeSelector disktype=ssd", "the node lacks disktype=ssd)", "NodeAffinity")
+
+	// Affinity instead of a nodeSelector, and a node the snapshot does not hold: no labels to compare.
+	p.Spec.NodeSelector = nil
+	s.Nodes, s.Pods = nil, []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD242", "ReplicaSet shop/batch-rs", "its node affinity does not match")
+	if strings.Contains(f.Cause, "lacks") {
+		t.Errorf("no node to compare, yet the cause names missing labels: %s", f.Cause)
+	}
+}
+
+func TestNodeRejectsAPodWhoseHostPortIsTaken(t *testing.T) {
+	s := snap()
+	p := pod("agent-5f8wd", "agent")
+	p.Spec.NodeName = "kd-faults-control-plane"
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 8080, HostPort: 8080}}
+	p.Status.Phase, p.Status.Reason = "Failed", "NodePorts"
+	p.Status.Message = "Pod was rejected: Predicate NodePorts failed: node(s) didn't have free ports for the requested pod ports"
+	p.Status.Conditions, p.Status.ContainerStatuses = nil, nil
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD243", "ReplicaSet shop/agent-rs", "asks for host port 8080", "another pod on that node already holds", "NodePorts")
+}
+
 func TestDaemonSetMatchesNoNode(t *testing.T) {
 	s := snap()
 	s.Nodes = []kube.Node{node("node-1", "4", "16Gi")}
