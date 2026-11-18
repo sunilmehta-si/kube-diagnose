@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-probe-https-on-http",
+  "description": "A web server answers plain HTTP on port 8080, and its readiness probe uses scheme HTTPS, so the probe never passes and the pod never becomes ready.",
+  "rule": "KD202",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "HTTPS"
+    ],
+    [
+      "plain HTTP",
+      "scheme"
+    ]
+  ]
+}
