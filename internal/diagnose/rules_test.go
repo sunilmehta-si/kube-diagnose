@@ -2170,3 +2170,24 @@ func TestProbeNamesAPortTheContainerLacks(t *testing.T) {
 		t.Errorf("a probe on a declared port name is fine: %+v", r.Findings)
 	}
 }
+
+func TestMemoryBackedEmptyDirFillsTheLimit(t *testing.T) {
+	s := snap()
+	p := pod("cache", "")
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "32Mi"}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "cache", MountPath: "/cache"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "cache", EmptyDir: &kube.EmptyDirVolumeSource{Medium: "Memory"}}}
+	crashed(&p, 137, "OOMKilled", 5)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD204", "Pod shop/cache", "writes to emptyDir cache at /cache", "medium Memory", "count against its 32Mi memory limit", "outlive each restart")
+
+	// The runtime sometimes reports the kill as Error with exit 137; the volume is still the reason.
+	crashed(&p, 137, "Error", 5)
+	expect(t, only(t, Diagnose(s)), "KD204", "Pod shop/cache", "medium Memory")
+
+	// On the node's disk, the same volume is not the reason: an ordinary OOM kill.
+	crashed(&p, 137, "OOMKilled", 5)
+	p.Spec.Volumes[0].EmptyDir.Medium = ""
+	expect(t, only(t, Diagnose(s)), "KD111", "Pod shop/cache", "32Mi memory limit")
+}

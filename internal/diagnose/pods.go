@@ -784,8 +784,10 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		// SIGKILL with no probe or hook behind it, in a container with a memory limit: the kernel's OOM killer. The
 		// runtime sometimes reports such a kill as Error rather than OOMKilled, when it lands as the container starts.
 		pr := oomKilled(ix, p, cs)
-		pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
-			cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+		if pr.rule == "KD111" {
+			pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
+				cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+		}
 		return pr
 	}
 	ev := []Evidence{terminatedEvidence(p, cs, t)}
@@ -1075,8 +1077,40 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name,
 				fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].resources.limits.memory}`, cs.Name))})
 	}
+	if pr := memoryEmptyDir(p, cs, c, limit, ev); pr != nil {
+		return pr
+	}
 	return newProblem(p, cs.Name, "KD111", "Container runs out of memory", Critical, cause, "oom|"+limit,
 		"Raise the container's memory limit to what it needs at peak, or reduce the app's memory use.", ev...)
+}
+
+// memoryEmptyDir finds an OOMKilled container that mounts an emptyDir with medium Memory: a tmpfs whose pages are
+// charged to the memory limit of the container that writes them, and which keeps its files across restarts, so a
+// container that fills it is killed again each time it starts.
+func memoryEmptyDir(p kube.Pod, cs kube.ContainerStatus, c kube.Container, limit string, ev []Evidence) *problem {
+	for _, vm := range c.VolumeMounts {
+		for _, v := range p.Spec.Volumes {
+			if v.Name != vm.Name || v.EmptyDir == nil || v.EmptyDir.Medium != "Memory" {
+				continue
+			}
+			size := "no sizeLimit"
+			if v.EmptyDir.SizeLimit != "" {
+				size = "sizeLimit " + v.EmptyDir.SizeLimit
+			}
+			lim := "its memory limit"
+			if limit != "" {
+				lim = "its " + limit + " memory limit"
+			}
+			ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("volume %s is an emptyDir with medium Memory (%s), mounted by container %s at %s", v.Name, size, cs.Name, vm.MountPath),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, v.Name))})
+			return newProblem(p, cs.Name, "KD204", "Memory-backed emptyDir fills the memory limit", Critical,
+				fmt.Sprintf("container %s is OOMKilled, and it writes to emptyDir %s at %s, which has medium Memory: the volume is a tmpfs whose files count against %s, and they outlive each restart, so the container is killed again as it starts",
+					cs.Name, v.Name, vm.MountPath, lim),
+				"memdir|"+v.Name,
+				fmt.Sprintf("Raise %s's memory limit above what it keeps in %s plus its own use, set a sizeLimit on the volume so writes fail with no space instead, or drop medium: Memory to keep the files on the node's disk.", cs.Name, v.Name), ev...)
+		}
+	}
+	return nil
 }
 
 // probeKilled returns the newest event saying the kubelet restarted the container because a probe failed.
