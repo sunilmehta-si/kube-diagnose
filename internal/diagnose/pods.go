@@ -689,6 +689,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	case reExecDenied.MatchString(msg):
 		return notExecutable(p, cs.Name, reExecDenied.FindStringSubmatch(msg)[1], "", ev)
 	case reNoExec.MatchString(msg):
+		if pr := commandOneString(p, cs, c, msg, ev); pr != nil {
+			return pr
+		}
 		if len(c.Command) > 0 {
 			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
 				return volumeFileProblem(p, cs.Name, m, fmt.Sprintf("container %s runs %s, which does not exist: %s", cs.Name, c.Command[0], what), ev)
@@ -703,6 +706,38 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			"Correct the command (or the image's entrypoint): use a path that exists in the image.", ev...)
 	}
 	return nil
+}
+
+var reNoExecName = regexp.MustCompile(`exec: "([^"]+)": (?:executable file not found|stat [^:]+: no such file or directory)`)
+
+// commandOneString finds a command written as one string, ["sleep 3600"] for ["sleep", "3600"]: the runtime looks for
+// an executable whose name is the whole string, spaces included, and does not find it.
+func commandOneString(p kube.Pod, cs kube.ContainerStatus, c kube.Container, msg string, ev []Evidence) *problem {
+	m := reNoExecName.FindStringSubmatch(msg)
+	if m == nil || !strings.ContainsAny(m[1], " \t") {
+		return nil
+	}
+	exe, field := m[1], "command"
+	if len(c.Command) == 0 || c.Command[0] != exe {
+		if len(c.Command) > 0 || len(c.Args) == 0 || c.Args[0] != exe {
+			return nil
+		}
+		field = "args" // no command: the image has no entrypoint, and the runtime runs args as the command
+	}
+	split := strings.Fields(exe)
+	want := `["sh", "-c", ` + strconv.Quote(exe) + `]`
+	if !strings.ContainsAny(exe, "|&;<>$`'\"*?(){}") {
+		var q []string
+		for _, w := range split {
+			q = append(q, strconv.Quote(w))
+		}
+		want = "[" + strings.Join(q, ", ") + "]"
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's %s is %q, one string", cs.Name, field, exe),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].%s}`, cs.Name, field))})
+	return newProblem(p, cs.Name, "KD201", "Command and its arguments are one string", Critical,
+		fmt.Sprintf("container %s's %s is the single string %q, so the runtime looks for an executable named %q, spaces included, and there is none; each argument has to be its own list item", cs.Name, field, exe, exe),
+		"onestring|"+exe, fmt.Sprintf("Write the %s as a list with one item per word: %s instead of [%s].", field, want, strconv.Quote(exe)), ev...)
 }
 
 func execFormat(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem {

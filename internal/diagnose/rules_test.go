@@ -2086,3 +2086,35 @@ func TestClaimWaitsForAPodThatBypassesTheScheduler(t *testing.T) {
 		}
 	}
 }
+
+func TestCommandIsOneString(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].Command = []string{"sleep 3600"}
+	crashed(&p, 128, "StartError", 3)
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.Message = `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "sleep 3600": executable file not found in $PATH: unknown`
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD201", "Pod shop/web", `command is the single string "sleep 3600"`, "spaces included")
+	if !strings.Contains(f.Fix, `["sleep", "3600"]`) {
+		t.Errorf("the fix should give the command as a list: %s", f.Fix)
+	}
+
+	// A shell line goes to sh -c, not split on spaces.
+	p.Spec.Containers[0].Command = []string{"echo hi && sleep 3600"}
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.Message = `exec: "echo hi && sleep 3600": executable file not found in $PATH: unknown`
+	f = only(t, Diagnose(s))
+	if f.Rule != "KD201" || !strings.Contains(f.Fix, `["sh", "-c", "echo hi && sleep 3600"]`) {
+		t.Errorf("a shell line should be run by sh -c: %s %s", f.Rule, f.Fix)
+	}
+
+	// No command: the image runs args as the command.
+	p.Spec.Containers[0].Command, p.Spec.Containers[0].Args = nil, []string{"sleep 3600"}
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.Message = `exec: "sleep 3600": executable file not found in $PATH: unknown`
+	expect(t, only(t, Diagnose(s)), "KD201", "Pod shop/web", `args is the single string "sleep 3600"`)
+
+	// A plain missing command, without spaces, stays KD114.
+	p.Spec.Containers[0].Command, p.Spec.Containers[0].Args = []string{"webserver"}, nil
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated.Message = `exec: "webserver": executable file not found in $PATH: unknown`
+	expect(t, only(t, Diagnose(s)), "KD114", "Pod shop/web", `runs "webserver"`)
+}
