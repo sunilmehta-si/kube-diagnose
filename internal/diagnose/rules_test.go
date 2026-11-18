@@ -1234,7 +1234,7 @@ func TestStatefulSetGoverningService(t *testing.T) {
 	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 1)}
 	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is not headless (it has clusterIP 10.96.4.20)")
 
-	s.Services[0].Spec.ClusterIP = "None"
+	s.Services[0].Spec.ClusterIP, s.Services[0].Spec.Ports[0].Port = "None", 8080 // headless, so its port is the pods' port
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("a headless governing Service: %+v", r.Findings)
 	}
@@ -2020,7 +2020,7 @@ func TestStatefulSetWaitsForItsFirstPod(t *testing.T) {
 	ss.Status.Replicas = 1
 	s.Workloads = []kube.Workload{ss}
 	headless := service("db", map[string]string{"app": "web"}, named("http"))
-	headless.Spec.ClusterIP = "None"
+	headless.Spec.ClusterIP, headless.Spec.Ports[0].Port = "None", 8080
 	s.Services = []kube.Service{headless}
 	s.EndpointSlices = []kube.EndpointSlice{slice("db", 0)}
 	p := pod("db-0", "")
@@ -2328,6 +2328,34 @@ func TestProbeChecksAHostOtherThanThePod(t *testing.T) {
 	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: HTTP probe failed with statuscode: 503`, time.Minute)}
 	if f := only(t, Diagnose(s)); f.Rule == "KD206" {
 		t.Errorf("a probe on the pod's own IP was blamed on its host: %s", f.Cause)
+	}
+}
+
+func TestHeadlessServiceMapsAPortItCannotMap(t *testing.T) {
+	s := snap()
+	p := pod("peer-0", "peer")
+	s.Pods = []kube.Pod{p}
+	svc := service("peers", p.Metadata.Labels, port(8080))
+	svc.Spec.ClusterIP = "None"
+	svc.Spec.Ports[0].Port = 80
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("peers", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD265", "Service shop/peers", "headless (clusterIP: None)", "port 80 to targetPort 8080", "reaches the pods on port 80", "SRV")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+
+	// A named targetPort that resolves to the same number, and a Service with a cluster IP: nothing to say.
+	svc.Spec.Ports[0].Port, svc.Spec.Ports[0].TargetPort = 8080, named("http")
+	s.Services = []kube.Service{svc}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a headless Service whose named port is its port: %v", r.Findings)
+	}
+	svc.Spec.ClusterIP, svc.Spec.Ports[0].Port, svc.Spec.Ports[0].TargetPort = "10.96.0.12", 80, port(8080)
+	s.Services = []kube.Service{svc}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a Service with a cluster IP maps its port: %v", r.Findings)
 	}
 }
 

@@ -58,6 +58,9 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 		if f := undeclaredTargetPort(svc, matching); f != nil {
 			out = append(out, *f)
 		}
+		if f := headlessRemap(svc, matching); f != nil {
+			out = append(out, *f)
+		}
 		if len(ready) == 0 {
 			for _, p := range matching {
 				blocked[svc.Ref()] = append(blocked[svc.Ref()], p.Ref())
@@ -369,4 +372,42 @@ func noSelectorNoEndpoints(ix *index, svc kube.Service) *Finding {
 		Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has no selector", name), Command: cmdGet("service", ns, name, "{.spec.selector}")},
 			{Object: svc.Ref(), What: fmt.Sprintf("Service %s has %s", name, have), Command: "kubectl get endpointslices -n " + ns + " -l kubernetes.io/service-name=" + name}},
 		Fix: fmt.Sprintf("Give Service %s a selector that matches the pods it fronts, or create an EndpointSlice labelled kubernetes.io/service-name: %s with the addresses it should send to.", name, name)}
+}
+
+// headlessRemap finds a headless Service (clusterIP: None) whose targetPort differs from its port. DNS answers the
+// Service's name with the pods' own addresses and no proxy sits in between, so nothing maps the port: a client that
+// dials the Service's port reaches the pod on that port, not on targetPort. Only SRV lookups carry the target port.
+func headlessRemap(svc kube.Service, matching []kube.Pod) *Finding {
+	if svc.Spec.ClusterIP != "None" {
+		return nil
+	}
+	ns, name := svc.Metadata.Namespace, svc.Metadata.Name
+	for _, sp := range svc.Spec.Ports {
+		tp := sp.TargetPort
+		target := int32(0)
+		switch {
+		case tp.IsName:
+			for _, p := range matching {
+				for _, c := range p.Spec.Containers {
+					for _, cp := range c.Ports {
+						if cp.Name == tp.Str {
+							target = cp.ContainerPort
+						}
+					}
+				}
+			}
+		default:
+			target = tp.Int
+		}
+		if target == 0 || target == sp.Port {
+			continue
+		}
+		return &Finding{Rule: "KD265", Title: "Headless Service maps a port it cannot map", Severity: Warning, Object: svc.Ref(),
+			Cause: fmt.Sprintf("Service %s is headless (clusterIP: None) and maps port %d to targetPort %s (%d), but a headless Service has no proxy: its name resolves to the pods' own addresses, so a client that dials port %d reaches the pods on port %d, where they do not listen; only SRV lookups return port %d",
+				name, sp.Port, tp.String(), target, sp.Port, sp.Port, target),
+			Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has clusterIP None, port %d and targetPort %s", name, sp.Port, tp.String()),
+				Command: cmdGet("service", ns, name, `{.spec.clusterIP}{" "}{.spec.ports}`)}},
+			Fix: fmt.Sprintf("Make port equal the port the pods listen on (port: %d) so clients dial that, or give the Service a cluster IP (remove clusterIP: None, which takes recreating it) if clients need port %d mapped.", target, sp.Port)}
+	}
+	return nil
 }

@@ -216,8 +216,8 @@ func TestVersionAndRules(t *testing.T) {
 		t.Errorf("rules kd28 (KD280-KD283):\n%s", out)
 	}
 	env, out, _, _ = testEnv(nil)
-	if Run([]string{"rules", "kd26"}, env) != 0 || strings.Count(out.String(), "\n") != 5 || !strings.HasPrefix(out.String(), "KD260") {
-		t.Errorf("rules kd26 (KD260-KD264):\n%s", out)
+	if Run([]string{"rules", "kd26"}, env) != 0 || strings.Count(out.String(), "\n") != 6 || !strings.HasPrefix(out.String(), "KD260") {
+		t.Errorf("rules kd26 (KD260-KD265):\n%s", out)
 	}
 	env, _, errb, _ := testEnv(nil)
 	if Run([]string{"rules", "KD9"}, env) != 2 || !strings.Contains(errb.String(), "no rule starts with KD9") {
