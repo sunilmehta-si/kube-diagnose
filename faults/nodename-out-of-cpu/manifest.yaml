@@ -1,30 +1,25 @@
-# A Deployment pins its pods with nodeName to the cluster's node and asks for 1000 CPUs; the scheduler is bypassed, so the kubelet itself rejects every pod with OutOfcpu.
+# A Job pins its pod with nodeName to the cluster's node and asks for 1000 CPUs; the scheduler is bypassed, so the kubelet itself rejects each pod with OutOfcpu until the Job gives up.
 apiVersion: v1
 kind: Namespace
 metadata:
   name: kd-nodename-out-of-cpu
 
 ---
-apiVersion: apps/v1
-kind: Deployment
+apiVersion: batch/v1
+kind: Job
 metadata:
   name: batch
   namespace: kd-nodename-out-of-cpu
 spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: batch
+  backoffLimit: 3
   template:
-    metadata:
-      labels:
-        app: batch
     spec:
+      restartPolicy: Never
       nodeName: kd-faults-control-plane
       containers:
         - name: batch
           image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
-          command: ["sleep", "3600"]
+          command: ["sh", "-c", "echo done"]
           resources:
             requests:
               cpu: "1000"

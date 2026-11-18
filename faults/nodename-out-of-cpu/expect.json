@@ -1,8 +1,8 @@
 {
   "namespace": "kd-nodename-out-of-cpu",
-  "description": "A Deployment pins its pods with nodeName to the cluster's node and asks for 1000 CPUs; the scheduler is bypassed, so the kubelet itself rejects every pod with OutOfcpu.",
+  "description": "A Job pins its pod with nodeName to the cluster's node and asks for 1000 CPUs; the scheduler is bypassed, so the kubelet itself rejects each pod with OutOfcpu until the Job gives up.",
   "rule": "KD241",
-  "object": "Deployment/batch",
+  "object": "Job/batch",
   "keywords": [
     [
       "nodeName"
