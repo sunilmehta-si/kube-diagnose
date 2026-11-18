@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-subdomain-no-headless-service",
+  "description": "An Indexed Job's two workers set subdomain: workers and look each other up as train-0.workers and train-1.workers, but there is no headless Service named workers, so the names never resolve and each worker exits.",
+  "rule": "KD266",
+  "object": "Job/train",
+  "keywords": [
+    [
+      "workers"
+    ],
+    [
+      "headless"
+    ]
+  ]
+}
