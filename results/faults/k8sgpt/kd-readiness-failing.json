@@ -5,19 +5,6 @@
   "problems": 4,
   "results": [
     {
-      "kind": "Service",
-      "name": "kd-readiness-failing/web",
-      "error": [
-        {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-ff6bfb896-9wcsg Pod/web-ff6bfb896-sn62r], expected 2",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "Deployment",
       "name": "kd-readiness-failing/web",
       "error": [
@@ -27,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-failing",
-              "Masked": "MVJlIkxvRD5vPzxVWGVRYmV5TWc="
+              "Masked": "I1FFSUsraElYWExLbXZWZVBxb14="
             },
             {
               "Unmasked": "web",
-              "Masked": "VUQ0"
+              "Masked": "MzUj"
             }
           ]
         }
@@ -40,8 +27,21 @@
       "parentObject": ""
     },
     {
+      "kind": "Service",
+      "name": "kd-readiness-failing/web",
+      "error": [
+        {
+          "Text": "Service has not ready endpoints, pods: [Pod/web-ff6bfb896-dg58w Pod/web-ff6bfb896-cqqkp], expected 2",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Pod",
-      "name": "kd-readiness-failing/web-ff6bfb896-9wcsg",
+      "name": "kd-readiness-failing/web-ff6bfb896-cqqkp",
       "error": [
         {
           "Text": "Readiness probe failed: HTTP probe failed with statuscode: 404",
@@ -54,7 +54,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-readiness-failing/web-ff6bfb896-sn62r",
+      "name": "kd-readiness-failing/web-ff6bfb896-dg58w",
       "error": [
         {
           "Text": "Readiness probe failed: HTTP probe failed with statuscode: 404",

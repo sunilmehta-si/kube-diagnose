@@ -1,0 +1,89 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-subdomain-no-headless-service"
+  ],
+  "collectedAt": "2026-11-18 11:49 UTC",
+  "findings": [
+    {
+      "rule": "KD266",
+      "title": "Pod's subdomain has no headless Service",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-subdomain-no-headless-service",
+        "name": "train"
+      },
+      "cause": "container worker exits because it cannot resolve train-1.workers: pods with subdomain workers get names under it only from a headless Service of that name, and there is no Service workers in namespace kd-subdomain-no-headless-service; its log says: \"wget: bad address 'train-1.workers:29500'\"",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-subdomain-no-headless-service",
+            "name": "train-0-8qkn8"
+          },
+          "what": "container worker exited with code 1 (Error)",
+          "command": "kubectl get pod train-0-8qkn8 -n kd-subdomain-no-headless-service -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-subdomain-no-headless-service",
+            "name": "train-0-8qkn8"
+          },
+          "what": "last lines of container worker's log (current run)",
+          "detail": "rank 0 waiting for train-1.workers\nwget: bad address 'train-1.workers:29500'",
+          "command": "kubectl logs train-0-8qkn8 -n kd-subdomain-no-headless-service -c worker --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-subdomain-no-headless-service",
+            "name": "train-0-8qkn8"
+          },
+          "what": "the pod sets subdomain workers; there is no Service workers in namespace kd-subdomain-no-headless-service",
+          "command": "kubectl get pod train-0-8qkn8 -n kd-subdomain-no-headless-service -o jsonpath='{.spec.hostname}{\" \"}{.spec.subdomain}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-subdomain-no-headless-service",
+            "name": "workers"
+          },
+          "what": "the Service named for the subdomain",
+          "command": "kubectl get service workers -n kd-subdomain-no-headless-service -o jsonpath='{.spec.clusterIP}{\" \"}{.spec.selector}'"
+        }
+      ],
+      "fix": "Create a headless Service named workers (clusterIP: None) whose selector matches the pods, or point spec.subdomain at the one that does; peers then resolve each other as HOSTNAME.workers.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-subdomain-no-headless-service",
+          "name": "train-0-8qkn8"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-subdomain-no-headless-service",
+          "name": "train-0-ggxx6"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-subdomain-no-headless-service",
+          "name": "train-1-8nh4x"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-subdomain-no-headless-service",
+          "name": "train-1-rjb6t"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 4,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

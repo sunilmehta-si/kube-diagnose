@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Job",
+      "name": "kd-nodename-hostport-taken/agent",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodename-hostport-taken",
+              "Masked": "VWcsdSoiVTNpeW1sNGY3U0szL0EyI3JjIlU="
+            },
+            {
+              "Unmasked": "agent",
+              "Masked": "SUVVJUo="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

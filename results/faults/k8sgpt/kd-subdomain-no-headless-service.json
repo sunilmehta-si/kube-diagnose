@@ -1,0 +1,82 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 5,
+  "results": [
+    {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-0-ggxx6",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-ggxx6",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-1-8nh4x",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-8nh4x",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-1-rjb6t",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-rjb6t",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-0-8qkn8",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-8qkn8",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-subdomain-no-headless-service/train",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-subdomain-no-headless-service",
+              "Masked": "QWR1bSI5aHZXdV5nQTJhZDRBQ0RtP2EydWx0WCwjdD4="
+            },
+            {
+              "Unmasked": "train",
+              "Masked": "amo3az4="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

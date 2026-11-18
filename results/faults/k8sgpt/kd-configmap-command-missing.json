@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-configmap-command-missing",
-              "Masked": "OFlfK2VEOCoiWyRvVVpBTTZLVCJERChFfHNqdg=="
+              "Masked": "b205TDlqQGpEYkcxPlQpU0s4QThNMTJfLkclcQ=="
             },
             {
               "Unmasked": "web",
-              "Masked": "fGdN"
+              "Masked": "OkEx"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-configmap-command-missing/web-547879c54f-jqzdd",
+      "name": "kd-configmap-command-missing/web-547879c54f-dnm6d",
       "error": [
         {
           "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/scripts/start.sh\": stat /scripts/start.sh: no such file or directory",

@@ -4,46 +4,46 @@
   "namespaces": [
     "kd-configmap-read-only"
   ],
-  "collectedAt": "2026-11-18 08:51 UTC",
+  "collectedAt": "2026-11-18 11:45 UTC",
   "findings": [
     {
       "rule": "KD138",
       "title": "Container writes to a read-only volume",
-      "severity": "warning",
+      "severity": "critical",
       "object": {
         "kind": "Deployment",
         "namespace": "kd-configmap-read-only",
         "name": "web"
       },
-      "cause": "container web exits because it writes to /etc/app/app.conf, which is read-only: ConfigMap app is mounted at /etc/app, and the kubelet always mounts a ConfigMap volume read-only; its log says: \"sh: can't create /etc/app/app.conf: Read-only file system\"; Deployment web has 1 of 1 replicas ready",
+      "cause": "container web exits because it writes to /etc/app/app.conf, which is read-only: ConfigMap app is mounted at /etc/app, and the kubelet always mounts a ConfigMap volume read-only; its log says: \"sh: can't create /etc/app/app.conf: Read-only file system\"; Deployment web has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-read-only",
-            "name": "web-64487c79c4-lkkjd"
+            "name": "web-64487c79c4-5z948"
           },
-          "what": "container web exited with code 1 (Error), restarted 4 times",
-          "command": "kubectl get pod web-64487c79c4-lkkjd -n kd-configmap-read-only -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-64487c79c4-5z948 -n kd-configmap-read-only -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-read-only",
-            "name": "web-64487c79c4-lkkjd"
+            "name": "web-64487c79c4-5z948"
           },
           "what": "last lines of container web's log (current run)",
           "detail": "sh: can't create /etc/app/app.conf: Read-only file system",
-          "command": "kubectl logs web-64487c79c4-lkkjd -n kd-configmap-read-only -c web --tail=20"
+          "command": "kubectl logs web-64487c79c4-5z948 -n kd-configmap-read-only -c web --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-read-only",
-            "name": "web-64487c79c4-lkkjd"
+            "name": "web-64487c79c4-5z948"
           },
           "what": "container web mounts volume config (ConfigMap app) at /etc/app",
-          "command": "kubectl get pod web-64487c79c4-lkkjd -n kd-configmap-read-only -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
+          "command": "kubectl get pod web-64487c79c4-5z948 -n kd-configmap-read-only -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
         }
       ],
       "fix": "Write to a writable volume instead: mount an emptyDir for the files the app changes, and copy what it needs from ConfigMap app into it with an init container.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-configmap-read-only",
-          "name": "web-64487c79c4-lkkjd"
+          "name": "web-64487c79c4-5z948"
         }
       ]
     }

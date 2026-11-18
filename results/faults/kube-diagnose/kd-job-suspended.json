@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-suspended"
   ],
-  "collectedAt": "2026-11-18 08:52 UTC",
+  "collectedAt": "2026-11-18 11:47 UTC",
   "findings": [
     {
       "rule": "KD187",

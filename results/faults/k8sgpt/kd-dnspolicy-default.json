@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-dnspolicy-default",
-              "Masked": "Mi9MJDlYSkxuZTlMIipWUy9tVlo="
+              "Masked": "Ml9ZVid4NEV8UHh4KURdQy04dT8="
             },
             {
               "Unmasked": "client",
-              "Masked": "T0VVRXRm"
+              "Masked": "YXlTTnpo"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-dnspolicy-default/client-554dbd98f8-vgfbv",
+      "name": "kd-dnspolicy-default/client-554dbd98f8-nkkhp",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=client pod=client-554dbd98f8-vgfbv",
+          "Text": "the termination reason is Error exitCode=1 container=client pod=client-554dbd98f8-nkkhp",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pod-active-deadline"
+  ],
+  "collectedAt": "2026-11-18 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD195",
+      "title": "Pod ran past its activeDeadlineSeconds",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-pod-active-deadline",
+        "name": "report"
+      },
+      "cause": "the kubelet stopped the pod when it had run longer than its spec.activeDeadlineSeconds (10 s) (DeadlineExceeded), whatever its containers were doing; in a Job's pod template the deadline applies to each attempt, so every retry is stopped the same way",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pod-active-deadline",
+            "name": "report-87cpr"
+          },
+          "what": "pod status is Failed, reason DeadlineExceeded",
+          "detail": "Pod was active on the node longer than the specified deadline",
+          "command": "kubectl get pod report-87cpr -n kd-pod-active-deadline -o jsonpath='{.spec.activeDeadlineSeconds}{\"\\n\"}{.status.message}'"
+        }
+      ],
+      "fix": "Remove activeDeadlineSeconds from the Job's pod template, or raise it above how long one attempt takes; to bound the whole Job, set the Job's own spec.activeDeadlineSeconds.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pod-active-deadline",
+          "name": "report-87cpr"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-pod-active-deadline",
+          "name": "report-jhmk9"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-pod-active-deadline",
+          "name": "report-p9jb4"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 3,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

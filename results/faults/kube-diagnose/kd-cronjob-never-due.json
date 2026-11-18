@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cronjob-never-due"
+  ],
+  "collectedAt": "2026-11-18 11:45 UTC",
+  "findings": [
+    {
+      "rule": "KD284",
+      "title": "CronJob's schedule never comes due",
+      "severity": "critical",
+      "object": {
+        "kind": "CronJob",
+        "namespace": "kd-cronjob-never-due",
+        "name": "billing"
+      },
+      "cause": "CronJob billing's schedule \"0 0 30 2 *\" never comes due: day 30 of month 2 does not exist, so the controller finds no next run and starts no Job (InvalidSchedule)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-never-due",
+            "name": "billing"
+          },
+          "what": "event InvalidSchedule",
+          "detail": "invalid schedule: 0 0 30 2 * : time difference between two schedules is less than 1 second",
+          "command": "kubectl get events -n kd-cronjob-never-due --field-selector involvedObject.kind=CronJob,involvedObject.name=billing"
+        },
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-never-due",
+            "name": "billing"
+          },
+          "what": "CronJob billing has schedule \"0 0 30 2 *\"",
+          "command": "kubectl get cronjob billing -n kd-cronjob-never-due -o jsonpath='{.spec.schedule}{\" \"}{.status.lastScheduleTime}'"
+        }
+      ],
+      "fix": "Write a schedule for a day the intended months have: day 28 or earlier runs every month. For the last day of the month, schedule days 28-31 and have the job exit unless tomorrow is the 1st; Kubernetes cron has no L for last day."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

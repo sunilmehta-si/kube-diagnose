@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-configmap-file-missing"
   ],
-  "collectedAt": "2026-11-18 08:51 UTC",
+  "collectedAt": "2026-11-18 11:45 UTC",
   "findings": [
     {
       "rule": "KD230",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-file-missing",
-            "name": "web-8545878979-kj4h6"
+            "name": "web-8545878979-k2hzc"
           },
           "what": "container web exited with code 1 (Error), restarted 4 times",
-          "command": "kubectl get pod web-8545878979-kj4h6 -n kd-configmap-file-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "command": "kubectl get pod web-8545878979-k2hzc -n kd-configmap-file-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-file-missing",
-            "name": "web-8545878979-kj4h6"
+            "name": "web-8545878979-k2hzc"
           },
-          "what": "last lines of container web's log (run that exited)",
+          "what": "last lines of container web's log (current run)",
           "detail": "cat: can't open '/etc/app/config.yaml': No such file or directory",
-          "command": "kubectl logs web-8545878979-kj4h6 -n kd-configmap-file-missing -c web --tail=20 --previous"
+          "command": "kubectl logs web-8545878979-k2hzc -n kd-configmap-file-missing -c web --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-file-missing",
-            "name": "web-8545878979-kj4h6"
+            "name": "web-8545878979-k2hzc"
           },
           "what": "container web mounts volume config (ConfigMap app) at /etc/app",
-          "command": "kubectl get pod web-8545878979-kj4h6 -n kd-configmap-file-missing -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
+          "command": "kubectl get pod web-8545878979-k2hzc -n kd-configmap-file-missing -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
         }
       ],
       "fix": "Add key config.yaml to ConfigMap app, or point the app at a file the volume has.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-configmap-file-missing",
-          "name": "web-8545878979-kj4h6"
+          "name": "web-8545878979-k2hzc"
         }
       ]
     }

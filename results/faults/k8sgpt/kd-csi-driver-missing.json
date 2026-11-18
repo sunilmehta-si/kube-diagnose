@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-csi-driver-missing",
-              "Masked": "RGk1JWQ2WFNeY0NUeFRkQjheZGZA"
+              "Masked": "Km1BMixWaUM+MW4kMVkuUyNUQ3J7"
             },
             {
               "Unmasked": "db",
-              "Masked": "cDM="
+              "Masked": "Skw="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-csi-driver-missing/db-56f8666648-r89bc",
+      "name": "kd-csi-driver-missing/db-56f8666648-wtbmq",
       "error": [
         {
           "Text": "MountVolume.MountDevice failed for volume \"kd-csi-driver-missing\" : kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.kd-faults.example.com not found in the list of registered CSI drivers",
