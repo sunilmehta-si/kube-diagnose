@@ -1,0 +1,35 @@
+# A web server answers on port 8080, and its readiness probe sets host: 127.0.0.1; the kubelet connects to its own node's loopback, where nothing listens, so the pod never becomes ready.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-probe-host-localhost
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-probe-host-localhost
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              host: 127.0.0.1
+              path: /
+              port: 8080
+            periodSeconds: 5

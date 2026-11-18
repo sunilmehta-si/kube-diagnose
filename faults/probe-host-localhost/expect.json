@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-probe-host-localhost",
+  "description": "A web server answers on port 8080, and its readiness probe sets host: 127.0.0.1; the kubelet connects to its own node's loopback, where nothing listens, so the pod never becomes ready.",
+  "rule": "KD206",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "host"
+    ],
+    [
+      "127.0.0.1",
+      "node"
+    ]
+  ]
+}
