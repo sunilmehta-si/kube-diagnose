@@ -1,0 +1,47 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-daemonset-no-nodes"
+  ],
+  "collectedAt": "2026-11-18 08:51 UTC",
+  "findings": [
+    {
+      "rule": "KD282",
+      "title": "DaemonSet matches no node",
+      "severity": "warning",
+      "object": {
+        "kind": "DaemonSet",
+        "namespace": "kd-daemonset-no-nodes",
+        "name": "agent"
+      },
+      "cause": "DaemonSet agent's nodeSelector requires the labels disktype=ssd, and none of the cluster's 1 node has them, so it runs no pods and nothing reports an error",
+      "evidence": [
+        {
+          "object": {
+            "kind": "DaemonSet",
+            "namespace": "kd-daemonset-no-nodes",
+            "name": "agent"
+          },
+          "what": "DaemonSet agent should run on 0 nodes; its pods require node labels disktype=ssd",
+          "command": "kubectl get daemonset agent -n kd-daemonset-no-nodes -o jsonpath='{.spec.template.spec.nodeSelector}{\" \"}{.status.desiredNumberScheduled}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "*"
+          },
+          "what": "none of the 1 nodes has disktype=ssd",
+          "command": "kubectl get nodes -l disktype=ssd"
+        }
+      ],
+      "fix": "Label the nodes it should run on (kubectl label node NODE disktype=ssd), or correct the nodeSelector."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

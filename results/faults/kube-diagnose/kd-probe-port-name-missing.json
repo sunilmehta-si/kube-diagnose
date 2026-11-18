@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-probe-port-name-missing"
+  ],
+  "collectedAt": "2026-11-18 08:53 UTC",
+  "findings": [
+    {
+      "rule": "KD203",
+      "title": "Probe names a port the container does not have",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-probe-port-name-missing",
+        "name": "api"
+      },
+      "cause": "container api's readiness probe names port \"health\", but the container declares ports http (8080); the kubelet cannot resolve the name and reports the probe as errored, so it never passes and the container never becomes ready; Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-port-name-missing",
+            "name": "api-c688bf54b-x5kdc"
+          },
+          "what": "event Unhealthy (64 times)",
+          "detail": "Readiness probe errored and resulted in unknown state: port \"health\" not found",
+          "command": "kubectl get events -n kd-probe-port-name-missing --field-selector involvedObject.kind=Pod,involvedObject.name=api-c688bf54b-x5kdc"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-port-name-missing",
+            "name": "api-c688bf54b-x5kdc"
+          },
+          "what": "container api's readiness probe",
+          "command": "kubectl get pod api-c688bf54b-x5kdc -n kd-probe-port-name-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-port-name-missing",
+            "name": "api-c688bf54b-x5kdc"
+          },
+          "what": "container api declares ports http (8080)",
+          "command": "kubectl get pod api-c688bf54b-x5kdc -n kd-probe-port-name-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].ports}'"
+        }
+      ],
+      "fix": "Name a port the container declares, or give the number; or add a ports entry named \"health\".",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-probe-port-name-missing",
+          "name": "api-c688bf54b-x5kdc"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

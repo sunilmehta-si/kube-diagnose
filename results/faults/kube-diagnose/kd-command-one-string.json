@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-command-one-string"
+  ],
+  "collectedAt": "2026-11-18 08:51 UTC",
+  "findings": [
+    {
+      "rule": "KD201",
+      "title": "Command and its arguments are one string",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-command-one-string",
+        "name": "worker"
+      },
+      "cause": "container worker's command is the single string \"sleep 3600\", so the runtime looks for an executable named \"sleep 3600\", spaces included, and there is none; each argument has to be its own list item; Deployment worker has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-command-one-string",
+            "name": "worker-66444d4765-f6csx"
+          },
+          "what": "container worker did not start",
+          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"sleep 3600\": executable file not found in $PATH",
+          "command": "kubectl get pod worker-66444d4765-f6csx -n kd-command-one-string -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-command-one-string",
+            "name": "worker-66444d4765-f6csx"
+          },
+          "what": "container worker's command is \"sleep 3600\", one string",
+          "command": "kubectl get pod worker-66444d4765-f6csx -n kd-command-one-string -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}'"
+        }
+      ],
+      "fix": "Write the command as a list with one item per word: [\"sleep\", \"3600\"] instead of [\"sleep 3600\"].",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-command-one-string",
+          "name": "worker-66444d4765-f6csx"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -5,6 +5,19 @@
   "problems": 3,
   "results": [
     {
+      "kind": "ReplicaSet",
+      "name": "kd-pod-security-restricted/web-54b9bbc47f",
+      "error": [
+        {
+          "Text": "pods \"web-54b9bbc47f-xmvfx\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
       "kind": "Deployment",
       "name": "kd-pod-security-restricted/web",
       "error": [
@@ -14,11 +27,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pod-security-restricted",
-              "Masked": "Snc7T2s1Sk4lSWpjcEIkRWRTck8jYzhlS3c="
+              "Masked": "OlYoPXtyaiUoLiFNNWxCd0BDRm4wYUVhJmc="
             },
             {
               "Unmasked": "web",
-              "Masked": "bkV1"
+              "Masked": "MW9u"
             }
           ]
         }
@@ -38,19 +51,6 @@
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "ReplicaSet",
-      "name": "kd-pod-security-restricted/web-54b9bbc47f",
-      "error": [
-        {
-          "Text": "pods \"web-54b9bbc47f-fll8h\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     }
   ]
 }

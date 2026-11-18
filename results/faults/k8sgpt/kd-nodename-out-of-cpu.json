@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Job",
+      "name": "kd-nodename-out-of-cpu/batch",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodename-out-of-cpu",
+              "Masked": "KVFNeF1YPDlpSEFPNXlZXndnbiNeTQ=="
+            },
+            {
+              "Unmasked": "batch",
+              "Masked": "TE1mVG0="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

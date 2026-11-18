@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-job-parallelism-zero"
+  ],
+  "collectedAt": "2026-11-18 08:52 UTC",
+  "findings": [
+    {
+      "rule": "KD283",
+      "title": "Job runs no pods: parallelism is 0",
+      "severity": "warning",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-job-parallelism-zero",
+        "name": "migrate"
+      },
+      "cause": "Job migrate has parallelism 0, so it starts no pods: it has run none in 4m0s and will never complete (0 succeeded, 0 failed)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-job-parallelism-zero",
+            "name": "migrate"
+          },
+          "what": "Job migrate has spec.parallelism 0 and no active pods",
+          "command": "kubectl get job migrate -n kd-job-parallelism-zero -o jsonpath='{.spec.parallelism}{\" \"}{.status}'"
+        }
+      ],
+      "fix": "Set parallelism to the number of pods to run at once: kubectl patch job migrate -n kd-job-parallelism-zero --type=merge -p '{\"spec\":{\"parallelism\":1}}'; to pause a Job, spec.suspend says so plainly."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

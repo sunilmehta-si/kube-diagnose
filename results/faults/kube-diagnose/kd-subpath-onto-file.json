@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-subpath-onto-file"
+  ],
+  "collectedAt": "2026-11-18 08:54 UTC",
+  "findings": [
+    {
+      "rule": "KD234",
+      "title": "subPath names a file the volume does not have",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-subpath-onto-file",
+        "name": "app"
+      },
+      "cause": "container app mounts /etc/group with subPath groups, but ConfigMap app-config has no such key (it has group), so the kubelet made an empty directory in its place: the runtime cannot mount that directory over the file /etc/group in the image, so the container never starts; Deployment app has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-subpath-onto-file",
+            "name": "app-56875bc89d-lmn9n"
+          },
+          "what": "container app did not start",
+          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting \"/var/lib/kubelet/pods/cc61a14a-84a4-45ac-b8ad-fae5f8750593/volume-subpaths/config/app/0\" to rootfs at \"/etc/group\": mount src=/var/lib/kubelet/pods/cc61a14a-84a4-45ac-b8ad-fae5f8750593/volume-subpaths/config/app/0, dst=/etc/group, dstFd=/proc/thread-self/fd/14, flags=MS_RDONLY|MS_BIND|MS_REC: not a directory",
+          "command": "kubectl get pod app-56875bc89d-lmn9n -n kd-subpath-onto-file -o jsonpath='{.status.containerStatuses[?(@.name==\"app\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "ConfigMap",
+            "namespace": "kd-subpath-onto-file",
+            "name": "app-config"
+          },
+          "what": "ConfigMap app-config has group, not groups",
+          "command": "kubectl get configmap app-config -n kd-subpath-onto-file -o jsonpath='{.data}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-subpath-onto-file",
+            "name": "app-56875bc89d-lmn9n"
+          },
+          "what": "container app mounts volume config at /etc/group with subPath groups",
+          "command": "kubectl get pod app-56875bc89d-lmn9n -n kd-subpath-onto-file -o jsonpath='{.spec.containers[?(@.name==\"app\")].volumeMounts}'"
+        }
+      ],
+      "fix": "Make subPath name a key ConfigMap app-config has, or add key groups to it; then delete the pod, because the directory the kubelet made stays until the pod is replaced (and a subPath mount never sees later updates to the ConfigMap).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-subpath-onto-file",
+          "name": "app-56875bc89d-lmn9n"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

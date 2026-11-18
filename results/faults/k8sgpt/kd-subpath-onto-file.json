@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-subpath-onto-file/app",
+      "error": [
+        {
+          "Text": "Deployment kd-subpath-onto-file/app has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-subpath-onto-file",
+              "Masked": "Ti5aaW1uLUQ5a3xYQTAhcyouMyM="
+            },
+            {
+              "Unmasked": "app",
+              "Masked": "SjRx"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subpath-onto-file/app-56875bc89d-lmn9n",
+      "error": [
+        {
+          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting \"/var/lib/kubelet/pods/cc61a14a-84a4-45ac-b8ad-fae5f8750593/volume-subpaths/config/app/0\" to rootfs at \"/etc/group\": mount src=/var/lib/kubelet/pods/cc61a14a-84a4-45ac-b8ad-fae5f8750593/volume-subpaths/config/app/0, dst=/etc/group, dstFd=/proc/thread-self/fd/14, flags=MS_RDONLY|MS_BIND|MS_REC: not a directory",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/app"
+    }
+  ]
+}

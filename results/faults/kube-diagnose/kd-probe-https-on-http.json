@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-probe-https-on-http"
+  ],
+  "collectedAt": "2026-11-18 08:53 UTC",
+  "findings": [
+    {
+      "rule": "KD202",
+      "title": "Probe speaks HTTPS to a plain-HTTP port",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-probe-https-on-http",
+        "name": "web"
+      },
+      "cause": "container web's readiness probe uses scheme HTTPS, but the app answers plain HTTP on port 8080, so every probe fails (server gave HTTP response to HTTPS client), so the container never becomes ready and gets no traffic; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-https-on-http",
+            "name": "web-5d98948766-47knr"
+          },
+          "what": "event Unhealthy (64 times)",
+          "detail": "Readiness probe failed: Get \"https://10.244.0.56:8080/\": http: server gave HTTP response to HTTPS client",
+          "command": "kubectl get events -n kd-probe-https-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=web-5d98948766-47knr"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-https-on-http",
+            "name": "web-5d98948766-47knr"
+          },
+          "what": "container web's readiness probe",
+          "command": "kubectl get pod web-5d98948766-47knr -n kd-probe-https-on-http -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
+        }
+      ],
+      "fix": "Set the probe's httpGet.scheme to HTTP, the default, or serve TLS on that port if the probe should use HTTPS.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-probe-https-on-http",
+          "name": "web-5d98948766-47knr"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

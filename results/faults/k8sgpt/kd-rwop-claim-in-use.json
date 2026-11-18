@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rwop-claim-in-use/db",
+      "error": [
+        {
+          "Text": "Deployment kd-rwop-claim-in-use/db has 2 replicas but 1 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rwop-claim-in-use",
+              "Masked": "cnxSNSUlT1BtPkdnVUNSRDpZWEk="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "TGg="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rwop-claim-in-use/db-56f8666648-nr49m",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 node(s) unavailable due to PersistentVolumeClaim with ReadWriteOncePod access mode already in-use by another pod. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    }
+  ]
+}

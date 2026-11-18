@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-subpath-key-missing/app",
+      "error": [
+        {
+          "Text": "Deployment kd-subpath-key-missing/app has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-subpath-key-missing",
+              "Masked": "T1drdkJWT1ltaDRwP1A0MkkoZHhMQg=="
+            },
+            {
+              "Unmasked": "app",
+              "Masked": "WTFA"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subpath-key-missing/app-78795587d8-9rlwk",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=app pod=app-78795587d8-9rlwk",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/app"
+    }
+  ]
+}
