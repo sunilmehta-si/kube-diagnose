@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-nodename-hostport-taken",
+  "description": "A Job runs two pods at once, pinned with nodeName to the cluster's node, and each asks for host port 8080; the kubelet admits the first and rejects the other with NodePorts, again for each replacement.",
+  "rule": "KD243",
+  "object": "Job/agent",
+  "keywords": [
+    [
+      "nodeName"
+    ],
+    [
+      "8080",
+      "host port",
+      "hostPort"
+    ]
+  ]
+}
