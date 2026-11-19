@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"strconv"
+	"strings"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -223,7 +224,66 @@ func networkPolicyFindings(ix *index) []Finding {
 	for _, np := range ix.s.NetworkPolicies {
 		if f := policySelectsNothing(ix, np); f != nil {
 			out = append(out, *f)
+		} else if f := policyPortNameUnknown(ix, np); f != nil {
+			out = append(out, *f)
 		}
 	}
 	return out
+}
+
+// policyPortNameUnknown reports an ingress rule that allows a port by name (port: metrics) when none of the pods the
+// policy selects declares a container port of that name. A named port matches only the selected pods' own port
+// names, so the rule allows nothing, and with the policy in place that traffic is dropped.
+func policyPortNameUnknown(ix *index, np kube.NetworkPolicy) *Finding {
+	if !np.AppliesToIngress() {
+		return nil
+	}
+	ns := np.Metadata.Namespace
+	var selected []kube.Pod
+	for _, p := range ix.s.Pods {
+		if p.Metadata.Namespace == ns && p.Status.Phase == "Running" && np.Spec.PodSelector.Matches(p.Metadata.Labels) {
+			selected = append(selected, p)
+		}
+	}
+	if len(selected) == 0 {
+		return nil
+	}
+	declared := map[string]int32{}
+	for _, p := range selected {
+		for _, c := range p.Spec.Containers {
+			for _, cp := range c.Ports {
+				if cp.Name != "" {
+					declared[cp.Name] = cp.ContainerPort
+				}
+			}
+		}
+	}
+	for _, rule := range np.Spec.Ingress {
+		for _, pp := range rule.Ports {
+			if pp.Port == nil || !pp.Port.IsName {
+				continue
+			}
+			if _, ok := declared[pp.Port.Str]; ok {
+				continue
+			}
+			have := "no named ports"
+			if len(declared) > 0 {
+				var names []string
+				for _, n := range sortedKeys(declared) {
+					names = append(names, fmt.Sprintf("%s (%d)", n, declared[n]))
+				}
+				have = "the named ports " + strings.Join(names, ", ")
+			}
+			name := np.Metadata.Name
+			return &Finding{Rule: "KD268", Title: "NetworkPolicy allows a port name the pods do not declare", Severity: Warning, Object: np.Ref(),
+				Cause: fmt.Sprintf("NetworkPolicy %s allows ingress on port %q, but the %s it selects declare %s; a named port matches only the selected pods' own port names, so the rule allows nothing and that traffic is dropped",
+					name, pp.Port.Str, plural(len(selected), "pod"), have),
+				Evidence: []Evidence{{Object: np.Ref(), What: fmt.Sprintf("an ingress rule of %s allows port %s", name, pp.Port.Str),
+					Command: cmdGet("networkpolicy", ns, name, "{.spec.ingress}")},
+					{Object: selected[0].Ref(), What: fmt.Sprintf("the selected pods declare %s", have),
+						Command: cmdGet("pod", ns, selected[0].Metadata.Name, "{.spec.containers[*].ports}")}},
+				Fix: fmt.Sprintf("Name the port in the rule as the pods do, or use the port number; or add name: %s to the containers' port that should be reachable.", pp.Port.Str)}
+		}
+	}
+	return nil
 }

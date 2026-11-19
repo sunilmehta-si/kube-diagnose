@@ -2496,6 +2496,36 @@ func TestNodeRejectsAPodForAnotherOS(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD244", "Pod shop/agent-win", "kubernetes.io/os node selector", "spec.nodeName")
 }
 
+func TestNetworkPolicyAllowsAPortNameThePodsLack(t *testing.T) {
+	s := snap()
+	p := pod("web-1", "web")
+	s.Pods = []kube.Pod{p}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "allow-metrics", Namespace: "shop"}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+	metrics := named("metrics")
+	np.Spec.Ingress = []kube.NetworkPolicyRule{{Ports: []kube.NetworkPolicyPort{{Port: &metrics}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD268", "NetworkPolicy shop/allow-metrics", `allows ingress on port "metrics"`, "1 pod it selects declare the named ports http (8080)", "allows nothing")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "name: metrics") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// The pods name the port: nothing to say. A number is not a name.
+	np.Spec.Ingress[0].Ports[0].Port = &kube.IntOrString{Str: "http", IsName: true}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a declared port name: %v", r.Findings)
+	}
+	n := port(9090)
+	np.Spec.Ingress[0].Ports[0].Port = &n
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a port number: %v", r.Findings)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
