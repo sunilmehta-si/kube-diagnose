@@ -13,6 +13,8 @@ var (
 	reNoIPs         = regexp.MustCompile(`(?i)no IP addresses available|failed to assign an IP address|failed to allocate for range|no available IP`)
 	reCNIPlugin     = regexp.MustCompile(`plugin type="([^"]+)" failed`)
 	reCNI           = regexp.MustCompile(`(?i)failed to setup network for sandbox|cni plugin not initialized|network plugin is not ready|failed to find plugin`)
+	// containerd: "failed to get sandbox runtime: no runtime for \"nvidia\" is configured"
+	reNoRuntime = regexp.MustCompile(`no runtime for "([^"]+)" is configured`)
 )
 
 // sandboxProblem finds a pod that is assigned to a node and still has no container started because the node cannot
@@ -36,6 +38,19 @@ func sandboxProblem(ix *index, p kube.Pod) *problem {
 	node := p.Spec.NodeName
 	ev := []Evidence{eventEvidence(p.Ref(), e)}
 	switch {
+	case reNoRuntime.MatchString(msg):
+		handler := reNoRuntime.FindStringSubmatch(msg)[1]
+		class := "its RuntimeClass"
+		if rc := p.Spec.RuntimeClassName; rc != "" {
+			class = "RuntimeClass " + rc
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "RuntimeClass", Name: rc}, What: fmt.Sprintf("the pod's runtimeClassName is %s", rc),
+				Command: cmdGet("runtimeclass", "", rc, `{.handler}{" "}{.scheduling}`)})
+		}
+		return newProblem(p, "", "KD196", "Node's container runtime has no handler for the RuntimeClass", Critical,
+			fmt.Sprintf("the pod runs with %s, whose handler %s is not configured in the container runtime on node %s, so its sandbox is never created", class, handler, node),
+			"sandbox|runtime|"+handler,
+			fmt.Sprintf("Run the pod only on nodes that have handler %s: give the RuntimeClass a scheduling.nodeSelector for them (for nvidia, the nodes where the NVIDIA container toolkit configured containerd), or configure the handler on node %s.", handler, node),
+			ev...)
 	case reNoIPs.MatchString(msg):
 		return newProblem(p, "", "KD134", "Pod sandbox cannot be created", Critical,
 			fmt.Sprintf("node %s cannot give the pod an IP address, so its sandbox is never created: %s", node, clip(msg, 200)), "sandbox|ips",

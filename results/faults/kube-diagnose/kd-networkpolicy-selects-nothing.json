@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-selects-nothing"
   ],
-  "collectedAt": "2026-11-18 11:47 UTC",
+  "collectedAt": "2026-11-19 08:19 UTC",
   "findings": [
     {
       "rule": "KD262",

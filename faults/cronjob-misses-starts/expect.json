@@ -1,0 +1,11 @@
+{
+  "namespace": "kd-cronjob-misses-starts",
+  "description": "A CronJob runs every minute with startingDeadlineSeconds: 0, meant as no deadline; the controller always acts a moment after the scheduled time, so every run is missed (MissSchedule) and no Job ever starts.",
+  "rule": "KD285",
+  "object": "CronJob/sync",
+  "keywords": [
+    [
+      "startingDeadlineSeconds"
+    ]
+  ]
+}

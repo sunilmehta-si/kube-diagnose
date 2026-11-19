@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-netpol-port-name-unknown"
+  ],
+  "collectedAt": "2026-11-19 08:19 UTC",
+  "findings": [
+    {
+      "rule": "KD268",
+      "title": "NetworkPolicy allows a port name the pods do not declare",
+      "severity": "warning",
+      "object": {
+        "kind": "NetworkPolicy",
+        "namespace": "kd-netpol-port-name-unknown",
+        "name": "allow-web"
+      },
+      "cause": "NetworkPolicy allow-web allows ingress on port \"web\", but the 1 pod it selects declare the named ports http (8080); a named port matches only the selected pods' own port names, so the rule allows nothing and that traffic is dropped",
+      "evidence": [
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-netpol-port-name-unknown",
+            "name": "allow-web"
+          },
+          "what": "an ingress rule of allow-web allows port web",
+          "command": "kubectl get networkpolicy allow-web -n kd-netpol-port-name-unknown -o jsonpath='{.spec.ingress}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-netpol-port-name-unknown",
+            "name": "web-5cf8965884-vx7dz"
+          },
+          "what": "the selected pods declare the named ports http (8080)",
+          "command": "kubectl get pod web-5cf8965884-vx7dz -n kd-netpol-port-name-unknown -o jsonpath='{.spec.containers[*].ports}'"
+        }
+      ],
+      "fix": "Name the port in the rule as the pods do, or use the port number; or add name: web to the containers' port that should be reachable."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

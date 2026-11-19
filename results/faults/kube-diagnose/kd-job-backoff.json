@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-backoff"
   ],
-  "collectedAt": "2026-11-18 11:46 UTC",
+  "collectedAt": "2026-11-19 08:19 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-backoff",
-            "name": "report-j4t9g"
+            "name": "report-4p8vn"
           },
           "what": "container report exited with code 3 (Error)",
-          "command": "kubectl get pod report-j4t9g -n kd-job-backoff -o jsonpath='{.status.containerStatuses[?(@.name==\"report\")].state.terminated}'"
+          "command": "kubectl get pod report-4p8vn -n kd-job-backoff -o jsonpath='{.status.containerStatuses[?(@.name==\"report\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-backoff",
-            "name": "report-j4t9g"
+            "name": "report-4p8vn"
           },
           "what": "last lines of container report's log (current run)",
           "detail": "error: report source is empty",
-          "command": "kubectl logs report-j4t9g -n kd-job-backoff -c report --tail=20"
+          "command": "kubectl logs report-4p8vn -n kd-job-backoff -c report --tail=20"
         }
       ],
       "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
@@ -42,12 +42,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-job-backoff",
-          "name": "report-j4t9g"
+          "name": "report-4p8vn"
         },
         {
           "kind": "Pod",
           "namespace": "kd-job-backoff",
-          "name": "report-qfwqf"
+          "name": "report-xrz4g"
         }
       ]
     }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-fails"
   ],
-  "collectedAt": "2026-11-18 11:45 UTC",
+  "collectedAt": "2026-11-19 08:17 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29916703-f5zxh"
+            "name": "backup-29917935-hc6h2"
           },
           "what": "container backup exited with code 2 (Error)",
-          "command": "kubectl get pod backup-29916703-f5zxh -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
+          "command": "kubectl get pod backup-29917935-hc6h2 -n kd-cronjob-fails -o jsonpath='{.status.containerStatuses[?(@.name==\"backup\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-cronjob-fails",
-            "name": "backup-29916703-f5zxh"
+            "name": "backup-29917935-hc6h2"
           },
           "what": "last lines of container backup's log (current run)",
           "detail": "starting backup\nERROR: BACKUP_TARGET is not set",
-          "command": "kubectl logs backup-29916703-f5zxh -n kd-cronjob-fails -c backup --tail=20"
+          "command": "kubectl logs backup-29917935-hc6h2 -n kd-cronjob-fails -c backup --tail=20"
         }
       ],
       "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
@@ -42,17 +42,17 @@
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29916703-f5zxh"
+          "name": "backup-29917935-hc6h2"
         },
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29916704-tq2w7"
+          "name": "backup-29917936-kxl2m"
         },
         {
           "kind": "Pod",
           "namespace": "kd-cronjob-fails",
-          "name": "backup-29916705-c4556"
+          "name": "backup-29917937-dmqfz"
         }
       ]
     }

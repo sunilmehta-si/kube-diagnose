@@ -1,0 +1,24 @@
+# A CronJob runs every minute with startingDeadlineSeconds: 0, meant as no deadline; the controller always acts a moment after the scheduled time, so every run is missed (MissSchedule) and no Job ever starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-cronjob-misses-starts
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: sync
+  namespace: kd-cronjob-misses-starts
+spec:
+  schedule: "* * * * *"
+  startingDeadlineSeconds: 0
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: sync
+              image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+              command: ["sh", "-c", "echo syncing"]

@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -101,7 +102,62 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	if p.Status.Phase == "Running" {
-		return subdomainProblem(ix, p, nil, nil, nil)
+		if pr := subdomainProblem(ix, p, nil, nil, nil); pr != nil {
+			return pr
+		}
+		return preStopOutlastsGrace(p)
+	}
+	return nil
+}
+
+var reSleepSeconds = regexp.MustCompile(`^(?:exec\s+)?sleep\s+(\d+)(?:s)?\b`)
+
+// preStopSeconds returns how long a preStop hook waits, when that can be read from the spec: a sleep handler, or an
+// exec command that is a sleep, directly or as the first thing a shell runs.
+func preStopSeconds(h *kube.LifecycleHandler) (int64, bool) {
+	switch {
+	case h == nil:
+		return 0, false
+	case h.Sleep != nil:
+		return h.Sleep.Seconds, true
+	case h.Exec != nil:
+		cmd := h.Exec.Command
+		if len(cmd) >= 3 && (path.Base(cmd[0]) == "sh" || path.Base(cmd[0]) == "bash") && cmd[1] == "-c" {
+			cmd = []string{cmd[2]}
+		}
+		line := strings.TrimSpace(strings.Join(cmd, " "))
+		line = strings.TrimPrefix(line, "/bin/")
+		if m := reSleepSeconds.FindStringSubmatch(line); m != nil {
+			n, _ := strconv.ParseInt(m[1], 10, 64)
+			return n, true
+		}
+	}
+	return 0, false
+}
+
+// preStopOutlastsGrace finds a container whose preStop hook waits as long as the pod's termination grace period or
+// longer. The grace period counts from the moment the pod is deleted and includes the hook, so the kubelet kills the
+// container (SIGKILL) as the hook ends or before: the app never gets its SIGTERM to finish in-flight work, on every
+// rollout, scale-down and drain.
+func preStopOutlastsGrace(p kube.Pod) *problem {
+	grace := int64(30)
+	if g := p.Spec.TerminationGracePeriodSeconds; g != nil {
+		grace = *g
+	}
+	for _, c := range p.Spec.Containers {
+		if c.Lifecycle == nil {
+			continue
+		}
+		wait, ok := preStopSeconds(c.Lifecycle.PreStop)
+		if !ok || wait < grace {
+			continue
+		}
+		return newProblem(p, c.Name, "KD208", "preStop hook outlasts the termination grace period", Warning,
+			fmt.Sprintf("container %s's preStop hook waits %d s, and the pod's terminationGracePeriodSeconds is %d: the grace period includes the hook, so when the pod is deleted the kubelet kills the container before the app gets SIGTERM and time to finish, on every rollout, scale-down and drain", c.Name, wait, grace),
+			"prestop|"+c.Name,
+			fmt.Sprintf("Set terminationGracePeriodSeconds above the preStop wait plus the app's own shutdown time (for example %d), or shorten the preStop sleep.", wait+30),
+			Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's preStop hook and the pod's terminationGracePeriodSeconds", c.Name),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.terminationGracePeriodSeconds}{"\n"}{.spec.containers[?(@.name=="%s")].lifecycle.preStop}`, c.Name))})
 	}
 	return nil
 }
@@ -698,12 +754,28 @@ var (
 	reErrorLine  = regexp.MustCompile(`(?i)\b(error|fatal|panic|exception|failed|cannot|can't|unable|denied|refused|not set|missing|invalid)\b`)
 )
 
+// reSeccompProfile is containerd's error for a Localhost seccomp profile it cannot read: "cannot load seccomp profile
+// \"/var/lib/kubelet/seccomp/profiles/x.json\": open ...: no such file or directory". The kubelet does not check that
+// the file exists; it passes the path on.
+var reSeccompProfile = regexp.MustCompile(`cannot load seccomp profile \\?"([^"\\]+)\\?": (.*)`)
+
 func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *problem {
 	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("container %s did not start", cs.Name), Detail: msg,
 		Command: cmdContainerState(p, cs.Name, "state")}}
 	c, _ := containerSpec(p, cs.Name)
 	if pr := subPathOntoFile(ix, p, cs.Name, msg, ev); pr != nil {
 		return pr
+	}
+	if m := reSeccompProfile.FindStringSubmatch(msg); m != nil {
+		path := m[1]
+		cause := fmt.Sprintf("container %s uses the Localhost seccomp profile %s, which is not on node %s, so the container runtime cannot create the container", cs.Name, path, p.Spec.NodeName)
+		if !strings.Contains(msg, "no such file") {
+			cause = fmt.Sprintf("container %s uses the Localhost seccomp profile %s, which the container runtime on node %s cannot load (%s), so it cannot create the container", cs.Name, path, p.Spec.NodeName, clip(m[2], 120))
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's and the container's seccompProfile",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.securityContext.seccompProfile}{"\n"}{.spec.containers[?(@.name=="%s")].securityContext.seccompProfile}`, cs.Name))})
+		return newProblem(p, cs.Name, "KD207", "Seccomp profile is not on the node", Critical, cause, "seccomp|"+path,
+			"Put the profile on every node that may run the pod, under the kubelet's seccomp directory (the Security Profiles Operator or a DaemonSet can install it), keep the pod to the nodes that have it, or use seccompProfile type RuntimeDefault.", ev...)
 	}
 	switch {
 	case reExecFormat.MatchString(msg):
@@ -841,6 +913,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := refusedByEmptyService(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := apiServerBlocked(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := policyBlocksService(ix, p, cs, log.Lines, ev); pr != nil {
@@ -1167,6 +1242,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := probeHost(ix, p, cs, k); pr != nil {
 			return pr
 		}
+		if pr := probeGRPC(ix, p, cs, k); pr != nil {
+			return pr
+		}
 	}
 	var ev []Evidence
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy", "Killing") {
@@ -1270,6 +1348,9 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := probeHost(ix, p, cs, "readiness"); pr != nil {
+		return pr
+	}
+	if pr := probeGRPC(ix, p, cs, "readiness"); pr != nil {
 		return pr
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {

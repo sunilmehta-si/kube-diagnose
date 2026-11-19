@@ -2432,6 +2432,201 @@ func TestPodSubdomainWithoutAHeadlessService(t *testing.T) {
 	}
 }
 
+func TestRuntimeClassHandlerMissingOnTheNode(t *testing.T) {
+	s := snap()
+	p := pod("infer-7b9c4-p2x8d", "infer")
+	p.Spec.RuntimeClassName = "nvidia"
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "ContainerCreating"}}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "FailedCreatePodSandBox",
+		`Failed to create pod sandbox: rpc error: code = Unknown desc = failed to get sandbox runtime: no runtime for "nvidia" is configured`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD196", "ReplicaSet shop/infer-rs", "RuntimeClass nvidia", "handler nvidia is not configured", "node node-1")
+	if !strings.Contains(f.Fix, "scheduling.nodeSelector") || len(f.Evidence) != 2 {
+		t.Errorf("fix %q, %d evidence", f.Fix, len(f.Evidence))
+	}
+}
+
+func TestSeccompProfileIsNotOnTheNode(t *testing.T) {
+	s := snap()
+	p := pod("api-5d7f8-k2m9q", "api")
+	notReady(&p)
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CreateContainerError",
+		Message: `failed to generate container "c0ffee" spec: failed to generate seccomp spec opts: cannot load seccomp profile "/var/lib/kubelet/seccomp/profiles/hardened.json": open /var/lib/kubelet/seccomp/profiles/hardened.json: no such file or directory`}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD207", "ReplicaSet shop/api-rs", "Localhost seccomp profile /var/lib/kubelet/seccomp/profiles/hardened.json", "not on node node-1")
+	if !strings.Contains(f.Fix, "RuntimeDefault") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A profile that is there but cannot be parsed says why.
+	p.Status.ContainerStatuses[0].State.Waiting.Message = `failed to generate seccomp spec opts: cannot load seccomp profile "/var/lib/kubelet/seccomp/profiles/hardened.json": permission denied`
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD207", "ReplicaSet shop/api-rs", "cannot load (permission denied)")
+}
+
+func TestNodeRejectsAPodForAnotherOS(t *testing.T) {
+	s := snap()
+	n := node("kd-faults-control-plane", "4", "16Gi")
+	n.Metadata.Labels["kubernetes.io/os"] = "linux"
+	s.Nodes = []kube.Node{n}
+	p := pod("agent-win", "")
+	p.Spec.NodeName = "kd-faults-control-plane"
+	p.Spec.OS = &struct {
+		Name string `json:"name"`
+	}{Name: "windows"}
+	p.Status.Phase, p.Status.Reason = "Failed", "PodOSNotSupported"
+	p.Status.Message = "Pod was rejected: Failed to admit pod as the OS field doesn't match node OS"
+	p.Status.Conditions, p.Status.ContainerStatuses = []kube.Condition{{Type: "PodScheduled", Status: "True"}}, nil
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD244", "Pod shop/agent-win", "spec.os.name windows does not match node kd-faults-control-plane, which runs linux", "scheduler does not compare spec.os", "PodOSNotSupported")
+	if !strings.Contains(f.Fix, "nodeSelector kubernetes.io/os") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The label check, skipped by nodeName.
+	p.Spec.OS = nil
+	p.Spec.NodeSelector = map[string]string{"kubernetes.io/os": "windows"}
+	p.Status.Reason = "PodOSSelectorNodeLabelDoesNotMatch"
+	p.Status.Message = "Pod was rejected: Failed to admit pod as the `kubernetes.io/os` label doesn't match node label"
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD244", "Pod shop/agent-win", "kubernetes.io/os node selector", "spec.nodeName")
+}
+
+func TestNetworkPolicyAllowsAPortNameThePodsLack(t *testing.T) {
+	s := snap()
+	p := pod("web-1", "web")
+	s.Pods = []kube.Pod{p}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "allow-metrics", Namespace: "shop"}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+	metrics := named("metrics")
+	np.Spec.Ingress = []kube.NetworkPolicyRule{{Ports: []kube.NetworkPolicyPort{{Port: &metrics}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD268", "NetworkPolicy shop/allow-metrics", `allows ingress on port "metrics"`, "1 pod it selects declare the named ports http (8080)", "allows nothing")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "name: metrics") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// The pods name the port: nothing to say. A number is not a name.
+	np.Spec.Ingress[0].Ports[0].Port = &kube.IntOrString{Str: "http", IsName: true}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a declared port name: %v", r.Findings)
+	}
+	n := port(9090)
+	np.Spec.Ingress[0].Ports[0].Port = &n
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a port number: %v", r.Findings)
+	}
+}
+
+func TestNetworkPolicyBlocksTheAPIServer(t *testing.T) {
+	s := snap()
+	p := pod("operator-6c9d-xk2pq", "operator")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{
+		"Connecting to kubernetes.default.svc (10.96.0.1:443)", "wget: download timed out"}}}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "egress-dns-only", Namespace: "shop"}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	dns := port(53)
+	np.Spec.Egress = []kube.NetworkPolicyRule{{Ports: []kube.NetworkPolicyPort{{Port: &dns}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD267", "ReplicaSet shop/operator-rs", "API server (kubernetes.default.svc) times out", "NetworkPolicy egress-dns-only", "6443", "download timed out")
+	if !strings.Contains(f.Fix, "ipBlock") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The cluster IP, as client-go reports it.
+	s.Logs[0].Lines = []string{`Get "https://10.96.0.1:443/api?timeout=32s": dial tcp 10.96.0.1:443: i/o timeout`}
+	expect(t, only(t, Diagnose(s)), "KD267", "ReplicaSet shop/operator-rs", "API server (10.96.0.1)")
+
+	// A rule with an ipBlock on 6443 might allow it: no claim.
+	api := port(6443)
+	np.Spec.Egress = append(np.Spec.Egress, kube.NetworkPolicyRule{To: []kube.NetworkPolicyPeer{{IPBlock: &struct {
+		CIDR string `json:"cidr"`
+	}{CIDR: "172.18.0.2/32"}}}, Ports: []kube.NetworkPolicyPort{{Port: &api}}})
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	if f := only(t, Diagnose(s)); f.Rule == "KD267" {
+		t.Errorf("claimed a block with an ipBlock rule on 6443: %s", f.Cause)
+	}
+}
+
+func TestPreStopHookOutlastsTheGracePeriod(t *testing.T) {
+	s := snap()
+	p := pod("web-1", "web")
+	p.Spec.Containers[0].Lifecycle = &kube.Lifecycle{PreStop: &kube.LifecycleHandler{Exec: &kube.ExecAction{Command: []string{"sh", "-c", "sleep 45; nginx -s quit"}}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD208", "ReplicaSet shop/web-rs", "preStop hook waits 45 s", "terminationGracePeriodSeconds is 30", "before the app gets SIGTERM")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "75") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// The sleep handler, against a set grace period.
+	g := int64(20)
+	p.Spec.TerminationGracePeriodSeconds = &g
+	p.Spec.Containers[0].Lifecycle.PreStop = &kube.LifecycleHandler{Sleep: &struct {
+		Seconds int64 `json:"seconds"`
+	}{Seconds: 20}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD208", "ReplicaSet shop/web-rs", "waits 20 s", "is 20")
+
+	// Shorter than the grace period, or a hook whose length cannot be read: nothing to say.
+	g = 60
+	s.Pods = []kube.Pod{p}
+	for _, h := range []*kube.LifecycleHandler{p.Spec.Containers[0].Lifecycle.PreStop, {Exec: &kube.ExecAction{Command: []string{"/app/drain"}}}} {
+		p.Spec.Containers[0].Lifecycle.PreStop = h
+		s.Pods = []kube.Pod{p}
+		if r := Diagnose(s); len(r.Findings) != 0 {
+			t.Errorf("hook %+v: %v", h, r.Findings)
+		}
+	}
+	for cmd, want := range map[string]int64{"sleep 5": 5, "exec sleep 12": 12, "/bin/sleep 7": 7, "sleep 3s && kill 1": 3} {
+		got, ok := preStopSeconds(&kube.LifecycleHandler{Exec: &kube.ExecAction{Command: []string{"/bin/sh", "-c", cmd}}})
+		if !ok || got != want {
+			t.Errorf("preStopSeconds(%q) = %d %v, want %d", cmd, got, ok, want)
+		}
+	}
+}
+
+func TestGRPCProbeCannotPass(t *testing.T) {
+	s := snap()
+	p := pod("api-7c4d-qq2x9", "api")
+	notReady(&p)
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{GRPC: &kube.GRPCAction{Port: 8080}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: timeout: failed to connect service "10.244.0.9:8080" within 1s: context deadline exceeded`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD209", "ReplicaSet shop/api-rs", "port 8080 (the container calls it http)", "nothing there speaks gRPC", "never becomes ready")
+	if !strings.Contains(f.Fix, "httpGet") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A gRPC server without the health service, on a liveness probe.
+	p = pod("api-7c4d-qq2x9", "api")
+	crashed(&p, 137, "Error", 4)
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{GRPC: &kube.GRPCAction{Port: 9000}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{
+		event("Pod", p.Metadata.Name, "Unhealthy", "Liveness probe failed: error: this server does not implement the grpc health protocol (grpc.health.v1.Health): unknown service grpc.health.v1.Health", time.Minute),
+		event("Pod", p.Metadata.Name, "Killing", "Container web failed liveness probe, will be restarted", time.Minute),
+	}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD209", "ReplicaSet shop/api-rs", "does not implement grpc.health.v1.Health", "4 restarts")
+	if !strings.Contains(f.Fix, "health.NewServer") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

@@ -105,6 +105,44 @@ func probeHost(ix *index, p kube.Pod, cs kube.ContainerStatus, kind string) *pro
 
 var reAnyProbeFailure = regexp.MustCompile(`(?i)probe (failed|errored)`)
 
+// The kubelet's gRPC probe messages (pkg/probe/grpc): a server without the health service, and a port where no gRPC
+// server answers (it cannot connect, or the call fails before any reply).
+var (
+	reGRPCNoHealth = regexp.MustCompile(`does not implement the grpc health protocol`)
+	reGRPCConnect  = regexp.MustCompile(`failed to connect service|health rpc probe failed|health rpc did not complete`)
+)
+
+// probeGRPC finds a failing gRPC probe that cannot pass: the server answers gRPC but does not implement
+// grpc.health.v1.Health, or nothing on the port speaks gRPC at all (an HTTP/1 server, or nothing listening).
+func probeGRPC(ix *index, p kube.Pod, cs kube.ContainerStatus, kind string) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	pr := probeOf(c, kind)
+	if pr == nil || pr.GRPC == nil {
+		return nil
+	}
+	port := pr.GRPC.Port
+	if e, ok := probeEvent(ix, p, cs.Name, kind, reGRPCNoHealth); ok {
+		return newProblem(p, cs.Name, "KD209", "gRPC probe cannot pass on this port", Critical,
+			fmt.Sprintf("container %s's %s probe calls the gRPC health service on port %d, and the server there answers gRPC but does not implement grpc.health.v1.Health, so the probe fails, %s", cs.Name, kind, port, probeEffect(kind, cs.RestartCount)),
+			"grpc|"+kind, "Register the standard health service in the app (grpc-go: health.NewServer; most frameworks have it), or probe with tcpSocket or httpGet instead.",
+			eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, kind))
+	}
+	e, ok := probeEvent(ix, p, cs.Name, kind, reGRPCConnect)
+	if !ok {
+		return nil
+	}
+	declared := ""
+	for _, cp := range c.Ports {
+		if cp.ContainerPort == port && cp.Name != "" {
+			declared = fmt.Sprintf(" (the container calls it %s)", cp.Name)
+		}
+	}
+	return newProblem(p, cs.Name, "KD209", "gRPC probe cannot pass on this port", Critical,
+		fmt.Sprintf("container %s's %s probe calls the gRPC health service on port %d%s, but nothing there speaks gRPC: the app serves something else on that port, such as plain HTTP, or does not listen on it, so the probe fails, %s", cs.Name, kind, port, declared, probeEffect(kind, cs.RestartCount)),
+		"grpc|"+kind, "Point the probe's grpc.port at the app's gRPC port, or, if the app speaks HTTP, use an httpGet probe.",
+		eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, kind))
+}
+
 func loopback(host string) bool {
 	return host == "localhost" || strings.HasPrefix(host, "127.") || host == "::1" || host == "[::1]"
 }

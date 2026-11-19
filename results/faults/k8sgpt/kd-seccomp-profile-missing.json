@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-seccomp-profile-missing/api",
+      "error": [
+        {
+          "Text": "Deployment kd-seccomp-profile-missing/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-seccomp-profile-missing",
+              "Masked": "L3N0IkdQS0hZdSYmNTlLbHYqRiUrZGpuem4="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "UUJH"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-seccomp-profile-missing/api-69c86f6c44-s4xk7",
+      "error": [
+        {
+          "Text": "failed to create containerd container: cannot load seccomp profile \"/var/lib/kubelet/seccomp/profiles/kd-hardened.json\": open /var/lib/kubelet/seccomp/profiles/kd-hardened.json: no such file or directory",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

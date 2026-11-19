@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cronjob-misses-starts"
+  ],
+  "collectedAt": "2026-11-19 08:17 UTC",
+  "findings": [
+    {
+      "rule": "KD285",
+      "title": "CronJob misses its starts: startingDeadlineSeconds is too short",
+      "severity": "warning",
+      "object": {
+        "kind": "CronJob",
+        "namespace": "kd-cronjob-misses-starts",
+        "name": "sync"
+      },
+      "cause": "CronJob sync's startingDeadlineSeconds is 0, less than the few seconds the controller can take to wake at a scheduled time, so runs it starts late count as missed and are skipped",
+      "evidence": [
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-misses-starts",
+            "name": "sync"
+          },
+          "what": "CronJob sync has startingDeadlineSeconds 0 and schedule \"* * * * *\"",
+          "command": "kubectl get cronjob sync -n kd-cronjob-misses-starts -o jsonpath='{.spec.startingDeadlineSeconds}{\" \"}{.spec.schedule}{\" \"}{.status.lastScheduleTime}'"
+        }
+      ],
+      "fix": "Raise startingDeadlineSeconds to at least 10, or remove it (no deadline): kubectl patch cronjob sync -n kd-cronjob-misses-starts --type=merge -p '{\"spec\":{\"startingDeadlineSeconds\":60}}'."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

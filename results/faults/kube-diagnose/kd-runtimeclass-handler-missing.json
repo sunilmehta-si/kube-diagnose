@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-runtimeclass-handler-missing"
+  ],
+  "collectedAt": "2026-11-19 08:21 UTC",
+  "findings": [
+    {
+      "rule": "KD196",
+      "title": "Node's container runtime has no handler for the RuntimeClass",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-runtimeclass-handler-missing",
+        "name": "infer"
+      },
+      "cause": "the pod runs with RuntimeClass kd-nvidia, whose handler nvidia is not configured in the container runtime on node kd-faults-control-plane, so its sandbox is never created; Deployment infer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-runtimeclass-handler-missing",
+            "name": "infer-59c655c685-fsl5c"
+          },
+          "what": "event FailedCreatePodSandBox (17 times)",
+          "detail": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"cd44a74180f378eab2bfeb5e149b287ad274f211256f8e6f063be69adf7150d7\": no runtime for \"nvidia\" is configured",
+          "command": "kubectl get events -n kd-runtimeclass-handler-missing --field-selector involvedObject.kind=Pod,involvedObject.name=infer-59c655c685-fsl5c"
+        },
+        {
+          "object": {
+            "kind": "RuntimeClass",
+            "name": "kd-nvidia"
+          },
+          "what": "the pod's runtimeClassName is kd-nvidia",
+          "command": "kubectl get runtimeclass kd-nvidia -o jsonpath='{.handler}{\" \"}{.scheduling}'"
+        }
+      ],
+      "fix": "Run the pod only on nodes that have handler nvidia: give the RuntimeClass a scheduling.nodeSelector for them (for nvidia, the nodes where the NVIDIA container toolkit configured containerd), or configure the handler on node kd-faults-control-plane.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-runtimeclass-handler-missing",
+          "name": "infer-59c655c685-fsl5c"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

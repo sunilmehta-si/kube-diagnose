@@ -1,0 +1,19 @@
+# A log agent's Pod sets spec.os.name: windows and no nodeSelector; the scheduler does not compare spec.os with nodes, so it lands on the Linux node, and the kubelet rejects it with PodOSNotSupported.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pod-os-mismatch
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: agent
+  namespace: kd-pod-os-mismatch
+spec:
+  os:
+    name: windows
+  containers:
+    - name: agent
+      image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+      command: ["sleep", "3600"]

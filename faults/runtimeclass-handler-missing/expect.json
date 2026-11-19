@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-runtimeclass-handler-missing",
+  "description": "A Deployment runs with RuntimeClass kd-nvidia, whose handler nvidia exists on GPU nodes only; the kind node's containerd has no such runtime, so the pod's sandbox is never created.",
+  "rule": "KD196",
+  "object": "Deployment/infer",
+  "keywords": [
+    [
+      "nvidia"
+    ],
+    [
+      "handler",
+      "runtime"
+    ]
+  ]
+}

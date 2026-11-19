@@ -2,6 +2,29 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-19
+
+- The fault suite's committed run (44485671336): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 115 of 115 faults and raises no false alarm; k8sgpt v0.4.41 names 44, 24 of them first.
+
+### Added
+- 8 rules, 129 in all (`docs/rules.md`):
+  - the node and its runtime: a RuntimeClass whose handler the node's container runtime does not have, so no pod
+    sandbox is created (KD196); a Localhost seccomp profile that is not on the node, which the kubelet passes on
+    unchecked (KD207); a pod for another operating system, which the scheduler places and the kubelet rejects
+    (KD244);
+  - probes and hooks: a preStop hook that waits as long as the termination grace period, which includes it, so the
+    app is killed before SIGTERM (KD208); a gRPC probe on a port that does not speak gRPC or lacks the health service
+    (KD209);
+  - NetworkPolicies: an egress policy that leaves the pod no way to the API server, which egress rules see at its own
+    endpoints, usually on 6443 (KD267), and an ingress rule that allows a port name the pods do not declare (KD268);
+  - CronJobs: a startingDeadlineSeconds under 10 seconds, so the controller misses the starts (KD285).
+- 7 fault scenarios, 115 broken namespaces in all, one for each new rule but KD267: on kind's single node, which
+  runs the API server too, a DNS-only egress policy did not block the pod's connection to it, so the fault does not
+  happen there. Unit tests cover KD267.
+- The snapshot holds a pod's spec.os, runtimeClassName and terminationGracePeriodSeconds, a preStop sleep, a gRPC
+  probe, and a CronJob's startingDeadlineSeconds.
+
 ### Changed
 - The fault suite's optional HolmesGPT run uses 0.46.0 (was 0.45.0; published 4 Nov, adoptable from 18 Nov), checked
   against its SHA-256. Its `ask` command takes the same arguments; the suite runs it only with a model and that

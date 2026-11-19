@@ -1,0 +1,46 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-prestop-outlasts-grace"
+  ],
+  "collectedAt": "2026-11-19 08:20 UTC",
+  "findings": [
+    {
+      "rule": "KD208",
+      "title": "preStop hook outlasts the termination grace period",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-prestop-outlasts-grace",
+        "name": "web"
+      },
+      "cause": "container web's preStop hook waits 45 s, and the pod's terminationGracePeriodSeconds is 30: the grace period includes the hook, so when the pod is deleted the kubelet kills the container before the app gets SIGTERM and time to finish, on every rollout, scale-down and drain; Deployment web has 1 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-prestop-outlasts-grace",
+            "name": "web-55b469ccdc-jv692"
+          },
+          "what": "container web's preStop hook and the pod's terminationGracePeriodSeconds",
+          "command": "kubectl get pod web-55b469ccdc-jv692 -n kd-prestop-outlasts-grace -o jsonpath='{.spec.terminationGracePeriodSeconds}{\"\\n\"}{.spec.containers[?(@.name==\"web\")].lifecycle.preStop}'"
+        }
+      ],
+      "fix": "Set terminationGracePeriodSeconds above the preStop wait plus the app's own shutdown time (for example 75), or shorten the preStop sleep.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-prestop-outlasts-grace",
+          "name": "web-55b469ccdc-jv692"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

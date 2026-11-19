@@ -1,0 +1,12 @@
+{
+  "namespace": "kd-probe-grpc-on-http",
+  "description": "A service that answers plain HTTP on port 8080 gets a gRPC readiness probe on that port, copied from a gRPC service's chart; nothing there speaks gRPC, so the probe never passes and the pod never becomes ready.",
+  "rule": "KD209",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "gRPC",
+      "grpc"
+    ]
+  ]
+}

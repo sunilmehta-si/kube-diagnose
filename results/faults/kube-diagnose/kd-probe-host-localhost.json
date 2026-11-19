@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-host-localhost"
   ],
-  "collectedAt": "2026-11-18 11:48 UTC",
+  "collectedAt": "2026-11-19 08:20 UTC",
   "findings": [
     {
       "rule": "KD206",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-host-localhost",
-            "name": "web-6558876bf4-8pp2p"
+            "name": "web-6558876bf4-hc46x"
           },
-          "what": "event Unhealthy (63 times)",
+          "what": "event Unhealthy (65 times)",
           "detail": "Readiness probe failed: Get \"http://127.0.0.1:8080/\": dial tcp 127.0.0.1:8080: connect: connection refused",
-          "command": "kubectl get events -n kd-probe-host-localhost --field-selector involvedObject.kind=Pod,involvedObject.name=web-6558876bf4-8pp2p"
+          "command": "kubectl get events -n kd-probe-host-localhost --field-selector involvedObject.kind=Pod,involvedObject.name=web-6558876bf4-hc46x"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-host-localhost",
-            "name": "web-6558876bf4-8pp2p"
+            "name": "web-6558876bf4-hc46x"
           },
           "what": "container web's readiness probe",
-          "command": "kubectl get pod web-6558876bf4-8pp2p -n kd-probe-host-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
+          "command": "kubectl get pod web-6558876bf4-hc46x -n kd-probe-host-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
         }
       ],
       "fix": "Remove host from the probe so the kubelet connects to the pod's IP; to send a Host header for a virtual host, use httpGet.httpHeaders with name Host instead.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-host-localhost",
-          "name": "web-6558876bf4-8pp2p"
+          "name": "web-6558876bf4-hc46x"
         }
       ]
     }

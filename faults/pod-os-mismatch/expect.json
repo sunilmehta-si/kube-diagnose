@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-pod-os-mismatch",
+  "description": "A log agent's Pod sets spec.os.name: windows and no nodeSelector; the scheduler does not compare spec.os with nodes, so it lands on the Linux node, and the kubelet rejects it with PodOSNotSupported.",
+  "rule": "KD244",
+  "object": "Pod/agent",
+  "keywords": [
+    [
+      "windows"
+    ],
+    [
+      "linux",
+      "operating system"
+    ]
+  ]
+}

@@ -175,6 +175,12 @@ type TCPSocketAction struct {
 	Port IntOrString `json:"port"`
 }
 
+// GRPCAction calls the gRPC health service (grpc.health.v1.Health) on a port of the container.
+type GRPCAction struct {
+	Port    int32   `json:"port"`
+	Service *string `json:"service,omitempty"`
+}
+
 type ExecAction struct {
 	Command []string `json:"command,omitempty"`
 }
@@ -183,6 +189,7 @@ type Probe struct {
 	HTTPGet             *HTTPGetAction   `json:"httpGet,omitempty"`
 	TCPSocket           *TCPSocketAction `json:"tcpSocket,omitempty"`
 	Exec                *ExecAction      `json:"exec,omitempty"`
+	GRPC                *GRPCAction      `json:"grpc,omitempty"`
 	InitialDelaySeconds int32            `json:"initialDelaySeconds,omitempty"`
 	PeriodSeconds       int32            `json:"periodSeconds,omitempty"`
 	TimeoutSeconds      int32            `json:"timeoutSeconds,omitempty"`
@@ -192,6 +199,10 @@ type Probe struct {
 type LifecycleHandler struct {
 	Exec    *ExecAction    `json:"exec,omitempty"`
 	HTTPGet *HTTPGetAction `json:"httpGet,omitempty"`
+	// Sleep pauses for a number of seconds, without a command in the image.
+	Sleep *struct {
+		Seconds int64 `json:"seconds"`
+	} `json:"sleep,omitempty"`
 }
 
 type Lifecycle struct {
@@ -330,6 +341,15 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// OS says which operating system the pod's containers are built for; the kubelet refuses a pod for another OS.
+	OS *struct {
+		Name string `json:"name"`
+	} `json:"os,omitempty"`
+	// TerminationGracePeriodSeconds is how long the kubelet waits, preStop hooks included, before it kills the
+	// containers of a pod being deleted; 30 when unset.
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
+	// RuntimeClassName names the RuntimeClass whose handler the node's container runtime runs the pod with.
+	RuntimeClassName string `json:"runtimeClassName,omitempty"`
 	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
 	// ReadinessGates are extra conditions, set by a controller, that must be True for the pod to be Ready.
@@ -778,7 +798,9 @@ type CronJob struct {
 		TimeZone          *string `json:"timeZone,omitempty"`
 		ConcurrencyPolicy string  `json:"concurrencyPolicy,omitempty"`
 		Suspend           *bool   `json:"suspend,omitempty"`
-		JobTemplate       struct {
+		// StartingDeadlineSeconds is how late after its scheduled time a run may still start.
+		StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds,omitempty"`
+		JobTemplate             struct {
 			Spec struct {
 				Template PodTemplate `json:"template"`
 			} `json:"spec"`
