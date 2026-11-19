@@ -330,6 +330,10 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// OS says which operating system the pod's containers are built for; the kubelet refuses a pod for another OS.
+	OS *struct {
+		Name string `json:"name"`
+	} `json:"os,omitempty"`
 	// RuntimeClassName names the RuntimeClass whose handler the node's container runtime runs the pod with.
 	RuntimeClassName string `json:"runtimeClassName,omitempty"`
 	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.

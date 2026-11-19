@@ -2467,6 +2467,35 @@ func TestSeccompProfileIsNotOnTheNode(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD207", "ReplicaSet shop/api-rs", "cannot load (permission denied)")
 }
 
+func TestNodeRejectsAPodForAnotherOS(t *testing.T) {
+	s := snap()
+	n := node("kd-faults-control-plane", "4", "16Gi")
+	n.Metadata.Labels["kubernetes.io/os"] = "linux"
+	s.Nodes = []kube.Node{n}
+	p := pod("agent-win", "")
+	p.Spec.NodeName = "kd-faults-control-plane"
+	p.Spec.OS = &struct {
+		Name string `json:"name"`
+	}{Name: "windows"}
+	p.Status.Phase, p.Status.Reason = "Failed", "PodOSNotSupported"
+	p.Status.Message = "Pod was rejected: Failed to admit pod as the OS field doesn't match node OS"
+	p.Status.Conditions, p.Status.ContainerStatuses = []kube.Condition{{Type: "PodScheduled", Status: "True"}}, nil
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD244", "Pod shop/agent-win", "spec.os.name windows does not match node kd-faults-control-plane, which runs linux", "scheduler does not compare spec.os", "PodOSNotSupported")
+	if !strings.Contains(f.Fix, "nodeSelector kubernetes.io/os") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The label check, skipped by nodeName.
+	p.Spec.OS = nil
+	p.Spec.NodeSelector = map[string]string{"kubernetes.io/os": "windows"}
+	p.Status.Reason = "PodOSSelectorNodeLabelDoesNotMatch"
+	p.Status.Message = "Pod was rejected: Failed to admit pod as the `kubernetes.io/os` label doesn't match node label"
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD244", "Pod shop/agent-win", "kubernetes.io/os node selector", "spec.nodeName")
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

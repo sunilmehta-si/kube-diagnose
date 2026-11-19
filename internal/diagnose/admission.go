@@ -74,6 +74,25 @@ func nodeRejected(ix *index, p kube.Pod) *problem {
 			fmt.Sprintf("the pod names %s in spec.nodeName, which skips the scheduler, but %s does not match that node's labels, so the kubelet rejects it (NodeAffinity)", orNode(node), what),
 			"affinity|"+node,
 			"Choose one way to place the pod: drop spec.nodeName and let the scheduler use the nodeSelector or affinity, or name a node whose labels match (kubectl get nodes --show-labels).", ev...)
+	case reason == "PodOSNotSupported" || reason == "PodOSSelectorNodeLabelDoesNotMatch":
+		nodeOS := "another operating system"
+		if n := findNode(ix, node); n != nil && n.Metadata.Labels["kubernetes.io/os"] != "" {
+			nodeOS = n.Metadata.Labels["kubernetes.io/os"]
+		}
+		what := "its kubernetes.io/os node selector"
+		if p.Spec.OS != nil && p.Spec.OS.Name != "" {
+			what = "spec.os.name " + p.Spec.OS.Name
+		}
+		bypass := "the scheduler does not compare spec.os with the node, so it placed the pod there"
+		if reason == "PodOSSelectorNodeLabelDoesNotMatch" {
+			bypass = "the pod names its node in spec.nodeName, which skips the scheduler's check of the label"
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's spec.os and kubernetes.io/os node selector",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.os}{"\n"}{.spec.nodeSelector}`)})
+		return newProblem(p, "", "KD244", "Node rejects the pod: it is for another operating system", Critical,
+			fmt.Sprintf("the pod's %s does not match %s, which runs %s; %s, and the kubelet rejects it (%s)", what, orNode(node), nodeOS, bypass, reason),
+			"os|"+node,
+			"Give the pod a nodeSelector kubernetes.io/os that matches spec.os.name, so the scheduler places it only on nodes of that operating system, or drop spec.os if the image is built for the nodes the cluster has.", ev...)
 	case reason == "NodePorts":
 		ports := strings.Join(hostPorts(p), ", ")
 		ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's host ports",
