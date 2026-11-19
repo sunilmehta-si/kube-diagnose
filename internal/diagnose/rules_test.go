@@ -2526,6 +2526,40 @@ func TestNetworkPolicyAllowsAPortNameThePodsLack(t *testing.T) {
 	}
 }
 
+func TestNetworkPolicyBlocksTheAPIServer(t *testing.T) {
+	s := snap()
+	p := pod("operator-6c9d-xk2pq", "operator")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{
+		"Connecting to kubernetes.default.svc (10.96.0.1:443)", "wget: download timed out"}}}
+	var np kube.NetworkPolicy
+	np.Metadata = kube.ObjectMeta{Name: "egress-dns-only", Namespace: "shop"}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	dns := port(53)
+	np.Spec.Egress = []kube.NetworkPolicyRule{{Ports: []kube.NetworkPolicyPort{{Port: &dns}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD267", "ReplicaSet shop/operator-rs", "API server (kubernetes.default.svc) times out", "NetworkPolicy egress-dns-only", "6443", "download timed out")
+	if !strings.Contains(f.Fix, "ipBlock") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The cluster IP, as client-go reports it.
+	s.Logs[0].Lines = []string{`Get "https://10.96.0.1:443/api?timeout=32s": dial tcp 10.96.0.1:443: i/o timeout`}
+	expect(t, only(t, Diagnose(s)), "KD267", "ReplicaSet shop/operator-rs", "API server (10.96.0.1)")
+
+	// A rule with an ipBlock on 6443 might allow it: no claim.
+	api := port(6443)
+	np.Spec.Egress = append(np.Spec.Egress, kube.NetworkPolicyRule{To: []kube.NetworkPolicyPeer{{IPBlock: &struct {
+		CIDR string `json:"cidr"`
+	}{CIDR: "172.18.0.2/32"}}}, Ports: []kube.NetworkPolicyPort{{Port: &api}}})
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	if f := only(t, Diagnose(s)); f.Rule == "KD267" {
+		t.Errorf("claimed a block with an ipBlock rule on 6443: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

@@ -121,6 +121,73 @@ func policyVerdict(ix *index, ns, dir string, subject, peer map[string]string, p
 	return selected, blocker
 }
 
+// apiServerHost reports whether a host a pod connected to is the Kubernetes API server's Service: its DNS names, or its
+// cluster IP when the snapshot holds default/kubernetes (else the first address of the usual Service range).
+func apiServerHost(ix *index, host string, port int32) bool {
+	switch strings.TrimSuffix(host, ".") {
+	case "kubernetes.default", "kubernetes.default.svc", "kubernetes.default.svc.cluster.local":
+		return true
+	}
+	for _, svc := range ix.s.Services {
+		if svc.Metadata.Namespace == "default" && svc.Metadata.Name == "kubernetes" {
+			return host == svc.Spec.ClusterIP
+		}
+	}
+	return port == 443 && (host == "10.96.0.1" || host == "10.0.0.1" || host == "172.20.0.1")
+}
+
+// apiServerBlocked finds a container that exits after its connection to the API server timed out while an egress
+// NetworkPolicy selects the pod and no rule could let it through. Egress rules see a connection after the Service
+// address is translated, so the API server appears as its own endpoints (the control plane's addresses, on 6443 or
+// 443), which pod and namespace selectors do not match: only an ipBlock rule, or one without peers, allows it.
+func apiServerBlocked(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	host, port, line := timedOutHost(lines)
+	if host == "" || !apiServerHost(ix, host, port) {
+		return nil
+	}
+	var blocker string
+	for _, np := range ix.s.NetworkPolicies {
+		if np.Metadata.Namespace != p.Metadata.Namespace || !np.AppliesToEgress() || !np.Spec.PodSelector.Matches(p.Metadata.Labels) {
+			continue
+		}
+		if blocker == "" {
+			blocker = np.Metadata.Name
+		}
+		for _, rule := range np.Spec.Egress {
+			peers := len(rule.To) == 0
+			for _, to := range rule.To {
+				if to.IPBlock != nil {
+					peers = true
+				}
+			}
+			ports := len(rule.Ports) == 0
+			for _, pp := range rule.Ports {
+				if pp.Port == nil || (!pp.Port.IsName && (pp.Port.Int == 443 || pp.Port.Int == 6443)) {
+					ports = true
+				}
+			}
+			if peers && ports {
+				return nil // some rule might allow it: claim nothing
+			}
+		}
+	}
+	if blocker == "" {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	ref := kube.Ref{Kind: "NetworkPolicy", Namespace: ns, Name: blocker}
+	ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("NetworkPolicy %s restricts the pod's egress, and no egress rule in the namespace has an ipBlock (or no peers) on the API server's port", blocker),
+		Command: "kubectl get networkpolicies -n " + ns + " -o yaml"},
+		Evidence{Object: kube.Ref{Kind: "Endpoints", Namespace: "default", Name: "kubernetes"}, What: "the API server's own addresses and port, which egress rules see",
+			Command: "kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes"})
+	return newProblem(p, cs.Name, "KD267", "NetworkPolicy blocks the pod's connection to the API server", Critical,
+		fmt.Sprintf("container %s exits because its connection to the Kubernetes API server (%s) times out: NetworkPolicy %s restricts its egress and allows nothing that reaches the API server, which egress rules see at its own endpoint addresses, usually on port 6443, not at the Service's; its log says: %q",
+			cs.Name, host, blocker, clip(line, 200)),
+		"npapi|"+blocker,
+		fmt.Sprintf("Add an egress rule to %s that allows the API server's endpoint addresses (kubectl get endpointslices -n default -l kubernetes.io/service-name=kubernetes) as an ipBlock, on their port (6443 on kubeadm and kind) and on 443.", blocker),
+		ev...)
+}
+
 // policyBlocksService finds a container that exits after its connection to a Service of its namespace timed out,
 // while the Service has ready pods and NetworkPolicies, on the client's egress or the backends' ingress, allow
 // nothing between them on that port.

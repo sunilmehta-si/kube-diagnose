@@ -859,6 +859,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := refusedByEmptyService(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := apiServerBlocked(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := policyBlocksService(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
