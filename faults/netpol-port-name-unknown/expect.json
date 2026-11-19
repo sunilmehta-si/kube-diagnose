@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-netpol-port-name-unknown",
+  "description": "A NetworkPolicy lets other pods reach the web servers on port \"web\", but the containers name their port http; a named port matches only the selected pods' own port names, so the rule allows nothing.",
+  "rule": "KD268",
+  "object": "NetworkPolicy/allow-web",
+  "keywords": [
+    [
+      "web"
+    ],
+    [
+      "http",
+      "port name",
+      "named port"
+    ]
+  ]
+}
