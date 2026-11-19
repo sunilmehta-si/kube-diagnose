@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.8.0] - 2026-11-19
+
+- The fault suite's committed run (44485671336): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 115 of 115 faults and raises no false alarm; k8sgpt v0.4.41 names 44, 24 of them first.
+
 ### Added
 - 8 rules, 129 in all (`docs/rules.md`):
   - the node and its runtime: a RuntimeClass whose handler the node's container runtime does not have, so no pod
