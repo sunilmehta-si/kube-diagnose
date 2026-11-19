@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-probe-grpc-on-http/api",
+      "error": [
+        {
+          "Text": "Deployment kd-probe-grpc-on-http/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-grpc-on-http",
+              "Masked": "Mkg+R0x5LVZZdHN7PHRWVEI5PXJW"
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "VShH"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-probe-grpc-on-http/api-7bbdd84c89-wd4qj",
+      "error": [
+        {
+          "Text": "Readiness probe failed: timeout: failed to connect service \"10.244.0.64:8080\" within 1s: context deadline exceeded",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

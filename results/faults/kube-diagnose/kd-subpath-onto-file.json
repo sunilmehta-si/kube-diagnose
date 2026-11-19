@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-subpath-onto-file"
   ],
-  "collectedAt": "2026-11-18 11:49 UTC",
+  "collectedAt": "2026-11-19 08:22 UTC",
   "findings": [
     {
       "rule": "KD234",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-subpath-onto-file",
-            "name": "app-56875bc89d-wcfs7"
+            "name": "app-56875bc89d-qfdjb"
           },
           "what": "container app did not start",
-          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting \"/var/lib/kubelet/pods/bf61d251-a457-4565-96cf-cdc1f476f5db/volume-subpaths/config/app/0\" to rootfs at \"/etc/group\": mount src=/var/lib/kubelet/pods/bf61d251-a457-4565-96cf-cdc1f476f5db/volume-subpaths/config/app/0, dst=/etc/group, dstFd=/proc/thread-self/fd/14, flags=MS_RDONLY|MS_BIND|MS_REC: not a directory",
-          "command": "kubectl get pod app-56875bc89d-wcfs7 -n kd-subpath-onto-file -o jsonpath='{.status.containerStatuses[?(@.name==\"app\")].state}'"
+          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting \"/var/lib/kubelet/pods/5413c180-36ec-459b-a1ab-22193020d0d7/volume-subpaths/config/app/0\" to rootfs at \"/etc/group\": mount src=/var/lib/kubelet/pods/5413c180-36ec-459b-a1ab-22193020d0d7/volume-subpaths/config/app/0, dst=/etc/group, dstFd=/proc/thread-self/fd/14, flags=MS_RDONLY|MS_BIND|MS_REC: not a directory",
+          "command": "kubectl get pod app-56875bc89d-qfdjb -n kd-subpath-onto-file -o jsonpath='{.status.containerStatuses[?(@.name==\"app\")].state}'"
         },
         {
           "object": {
@@ -40,10 +40,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-subpath-onto-file",
-            "name": "app-56875bc89d-wcfs7"
+            "name": "app-56875bc89d-qfdjb"
           },
           "what": "container app mounts volume config at /etc/group with subPath groups",
-          "command": "kubectl get pod app-56875bc89d-wcfs7 -n kd-subpath-onto-file -o jsonpath='{.spec.containers[?(@.name==\"app\")].volumeMounts}'"
+          "command": "kubectl get pod app-56875bc89d-qfdjb -n kd-subpath-onto-file -o jsonpath='{.spec.containers[?(@.name==\"app\")].volumeMounts}'"
         }
       ],
       "fix": "Make subPath name a key ConfigMap app-config has, or add key groups to it; then delete the pod, because the directory the kubelet made stays until the pod is replaced (and a subPath mount never sees later updates to the ConfigMap).",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-subpath-onto-file",
-          "name": "app-56875bc89d-wcfs7"
+          "name": "app-56875bc89d-qfdjb"
         }
       ]
     }

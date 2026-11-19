@@ -14,30 +14,17 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pod-security-restricted",
-              "Masked": "PGNvVltPbTgyMkwtNDpzYj5jL0tpPDNYZXE="
+              "Masked": "TVZ4bCFYMUp4OERMITEhMXhWa0w2UmNGc2k="
             },
             {
               "Unmasked": "web",
-              "Masked": "PVRO"
+              "Masked": "YltY"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "ReplicaSet",
-      "name": "kd-pod-security-restricted/web-54b9bbc47f",
-      "error": [
-        {
-          "Text": "pods \"web-54b9bbc47f-7qzl9\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     },
     {
       "kind": "ConfigMap",
@@ -51,6 +38,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-pod-security-restricted/web-54b9bbc47f",
+      "error": [
+        {
+          "Text": "pods \"web-54b9bbc47f-hlcq2\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-runtimeclass-handler-missing/infer",
+      "error": [
+        {
+          "Text": "Deployment kd-runtimeclass-handler-missing/infer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-runtimeclass-handler-missing",
+              "Masked": "SE4mT141JDJZUzJRbFlmMVg6Uj5TdG9ldDVQXk81ZQ=="
+            },
+            {
+              "Unmasked": "infer",
+              "Masked": "P2JNLGM="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-runtimeclass-handler-missing/infer-59c655c685-fsl5c",
+      "error": [
+        {
+          "Text": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"cd44a74180f378eab2bfeb5e149b287ad274f211256f8e6f063be69adf7150d7\": no runtime for \"nvidia\" is configured",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/infer"
+    }
+  ]
+}

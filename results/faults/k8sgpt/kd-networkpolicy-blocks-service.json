@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-blocks-service",
-              "Masked": "fXE0LCVeWi0jWFZXRWhVUFBAfCJ0SGFMRkZiMSxpOQ=="
+              "Masked": "RSVyV3V4fV8pWEZAYl95ZlllYUBfQjNMdVNPa24haA=="
             },
             {
               "Unmasked": "web",
-              "Masked": "QSpP"
+              "Masked": "bSwl"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-networkpolicy-blocks-service/web-645cb7cf7b-r9rxm",
+      "name": "kd-networkpolicy-blocks-service/web-645cb7cf7b-j2klb",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-645cb7cf7b-r9rxm",
+          "Text": "the last termination reason is Error container=web pod=web-645cb7cf7b-j2klb",
           "KubernetesDoc": "",
           "Sensitive": []
         }

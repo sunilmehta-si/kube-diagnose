@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-command-not-found",
-              "Masked": "JHBMU3YrSFdGVzNCXmlOWFVQMks="
+              "Masked": "akMvZyk1YiczRyVpVVd8bypib0I="
             },
             {
               "Unmasked": "web",
-              "Masked": "eDEq"
+              "Masked": "MHZT"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-command-not-found/web-855c99bf89-rvhkb",
+      "name": "kd-command-not-found/web-855c99bf89-m2j76",
       "error": [
         {
-          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"webserver\": executable file not found in $PATH",
+          "Text": "the last termination reason is StartError container=web pod=web-855c99bf89-m2j76",
           "KubernetesDoc": "",
           "Sensitive": []
         }

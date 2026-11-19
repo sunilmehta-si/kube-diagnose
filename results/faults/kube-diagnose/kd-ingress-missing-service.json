@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-ingress-missing-service"
   ],
-  "collectedAt": "2026-11-18 11:46 UTC",
+  "collectedAt": "2026-11-19 08:18 UTC",
   "findings": [
     {
       "rule": "KD165",

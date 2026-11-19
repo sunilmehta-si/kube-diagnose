@@ -8,24 +8,24 @@ that shows it to you. It never changes anything: every kubectl command it runs i
 
 ```text
 $ kubectl diagnose -n kd-liveness-wrong-port
-kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-18 11:47 UTC
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-19 08:19 UTC
 1 problem: 1 critical.
 
 1. CRITICAL  Liveness probe kills the container  KD112
    Deployment kd-liveness-wrong-port/web
    Cause: container web fails its liveness probe (GET / on port 9090, but the container declares
-          port 8080), so the kubelet restarts it (5 restarts); Deployment web has 0 of 1 replicas
+          port 8080), so the kubelet restarts it (6 restarts); Deployment web has 0 of 1 replicas
           ready
    Evidence:
-     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-kk9nm: event Unhealthy (6 times)
-         │ Liveness probe failed: Get "http://10.244.0.40:9090/": dial tcp 10.244.0.40:9090: connect: connection refused
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-kk9nm
-     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-kk9nm: event Killing (6 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-cqpfx: event Unhealthy (7 times)
+         │ Liveness probe failed: Get "http://10.244.0.42:9090/": dial tcp 10.244.0.42:9090: connect: connection refused
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-cqpfx
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-cqpfx: event Killing (6 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-kk9nm
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-cqpfx
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pod web-67fbcb44db-kk9nm
+   Affects: Pod web-67fbcb44db-cqpfx
 ```
 
 That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
@@ -140,19 +140,19 @@ healthy namespace count as false alarms. The workflow's summary shows the table 
 the same suite on any machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any
 kubeconfig context that is not kind-*.
 
-The run committed in [`results/faults`](results/faults) ([run 44296881025](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/44296881025),
-18 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
+The run committed in [`results/faults`](results/faults) ([run 44485671336](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/44485671336),
+19 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
 
 | Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
 |---|---|---|---|---|
-| kube-diagnose | 108 of 108 (exact rule and object: 108) | 108 | 0 | 0 |
-| k8sgpt | 42 of 108 | 22 | 0 | 165 |
+| kube-diagnose | 115 of 115 (exact rule and object: 115) | 115 | 0 | 0 |
+| k8sgpt | 44 of 115 | 24 | 0 | 173 |
 | holmesgpt | not run | | | |
 
 | Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
 |---|---|---|---|---|
 | bad-image-tag | A Deployment's image tag does not exist. | ✅ | ☑️ | – |
-| command-not-found | The container's command is not in the image. | ✅ | ☑️ | – |
+| command-not-found | The container's command is not in the image. | ✅ | ❌ | – |
 | command-one-string | A Deployment's command is one string, "sleep 3600", so the runtime looks for an executable with that whole name and cannot start the container. | ✅ | ❌ | – |
 | command-undefined-var | A Deployment runs ["sleep", "$(SLEEP_SECONDS)"] but its env defines SLEEP_SECOND; the kubelet passes the literal $(SLEEP_SECONDS), and sleep exits on it. | ✅ | ❌ | – |
 | configmap-command-missing | A container runs /scripts/start.sh from a ConfigMap volume whose key is run.sh, so the runtime cannot find the command. | ✅ | ❌ | – |
@@ -161,6 +161,7 @@ The run committed in [`results/faults`](results/faults) ([run 44296881025](https
 | crashloop-missing-env | The app exits because an environment variable it needs is not set. | ✅ | ❌ | – |
 | cronjob-fails | A CronJob runs every minute and every run fails because BACKUP_TARGET is not set. | ✅ | ❌ | – |
 | cronjob-forbid-overlap | A CronJob runs every minute with concurrencyPolicy Forbid, and its first run never ends, so every later run is skipped. | ✅ | ❌ | – |
+| cronjob-misses-starts | A CronJob runs every minute with startingDeadlineSeconds: 0, meant as no deadline; the controller always acts a moment after the scheduled time, so every run is missed (MissSchedule) and no Job ever starts. | ✅ | ❌ | – |
 | cronjob-never-due | A CronJob is scheduled for midnight on 30 February; the API accepts the schedule, and the controller finds no next run and never starts a Job. | ✅ | ✅ | – |
 | cronjob-replace-never-finishes | A CronJob runs every minute with concurrencyPolicy Replace, and each run takes an hour, so every run is deleted by the next before it can finish. | ✅ | ❌ | – |
 | cronjob-suspended | A CronJob is created with suspend: true, so it never starts a Job. | ✅ | ✅ | – |
@@ -207,6 +208,7 @@ The run committed in [`results/faults`](results/faults) ([run 44296881025](https
 | missing-scheduler | Pods name a scheduler (volcano) that is not installed, so nothing ever schedules them. | ✅ | ❌ | – |
 | missing-secret-key | A container reads a key the Secret does not have. | ✅ | ☑️ | – |
 | missing-serviceaccount | Pods run as a ServiceAccount that does not exist, so none is created. | ✅ | ☑️ | – |
+| netpol-port-name-unknown | A NetworkPolicy lets other pods reach the web servers on port "web", but the containers name their port http; a named port matches only the selected pods' own port names, so the rule allows nothing. | ✅ | ❌ | – |
 | networkpolicy-blocks-dns | An egress NetworkPolicy allows the app to reach only its database, which also blocks DNS, so the app cannot resolve the database's name and exits. | ✅ | ❌ | – |
 | networkpolicy-blocks-service | An egress NetworkPolicy lets the app resolve names but reach nothing else, so its connection to the db Service times out and it exits. | ✅ | ❌ | – |
 | networkpolicy-deny-all | A default-deny NetworkPolicy shuts off a Service's pods. | ✅ | ❌ | – |
@@ -222,11 +224,14 @@ The run committed in [`results/faults`](results/faults) ([run 44296881025](https
 | pdb-selects-nothing | A PodDisruptionBudget selects app=frontend while the pods are app=web, so it protects nothing. | ✅ | ❌ | – |
 | pod-active-deadline | A Job's pod template sets activeDeadlineSeconds: 10 for work that takes a minute; the kubelet stops each attempt at 10 seconds (DeadlineExceeded) until the Job gives up. | ✅ | ✅ | – |
 | pod-anti-affinity | Two replicas require different nodes (pod anti-affinity) on a one-node cluster, so the second is never scheduled. | ✅ | ✅ | – |
+| pod-os-mismatch | A log agent's Pod sets spec.os.name: windows and no nodeSelector; the scheduler does not compare spec.os with nodes, so it lands on the Linux node, and the kubelet rejects it with PodOSNotSupported. | ✅ | ❌ | – |
 | pod-security-restricted | The namespace enforces the restricted Pod Security level and the pods do not meet it. | ✅ | ☑️ | – |
 | port-in-use | A sidecar listens on the same port as the app in the same pod, so it exits with address in use. | ✅ | ❌ | – |
 | poststart-hook-fails | A postStart hook runs a script that is not in the image, so the kubelet kills the container each time it starts. | ✅ | ❌ | – |
+| prestop-outlasts-grace | A web server's preStop hook sleeps 45 seconds to let load balancers drain, but the pod keeps the default 30-second grace period, which includes the hook; on every rollout the kubelet kills the server before it gets SIGTERM. | ✅ | ❌ | – |
 | priorityclass-missing | Pods name a PriorityClass that does not exist, so none is created. | ✅ | ☑️ | – |
 | probe-command-missing | A liveness probe runs curl, which the busybox image does not have, so every probe errors and the kubelet ignores it: the container runs with a liveness check that checks nothing. | ✅ | ❌ | – |
+| probe-grpc-on-http | A service that answers plain HTTP on port 8080 gets a gRPC readiness probe on that port, copied from a gRPC service's chart; nothing there speaks gRPC, so the probe never passes and the pod never becomes ready. | ✅ | ✅ | – |
 | probe-host-localhost | A web server answers on port 8080, and its readiness probe sets host: 127.0.0.1; the kubelet connects to its own node's loopback, where nothing listens, so the pod never becomes ready. | ✅ | ☑️ | – |
 | probe-https-on-http | A web server answers plain HTTP on port 8080, and its readiness probe uses scheme HTTPS, so the probe never passes and the pod never becomes ready. | ✅ | ❌ | – |
 | probe-port-name-missing | A readiness probe names port health, but the container declares only a port named http, so the kubelet cannot run the probe and the pod never becomes ready. | ✅ | ☑️ | – |
@@ -240,10 +245,12 @@ The run committed in [`results/faults`](results/faults) ([run 44296881025](https
 | readiness-gate-unset | A Deployment's pods have a readiness gate that no controller in the cluster sets, so they run with every container ready but never become Ready, and their Service has no endpoints. | ✅ | ❌ | – |
 | readonly-root-filesystem | A container with a read-only root filesystem creates a directory in it at start and exits. | ✅ | ❌ | – |
 | runasnonroot-root-image | The pod requires a non-root user and the image runs as root, so the container is never created. | ✅ | ✅ | – |
+| runtimeclass-handler-missing | A Deployment runs with RuntimeClass kd-nvidia, whose handler nvidia exists on GPU nodes only; the kind node's containerd has no such runtime, so the pod's sandbox is never created. | ✅ | ☑️ | – |
 | runtimeclass-missing | A Deployment's pods name a RuntimeClass the cluster does not have, so admission rejects every pod and none is created. | ✅ | ☑️ | – |
 | rwop-claim-in-use | Two replicas mount one ReadWriteOncePod claim: the first runs, and the scheduler keeps the second Pending because only one pod may use the claim. | ✅ | ❌ | – |
 | scheduling-gate | A Deployment's pods carry a scheduling gate that no controller removes, so they stay Pending with no events and no error. | ✅ | ❌ | – |
 | script-not-executable | A container runs a script from a ConfigMap volume that sets no defaultMode, so the file is 0644 and the runtime cannot execute it. | ✅ | ❌ | – |
+| seccomp-profile-missing | A Deployment hardens its container with a Localhost seccomp profile, profiles/kd-hardened.json, that was never installed on the node, so containerd cannot create the container. | ✅ | ✅ | – |
 | secret-mode-unreadable | A container that runs as user 1000 reads a Secret volume mounted with defaultMode 0400, so its files are readable by root only and it exits. | ✅ | ❌ | – |
 | service-no-endpoints | A Service without a selector, meant for endpoints managed by hand, has none, so connections to it fail. | ✅ | ❌ | – |
 | service-port-name | A Service's targetPort names a port the container does not declare. | ✅ | ❌ | – |
@@ -284,8 +291,10 @@ named but the cause did not say the word the kubelet uses, allowlist. Their reco
 whose pods the kubelet rejects piles up hundreds of failed pods in two minutes, so those scenarios use a Pod and a Job
 instead. The 9 added for 0.7.0 were named first, with the exact rule and object, on their first run; their recordings
 caught a gap in redaction: an EndpointSlice named for its Service got a pseudonym of its own, which hid that it was the
-Service's. Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make test` replays all of them
-through the current code.
+Service's. The 7 added for 0.8.0 were named first, with the exact rule and object, on their first run; an eighth, an
+egress policy that allows only DNS, never broke anything on kind: its single node, which runs the API server too, let
+the pod's connection through, so KD267 has unit tests and no scenario. Each recorded namespace is also in
+[`testdata/faults`](testdata/faults), and `make test` replays all of them through the current code.
 
 ## How it works
 

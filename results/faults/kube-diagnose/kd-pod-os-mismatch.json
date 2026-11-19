@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pod-os-mismatch"
+  ],
+  "collectedAt": "2026-11-19 08:20 UTC",
+  "findings": [
+    {
+      "rule": "KD244",
+      "title": "Node rejects the pod: it is for another operating system",
+      "severity": "critical",
+      "object": {
+        "kind": "Pod",
+        "namespace": "kd-pod-os-mismatch",
+        "name": "agent"
+      },
+      "cause": "the pod's spec.os.name windows does not match node kd-faults-control-plane, which runs linux; the scheduler does not compare spec.os with the node, so it placed the pod there, and the kubelet rejects it (PodOSNotSupported)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pod-os-mismatch",
+            "name": "agent"
+          },
+          "what": "pod status is Failed, reason PodOSNotSupported",
+          "detail": "Pod was rejected: Failed to admit pod as the OS field doesn't match node OS",
+          "command": "kubectl get pod agent -n kd-pod-os-mismatch -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pod-os-mismatch",
+            "name": "agent"
+          },
+          "what": "the pod's spec.os and kubernetes.io/os node selector",
+          "command": "kubectl get pod agent -n kd-pod-os-mismatch -o jsonpath='{.spec.os}{\"\\n\"}{.spec.nodeSelector}'"
+        }
+      ],
+      "fix": "Give the pod a nodeSelector kubernetes.io/os that matches spec.os.name, so the scheduler places it only on nodes of that operating system, or drop spec.os if the image is built for the nodes the cluster has."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

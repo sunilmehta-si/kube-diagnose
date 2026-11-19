@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-subpath-onto-file",
-              "Masked": "ZFovJHtsOndRT0pRPFhfKzZjcnc="
+              "Masked": "V0cvJ1N6OEUjTColQW9WJiVGb0U="
             },
             {
               "Unmasked": "app",
-              "Masked": "cU9q"
+              "Masked": "R1B4"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-subpath-onto-file/app-56875bc89d-wcfs7",
+      "name": "kd-subpath-onto-file/app-56875bc89d-qfdjb",
       "error": [
         {
-          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting \"/var/lib/kubelet/pods/bf61d251-a457-4565-96cf-cdc1f476f5db/volume-subpaths/config/app/0\" to rootfs at \"/etc/group\": mount src=/var/lib/kubelet/pods/bf61d251-a457-4565-96cf-cdc1f476f5db/volume-subpaths/config/app/0, dst=/etc/group, dstFd=/proc/thread-self/fd/14, flags=MS_RDONLY|MS_BIND|MS_REC: not a directory",
+          "Text": "the last termination reason is StartError container=app pod=app-56875bc89d-qfdjb",
           "KubernetesDoc": "",
           "Sensitive": []
         }

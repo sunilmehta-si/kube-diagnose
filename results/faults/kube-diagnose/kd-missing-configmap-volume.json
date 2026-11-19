@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-missing-configmap-volume"
   ],
-  "collectedAt": "2026-11-18 11:47 UTC",
+  "collectedAt": "2026-11-19 08:19 UTC",
   "findings": [
     {
       "rule": "KD130",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-configmap-volume",
-            "name": "web-6cfc54975f-zwm9g"
+            "name": "web-6cfc54975f-mlv46"
           },
           "what": "event FailedMount (10 times)",
           "detail": "MountVolume.SetUp failed for volume \"config\" : configmap \"nginx-conf\" not found",
-          "command": "kubectl get events -n kd-missing-configmap-volume --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cfc54975f-zwm9g"
+          "command": "kubectl get events -n kd-missing-configmap-volume --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cfc54975f-mlv46"
         },
         {
           "object": {
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-missing-configmap-volume",
-          "name": "web-6cfc54975f-zwm9g"
+          "name": "web-6cfc54975f-mlv46"
         }
       ]
     }

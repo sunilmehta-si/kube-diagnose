@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-hostpath-missing",
-              "Masked": "WEJ6MWk8XX1IIVp2Mm5PazYkRA=="
+              "Masked": "WUt8Qnd1bHo8bmw7JCpUd1E5Sg=="
             },
             {
               "Unmasked": "agent",
-              "Masked": "Zk8hRzk="
+              "Masked": "RCdaVmk="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-hostpath-missing/agent-54h4b",
+      "name": "kd-hostpath-missing/agent-cff8b",
       "error": [
         {
           "Text": "MountVolume.SetUp failed for volume \"state\" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path \"/var/lib/agent-state\" does not exist",

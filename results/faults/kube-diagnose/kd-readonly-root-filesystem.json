@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readonly-root-filesystem"
   ],
-  "collectedAt": "2026-11-18 11:48 UTC",
+  "collectedAt": "2026-11-19 08:21 UTC",
   "findings": [
     {
       "rule": "KD118",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-readonly-root-filesystem",
-            "name": "web-5ff6c69c94-x7kwh"
+            "name": "web-5ff6c69c94-2pc8v"
           },
-          "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-5ff6c69c94-x7kwh -n kd-readonly-root-filesystem -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod web-5ff6c69c94-2pc8v -n kd-readonly-root-filesystem -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readonly-root-filesystem",
-            "name": "web-5ff6c69c94-x7kwh"
+            "name": "web-5ff6c69c94-2pc8v"
           },
-          "what": "last lines of container web's log (run that exited)",
+          "what": "last lines of container web's log (current run)",
           "detail": "mkdir: can't create directory '/cache': Read-only file system",
-          "command": "kubectl logs web-5ff6c69c94-x7kwh -n kd-readonly-root-filesystem -c web --tail=20 --previous"
+          "command": "kubectl logs web-5ff6c69c94-2pc8v -n kd-readonly-root-filesystem -c web --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readonly-root-filesystem",
-            "name": "web-5ff6c69c94-x7kwh"
+            "name": "web-5ff6c69c94-2pc8v"
           },
           "what": "container web sets readOnlyRootFilesystem: true",
-          "command": "kubectl get pod web-5ff6c69c94-x7kwh -n kd-readonly-root-filesystem -o jsonpath='{.spec.containers[?(@.name==\"web\")].securityContext}'"
+          "command": "kubectl get pod web-5ff6c69c94-2pc8v -n kd-readonly-root-filesystem -o jsonpath='{.spec.containers[?(@.name==\"web\")].securityContext}'"
         }
       ],
       "fix": "Mount an emptyDir at /cache (or its parent directory), or point the app at a writable volume.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-readonly-root-filesystem",
-          "name": "web-5ff6c69c94-x7kwh"
+          "name": "web-5ff6c69c94-2pc8v"
         }
       ]
     }
