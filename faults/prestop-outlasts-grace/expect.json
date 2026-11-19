@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-prestop-outlasts-grace",
+  "description": "A web server's preStop hook sleeps 45 seconds to let load balancers drain, but the pod keeps the default 30-second grace period, which includes the hook; on every rollout the kubelet kills the server before it gets SIGTERM.",
+  "rule": "KD208",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "preStop"
+    ],
+    [
+      "grace",
+      "terminationGracePeriodSeconds"
+    ]
+  ]
+}
