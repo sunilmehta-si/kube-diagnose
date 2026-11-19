@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-seccomp-profile-missing",
+  "description": "A Deployment hardens its container with a Localhost seccomp profile, profiles/kd-hardened.json, that was never installed on the node, so containerd cannot create the container.",
+  "rule": "KD207",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "seccomp"
+    ],
+    [
+      "kd-hardened.json",
+      "profile"
+    ]
+  ]
+}
