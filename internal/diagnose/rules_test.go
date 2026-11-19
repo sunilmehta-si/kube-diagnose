@@ -2560,6 +2560,44 @@ func TestNetworkPolicyBlocksTheAPIServer(t *testing.T) {
 	}
 }
 
+func TestPreStopHookOutlastsTheGracePeriod(t *testing.T) {
+	s := snap()
+	p := pod("web-1", "web")
+	p.Spec.Containers[0].Lifecycle = &kube.Lifecycle{PreStop: &kube.LifecycleHandler{Exec: &kube.ExecAction{Command: []string{"sh", "-c", "sleep 45; nginx -s quit"}}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD208", "ReplicaSet shop/web-rs", "preStop hook waits 45 s", "terminationGracePeriodSeconds is 30", "before the app gets SIGTERM")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "75") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// The sleep handler, against a set grace period.
+	g := int64(20)
+	p.Spec.TerminationGracePeriodSeconds = &g
+	p.Spec.Containers[0].Lifecycle.PreStop = &kube.LifecycleHandler{Sleep: &struct {
+		Seconds int64 `json:"seconds"`
+	}{Seconds: 20}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD208", "ReplicaSet shop/web-rs", "waits 20 s", "is 20")
+
+	// Shorter than the grace period, or a hook whose length cannot be read: nothing to say.
+	g = 60
+	s.Pods = []kube.Pod{p}
+	for _, h := range []*kube.LifecycleHandler{p.Spec.Containers[0].Lifecycle.PreStop, {Exec: &kube.ExecAction{Command: []string{"/app/drain"}}}} {
+		p.Spec.Containers[0].Lifecycle.PreStop = h
+		s.Pods = []kube.Pod{p}
+		if r := Diagnose(s); len(r.Findings) != 0 {
+			t.Errorf("hook %+v: %v", h, r.Findings)
+		}
+	}
+	for cmd, want := range map[string]int64{"sleep 5": 5, "exec sleep 12": 12, "/bin/sleep 7": 7, "sleep 3s && kill 1": 3} {
+		got, ok := preStopSeconds(&kube.LifecycleHandler{Exec: &kube.ExecAction{Command: []string{"/bin/sh", "-c", cmd}}})
+		if !ok || got != want {
+			t.Errorf("preStopSeconds(%q) = %d %v, want %d", cmd, got, ok, want)
+		}
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

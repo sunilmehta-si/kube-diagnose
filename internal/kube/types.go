@@ -192,6 +192,10 @@ type Probe struct {
 type LifecycleHandler struct {
 	Exec    *ExecAction    `json:"exec,omitempty"`
 	HTTPGet *HTTPGetAction `json:"httpGet,omitempty"`
+	// Sleep pauses for a number of seconds, without a command in the image.
+	Sleep *struct {
+		Seconds int64 `json:"seconds"`
+	} `json:"sleep,omitempty"`
 }
 
 type Lifecycle struct {
@@ -334,6 +338,9 @@ type PodSpec struct {
 	OS *struct {
 		Name string `json:"name"`
 	} `json:"os,omitempty"`
+	// TerminationGracePeriodSeconds is how long the kubelet waits, preStop hooks included, before it kills the
+	// containers of a pod being deleted; 30 when unset.
+	TerminationGracePeriodSeconds *int64 `json:"terminationGracePeriodSeconds,omitempty"`
 	// RuntimeClassName names the RuntimeClass whose handler the node's container runtime runs the pod with.
 	RuntimeClassName string `json:"runtimeClassName,omitempty"`
 	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.

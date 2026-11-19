@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"path"
 	"regexp"
 	"sort"
 	"strconv"
@@ -101,7 +102,62 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	if p.Status.Phase == "Running" {
-		return subdomainProblem(ix, p, nil, nil, nil)
+		if pr := subdomainProblem(ix, p, nil, nil, nil); pr != nil {
+			return pr
+		}
+		return preStopOutlastsGrace(p)
+	}
+	return nil
+}
+
+var reSleepSeconds = regexp.MustCompile(`^(?:exec\s+)?sleep\s+(\d+)(?:s)?\b`)
+
+// preStopSeconds returns how long a preStop hook waits, when that can be read from the spec: a sleep handler, or an
+// exec command that is a sleep, directly or as the first thing a shell runs.
+func preStopSeconds(h *kube.LifecycleHandler) (int64, bool) {
+	switch {
+	case h == nil:
+		return 0, false
+	case h.Sleep != nil:
+		return h.Sleep.Seconds, true
+	case h.Exec != nil:
+		cmd := h.Exec.Command
+		if len(cmd) >= 3 && (path.Base(cmd[0]) == "sh" || path.Base(cmd[0]) == "bash") && cmd[1] == "-c" {
+			cmd = []string{cmd[2]}
+		}
+		line := strings.TrimSpace(strings.Join(cmd, " "))
+		line = strings.TrimPrefix(line, "/bin/")
+		if m := reSleepSeconds.FindStringSubmatch(line); m != nil {
+			n, _ := strconv.ParseInt(m[1], 10, 64)
+			return n, true
+		}
+	}
+	return 0, false
+}
+
+// preStopOutlastsGrace finds a container whose preStop hook waits as long as the pod's termination grace period or
+// longer. The grace period counts from the moment the pod is deleted and includes the hook, so the kubelet kills the
+// container (SIGKILL) as the hook ends or before: the app never gets its SIGTERM to finish in-flight work, on every
+// rollout, scale-down and drain.
+func preStopOutlastsGrace(p kube.Pod) *problem {
+	grace := int64(30)
+	if g := p.Spec.TerminationGracePeriodSeconds; g != nil {
+		grace = *g
+	}
+	for _, c := range p.Spec.Containers {
+		if c.Lifecycle == nil {
+			continue
+		}
+		wait, ok := preStopSeconds(c.Lifecycle.PreStop)
+		if !ok || wait < grace {
+			continue
+		}
+		return newProblem(p, c.Name, "KD208", "preStop hook outlasts the termination grace period", Warning,
+			fmt.Sprintf("container %s's preStop hook waits %d s, and the pod's terminationGracePeriodSeconds is %d: the grace period includes the hook, so when the pod is deleted the kubelet kills the container before the app gets SIGTERM and time to finish, on every rollout, scale-down and drain", c.Name, wait, grace),
+			"prestop|"+c.Name,
+			fmt.Sprintf("Set terminationGracePeriodSeconds above the preStop wait plus the app's own shutdown time (for example %d), or shorten the preStop sleep.", wait+30),
+			Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's preStop hook and the pod's terminationGracePeriodSeconds", c.Name),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.terminationGracePeriodSeconds}{"\n"}{.spec.containers[?(@.name=="%s")].lifecycle.preStop}`, c.Name))})
 	}
 	return nil
 }
