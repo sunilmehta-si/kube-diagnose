@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Added
+- 8 rules, 129 in all (`docs/rules.md`):
+  - the node and its runtime: a RuntimeClass whose handler the node's container runtime does not have, so no pod
+    sandbox is created (KD196); a Localhost seccomp profile that is not on the node, which the kubelet passes on
+    unchecked (KD207); a pod for another operating system, which the scheduler places and the kubelet rejects
+    (KD244);
+  - probes and hooks: a preStop hook that waits as long as the termination grace period, which includes it, so the
+    app is killed before SIGTERM (KD208); a gRPC probe on a port that does not speak gRPC or lacks the health service
+    (KD209);
+  - NetworkPolicies: an egress policy that leaves the pod no way to the API server, which egress rules see at its own
+    endpoints, usually on 6443 (KD267), and an ingress rule that allows a port name the pods do not declare (KD268);
+  - CronJobs: a startingDeadlineSeconds under 10 seconds, so the controller misses the starts (KD285).
+- 8 fault scenarios, 116 broken namespaces in all, one for each new rule.
+- The snapshot holds a pod's spec.os, runtimeClassName and terminationGracePeriodSeconds, a preStop sleep, a gRPC
+  probe, and a CronJob's startingDeadlineSeconds.
+
 ### Changed
 - The fault suite's optional HolmesGPT run uses 0.46.0 (was 0.45.0; published 4 Nov, adoptable from 18 Nov), checked
   against its SHA-256. Its `ask` command takes the same arguments; the suite runs it only with a model and that
