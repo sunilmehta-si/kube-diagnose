@@ -2598,6 +2598,35 @@ func TestPreStopHookOutlastsTheGracePeriod(t *testing.T) {
 	}
 }
 
+func TestGRPCProbeCannotPass(t *testing.T) {
+	s := snap()
+	p := pod("api-7c4d-qq2x9", "api")
+	notReady(&p)
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{GRPC: &kube.GRPCAction{Port: 8080}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: timeout: failed to connect service "10.244.0.9:8080" within 1s: context deadline exceeded`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD209", "ReplicaSet shop/api-rs", "port 8080 (the container calls it http)", "nothing there speaks gRPC", "never becomes ready")
+	if !strings.Contains(f.Fix, "httpGet") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A gRPC server without the health service, on a liveness probe.
+	p = pod("api-7c4d-qq2x9", "api")
+	crashed(&p, 137, "Error", 4)
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{GRPC: &kube.GRPCAction{Port: 9000}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{
+		event("Pod", p.Metadata.Name, "Unhealthy", "Liveness probe failed: error: this server does not implement the grpc health protocol (grpc.health.v1.Health): unknown service grpc.health.v1.Health", time.Minute),
+		event("Pod", p.Metadata.Name, "Killing", "Container web failed liveness probe, will be restarted", time.Minute),
+	}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD209", "ReplicaSet shop/api-rs", "does not implement grpc.health.v1.Health", "4 restarts")
+	if !strings.Contains(f.Fix, "health.NewServer") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

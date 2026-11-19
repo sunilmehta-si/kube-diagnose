@@ -175,6 +175,12 @@ type TCPSocketAction struct {
 	Port IntOrString `json:"port"`
 }
 
+// GRPCAction calls the gRPC health service (grpc.health.v1.Health) on a port of the container.
+type GRPCAction struct {
+	Port    int32   `json:"port"`
+	Service *string `json:"service,omitempty"`
+}
+
 type ExecAction struct {
 	Command []string `json:"command,omitempty"`
 }
@@ -183,6 +189,7 @@ type Probe struct {
 	HTTPGet             *HTTPGetAction   `json:"httpGet,omitempty"`
 	TCPSocket           *TCPSocketAction `json:"tcpSocket,omitempty"`
 	Exec                *ExecAction      `json:"exec,omitempty"`
+	GRPC                *GRPCAction      `json:"grpc,omitempty"`
 	InitialDelaySeconds int32            `json:"initialDelaySeconds,omitempty"`
 	PeriodSeconds       int32            `json:"periodSeconds,omitempty"`
 	TimeoutSeconds      int32            `json:"timeoutSeconds,omitempty"`
