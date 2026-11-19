@@ -2448,6 +2448,25 @@ func TestRuntimeClassHandlerMissingOnTheNode(t *testing.T) {
 	}
 }
 
+func TestSeccompProfileIsNotOnTheNode(t *testing.T) {
+	s := snap()
+	p := pod("api-5d7f8-k2m9q", "api")
+	notReady(&p)
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CreateContainerError",
+		Message: `failed to generate container "c0ffee" spec: failed to generate seccomp spec opts: cannot load seccomp profile "/var/lib/kubelet/seccomp/profiles/hardened.json": open /var/lib/kubelet/seccomp/profiles/hardened.json: no such file or directory`}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD207", "ReplicaSet shop/api-rs", "Localhost seccomp profile /var/lib/kubelet/seccomp/profiles/hardened.json", "not on node node-1")
+	if !strings.Contains(f.Fix, "RuntimeDefault") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A profile that is there but cannot be parsed says why.
+	p.Status.ContainerStatuses[0].State.Waiting.Message = `failed to generate seccomp spec opts: cannot load seccomp profile "/var/lib/kubelet/seccomp/profiles/hardened.json": permission denied`
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD207", "ReplicaSet shop/api-rs", "cannot load (permission denied)")
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

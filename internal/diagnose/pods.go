@@ -698,12 +698,28 @@ var (
 	reErrorLine  = regexp.MustCompile(`(?i)\b(error|fatal|panic|exception|failed|cannot|can't|unable|denied|refused|not set|missing|invalid)\b`)
 )
 
+// reSeccompProfile is containerd's error for a Localhost seccomp profile it cannot read: "cannot load seccomp profile
+// \"/var/lib/kubelet/seccomp/profiles/x.json\": open ...: no such file or directory". The kubelet does not check that
+// the file exists; it passes the path on.
+var reSeccompProfile = regexp.MustCompile(`cannot load seccomp profile \\?"([^"\\]+)\\?": (.*)`)
+
 func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *problem {
 	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("container %s did not start", cs.Name), Detail: msg,
 		Command: cmdContainerState(p, cs.Name, "state")}}
 	c, _ := containerSpec(p, cs.Name)
 	if pr := subPathOntoFile(ix, p, cs.Name, msg, ev); pr != nil {
 		return pr
+	}
+	if m := reSeccompProfile.FindStringSubmatch(msg); m != nil {
+		path := m[1]
+		cause := fmt.Sprintf("container %s uses the Localhost seccomp profile %s, which is not on node %s, so the container runtime cannot create the container", cs.Name, path, p.Spec.NodeName)
+		if !strings.Contains(msg, "no such file") {
+			cause = fmt.Sprintf("container %s uses the Localhost seccomp profile %s, which the container runtime on node %s cannot load (%s), so it cannot create the container", cs.Name, path, p.Spec.NodeName, clip(m[2], 120))
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's and the container's seccompProfile",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.securityContext.seccompProfile}{"\n"}{.spec.containers[?(@.name=="%s")].securityContext.seccompProfile}`, cs.Name))})
+		return newProblem(p, cs.Name, "KD207", "Seccomp profile is not on the node", Critical, cause, "seccomp|"+path,
+			"Put the profile on every node that may run the pod, under the kubelet's seccomp directory (the Security Profiles Operator or a DaemonSet can install it), keep the pod to the nodes that have it, or use seccompProfile type RuntimeDefault.", ev...)
 	}
 	switch {
 	case reExecFormat.MatchString(msg):
