@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+### Changed
+- The fault suite's optional HolmesGPT run uses 0.46.0 (was 0.45.0; published 4 Nov, adoptable from 18 Nov), checked
+  against its SHA-256. Its `ask` command takes the same arguments; the suite runs it only with a model and that
+  provider's key, so the committed runs do not include it.
+
 ## [0.7.0] - 2026-11-18
 
 - The fault suite's committed run (44296881025): kube-diagnose names the root cause in its first finding, with the
