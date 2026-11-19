@@ -330,6 +330,8 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// RuntimeClassName names the RuntimeClass whose handler the node's container runtime runs the pod with.
+	RuntimeClassName string `json:"runtimeClassName,omitempty"`
 	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
 	// ReadinessGates are extra conditions, set by a controller, that must be True for the pod to be Ready.

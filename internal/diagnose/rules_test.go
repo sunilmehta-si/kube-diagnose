@@ -2432,6 +2432,22 @@ func TestPodSubdomainWithoutAHeadlessService(t *testing.T) {
 	}
 }
 
+func TestRuntimeClassHandlerMissingOnTheNode(t *testing.T) {
+	s := snap()
+	p := pod("infer-7b9c4-p2x8d", "infer")
+	p.Spec.RuntimeClassName = "nvidia"
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "ContainerCreating"}}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "FailedCreatePodSandBox",
+		`Failed to create pod sandbox: rpc error: code = Unknown desc = failed to get sandbox runtime: no runtime for "nvidia" is configured`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD196", "ReplicaSet shop/infer-rs", "RuntimeClass nvidia", "handler nvidia is not configured", "node node-1")
+	if !strings.Contains(f.Fix, "scheduling.nodeSelector") || len(f.Evidence) != 2 {
+		t.Errorf("fix %q, %d evidence", f.Fix, len(f.Evidence))
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
