@@ -784,7 +784,9 @@ type CronJob struct {
 		TimeZone          *string `json:"timeZone,omitempty"`
 		ConcurrencyPolicy string  `json:"concurrencyPolicy,omitempty"`
 		Suspend           *bool   `json:"suspend,omitempty"`
-		JobTemplate       struct {
+		// StartingDeadlineSeconds is how late after its scheduled time a run may still start.
+		StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds,omitempty"`
+		JobTemplate             struct {
 			Spec struct {
 				Template PodTemplate `json:"template"`
 			} `json:"spec"`

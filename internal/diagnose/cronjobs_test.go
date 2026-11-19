@@ -130,3 +130,35 @@ func TestCronJobScheduleNeverComesDue(t *testing.T) {
 		}
 	}
 }
+
+func TestCronJobMissesItsStarts(t *testing.T) {
+	s := snap()
+	cj := cronJob("sync", "Allow")
+	zero := int64(0)
+	cj.Spec.StartingDeadlineSeconds = &zero
+	s.CronJobs = []kube.CronJob{cj}
+	e := event("CronJob", "sync", "MissSchedule", "Missed scheduled time to start a job: Thu, 19 Nov 2026 06:05:00 +0000", time.Minute)
+	e.Count = 6
+	s.Events = []kube.Event{e}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD285", "CronJob shop/sync", "missed 6 runs (MissSchedule)", "startingDeadlineSeconds is 0", "never started a Job")
+	if f.Severity != Critical || !strings.Contains(f.Fix, "startingDeadlineSeconds") || len(f.Evidence) != 2 {
+		t.Errorf("severity %s fix %q, %d evidence", f.Severity, f.Fix, len(f.Evidence))
+	}
+
+	// No miss yet: a warning about the deadline.
+	s.Events = nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD285", "CronJob shop/sync", "less than the few seconds")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+
+	// 10 seconds or more, or no deadline: nothing to say.
+	ten := int64(10)
+	cj.Spec.StartingDeadlineSeconds = &ten
+	s.CronJobs = []kube.CronJob{cj}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a 10 s deadline: %v", r.Findings)
+	}
+}

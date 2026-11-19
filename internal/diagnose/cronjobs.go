@@ -21,6 +21,8 @@ func cronJobFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		}
 		if f := cronJobNeverFires(ix, cj); f != nil {
 			out = append(out, *f)
+		} else if f := cronJobMissesStarts(ix, cj); f != nil {
+			out = append(out, *f)
 		} else if f := cronJobSkips(ix, cj); f != nil {
 			out = append(out, *f)
 		} else if f := cronJobReplaces(ix, cj); f != nil {
@@ -229,4 +231,36 @@ func cronSet(field string, names map[string]int) ([]int, bool) {
 		}
 	}
 	return out, true
+}
+
+// cronJobMissesStarts finds a CronJob whose startingDeadlineSeconds is shorter than the controller's own delay: the
+// controller wakes at each scheduled time a little late, finds the deadline already past, and skips the run with a
+// MissSchedule event ("Missed scheduled time to start a job"). Kubernetes warns that a deadline under 10 seconds may
+// miss runs; 0 misses every one. With no event yet, a deadline under 10 seconds is a warning.
+func cronJobMissesStarts(ix *index, cj kube.CronJob) *Finding {
+	d := cj.Spec.StartingDeadlineSeconds
+	if d == nil || *d >= 10 || (cj.Spec.Suspend != nil && *cj.Spec.Suspend) {
+		return nil
+	}
+	ns, name := cj.Metadata.Namespace, cj.Metadata.Name
+	ev := []Evidence{{Object: cj.Ref(), What: fmt.Sprintf("CronJob %s has startingDeadlineSeconds %d and schedule %q", name, *d, cj.Spec.Schedule),
+		Command: cmdGet("cronjob", ns, name, `{.spec.startingDeadlineSeconds}{" "}{.spec.schedule}{" "}{.status.lastScheduleTime}`)}}
+	evs := ix.eventsFor(cj.Ref(), "MissSchedule")
+	sev, cause := Warning, fmt.Sprintf("CronJob %s's startingDeadlineSeconds is %d, less than the few seconds the controller can take to wake at a scheduled time, so runs it starts late count as missed and are skipped", name, *d)
+	if len(evs) > 0 {
+		e := evs[0]
+		missed := "a run"
+		if n := e.Times(); n > 1 {
+			missed = fmt.Sprintf("%d runs", n)
+		}
+		started := "it has never started a Job"
+		if t := cj.Status.LastScheduleTime; t != nil {
+			started = fmt.Sprintf("it last started one %s ago", ix.s.CollectedAt.Sub(*t).Round(time.Minute))
+		}
+		sev = Critical
+		cause = fmt.Sprintf("CronJob %s has missed %s (MissSchedule): its startingDeadlineSeconds is %d, so by the time the controller acts on a scheduled time the deadline has passed, and %s", name, missed, *d, started)
+		ev = append([]Evidence{eventEvidence(cj.Ref(), e)}, ev...)
+	}
+	return &Finding{Rule: "KD285", Title: "CronJob misses its starts: startingDeadlineSeconds is too short", Severity: sev, Object: cj.Ref(), Cause: cause, Evidence: ev,
+		Fix: fmt.Sprintf("Raise startingDeadlineSeconds to at least 10, or remove it (no deadline): kubectl patch cronjob %s -n %s --type=merge -p '{\"spec\":{\"startingDeadlineSeconds\":60}}'.", name, ns)}
 }
