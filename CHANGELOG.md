@@ -14,7 +14,9 @@
   - NetworkPolicies: an egress policy that leaves the pod no way to the API server, which egress rules see at its own
     endpoints, usually on 6443 (KD267), and an ingress rule that allows a port name the pods do not declare (KD268);
   - CronJobs: a startingDeadlineSeconds under 10 seconds, so the controller misses the starts (KD285).
-- 8 fault scenarios, 116 broken namespaces in all, one for each new rule.
+- 7 fault scenarios, 115 broken namespaces in all, one for each new rule but KD267: on kind's single node, which
+  runs the API server too, a DNS-only egress policy did not block the pod's connection to it, so the fault does not
+  happen there. Unit tests cover KD267.
 - The snapshot holds a pod's spec.os, runtimeClassName and terminationGracePeriodSeconds, a preStop sleep, a gRPC
   probe, and a CronJob's startingDeadlineSeconds.
 
