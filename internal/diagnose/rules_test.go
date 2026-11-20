@@ -2650,6 +2650,35 @@ func TestCPURequestWithoutItsMillicoreSuffix(t *testing.T) {
 	}
 }
 
+func TestMemoryLimitWithoutAUnit(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "512"}
+	notReady(&p)
+	p.Status.ContainerStatuses[0].RestartCount = 3
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}
+	p.Status.ContainerStatuses[0].LastTerminationState = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 128, Reason: "StartError",
+		Message: "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: container init was OOM-killed (memory limit too low?)"}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD210", "ReplicaSet shop/api-rs", "memory: 512, which Kubernetes reads as 512 bytes")
+	if !strings.Contains(f.Fix, "512Mi") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Killed as OOMKilled instead: the same answer, not "raise the limit".
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated = &kube.ContainerStateTerminated{ExitCode: 137, Reason: "OOMKilled"}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD210", "ReplicaSet shop/api-rs", "512 bytes")
+
+	// A real limit with a unit, or a large bare number of bytes, is left to the OOM rule.
+	p.Spec.Containers[0].Resources.Limits["memory"] = "536870912"
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD210" {
+		t.Errorf("512 MiB in bytes called a unit slip: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
