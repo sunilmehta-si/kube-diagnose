@@ -50,7 +50,7 @@ if [ -n "${HOLMES_MODEL:-}" ]; then
 fi
 
 if ! "$kind" get clusters 2>/dev/null | grep -qx kd-faults; then
-  "$kind" create cluster --name kd-faults --image "$KIND_NODE_IMAGE" --kubeconfig "$work/kubeconfig" --wait 180s
+  "$kind" create cluster --name kd-faults --image "$KIND_NODE_IMAGE" --config hack/kind-faults.yaml --kubeconfig "$work/kubeconfig" --wait 180s
 else
   "$kind" get kubeconfig --name kd-faults > "$work/kubeconfig"
 fi

@@ -1,0 +1,10 @@
+# The fault suite's kind cluster: one node, as kind makes it, with room for every scenario's pods at once. At 125
+# namespaces (some with two replicas, a CronJob that starts a pod a minute, Jobs that retry) the kubelet's default of
+# 110 pods ran out, and pods waited for a slot instead of showing their fault. The node's /24 pod range holds 254
+# addresses, so 250 pods fit.
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+kubeadmConfigPatches:
+  - |
+    kind: KubeletConfiguration
+    maxPods: 250
