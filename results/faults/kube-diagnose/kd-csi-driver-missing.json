@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-csi-driver-missing"
   ],
-  "collectedAt": "2026-11-19 08:17 UTC",
+  "collectedAt": "2026-11-20 09:25 UTC",
   "findings": [
     {
       "rule": "KD136",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-csi-driver-missing",
-            "name": "db-56f8666648-f8ttd"
+            "name": "db-56f8666648-lstlb"
           },
           "what": "event FailedMount (9 times)",
           "detail": "MountVolume.MountDevice failed for volume \"kd-csi-driver-missing\" : kubernetes.io/csi: attacher.MountDevice failed to create newCsiDriverClient: driver name csi.kd-faults.example.com not found in the list of registered CSI drivers",
-          "command": "kubectl get events -n kd-csi-driver-missing --field-selector involvedObject.kind=Pod,involvedObject.name=db-56f8666648-f8ttd"
+          "command": "kubectl get events -n kd-csi-driver-missing --field-selector involvedObject.kind=Pod,involvedObject.name=db-56f8666648-lstlb"
         },
         {
           "object": {
@@ -41,7 +41,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-csi-driver-missing",
-          "name": "db-56f8666648-f8ttd"
+          "name": "db-56f8666648-lstlb"
         }
       ]
     }

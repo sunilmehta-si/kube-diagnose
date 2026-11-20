@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-externalname-unresolved/api",
+      "error": [
+        {
+          "Text": "Deployment kd-externalname-unresolved/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-externalname-unresolved",
+              "Masked": "Z1EzazhTQWVjXSVVVixnZ0wtcWVDZSl2Z2Y="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "ekJT"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-externalname-unresolved/api-fc8cdb868-cvq8d",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=api pod=api-fc8cdb868-cvq8d",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rwo-claim-shared"
+  ],
+  "collectedAt": "2026-11-20 09:29 UTC",
+  "findings": [
+    {
+      "rule": "KD287",
+      "title": "Replicas share a ReadWriteOnce claim",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rwo-claim-shared",
+        "name": "web"
+      },
+      "cause": "Deployment web runs 2 replicas that all mount PersistentVolumeClaim uploads, which is ReadWriteOnce: its volume attaches to one node at a time, so replicas scheduled on another node cannot start (Multi-Attach error), and rolling updates can stall the same way; it works only while they share a node",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-rwo-claim-shared",
+            "name": "web"
+          },
+          "what": "Deployment web has 2 replicas and mounts claim uploads",
+          "command": "kubectl get deployment web -n kd-rwo-claim-shared -o jsonpath='{.spec.replicas}{\" \"}{.spec.template.spec.volumes}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-rwo-claim-shared",
+            "name": "uploads"
+          },
+          "what": "claim uploads has access modes ReadWriteOnce",
+          "command": "kubectl get persistentvolumeclaim uploads -n kd-rwo-claim-shared -o jsonpath='{.spec.accessModes}'"
+        }
+      ],
+      "fix": "Give each replica its own volume (a StatefulSet with volumeClaimTemplates), use a ReadWriteMany volume if they must share files, or run one replica with strategy Recreate."
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

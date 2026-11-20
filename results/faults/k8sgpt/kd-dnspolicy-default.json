@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-dnspolicy-default",
-              "Masked": "VS1MU1NbdDBRUFJRYj0xeVFFZyM="
+              "Masked": "MW57QSFaLXhnW0tmPjAldjBDVW0="
             },
             {
               "Unmasked": "client",
-              "Masked": "Mit8KkZ4"
+              "Masked": "YXEzWlVE"
             }
           ]
         }
@@ -27,24 +27,11 @@
       "parentObject": ""
     },
     {
-      "kind": "Service",
-      "name": "kd-dnspolicy-default/api",
-      "error": [
-        {
-          "Text": "Service kd-dnspolicy-default/api has event Cluster IP [IPv4]: 10.96.130.11 is not allocated; repairing",
-          "KubernetesDoc": "",
-          "Sensitive": null
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "Pod",
-      "name": "kd-dnspolicy-default/client-554dbd98f8-f9jzb",
+      "name": "kd-dnspolicy-default/client-554dbd98f8-7jrt2",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=client pod=client-554dbd98f8-f9jzb",
+          "Text": "the termination reason is Error exitCode=1 container=client pod=client-554dbd98f8-7jrt2",
           "KubernetesDoc": "",
           "Sensitive": []
         }

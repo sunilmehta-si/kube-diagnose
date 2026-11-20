@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Pod",
+      "name": "kd-job-pod-failure-policy/migrate-vj7bv",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=3 container=migrate pod=migrate-vj7bv",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-job-pod-failure-policy/migrate",
+      "error": [
+        {
+          "Text": "Container migrate for pod kd-job-pod-failure-policy/migrate-vj7bv failed with exit code 3 matching FailJob rule at index 0",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-job-pod-failure-policy",
+              "Masked": "ViZmRmpKYWFWamZtMUVVOHBadXR8Pkk1Ow=="
+            },
+            {
+              "Unmasked": "migrate",
+              "Masked": "QGVrNmQhZw=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

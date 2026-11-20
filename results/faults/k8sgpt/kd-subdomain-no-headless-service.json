@@ -6,10 +6,10 @@
   "results": [
     {
       "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-0-hg89d",
+      "name": "kd-subdomain-no-headless-service/train-0-4pzhs",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-hg89d",
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-4pzhs",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -19,10 +19,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-0-qjr5n",
+      "name": "kd-subdomain-no-headless-service/train-0-78pbw",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-qjr5n",
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-78pbw",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -32,10 +32,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-1-9bxq9",
+      "name": "kd-subdomain-no-headless-service/train-1-mp9bt",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-9bxq9",
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-mp9bt",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -45,10 +45,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-1-9qbkj",
+      "name": "kd-subdomain-no-headless-service/train-1-vgmgz",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-9qbkj",
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-vgmgz",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -66,11 +66,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-subdomain-no-headless-service",
-              "Masked": "e1otZUEoKVd4QEEsbF4iPCR5eVAnd1FLTEFGXyM4JFY="
+              "Masked": "cWI/eFpeQV1YNjcmLFVOTyZwK09aNXE+J1IlaD8kOWo="
             },
             {
               "Unmasked": "train",
-              "Masked": "e2wqSjg="
+              "Masked": "XTlMVzM="
             }
           ]
         }

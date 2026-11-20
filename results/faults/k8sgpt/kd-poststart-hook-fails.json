@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 1,
   "results": [
     {
       "kind": "Deployment",
@@ -14,30 +14,17 @@
           "Sensitive": [
             {
               "Unmasked": "kd-poststart-hook-fails",
-              "Masked": "NSkvX2tHWTYuWFR1QFlLSk0kTlc5R2Y="
+              "Masked": "QlJjcW5MbTFMTE56Z2JBVUw8Smksbz4="
             },
             {
               "Unmasked": "web",
-              "Masked": "S3Zv"
+              "Masked": "N2JN"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-poststart-hook-fails/web-657885869b-68kcq",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=web pod=web-657885869b-68kcq",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     }
   ]
 }

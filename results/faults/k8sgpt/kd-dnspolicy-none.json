@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dnspolicy-none/api",
+      "error": [
+        {
+          "Text": "Deployment kd-dnspolicy-none/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dnspolicy-none",
+              "Masked": "RUYzfDp8X3I4I0dfSShzcCM="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "ejE/"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-dnspolicy-none/api-5c4f64b4b7-65m6c",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=api pod=api-5c4f64b4b7-65m6c",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

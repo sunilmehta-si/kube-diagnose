@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-nodename-bypasses-binding",
-              "Masked": "R14+L1leJVksPC9VKztaLFFxS3pNT14lJ3ojUA=="
+              "Masked": "MkI6KXd3eTwxZjVPWV84bXVDL3A1Q2x7SW5OYw=="
             },
             {
               "Unmasked": "db",
-              "Masked": "djk="
+              "Masked": "WDc="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-nodename-bypasses-binding/db-68946d5798-54vlv",
+      "name": "kd-nodename-bypasses-binding/db-68946d5798-rtm58",
       "error": [
         {
           "Text": "Unable to attach or mount volumes: unmounted volumes=[data], unattached volumes=[], failed to process volumes=[data]: error processing PVC kd-nodename-bypasses-binding/data: PVC is not bound",

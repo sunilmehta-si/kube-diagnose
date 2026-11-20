@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hostpath-missing"
   ],
-  "collectedAt": "2026-11-19 08:18 UTC",
+  "collectedAt": "2026-11-20 09:26 UTC",
   "findings": [
     {
       "rule": "KD135",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostpath-missing",
-            "name": "agent-cff8b"
+            "name": "agent-mmxbn"
           },
-          "what": "event FailedMount (10 times)",
+          "what": "event FailedMount (9 times)",
           "detail": "MountVolume.SetUp failed for volume \"state\" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path \"/var/lib/agent-state\" does not exist",
-          "command": "kubectl get events -n kd-hostpath-missing --field-selector involvedObject.kind=Pod,involvedObject.name=agent-cff8b"
+          "command": "kubectl get events -n kd-hostpath-missing --field-selector involvedObject.kind=Pod,involvedObject.name=agent-mmxbn"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostpath-missing",
-            "name": "agent-cff8b"
+            "name": "agent-mmxbn"
           },
           "what": "volume state",
-          "command": "kubectl get pod agent-cff8b -n kd-hostpath-missing -o jsonpath='{.spec.volumes[?(@.name==\"state\")]}'"
+          "command": "kubectl get pod agent-mmxbn -n kd-hostpath-missing -o jsonpath='{.spec.volumes[?(@.name==\"state\")]}'"
         }
       ],
       "fix": "Create /var/lib/agent-state on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-hostpath-missing",
-          "name": "agent-cff8b"
+          "name": "agent-mmxbn"
         }
       ]
     }

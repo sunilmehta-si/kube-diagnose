@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pod-os-mismatch"
   ],
-  "collectedAt": "2026-11-19 08:20 UTC",
+  "collectedAt": "2026-11-20 09:28 UTC",
   "findings": [
     {
       "rule": "KD244",

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-subdomain-no-headless-service"
   ],
-  "collectedAt": "2026-11-19 08:22 UTC",
+  "collectedAt": "2026-11-20 09:29 UTC",
   "findings": [
     {
       "rule": "KD266",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-subdomain-no-headless-service",
-            "name": "train-0-hg89d"
+            "name": "train-0-4pzhs"
           },
           "what": "container worker exited with code 1 (Error)",
-          "command": "kubectl get pod train-0-hg89d -n kd-subdomain-no-headless-service -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
+          "command": "kubectl get pod train-0-4pzhs -n kd-subdomain-no-headless-service -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-subdomain-no-headless-service",
-            "name": "train-0-hg89d"
+            "name": "train-0-4pzhs"
           },
           "what": "last lines of container worker's log (current run)",
           "detail": "rank 0 waiting for train-1.workers\nwget: bad address 'train-1.workers:29500'",
-          "command": "kubectl logs train-0-hg89d -n kd-subdomain-no-headless-service -c worker --tail=20"
+          "command": "kubectl logs train-0-4pzhs -n kd-subdomain-no-headless-service -c worker --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-subdomain-no-headless-service",
-            "name": "train-0-hg89d"
+            "name": "train-0-4pzhs"
           },
           "what": "the pod sets subdomain workers; there is no Service workers in namespace kd-subdomain-no-headless-service",
-          "command": "kubectl get pod train-0-hg89d -n kd-subdomain-no-headless-service -o jsonpath='{.spec.hostname}{\" \"}{.spec.subdomain}'"
+          "command": "kubectl get pod train-0-4pzhs -n kd-subdomain-no-headless-service -o jsonpath='{.spec.hostname}{\" \"}{.spec.subdomain}'"
         },
         {
           "object": {
@@ -60,22 +60,22 @@
         {
           "kind": "Pod",
           "namespace": "kd-subdomain-no-headless-service",
-          "name": "train-0-hg89d"
+          "name": "train-0-4pzhs"
         },
         {
           "kind": "Pod",
           "namespace": "kd-subdomain-no-headless-service",
-          "name": "train-0-qjr5n"
+          "name": "train-0-78pbw"
         },
         {
           "kind": "Pod",
           "namespace": "kd-subdomain-no-headless-service",
-          "name": "train-1-9bxq9"
+          "name": "train-1-mp9bt"
         },
         {
           "kind": "Pod",
           "namespace": "kd-subdomain-no-headless-service",
-          "name": "train-1-9qbkj"
+          "name": "train-1-vgmgz"
         }
       ]
     }

@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cronjob-runs-pile-up"
+  ],
+  "collectedAt": "2026-11-20 09:25 UTC",
+  "findings": [
+    {
+      "rule": "KD286",
+      "title": "CronJob runs pile up",
+      "severity": "warning",
+      "object": {
+        "kind": "CronJob",
+        "namespace": "kd-cronjob-runs-pile-up",
+        "name": "report"
+      },
+      "cause": "CronJob report has 3 Jobs running at once (report-29919443, report-29919444, report-29919445): its concurrencyPolicy is Allow, and each run takes longer than the schedule \"* * * * *\" leaves, so every new run starts beside the ones still going; the oldest, report-29919443, has run for 2m31s",
+      "evidence": [
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-runs-pile-up",
+            "name": "report"
+          },
+          "what": "CronJob report has concurrencyPolicy Allow and 3 active Jobs",
+          "command": "kubectl get cronjob report -n kd-cronjob-runs-pile-up -o jsonpath='{.spec.schedule}{\" \"}{.spec.concurrencyPolicy}{\" \"}{.status.active[*].name}'"
+        }
+      ],
+      "fix": "Set concurrencyPolicy: Forbid (skip a run while one is going) or Replace (stop the old run), and give the Job an activeDeadlineSeconds; or schedule it less often than a run takes."
+    }
+  ],
+  "checked": {
+    "pods": 3,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}
