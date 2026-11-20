@@ -1,0 +1,68 @@
+# A queue worker shares the label app=shop with the web server, and the Service selects on that label alone with a numeric targetPort; the worker's pod becomes an endpoint too, so a share of requests reach a pod that serves nothing on 8080.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-service-selects-other-workload
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-service-selects-other-workload
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: shop
+      component: web
+  template:
+    metadata:
+      labels:
+        app: shop
+        component: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - name: http
+              containerPort: 8080
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: kd-service-selects-other-workload
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: shop
+      component: worker
+  template:
+    metadata:
+      labels:
+        app: shop
+        component: worker
+    spec:
+      containers:
+        - name: worker
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "while true; do echo 'polling the queue'; sleep 30; done"]
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: shop
+  namespace: kd-service-selects-other-workload
+spec:
+  selector:
+    app: shop
+  ports:
+    - name: http
+      port: 80
+      targetPort: 8080
