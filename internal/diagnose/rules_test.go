@@ -2788,6 +2788,36 @@ func TestServicePortProtocolDiffersFromThePods(t *testing.T) {
 	}
 }
 
+func TestIngressServesAHostItsTLSDoesNotCover(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "kubernetes.io/tls", Keys: []string{"tls.crt", "tls.key"}}}
+	ing := ingress("shop", "web", 80, "")
+	api := ing.Spec.Rules[0]
+	api.Host = "api.shop.example.com"
+	ing.Spec.Rules = append(ing.Spec.Rules, api)
+	ing.Spec.TLS = []kube.IngressTLS{{Hosts: []string{"www.shop.example.com", "api.shop.example.com"}, SecretName: "shop-tls"}}
+	s.Ingresses = []kube.Ingress{ing}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD272", "Ingress shop/shop", "TLS for www.shop.example.com, api.shop.example.com", "also serve shop.example.com", "default certificate")
+
+	// A wildcard covers one label; a host covered exactly is fine.
+	ing.Spec.TLS = []kube.IngressTLS{{Hosts: []string{"*.shop.example.com", "shop.example.com"}, SecretName: "shop-tls"}}
+	s.Ingresses = []kube.Ingress{ing}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("covered hosts: %v", r.Findings)
+	}
+	for tls, host := range map[string]string{"*.example.com": "a.b.example.com", "*.shop.example.com": "shop.example.com"} {
+		if tlsCovers(tls, host) {
+			t.Errorf("%s should not cover %s", tls, host)
+		}
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
