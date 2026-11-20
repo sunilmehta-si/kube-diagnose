@@ -871,6 +871,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
 				return volumeFileProblem(p, cs.Name, m, fmt.Sprintf("container %s runs %s, which does not exist: %s", cs.Name, c.Command[0], what), ev)
 			}
+			if pr := volumeHidesCommand(p, cs, c.Command[0], ev); pr != nil {
+				return pr
+			}
 		}
 		cmd := strings.Join(append(append([]string{}, c.Command...), c.Args...), " ")
 		cause := fmt.Sprintf("container %s's command is not in image %s", cs.Name, imageOf(p, cs))
@@ -881,6 +884,36 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			"Correct the command (or the image's entrypoint): use a path that exists in the image.", ev...)
 	}
 	return nil
+}
+
+// volumeHidesCommand finds a command the runtime cannot find because a volume is mounted on the directory that holds
+// it: an emptyDir, a claim or a hostPath mounted at /app replaces everything the image has under /app, the binary
+// included. (A ConfigMap or Secret volume that lacks the file is told apart, with its keys.)
+func volumeHidesCommand(p kube.Pod, cs kube.ContainerStatus, cmd string, ev []Evidence) *problem {
+	if !strings.HasPrefix(cmd, "/") {
+		return nil
+	}
+	m, ok := p.MountAt(cs.Name, cmd)
+	if !ok || m.Rel == "" {
+		return nil
+	}
+	kind := ""
+	switch {
+	case m.Volume.EmptyDir != nil:
+		kind = "an emptyDir, which starts empty"
+	case m.Volume.PersistentVolumeClaim != nil:
+		kind = "PersistentVolumeClaim " + m.Volume.PersistentVolumeClaim.ClaimName
+	case m.Volume.HostPath != nil:
+		kind = "hostPath " + m.Volume.HostPath.Path
+	default:
+		return nil
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s mounts volume %s at %s, and its command is %s", cs.Name, m.Name, m.MountPath, cmd),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].volumeMounts}`, cs.Name))})
+	return newProblem(p, cs.Name, "KD214", "Volume mount hides the command", Critical,
+		fmt.Sprintf("container %s runs %s, but volume %s (%s) is mounted at %s and replaces everything the image has there, so the command is not in the container", cs.Name, cmd, m.Name, kind, m.MountPath),
+		"hidden|"+m.MountPath,
+		fmt.Sprintf("Mount volume %s somewhere the image keeps no files (a subdirectory such as %s/data), or use subPath to mount only the directory the app writes to.", m.Name, strings.TrimRight(m.MountPath, "/")), ev...)
 }
 
 var reNoExecName = regexp.MustCompile(`exec: "([^"]+)": (?:executable file not found|stat [^:]+: no such file or directory)`)
