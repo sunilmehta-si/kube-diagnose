@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-job-pod-failure-policy",
+  "description": "A migration Job allows six retries, but its podFailurePolicy fails the Job on exit code 3, which the migrator returns when its lock table is busy; the first busy lock fails the whole Job at once, without a retry.",
+  "rule": "KD110",
+  "object": "Job/migrate",
+  "keywords": [
+    [
+      "podFailurePolicy"
+    ],
+    [
+      "exit",
+      "code 3"
+    ]
+  ]
+}
