@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-command-shell-var-no-shell",
+  "description": "A Deployment runs [\"sleep\", \"$SLEEP_SECONDS\"] with SLEEP_SECONDS in its env; there is no shell to expand $SLEEP_SECONDS, so sleep gets the literal text and exits.",
+  "rule": "KD213",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "shell"
+    ],
+    [
+      "SLEEP_SECONDS"
+    ]
+  ]
+}
