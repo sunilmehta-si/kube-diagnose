@@ -2847,6 +2847,31 @@ func TestReplicasShareAReadWriteOnceClaim(t *testing.T) {
 	}
 }
 
+func TestJobFailedAtOnceByItsPodFailurePolicy(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "migrate", Namespace: "shop"}
+	j.Status.Conditions = []kube.Condition{{Type: "Failed", Status: "True", Reason: "PodFailurePolicy",
+		Message: "Container migrate for pod shop/migrate-x2k9p failed with exit code 3 matching FailJob rule at index 0"}}
+	s.Jobs = []kube.Job{j}
+	p := pod("migrate-x2k9p", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "migrate", Controller: yes()}}
+	p.Status.Phase = "Failed"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 3, Reason: "Error"}}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "Job shop/migrate", "exited with code 3", "podFailurePolicy matched that exit", "without the retries", "matching FailJob rule at index 0")
+	if !strings.Contains(f.Fix, "Ignore or Count") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Failed by its backoff limit: no word about a policy.
+	s.Jobs[0].Status.Conditions[0].Reason = "BackoffLimitExceeded"
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "podFailurePolicy") {
+		t.Errorf("a backoff failure: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

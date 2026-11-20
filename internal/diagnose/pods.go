@@ -781,6 +781,24 @@ func memoryInBytes(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem 
 		ev...)
 }
 
+// failedByPolicy returns the Job that owns the pod when that Job failed because its podFailurePolicy matched a pod's
+// failure (condition Failed with reason PodFailurePolicy), and the condition.
+func failedByPolicy(ix *index, p kube.Pod) (*kube.Job, kube.Condition, bool) {
+	o, ok := p.Metadata.Controller()
+	if !ok || o.Kind != "Job" {
+		return nil, kube.Condition{}, false
+	}
+	j, ok := ix.jobs[kube.Ref{Kind: "Job", Namespace: p.Metadata.Namespace, Name: o.Name}]
+	if !ok {
+		return nil, kube.Condition{}, false
+	}
+	c, ok := kube.FindCondition(j.Status.Conditions, "Failed")
+	if !ok || c.Status != "True" || c.Reason != "PodFailurePolicy" {
+		return nil, kube.Condition{}, false
+	}
+	return j, c, true
+}
+
 func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *problem {
 	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("container %s did not start", cs.Name), Detail: msg,
 		Command: cmdContainerState(p, cs.Name, "state")}}
@@ -1005,6 +1023,12 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	}
 	if sidecar {
 		fix = "Fix what the sidecar's log reports; it is an init container with restartPolicy: Always, so the kubelet restarts it for as long as the pod runs."
+	}
+	if j, c, ok := failedByPolicy(ix, p); ok {
+		cause += fmt.Sprintf("; Job %s's podFailurePolicy matched that exit and failed the whole Job at once, without the retries backoffLimit allows (%s)", j.Metadata.Name, c.Message)
+		fix += " The Job's podFailurePolicy marks this exit as not worth retrying; if it can succeed on a retry, change that rule's action to Ignore or Count."
+		ev = append(ev, Evidence{Object: j.Ref(), What: "Job condition Failed: PodFailurePolicy", Detail: c.Message,
+			Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.spec.podFailurePolicy}{"\n"}{.status.conditions[?(@.type=="Failed")]}`)})
 	}
 	return newProblem(p, cs.Name, rule, title, Critical, cause, "exit|"+strconv.Itoa(int(t.ExitCode)), fix, ev...)
 }
