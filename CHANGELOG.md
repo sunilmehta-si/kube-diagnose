@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-20
+
+- The fault suite's committed run (44709934332): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 125 of 125 faults and raises no false alarm; k8sgpt v0.4.41 names 46, 27 of them first.
+- The fault suite's kind node takes 250 pods (`hack/kind-faults.yaml`): at 125 namespaces at once the default 110
+  ran out, and scenarios showed a pod waiting for a slot instead of their fault.
+
 ### Added
 - 8 rules, 137 in all (`docs/rules.md`):
   - resources: a memory limit without a unit, which Kubernetes reads as bytes, so the container dies as it starts
