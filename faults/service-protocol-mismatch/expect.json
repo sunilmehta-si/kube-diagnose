@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-service-protocol-mismatch",
+  "description": "A log collector listens for syslog on 5140/UDP, and its Service lists port 5140 without a protocol, which means TCP; Kubernetes forwards only TCP for it, so the UDP messages senders send to the Service never arrive.",
+  "rule": "KD271",
+  "object": "Service/syslog",
+  "keywords": [
+    [
+      "UDP"
+    ],
+    [
+      "TCP",
+      "protocol"
+    ]
+  ]
+}
