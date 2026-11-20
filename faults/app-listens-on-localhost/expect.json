@@ -1,0 +1,13 @@
+{
+  "namespace": "kd-app-listens-on-localhost",
+  "description": "A web server is started with -p 127.0.0.1:8080, as on a laptop; in a pod that address is reachable only from the pod itself, so the kubelet's readiness probe is refused and the pod never becomes ready.",
+  "rule": "KD215",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "127.0.0.1",
+      "localhost",
+      "loopback"
+    ]
+  ]
+}
