@@ -50,39 +50,41 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
 
 It knows 142 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
 no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or of the
-wrong type, commands written as one string or using a $(VARIABLE) the container does not define, Localhost seccomp
-profiles the node does not have, memory limits without a unit (memory: 512 is bytes), RuntimeClasses whose handler the
-node's runtime lacks, crashes (with the exit code explained and the log line that reads like the error quoted, and
-traced to the Service the app could not resolve or reach, the DNS policy that sends its lookups to the node's resolver
-or to nameservers that are not cluster DNS, the ExternalName Service whose name does not resolve, the volume it may not
-write to or that is read-only, the file its ConfigMap volume does not have, the script mounted without an executable
-mode, the port another container holds, the NetworkPolicy that blocks DNS or drops the connection, the RBAC permission
-its ServiceAccount lacks, or the token automounting turned off), out-of-memory kills (a memory-backed emptyDir among
-them), probes on the wrong port, speaking HTTPS to plain HTTP, checking a host other than the pod, gRPC probes on a port
-that does not speak gRPC or lacks the health service, preStop hooks that outlast the grace period, readiness probes held
-back by a long initialDelaySeconds, naming a port the container does not have or running a command the image does not
-have, init containers that never finish (sidecars are told apart), readiness gates nobody sets, failing lifecycle hooks,
-runAsNonRoot with a root image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys, subPaths
-that name a key the volume does not have, pods no node can take (with the request and the largest node's capacity, a cpu
-request missing its m, or the spread rule, host port, volume zone, scheduling gate, missing scheduler or
-ReadWriteOncePod claim another pod holds that stops them), pods the kubelet rejects for a sysctl it forbids or a
-resource the node lacks, or, when spec.nodeName skips the scheduler, for the node's labels or a host port another pod
-holds, pods for another operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network plugin
-cannot set up, hostPath volumes the node does not have, pods bound by nodeName to a node that does not exist or past the
-scheduler their claim waits for, pods stuck terminating, volumes still attached to another node, claims for
-StorageClasses that do not exist, access modes they cannot provide or a named volume they cannot bind to, Services and
-Ingresses that send traffic nowhere, Services with no selector and no endpoints (or an EndpointSlice missing the label
-that links it), headless Services that map a port nothing maps, Service ports whose protocol the pods do not serve, pod
-subdomains no headless Service serves, ExternalName Services set to an IP address, Ingresses that claim one host and
-path for different Services, Ingress TLS Secrets that are missing, Ingress hosts their TLS does not cover, LoadBalancer
-Services that never get an address, StatefulSets without their headless Service, NetworkPolicies that shut a Service
-off, cut pods off from the API server, allow a port name the pods do not declare or select no pods, exhausted quotas,
-LimitRange, PriorityClass, RuntimeClass, ServiceAccount, Pod Security and webhook rejections, Deployments left paused,
-HPAs that cannot scale, PodDisruptionBudgets that block drains or select nothing, evictions (an emptyDir past its
-sizeLimit among them), failed Jobs and CronJobs (a podFailurePolicy that failed the Job at once is named), replicas
-sharing a ReadWriteOnce claim, CronJobs that skip runs, are suspended, replace each run before it finishes pile up runs,
-are scheduled for a date that never comes or miss every start for a startingDeadlineSeconds too short, DaemonSets that
-match no node, Jobs with parallelism 0, and nodes that are not ready.
+wrong type, commands written as one string or using a $(VARIABLE) the container does not define or the shell's $VARIABLE
+with no shell, volumes mounted over the command, Localhost seccomp profiles the node does not have, memory limits
+without a unit (memory: 512 is bytes), RuntimeClasses whose handler the node's runtime lacks, crashes (with the exit
+code explained and the log line that reads like the error quoted, and traced to the Service the app could not resolve or
+reach, the DNS policy that sends its lookups to the node's resolver or to nameservers that are not cluster DNS, the
+ExternalName Service whose name does not resolve, the volume it may not write to or that is read-only, the file its
+ConfigMap volume does not have, the script mounted without an executable mode, the port another container holds, the
+NetworkPolicy that blocks DNS or drops the connection, the RBAC permission its ServiceAccount lacks, or the token
+automounting turned off), out-of-memory kills (a memory-backed emptyDir and a LimitRange's default limit among them),
+probes on the wrong port, speaking HTTPS to plain HTTP, checking a host other than the pod, refused because the app
+listens on localhost only, gRPC probes on a port that does not speak gRPC or lacks the health service, preStop hooks
+that outlast the grace period, readiness probes held back by a long initialDelaySeconds, naming a port the container
+does not have or running a command the image does not have, init containers that never finish (sidecars are told apart),
+readiness gates nobody sets, failing lifecycle hooks, runAsNonRoot with a root image, writes to a read-only root
+filesystem, missing ConfigMaps, Secrets and keys, subPaths that name a key the volume does not have, pods no node can
+take (with the request and the largest node's capacity, a cpu request missing its m, or the spread rule, host port,
+volume zone, scheduling gate, missing scheduler or ReadWriteOncePod claim another pod holds that stops them), pods the
+kubelet rejects for a sysctl it forbids or a resource the node lacks, or, when spec.nodeName skips the scheduler, for
+the node's labels or a host port another pod holds, pods for another operating system, pods stopped at their
+activeDeadlineSeconds, pod sandboxes the network plugin cannot set up, hostPath volumes the node does not have, pods
+bound by nodeName to a node that does not exist or past the scheduler their claim waits for, pods stuck terminating,
+volumes still attached to another node, claims for StorageClasses that do not exist, access modes they cannot provide or
+a named volume they cannot bind to, Services and Ingresses that send traffic nowhere, Services with no selector and no
+endpoints (or an EndpointSlice missing the label that links it), headless Services that map a port nothing maps, Service
+ports whose protocol the pods do not serve, Services that also select another workload's pods, pod subdomains no
+headless Service serves, ExternalName Services set to an IP address, Ingresses that claim one host and path for
+different Services, Ingress TLS Secrets that are missing, Ingress hosts their TLS does not cover, LoadBalancer Services
+that never get an address, StatefulSets without their headless Service, NetworkPolicies that shut a Service off, cut
+pods off from the API server, allow a port name the pods do not declare or select no pods, exhausted quotas, LimitRange,
+PriorityClass, RuntimeClass, ServiceAccount, Pod Security and webhook rejections, Deployments left paused or holding
+ready pods unavailable with a long minReadySeconds, HPAs that cannot scale, PodDisruptionBudgets that block drains or
+select nothing, evictions (an emptyDir past its sizeLimit among them), failed Jobs and CronJobs (a podFailurePolicy that
+failed the Job at once is named), replicas sharing a ReadWriteOnce claim, CronJobs that skip runs, are suspended,
+replace each run before it finishes pile up runs, are scheduled for a date that never comes or miss every start for a
+startingDeadlineSeconds too short, DaemonSets that match no node, Jobs with parallelism 0, and nodes that are not ready.
 
 ## Install
 
