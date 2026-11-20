@@ -25,6 +25,8 @@ func cronJobFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 			out = append(out, *f)
 		} else if f := cronJobSkips(ix, cj); f != nil {
 			out = append(out, *f)
+		} else if f := cronJobPilesUp(ix, cj); f != nil {
+			out = append(out, *f)
 		} else if f := cronJobReplaces(ix, cj); f != nil {
 			out = append(out, *f)
 		} else if f := suspendedCronJob(ix, cj); f != nil {
@@ -263,4 +265,40 @@ func cronJobMissesStarts(ix *index, cj kube.CronJob) *Finding {
 	}
 	return &Finding{Rule: "KD285", Title: "CronJob misses its starts: startingDeadlineSeconds is too short", Severity: sev, Object: cj.Ref(), Cause: cause, Evidence: ev,
 		Fix: fmt.Sprintf("Raise startingDeadlineSeconds to at least 10, or remove it (no deadline): kubectl patch cronjob %s -n %s --type=merge -p '{\"spec\":{\"startingDeadlineSeconds\":60}}'.", name, ns)}
+}
+
+// cronJobPilesUp finds a CronJob whose concurrencyPolicy is Allow (the default) with two or more of its Jobs running
+// at once: each run takes longer than the schedule's interval, so a new one starts while the last is still going and
+// they accumulate, each holding its pods' resources, until the work or the cluster gives way.
+func cronJobPilesUp(ix *index, cj kube.CronJob) *Finding {
+	policy := cj.Spec.ConcurrencyPolicy
+	if (policy != "" && policy != "Allow") || len(cj.Status.Active) < 2 {
+		return nil
+	}
+	ns, name := cj.Metadata.Namespace, cj.Metadata.Name
+	var jobs []string
+	oldest := ""
+	var oldestStart time.Time
+	for _, a := range cj.Status.Active {
+		jobs = append(jobs, a.Name)
+		if j, ok := ix.jobs[kube.Ref{Kind: "Job", Namespace: ns, Name: a.Name}]; ok {
+			start := j.Metadata.CreationTimestamp
+			if j.Status.StartTime != nil {
+				start = *j.Status.StartTime
+			}
+			if oldest == "" || start.Before(oldestStart) {
+				oldest, oldestStart = a.Name, start
+			}
+		}
+	}
+	running := ""
+	if oldest != "" && !oldestStart.IsZero() {
+		running = fmt.Sprintf("; the oldest, %s, has run for %s", oldest, ix.s.CollectedAt.Sub(oldestStart).Round(time.Second))
+	}
+	return &Finding{Rule: "KD286", Title: "CronJob runs pile up", Severity: Warning, Object: cj.Ref(),
+		Cause: fmt.Sprintf("CronJob %s has %d Jobs running at once (%s): its concurrencyPolicy is Allow, and each run takes longer than the schedule %q leaves, so every new run starts beside the ones still going%s",
+			name, len(jobs), strings.Join(jobs, ", "), cj.Spec.Schedule, running),
+		Evidence: []Evidence{{Object: cj.Ref(), What: fmt.Sprintf("CronJob %s has concurrencyPolicy Allow and %d active Jobs", name, len(jobs)),
+			Command: cmdGet("cronjob", ns, name, `{.spec.schedule}{" "}{.spec.concurrencyPolicy}{" "}{.status.active[*].name}`)}},
+		Fix: "Set concurrencyPolicy: Forbid (skip a run while one is going) or Replace (stop the old run), and give the Job an activeDeadlineSeconds; or schedule it less often than a run takes."}
 }
