@@ -17,7 +17,7 @@
 - The snapshot holds a pod's dnsConfig.
 
 ### Changed
-- KD140 names a cpu request written as a bare number of 64 or more (cpu: 500 is 500 cores) and the millicores it
+- KD140 names a cpu request written as a bare number of 100 or more (cpu: 500 is 500 cores) and the millicores it
   likely meant.
 - KD110 says when a Job's podFailurePolicy matched the exit and failed the whole Job at once, without the retries its
   backoffLimit allows, and names the rule.

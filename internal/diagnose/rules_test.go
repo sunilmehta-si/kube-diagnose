@@ -2642,7 +2642,7 @@ func TestCPURequestWithoutItsMillicoreSuffix(t *testing.T) {
 		t.Errorf("fix %q", f.Fix)
 	}
 
-	// 8 cores is a request someone may mean: no hint.
+	// A LimitRange's default of 64 cores is not the pod's own slip, and 8 cores is a request someone may mean: no hint.
 	p.Spec.Containers[0].Resources.Requests["cpu"] = "8"
 	s.Pods = []kube.Pod{p}
 	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "whole cores") {
@@ -2670,6 +2670,18 @@ func TestMemoryLimitWithoutAUnit(t *testing.T) {
 	p.Status.ContainerStatuses[0].LastTerminationState.Terminated = &kube.ContainerStateTerminated{ExitCode: 137, Reason: "OOMKilled"}
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD210", "ReplicaSet shop/api-rs", "512 bytes")
+
+	// On kind the pod never gets that far: the token volume, sized by the limit, cannot be written.
+	q := pod("api-7d9f-m4n2b", "api")
+	q.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "512"}
+	q.Status.Phase = "Pending"
+	q.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "ContainerCreating"}}}}
+	s.Pods = []kube.Pod{q}
+	s.Events = []kube.Event{event("Pod", q.Metadata.Name, "FailedMount",
+		`MountVolume.SetUp failed for volume "kube-api-access-dm9rj" : write /var/lib/kubelet/pods/2354/volumes/kubernetes.io~projected/kube-api-access-dm9rj/..2026_11_20/ca.crt: no space left on device`, time.Minute)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD210", "ReplicaSet shop/api-rs", "memory: 512", "no space left on device", "never starts")
+	s.Events = nil
 
 	// A real limit with a unit, or a large bare number of bytes, is left to the OOM rule.
 	p.Spec.Containers[0].Resources.Limits["memory"] = "536870912"

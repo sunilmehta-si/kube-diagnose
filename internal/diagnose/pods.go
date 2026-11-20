@@ -63,6 +63,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if pr := unclaimed(ix, p); pr != nil {
 		return pr
 	}
+	if pr := memoryInBytesMount(ix, p); pr != nil {
+		return pr
+	}
 	if pr := mountProblem(ix, p); pr != nil {
 		return pr
 	}
@@ -759,6 +762,42 @@ var (
 // the file exists; it passes the path on.
 var reSeccompProfile = regexp.MustCompile(`cannot load seccomp profile \\?"([^"\\]+)\\?": (.*)`)
 
+// bareSmallMemory reports whether a memory quantity is a bare number of bytes under 4 MiB, too little for any process.
+func bareSmallMemory(v string) bool {
+	n, err := strconv.ParseInt(v, 10, 64)
+	return err == nil && n < 4<<20
+}
+
+// memoryInBytesMount finds a pod that never starts because a container's memory limit is a bare number of bytes: the
+// kubelet sizes the pod's memory-backed volumes, the projected service account token among them, by the pod's memory
+// limit, so it cannot even write the token ("no space left on device") and the pod stays in ContainerCreating.
+func memoryInBytesMount(ix *index, p kube.Pod) *problem {
+	var c kube.Container
+	for _, x := range p.Spec.Containers {
+		if bareSmallMemory(x.Resources.Limits["memory"]) {
+			c = x
+			break
+		}
+	}
+	if c.Name == "" {
+		return nil
+	}
+	for _, e := range ix.eventsFor(p.Ref(), "FailedMount") {
+		if !strings.Contains(e.Message, "no space left on device") {
+			continue
+		}
+		v := c.Resources.Limits["memory"]
+		return newProblem(p, c.Name, "KD210", "Memory limit has no unit, so it is in bytes", Critical,
+			fmt.Sprintf("container %s's memory limit is memory: %s, which Kubernetes reads as %s bytes: the kubelet sizes the pod's memory-backed volumes by that limit, so it cannot even write the service account token into one (no space left on device), and the pod never starts", c.Name, v, v),
+			"membytes|"+c.Name,
+			fmt.Sprintf("Give the limit a unit: %sMi if mebibytes were meant (Mi and Gi are powers of 1024; M and G are powers of 1000), and the request the same way.", v),
+			eventEvidence(p.Ref(), e),
+			Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's memory limit is %s, with no unit", c.Name, v),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].resources}`, c.Name))})
+	}
+	return nil
+}
+
 // memoryInBytes finds a failing container whose memory limit is a bare number under 4 MiB (memory: 512): Kubernetes
 // reads a number without a unit as bytes, so the limit is far too small for any process, and the runtime cannot start
 // the container ("container init was OOM-killed (memory limit too low?)") or the kernel kills it at once.
@@ -768,8 +807,7 @@ func memoryInBytes(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem 
 		return nil
 	}
 	v := c.Resources.Limits["memory"]
-	n, err := strconv.ParseInt(v, 10, 64)
-	if err != nil || n >= 4<<20 {
+	if !bareSmallMemory(v) {
 		return nil
 	}
 	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's memory limit is %s, with no unit", cs.Name, v),
