@@ -2928,6 +2928,40 @@ func TestReadyPodsHeldUnavailableByMinReadySeconds(t *testing.T) {
 	}
 }
 
+func TestCommandUsesAShellVariableWithNoShell(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"sleep", "$SLEEP_SECONDS"}
+	c.Env = []kube.EnvVar{{Name: "SLEEP_SECONDS", Value: "3600"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"sleep: invalid number '$SLEEP_SECONDS'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD213", "ReplicaSet shop/worker-rs", "command uses $SLEEP_SECONDS", "runs without a shell", "expands only $(SLEEP_SECONDS)", "invalid number")
+	if !strings.HasPrefix(f.Fix, "Write it as $(SLEEP_SECONDS)") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The braced form in args, for a variable the container does not define.
+	c.Command, c.Args, c.Env = []string{"/app/server"}, []string{"--port=${PORT}"}, nil
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{`invalid value "${PORT}" for flag -port: parse error`}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD213", "ReplicaSet shop/worker-rs", "args uses ${PORT}")
+	if !strings.HasPrefix(f.Fix, "Define PORT") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Under sh -c the shell expands it: not this rule.
+	c.Command, c.Args = []string{"/bin/sh", "-c"}, []string{"exec server --port=$PORT"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"server: bad port $PORT"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD213" {
+		t.Errorf("a shell command: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

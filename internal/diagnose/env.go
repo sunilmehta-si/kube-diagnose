@@ -56,6 +56,67 @@ func undefinedVar(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string
 	return nil
 }
 
+// reShellVar is a shell-style reference, $NAME or ${NAME}, in a command or args; $(NAME) is Kubernetes' own form.
+var reShellVar = regexp.MustCompile(`\$(\{[A-Za-z_][A-Za-z0-9_]*\}|[A-Za-z_][A-Za-z0-9_]*)`)
+
+// runsShell reports whether the container's command hands a script to a shell (sh -c ...), which expands $NAME itself.
+func runsShell(c kube.Container) bool {
+	words := append(append([]string{}, c.Command...), c.Args...)
+	for i, w := range words {
+		switch w[strings.LastIndex(w, "/")+1:] {
+		case "sh", "bash", "ash", "dash", "zsh":
+			for _, next := range words[i+1:] {
+				if strings.HasPrefix(next, "-") && strings.Contains(next, "c") {
+					return true
+				}
+			}
+		}
+	}
+	return false
+}
+
+// shellVar finds a container that fails because its command or args use the shell's $NAME or ${NAME} with no shell
+// to expand it: Kubernetes passes each word to the process as written and expands only $(NAME), so the app receives
+// the text "$NAME". The log shows that text.
+func shellVar(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, ok := containerSpec(p, cs.Name)
+	if !ok || runsShell(c) {
+		return nil
+	}
+	defined, _ := containerEnv(ix, p.Metadata.Namespace, c)
+	for _, part := range []struct {
+		field string
+		words []string
+	}{{"command", c.Command}, {"args", c.Args}} {
+		for _, w := range part.words {
+			for _, m := range reShellVar.FindAllStringSubmatch(w, -1) {
+				ref, name := m[0], strings.Trim(m[1], "{}")
+				line := ""
+				for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+					if strings.Contains(lines[i], ref) {
+						line = lines[i]
+					}
+				}
+				if line == "" {
+					continue
+				}
+				how := fmt.Sprintf("Write it as $(%s), which Kubernetes expands from the container's env", name)
+				if !defined[name] {
+					how = fmt.Sprintf("Define %s in the container's env and write it as $(%s)", name, name)
+				}
+				ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's %s has %s and runs no shell", cs.Name, part.field, ref),
+					Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].%s}`, cs.Name, part.field))})
+				return newProblem(p, cs.Name, "KD213", "Command uses a shell variable with no shell", Critical,
+					fmt.Sprintf("container %s's %s uses %s, the shell's syntax, but the command runs without a shell, so nothing expands it: the process receives the text %s and fails on it (Kubernetes expands only $(%s)); its log says: %q",
+						cs.Name, part.field, ref, ref, name, clip(line, 200)),
+					"shellvar|"+name,
+					fmt.Sprintf("%s, or run the command through a shell: [\"sh\", \"-c\", \"...\"].", how), ev...)
+			}
+		}
+	}
+	return nil
+}
+
 // serviceLinkVar reports whether name is one of the variables the kubelet sets for a Service of the namespace
 // (FOO_SERVICE_HOST, FOO_SERVICE_PORT, FOO_PORT, FOO_PORT_80_TCP and so on for Service foo), which it expands too.
 // When the Services were not read, any name of that form counts.
