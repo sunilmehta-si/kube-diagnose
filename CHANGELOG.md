@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-20
+
+- The fault suite's committed run (44730219543): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 131 of 131 faults and raises no false alarm; k8sgpt v0.4.41 names 48, 27 of them first.
+
 ### Added
 - 5 rules, 142 in all (`docs/rules.md`):
   - commands: the shell's $NAME or ${NAME} in a command that runs no shell, so the process gets the literal text
@@ -16,6 +21,8 @@
 
 ### Changed
 - KD111 says when the memory limit that killed the container is a LimitRange default the pod template never set.
+- `record --redact` leaves loopback addresses (127.0.0.0/8) and 0.0.0.0 as they are: they name no machine, and a
+  redacted snapshot of an app bound to 127.0.0.1 lost the cause KD215 reads.
 
 ## [0.9.0] - 2026-11-20
 
