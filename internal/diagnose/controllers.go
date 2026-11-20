@@ -3,6 +3,7 @@ package diagnose
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 
@@ -163,6 +164,8 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 	for _, w := range ix.s.Workloads {
 		if f := daemonSetNoNodes(ix, w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
+		} else if f := sharedRWOClaim(ix, w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
 		}
 	}
 	for _, w := range ix.s.Workloads {
@@ -261,6 +264,47 @@ func noParallelism(ix *index, j kube.Job) *Finding {
 		Evidence: []Evidence{{Object: j.Ref(), What: fmt.Sprintf("Job %s has spec.parallelism 0 and no active pods", name),
 			Command: cmdGet("job", ns, name, `{.spec.parallelism}{" "}{.status}`)}},
 		Fix: fmt.Sprintf("Set parallelism to the number of pods to run at once: kubectl patch job %s -n %s --type=merge -p '{\"spec\":{\"parallelism\":1}}'; to pause a Job, spec.suspend says so plainly.", name, ns)}
+}
+
+// sharedRWOClaim finds a Deployment or ReplicaSet with more than one replica whose pod template mounts a
+// PersistentVolumeClaim that is ReadWriteOnce only: every replica mounts the same claim, and a ReadWriteOnce volume
+// attaches to one node at a time, so replicas the scheduler puts on another node never start (Multi-Attach error),
+// and a rolling update can stall the same way. On one node, or while they share a node, it happens to work.
+func sharedRWOClaim(ix *index, w kube.Workload) *Finding {
+	if (w.Kind != "Deployment" && w.Kind != "ReplicaSet") || w.Spec.Replicas == nil || *w.Spec.Replicas < 2 {
+		return nil
+	}
+	if w.Kind == "ReplicaSet" {
+		if o, ok := w.Metadata.Controller(); ok && o.Kind == "Deployment" {
+			return nil // reported on the Deployment
+		}
+	}
+	ns := w.Metadata.Namespace
+	for _, v := range w.Spec.Template.Spec.Volumes {
+		if v.PersistentVolumeClaim == nil {
+			continue
+		}
+		claim := v.PersistentVolumeClaim.ClaimName
+		pvc, ok := ix.pvcs[nsName{ns, claim}]
+		if !ok || !onlyRWO(pvc.Spec.AccessModes) {
+			continue
+		}
+		return &Finding{Rule: "KD287", Title: "Replicas share a ReadWriteOnce claim", Severity: Warning, Object: w.Ref(),
+			Cause: fmt.Sprintf("%s %s runs %d replicas that all mount PersistentVolumeClaim %s, which is ReadWriteOnce: its volume attaches to one node at a time, so replicas scheduled on another node cannot start (Multi-Attach error), and rolling updates can stall the same way; it works only while they share a node",
+				w.Kind, w.Metadata.Name, *w.Spec.Replicas, claim),
+			Evidence: []Evidence{
+				{Object: w.Ref(), What: fmt.Sprintf("%s %s has %d replicas and mounts claim %s", w.Kind, w.Metadata.Name, *w.Spec.Replicas, claim),
+					Command: cmdGet(strings.ToLower(w.Kind), ns, w.Metadata.Name, `{.spec.replicas}{" "}{.spec.template.spec.volumes}`)},
+				{Object: kube.Ref{Kind: "PersistentVolumeClaim", Namespace: ns, Name: claim}, What: fmt.Sprintf("claim %s has access modes %s", claim, strings.Join(pvc.Spec.AccessModes, ", ")),
+					Command: cmdGet("persistentvolumeclaim", ns, claim, "{.spec.accessModes}")},
+			},
+			Fix: "Give each replica its own volume (a StatefulSet with volumeClaimTemplates), use a ReadWriteMany volume if they must share files, or run one replica with strategy Recreate."}
+	}
+	return nil
+}
+
+func onlyRWO(modes []string) bool {
+	return len(modes) > 0 && !slices.ContainsFunc(modes, func(m string) bool { return m != "ReadWriteOnce" })
 }
 
 // daemonSetNoNodes finds a DaemonSet that should run on no node: its nodeSelector matches none, or every node has a

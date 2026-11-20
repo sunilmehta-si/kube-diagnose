@@ -2818,6 +2818,35 @@ func TestIngressServesAHostItsTLSDoesNotCover(t *testing.T) {
 	}
 }
 
+func TestReplicasShareAReadWriteOnceClaim(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 3, 3)
+	s.Workloads[0].Spec.Template.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "uploads"}}}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "uploads", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pvc.Status.Phase = "Bound"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.Pods = []kube.Pod{pod("web-1", "web"), pod("web-2", "web"), pod("web-3", "web")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD287", "Deployment shop/web", "runs 3 replicas", "PersistentVolumeClaim uploads, which is ReadWriteOnce", "Multi-Attach")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "volumeClaimTemplates") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// One replica, or a ReadWriteMany claim: nothing to say.
+	s.PVCs[0].Spec.AccessModes = []string{"ReadWriteMany"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("ReadWriteMany: %v", r.Findings)
+	}
+	s.PVCs[0].Spec.AccessModes = []string{"ReadWriteOnce"}
+	one := int32(1)
+	s.Workloads[0].Spec.Replicas = &one
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("one replica: %v", r.Findings)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
