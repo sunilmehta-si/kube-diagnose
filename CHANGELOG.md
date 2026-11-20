@@ -2,6 +2,21 @@
 
 ## [Unreleased]
 
+### Added
+- 5 rules, 142 in all (`docs/rules.md`):
+  - commands: the shell's $NAME or ${NAME} in a command that runs no shell, so the process gets the literal text
+    (KD213); a volume (emptyDir, claim or hostPath) mounted on the directory that holds the command, hiding it (KD214);
+  - probes: an app that listens on 127.0.0.1 or localhost only, which in a pod nothing else can reach, shown by its
+    command, a bind variable in env or its own log line (KD215);
+  - Services: a selector that also matches the ready pods of another workload, which do not serve the numeric target
+    port, so a share of connections fails (KD273);
+  - Deployments: a minReadySeconds of a minute or more that keeps ready pods from counting as available (KD288).
+- 6 fault scenarios, 131 broken namespaces in all, one for each new rule and the change below.
+- The snapshot holds a Deployment's minReadySeconds.
+
+### Changed
+- KD111 says when the memory limit that killed the container is a LimitRange default the pod template never set.
+
 ## [0.9.0] - 2026-11-20
 
 - The fault suite's committed run (44709934332): kube-diagnose names the root cause in its first finding, with the
