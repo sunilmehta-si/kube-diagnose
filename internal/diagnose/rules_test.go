@@ -2905,6 +2905,29 @@ func TestOOMKilledAtALimitRangeDefault(t *testing.T) {
 	}
 }
 
+func TestReadyPodsHeldUnavailableByMinReadySeconds(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 2)
+	s.Workloads[0].Spec.MinReadySeconds = 3600
+	s.Pods = []kube.Pod{pod("web-1", "web"), pod("web-2", "web")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD288", "Deployment shop/web", "2 of 2 pods ready but only 0 available", "minReadySeconds is 3600", "1h0m0s")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "not a timeout") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Available once the wait has passed, or a short wait: nothing to say.
+	s.Workloads[0].Status.AvailableReplicas = 2
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("available pods: %v", r.Findings)
+	}
+	s.Workloads[0].Status.AvailableReplicas = 0
+	s.Workloads[0].Spec.MinReadySeconds = 10
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a ten-second wait: %v", r.Findings)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

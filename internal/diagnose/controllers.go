@@ -166,6 +166,8 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 			out = append(out, *f)
 		} else if f := sharedRWOClaim(ix, w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
+		} else if f := minReadyHolds(w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
 		}
 	}
 	for _, w := range ix.s.Workloads {
@@ -264,6 +266,28 @@ func noParallelism(ix *index, j kube.Job) *Finding {
 		Evidence: []Evidence{{Object: j.Ref(), What: fmt.Sprintf("Job %s has spec.parallelism 0 and no active pods", name),
 			Command: cmdGet("job", ns, name, `{.spec.parallelism}{" "}{.status}`)}},
 		Fix: fmt.Sprintf("Set parallelism to the number of pods to run at once: kubectl patch job %s -n %s --type=merge -p '{\"spec\":{\"parallelism\":1}}'; to pause a Job, spec.suspend says so plainly.", name, ns)}
+}
+
+// minReadyHolds finds a Deployment whose pods are all ready and still not counted available, because its
+// minReadySeconds is long: a pod is available only after it has stayed ready that long, so the Deployment reports
+// unavailable replicas and each step of a rollout waits that long, with nothing failing.
+func minReadyHolds(w kube.Workload) *Finding {
+	wait := w.Spec.MinReadySeconds
+	if w.Kind != "Deployment" || wait < 60 || w.Spec.Replicas == nil || *w.Spec.Replicas == 0 {
+		return nil
+	}
+	ready, avail := w.Status.ReadyReplicas, w.Status.AvailableReplicas
+	if ready == 0 || avail >= ready {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	d := time.Duration(wait) * time.Second
+	return &Finding{Rule: "KD288", Title: "Ready pods are held unavailable by minReadySeconds", Severity: Warning, Object: w.Ref(),
+		Cause: fmt.Sprintf("Deployment %s has %d of %d pods ready but only %d available: its minReadySeconds is %d, so a pod counts as available only after it has stayed ready for %s, and a rollout waits that long at every step",
+			name, ready, *w.Spec.Replicas, avail, wait, d),
+		Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("Deployment %s has minReadySeconds %d, %d ready and %d available", name, wait, ready, avail),
+			Command: cmdGet("deployment", ns, name, `{.spec.minReadySeconds}{" "}{.status.readyReplicas}{" "}{.status.availableReplicas}`)}},
+		Fix: "Lower minReadySeconds to the few seconds a new pod needs to prove itself (it is not a timeout), and let the readiness probe say when the pod can serve."}
 }
 
 // sharedRWOClaim finds a Deployment or ReplicaSet with more than one replica whose pod template mounts a

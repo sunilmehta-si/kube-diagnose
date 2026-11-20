@@ -741,6 +741,8 @@ type Workload struct {
 		Template PodTemplate    `json:"template"`
 		// ServiceName is a StatefulSet's governing Service, which gives its pods their DNS names.
 		ServiceName string `json:"serviceName,omitempty"`
+		// MinReadySeconds is how long a pod must stay ready before it counts as available.
+		MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 		// Paused stops a Deployment's rollouts until it is resumed.
 		Paused bool `json:"paused,omitempty"`
 		// PodManagementPolicy is a StatefulSet's: OrderedReady (the default) creates pod n only once pod n-1 is ready.
