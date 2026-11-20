@@ -2736,6 +2736,35 @@ func TestExternalNameServiceThatDoesNotResolve(t *testing.T) {
 	}
 }
 
+func TestPodDNSSettingsLeaveOutClusterDNS(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	p.Spec.DNSPolicy = "None"
+	p.Spec.DNSConfig = &struct {
+		Nameservers []string `json:"nameservers,omitempty"`
+		Searches    []string `json:"searches,omitempty"`
+	}{Nameservers: []string{"1.1.1.1"}, Searches: []string{"corp.example"}}
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("payments", map[string]string{"app": "pay"}, port(8080))}
+	payments := pod("payments-1", "payments")
+	payments.Metadata.Labels = map[string]string{"app": "pay"}
+	s.Pods = append(s.Pods, payments)
+	s.EndpointSlices = []kube.EndpointSlice{slice("payments", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address 'payments:8080'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD269", "ReplicaSet shop/api-rs", "payments does not resolve", "dnsPolicy None", "nameservers 1.1.1.1, search domains corp.example")
+	if !strings.Contains(f.Fix, "shop.svc.cluster.local") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// An outside name that does not resolve is not this rule.
+	s.Logs[0].Lines = []string{"wget: bad address 'api.partner.example'"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD269" {
+		t.Errorf("an outside name: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

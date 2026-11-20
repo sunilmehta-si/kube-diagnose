@@ -316,6 +316,45 @@ func nodeDNS(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev 
 		"nodedns|"+what, fix, ev...)
 }
 
+// customDNS finds a container that exits because a Service of the cluster does not resolve, in a pod with dnsPolicy
+// None: its resolv.conf holds only the nameservers and search domains in spec.dnsConfig. Unless one of those
+// nameservers is cluster DNS and the search domains include the namespace's svc domain, Service names do not resolve.
+func customDNS(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	if p.Spec.DNSPolicy != "None" {
+		return nil
+	}
+	host, line := unresolvedHost(lines)
+	if host == "" {
+		return nil
+	}
+	lower := strings.ToLower(host)
+	if !strings.HasSuffix(lower, ".svc") && !strings.Contains(lower, ".svc.") {
+		svcNS, svc, isSvc := serviceName(p.Metadata.Namespace, host)
+		if !isSvc {
+			return nil
+		}
+		if exists, _ := ix.serviceExists(svcNS, svc); !exists {
+			return nil
+		}
+	}
+	servers, searches := "no nameservers", "no search domains"
+	if d := p.Spec.DNSConfig; d != nil {
+		if len(d.Nameservers) > 0 {
+			servers = "nameservers " + strings.Join(d.Nameservers, ", ")
+		}
+		if len(d.Searches) > 0 {
+			searches = "search domains " + strings.Join(d.Searches, ", ")
+		}
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the pod sets dnsPolicy None, with %s and %s", servers, searches),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.dnsPolicy}{" "}{.spec.dnsConfig}`)})
+	return newProblem(p, cs.Name, "KD269", "Pod's DNS settings leave out cluster DNS", Critical,
+		fmt.Sprintf("container %s exits because %s does not resolve: the pod sets dnsPolicy None, so its resolv.conf has only its dnsConfig (%s, %s), and those do not answer for the cluster's Services; its log says: %q", cs.Name, host, servers, searches, clip(line, 160)),
+		"nonedns|"+p.Metadata.Namespace,
+		fmt.Sprintf("Use dnsPolicy ClusterFirst and put extra nameservers or search domains in dnsConfig, which ClusterFirst adds to cluster DNS; or, keeping None, list the cluster DNS Service's IP (kubectl get svc -n kube-system kube-dns) and the search domains %s.svc.cluster.local, svc.cluster.local and cluster.local.", p.Metadata.Namespace),
+		ev...)
+}
+
 // subdomainUnserved says why a pod's spec.subdomain gives it no DNS name: cluster DNS answers
 // hostname.subdomain.namespace.svc only for a headless Service named subdomain that selects the pod. A StatefulSet's
 // pods get their subdomain from its serviceName, which KD182 checks. It returns "" when the name exists or the
