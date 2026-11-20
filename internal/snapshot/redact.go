@@ -362,6 +362,11 @@ func (r *redactor) text(s string) string {
 		s = strings.ReplaceAll(s, repo, r.images[repo])
 	}
 	s = reIPv4.ReplaceAllStringFunc(s, func(ip string) string {
+		// The loopback and "every address" forms name no machine, and a diagnosis reads them: an app bound to
+		// 127.0.0.1 is a fault (KD215), one bound to 0.0.0.0 is not.
+		if strings.HasPrefix(ip, "127.") || ip == "0.0.0.0" {
+			return ip
+		}
 		if _, ok := r.ips[ip]; !ok {
 			m := hmac.New(sha256.New, r.key)
 			m.Write([]byte("ip\x00" + ip))

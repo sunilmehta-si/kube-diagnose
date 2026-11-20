@@ -153,3 +153,21 @@ func TestRedactKeepsASliceNamedForItsService(t *testing.T) {
 		t.Errorf("slice paymentsdb became %q", got)
 	}
 }
+
+// TestRedactLeavesLoopbackAddresses covers the addresses that name no machine: an app bound to 127.0.0.1 is a fault a
+// diagnosis has to see after redaction, while every other address is still replaced.
+func TestRedactLeavesLoopbackAddresses(t *testing.T) {
+	r := &redactor{key: []byte("k"), names: map[string]string{}, images: map[string]string{}, ips: map[string]string{}}
+	r.build()
+	got := r.text("httpd -p 127.0.0.1:8080, uvicorn --host 0.0.0.0, peer 192.168.40.12:443, dial tcp 10.244.0.9:8080")
+	for _, kept := range []string{"127.0.0.1:8080", "--host 0.0.0.0"} {
+		if !strings.Contains(got, kept) {
+			t.Errorf("%q missing from %q", kept, got)
+		}
+	}
+	for _, gone := range []string{"192.168.40.12", "10.244.0.9"} {
+		if strings.Contains(got, gone) {
+			t.Errorf("%q still in %q", gone, got)
+		}
+	}
+}
