@@ -2884,6 +2884,27 @@ func TestJobFailedAtOnceByItsPodFailurePolicy(t *testing.T) {
 	}
 }
 
+func TestOOMKilledAtALimitRangeDefault(t *testing.T) {
+	s := snap()
+	p := pod("worker-5f7d-x2k9p", "worker")
+	p.Metadata.Annotations = map[string]string{"kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu, memory request for container web; cpu, memory limit for container web"}
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "16Mi"}
+	crashed(&p, 137, "OOMKilled", 4)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD111", "ReplicaSet shop/worker-rs", "more than its 16Mi memory limit", "sets no memory limit for web", "LimitRange gave it its default")
+	if !strings.Contains(f.Fix, "LimitRange") || len(f.Evidence) < 4 {
+		t.Errorf("fix %q, %d evidence", f.Fix, len(f.Evidence))
+	}
+
+	// A limit the pod template set itself: the LimitRange is not blamed, even if it defaulted the request.
+	p.Metadata.Annotations["kubernetes.io/limit-ranger"] = "LimitRanger plugin set: memory request for container web"
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "LimitRange") {
+		t.Errorf("the pod's own limit was blamed on a LimitRange: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

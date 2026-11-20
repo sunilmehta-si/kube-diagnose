@@ -1274,8 +1274,17 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := memoryEmptyDir(p, cs, c, limit, ev); pr != nil {
 		return pr
 	}
-	return newProblem(p, cs.Name, "KD111", "Container runs out of memory", Critical, cause, "oom|"+limit,
-		"Raise the container's memory limit to what it needs at peak, or reduce the app's memory use.", ev...)
+	fix := "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use."
+	if limit != "" && limitRangerSetKind(p, "memory", "limit") == cs.Name {
+		cause += fmt.Sprintf("; the pod template sets no memory limit for %s: the namespace's LimitRange gave it its default", cs.Name)
+		fix = fmt.Sprintf("Set container %s's own memory limit in the pod template to what it needs at peak, or raise the default for memory in the namespace's LimitRange.", cs.Name)
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the LimitRanger admission plugin set container %s's memory limit", cs.Name),
+			Detail:  p.Metadata.Annotations[limitRangerAnnotation],
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.metadata.annotations.kubernetes\.io/limit-ranger}`)},
+			Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: p.Metadata.Namespace, Name: "*"}, What: "the namespace's LimitRanges",
+				Command: "kubectl get limitranges -n " + p.Metadata.Namespace + " -o yaml"})
+	}
+	return newProblem(p, cs.Name, "KD111", "Container runs out of memory", Critical, cause, "oom|"+limit, fix, ev...)
 }
 
 // memoryEmptyDir finds an OOMKilled container that mounts an emptyDir with medium Memory: a tmpfs whose pages are

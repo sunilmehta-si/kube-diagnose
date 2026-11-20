@@ -479,10 +479,14 @@ const limitRangerAnnotation = "kubernetes.io/limit-ranger"
 // limitRangerSet returns the first container whose request for res the LimitRanger admission plugin filled in from
 // a LimitRange default, as its annotation records: "LimitRanger plugin set: cpu, memory request for container web;
 // cpu limit for container web".
-func limitRangerSet(p kube.Pod, res string) string {
+func limitRangerSet(p kube.Pod, res string) string { return limitRangerSetKind(p, res, "request") }
+
+// limitRangerSetKind returns the container whose request or limit (kind) for the resource the LimitRanger admission
+// plugin filled in from a LimitRange default, as its annotation on the pod records, or "".
+func limitRangerSetKind(p kube.Pod, res, kind string) string {
 	a := strings.TrimPrefix(p.Metadata.Annotations[limitRangerAnnotation], "LimitRanger plugin set: ")
 	for _, clause := range strings.Split(a, ";") {
-		what, container, ok := strings.Cut(strings.TrimSpace(clause), " request for container ")
+		what, container, ok := strings.Cut(strings.TrimSpace(clause), " "+kind+" for container ")
 		if !ok {
 			continue
 		}
