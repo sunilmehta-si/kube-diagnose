@@ -3022,6 +3022,36 @@ func TestAppListensOnLocalhostOnly(t *testing.T) {
 	}
 }
 
+func TestServiceAlsoSelectsAnotherWorkloadsPods(t *testing.T) {
+	s := snap()
+	web1, web2 := pod("web-1", "web"), pod("web-2", "web")
+	worker := pod("worker-1", "worker")
+	worker.Spec.Containers[0].Ports = nil
+	s.Pods = []kube.Pod{web1, web2, worker}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, port(8080))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 3)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD273", "Service shop/web", "selects pods with app=web", "matches ReplicaSet worker-rs as well as ReplicaSet web-rs", "1 ready pod do not declare port 8080", "about 1 in 3 connections")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "selector only its own pods match") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// A canary that serves the same port, and a named targetPort (which leaves the other pods out), are fine.
+	worker.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 8080}}
+	s.Pods = []kube.Pod{web1, web2, worker}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a second workload that serves the port: %v", r.Findings)
+	}
+	worker.Spec.Containers[0].Ports = nil
+	s.Pods = []kube.Pod{web1, web2, worker}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD273" {
+			t.Errorf("a named targetPort: %s", f.Cause)
+		}
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

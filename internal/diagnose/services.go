@@ -64,6 +64,9 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 		if f := protocolMismatch(svc, matching); f != nil {
 			out = append(out, *f)
 		}
+		if f := selectsAnotherWorkload(ix, svc, ready); f != nil {
+			out = append(out, *f)
+		}
 		if len(ready) == 0 {
 			for _, p := range matching {
 				blocked[svc.Ref()] = append(blocked[svc.Ref()], p.Ref())
@@ -474,6 +477,66 @@ func protocolMismatch(svc kube.Service, matching []kube.Pod) *Finding {
 					Command: cmdGet("pod", ns, matching[0].Metadata.Name, "{.spec.containers[*].ports}")},
 			},
 			Fix: fmt.Sprintf("Add a Service port with protocol %s for it (a Service may list the same port number once per protocol, as DNS does with 53/UDP and 53/TCP), or correct the protocol.", strings.Join(other, ", "))}
+	}
+	return nil
+}
+
+// selectsAnotherWorkload finds a Service whose selector also matches the ready pods of a second workload that do not
+// declare its target port, while the first workload's pods do: a worker that shares the app label with the web
+// server, say. A numeric targetPort makes every ready pod the selector matches an endpoint, so the share of
+// connections that lands on the other workload's pods fails. (A named targetPort leaves such pods out by itself.)
+func selectsAnotherWorkload(ix *index, svc kube.Service, ready []kube.Pod) *Finding {
+	for _, sp := range svc.Spec.Ports {
+		if sp.TargetPort.IsName {
+			continue
+		}
+		target := sp.TargetPort.Int
+		if target == 0 {
+			target = sp.Port
+		}
+		with, without := map[kube.Ref]int{}, map[kube.Ref]int{}
+		var sample kube.Pod
+		for _, p := range ready {
+			declares := false
+			for _, c := range p.Spec.Containers {
+				for _, cp := range c.Ports {
+					declares = declares || cp.ContainerPort == target
+				}
+			}
+			o := ix.owner(p)
+			if declares {
+				with[o]++
+			} else {
+				without[o]++
+				sample = p
+			}
+		}
+		var serving, other []string
+		n := 0
+		for o := range with {
+			serving = append(serving, o.Kind+" "+o.Name)
+		}
+		for o, k := range without {
+			if with[o] == 0 {
+				other = append(other, o.Kind+" "+o.Name)
+				n += k
+			}
+		}
+		if len(serving) == 0 || len(other) == 0 {
+			continue
+		}
+		sort.Strings(serving)
+		sort.Strings(other)
+		ns, name, sel := svc.Metadata.Namespace, svc.Metadata.Name, kube.FormatMap(svc.Spec.Selector)
+		return &Finding{Rule: "KD273", Title: "Service also selects another workload's pods", Severity: Warning, Object: svc.Ref(),
+			Cause: fmt.Sprintf("Service %s selects pods with %s, which matches %s as well as %s: its %s do not declare port %d, yet a numeric targetPort makes them endpoints too, so about %d in %d connections to the Service reach a pod that does not serve it",
+				name, sel, strings.Join(other, ", "), strings.Join(serving, ", "), plural(n, "ready pod"), target, n, len(ready)),
+			Evidence: []Evidence{
+				{Object: svc.Ref(), What: fmt.Sprintf("Service %s has selector %s and targetPort %d", name, sel, target), Command: cmdGet("service", ns, name, `{.spec.selector}{" "}{.spec.ports}`)},
+				{Object: kube.Ref{Kind: "Pod", Namespace: ns, Name: "*"}, What: "the pods the selector matches, with their labels", Command: "kubectl get pods -n " + ns + " -l " + sel + " --show-labels"},
+				{Object: sample.Ref(), What: fmt.Sprintf("pod %s is selected and does not declare port %d", sample.Metadata.Name, target), Command: cmdGet("pod", ns, sample.Metadata.Name, "{.spec.containers[*].ports}")},
+			},
+			Fix: fmt.Sprintf("Give the Service a selector only its own pods match: add a label that tells the workloads apart (for example a component label) to the pod templates and to Service %s's selector.", name)}
 	}
 	return nil
 }
