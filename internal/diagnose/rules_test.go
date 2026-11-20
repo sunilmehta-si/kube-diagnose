@@ -2987,6 +2987,41 @@ func TestVolumeMountHidesTheCommand(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD114", "ReplicaSet shop/api-rs", "not in image")
 }
 
+func TestAppListensOnLocalhostOnly(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"httpd", "-f", "-p", "127.0.0.1:8080", "-h", "/www"}
+	c.ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/", Port: named("http")}}
+	s.Pods = []kube.Pod{p}
+	refused := event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: Get "http://10.244.0.9:8080/": dial tcp 10.244.0.9:8080: connect: connection refused`, time.Minute)
+	s.Events = []kube.Event{refused}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD215", "ReplicaSet shop/web-rs", "refused on port 8080", "loopback address only (its command binds 127.0.0.1:8080)", "never becomes ready")
+	if !strings.Contains(f.Fix, "0.0.0.0") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A bind flag, a bind variable, and the server's own log line each show it.
+	c.Command = []string{"uvicorn", "app:api", "--host", "localhost", "--port", "8080"}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD215", "ReplicaSet shop/web-rs", "its command sets --host localhost")
+	c.Command, c.Env = []string{"node", "server.js"}, []kube.EnvVar{{Name: "HOST", Value: "127.0.0.1"}, {Name: "DB_HOST", Value: "localhost"}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD215", "ReplicaSet shop/web-rs", "its env sets HOST=127.0.0.1")
+	c.Env = []kube.EnvVar{{Name: "DB_HOST", Value: "localhost"}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Lines: []string{"Server listening on http://127.0.0.1:8080"}}}
+	expect(t, only(t, Diagnose(s)), "KD215", "ReplicaSet shop/web-rs", "its log says")
+
+	// A client setting such as DB_HOST=localhost alone, or another port in the log, is not a bind address.
+	s.Logs[0].Lines = []string{"metrics listening on 127.0.0.1:9100"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD215" {
+		t.Errorf("blamed a client setting or another port: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

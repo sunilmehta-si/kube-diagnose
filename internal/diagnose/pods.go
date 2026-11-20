@@ -1386,6 +1386,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := probeGRPC(ix, p, cs, k); pr != nil {
 			return pr
 		}
+		if pr := probeLoopback(ix, p, cs, k); pr != nil {
+			return pr
+		}
 	}
 	var ev []Evidence
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy", "Killing") {
@@ -1492,6 +1495,9 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := probeGRPC(ix, p, cs, "readiness"); pr != nil {
+		return pr
+	}
+	if pr := probeLoopback(ix, p, cs, "readiness"); pr != nil {
 		return pr
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
