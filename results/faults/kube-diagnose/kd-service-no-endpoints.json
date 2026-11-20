@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-no-endpoints"
   ],
-  "collectedAt": "2026-11-20 09:29 UTC",
+  "collectedAt": "2026-11-20 11:53 UTC",
   "findings": [
     {
       "rule": "KD264",

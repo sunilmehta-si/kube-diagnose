@@ -27,11 +27,11 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "TXEu"
+              "Masked": "WyQ8"
             },
             {
               "Unmasked": "db",
-              "Masked": "QXg="
+              "Masked": "NWc="
             }
           ]
         }

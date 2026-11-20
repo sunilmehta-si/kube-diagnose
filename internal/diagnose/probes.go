@@ -105,6 +105,93 @@ func probeHost(ix *index, p kube.Pod, cs kube.ContainerStatus, kind string) *pro
 
 var reAnyProbeFailure = regexp.MustCompile(`(?i)probe (failed|errored)`)
 
+var (
+	reProbeRefused = regexp.MustCompile(`connect: connection refused`)
+	// A flag that sets the address a server binds: --host 127.0.0.1, --bind=localhost, -b 127.0.0.1 and the like.
+	reBindFlag = regexp.MustCompile(`(?i)(?:^|\s)(--?(?:host|bind|bind-address|bind-addr|listen|listen-address|listen-addr|address|addr|b|H))[= ]+(127\.0\.0\.1|localhost|\[?::1\]?)(?::\d+)?(?:\s|$)`)
+	// A server saying where it listens: "Listening on 127.0.0.1:8080", "Running on http://localhost:8080".
+	reLoopbackLog = regexp.MustCompile(`(?i)(?:listen|running|serving|started|bound|available)[^\n]*?(?:127\.0\.0\.1|localhost|\[::1\]):(\d+)`)
+)
+
+// bindEnv names the environment variables servers read their bind address from.
+var bindEnv = map[string]bool{"HOST": true, "BIND": true, "BIND_ADDR": true, "BIND_ADDRESS": true, "LISTEN_ADDR": true,
+	"LISTEN_ADDRESS": true, "LISTEN_HOST": true, "SERVER_HOST": true, "UVICORN_HOST": true, "GUNICORN_BIND": true}
+
+// loopbackOnly says how the spec or the log shows the app listening on the loopback address only, for the port a
+// probe uses: an address in the command (127.0.0.1:8080, --host localhost), a bind variable in env, or the server's
+// own line in the log.
+func loopbackOnly(c kube.Container, lines []string, port int32) (string, bool) {
+	ps := strconv.Itoa(int(port))
+	cmd := strings.Join(append(append([]string{}, c.Command...), c.Args...), " ")
+	for _, a := range []string{"127.0.0.1:" + ps, "localhost:" + ps, "[::1]:" + ps} {
+		if strings.Contains(cmd, a) {
+			return fmt.Sprintf("its command binds %s", a), true
+		}
+	}
+	if m := reBindFlag.FindStringSubmatch(cmd); m != nil {
+		return fmt.Sprintf("its command sets %s %s", m[1], m[2]), true
+	}
+	for _, e := range c.Env {
+		v := strings.TrimSuffix(e.Value, ":"+ps)
+		if bindEnv[e.Name] && (v == "127.0.0.1" || v == "localhost" || v == "::1") {
+			return fmt.Sprintf("its env sets %s=%s", e.Name, e.Value), true
+		}
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if m := reLoopbackLog.FindStringSubmatch(lines[i]); m != nil && m[1] == ps {
+			return fmt.Sprintf("its log says: %q", clip(lines[i], 160)), true
+		}
+	}
+	return "", false
+}
+
+// probeLoopback finds a probe that is refused because the app listens on 127.0.0.1 only. Inside a pod the loopback
+// address is reachable from the pod's own containers and from nothing else: not the kubelet's probes, not Services,
+// not other pods.
+func probeLoopback(ix *index, p kube.Pod, cs kube.ContainerStatus, kind string) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	pr := probeOf(c, kind)
+	if pr == nil {
+		return nil
+	}
+	var port kube.IntOrString
+	switch {
+	case pr.HTTPGet != nil && pr.HTTPGet.Host == "":
+		port = pr.HTTPGet.Port
+	case pr.TCPSocket != nil && pr.TCPSocket.Host == "":
+		port = pr.TCPSocket.Port
+	default:
+		return nil
+	}
+	n := port.Int
+	if port.IsName {
+		for _, cp := range c.Ports {
+			if cp.Name == port.Str {
+				n = cp.ContainerPort
+			}
+		}
+	}
+	if n == 0 {
+		return nil
+	}
+	e, ok := probeEvent(ix, p, cs.Name, kind, reProbeRefused)
+	if !ok {
+		return nil
+	}
+	how, ok := loopbackOnly(c, ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines, n)
+	if !ok {
+		return nil
+	}
+	return newProblem(p, cs.Name, "KD215", "App listens on localhost only", Critical,
+		fmt.Sprintf("container %s's %s probe is refused on port %d because the app listens on the loopback address only (%s): in a pod, 127.0.0.1 is reachable from the pod's own containers and from nothing else, not the kubelet, a Service or another pod, %s",
+			cs.Name, kind, n, how, probeEffect(kind, cs.RestartCount)),
+		"loopback|"+strconv.Itoa(int(n)),
+		"Have the app listen on 0.0.0.0 (or [::]) instead of 127.0.0.1 or localhost: its bind flag or variable, such as --host 0.0.0.0.",
+		eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, kind),
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's command and env", cs.Name),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].command}{" "}{.spec.containers[?(@.name=="%s")].args}{"\n"}{.spec.containers[?(@.name=="%s")].env}`, cs.Name, cs.Name, cs.Name))})
+}
+
 // The kubelet's gRPC probe messages (pkg/probe/grpc): a server without the health service, and a port where no gRPC
 // server answers (it cannot connect, or the call fails before any reply).
 var (

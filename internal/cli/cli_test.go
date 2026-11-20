@@ -212,8 +212,8 @@ func TestVersionAndRules(t *testing.T) {
 		t.Errorf("rules probe names port:\n%s", out)
 	}
 	env, out, _, _ = testEnv(nil)
-	if Run([]string{"rules", "kd28"}, env) != 0 || !strings.Contains(out.String(), "KD280") || !strings.Contains(out.String(), "KD287") {
-		t.Errorf("rules kd28 (KD280-KD287):\n%s", out)
+	if Run([]string{"rules", "kd28"}, env) != 0 || !strings.Contains(out.String(), "KD280") || !strings.Contains(out.String(), "KD288") {
+		t.Errorf("rules kd28 (KD280-KD288):\n%s", out)
 	}
 	for _, c := range []struct {
 		words []string
@@ -243,6 +243,12 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"ReadWriteOnce", "replicas"}, "KD287"},
 		{[]string{"podFailurePolicy"}, "KD110"},
 		{[]string{"millicore"}, "KD140"},
+		{[]string{"shell", "variable"}, "KD213"},
+		{[]string{"hides", "command"}, "KD214"},
+		{[]string{"localhost"}, "KD215"},
+		{[]string{"another", "workload"}, "KD273"},
+		{[]string{"minReadySeconds"}, "KD288"},
+		{[]string{"LimitRange", "memory"}, "KD111"},
 	} {
 		env, out, _, _ = testEnv(nil)
 		if Run(append([]string{"rules"}, c.words...), env) != 0 || !strings.Contains(out.String(), c.want) {

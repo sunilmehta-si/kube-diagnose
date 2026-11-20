@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-grpc-on-http"
   ],
-  "collectedAt": "2026-11-20 09:28 UTC",
+  "collectedAt": "2026-11-20 11:53 UTC",
   "findings": [
     {
       "rule": "KD209",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-grpc-on-http",
-            "name": "api-7bbdd84c89-gbrtl"
+            "name": "api-7bbdd84c89-kmw7c"
           },
           "what": "event Unhealthy (64 times)",
-          "detail": "Readiness probe failed: timeout: failed to connect service \"10.244.0.70:8080\" within 1s: context deadline exceeded",
-          "command": "kubectl get events -n kd-probe-grpc-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=api-7bbdd84c89-gbrtl"
+          "detail": "Readiness probe failed: timeout: failed to connect service \"10.244.0.79:8080\" within 1s: context deadline exceeded",
+          "command": "kubectl get events -n kd-probe-grpc-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=api-7bbdd84c89-kmw7c"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-grpc-on-http",
-            "name": "api-7bbdd84c89-gbrtl"
+            "name": "api-7bbdd84c89-kmw7c"
           },
           "what": "container api's readiness probe",
-          "command": "kubectl get pod api-7bbdd84c89-gbrtl -n kd-probe-grpc-on-http -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
+          "command": "kubectl get pod api-7bbdd84c89-kmw7c -n kd-probe-grpc-on-http -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
         }
       ],
       "fix": "Point the probe's grpc.port at the app's gRPC port, or, if the app speaks HTTP, use an httpGet probe.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-grpc-on-http",
-          "name": "api-7bbdd84c89-gbrtl"
+          "name": "api-7bbdd84c89-kmw7c"
         }
       ]
     }

@@ -2884,6 +2884,174 @@ func TestJobFailedAtOnceByItsPodFailurePolicy(t *testing.T) {
 	}
 }
 
+func TestOOMKilledAtALimitRangeDefault(t *testing.T) {
+	s := snap()
+	p := pod("worker-5f7d-x2k9p", "worker")
+	p.Metadata.Annotations = map[string]string{"kubernetes.io/limit-ranger": "LimitRanger plugin set: cpu, memory request for container web; cpu, memory limit for container web"}
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "16Mi"}
+	crashed(&p, 137, "OOMKilled", 4)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD111", "ReplicaSet shop/worker-rs", "more than its 16Mi memory limit", "sets no memory limit for web", "LimitRange gave it its default")
+	if !strings.Contains(f.Fix, "LimitRange") || len(f.Evidence) < 4 {
+		t.Errorf("fix %q, %d evidence", f.Fix, len(f.Evidence))
+	}
+
+	// A limit the pod template set itself: the LimitRange is not blamed, even if it defaulted the request.
+	p.Metadata.Annotations["kubernetes.io/limit-ranger"] = "LimitRanger plugin set: memory request for container web"
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "LimitRange") {
+		t.Errorf("the pod's own limit was blamed on a LimitRange: %s", f.Cause)
+	}
+}
+
+func TestReadyPodsHeldUnavailableByMinReadySeconds(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 2)
+	s.Workloads[0].Spec.MinReadySeconds = 3600
+	s.Pods = []kube.Pod{pod("web-1", "web"), pod("web-2", "web")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD288", "Deployment shop/web", "2 of 2 pods ready but only 0 available", "minReadySeconds is 3600", "1h0m0s")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "not a timeout") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Available once the wait has passed, or a short wait: nothing to say.
+	s.Workloads[0].Status.AvailableReplicas = 2
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("available pods: %v", r.Findings)
+	}
+	s.Workloads[0].Status.AvailableReplicas = 0
+	s.Workloads[0].Spec.MinReadySeconds = 10
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a ten-second wait: %v", r.Findings)
+	}
+}
+
+func TestCommandUsesAShellVariableWithNoShell(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"sleep", "$SLEEP_SECONDS"}
+	c.Env = []kube.EnvVar{{Name: "SLEEP_SECONDS", Value: "3600"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"sleep: invalid number '$SLEEP_SECONDS'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD213", "ReplicaSet shop/worker-rs", "command uses $SLEEP_SECONDS", "runs without a shell", "expands only $(SLEEP_SECONDS)", "invalid number")
+	if !strings.HasPrefix(f.Fix, "Write it as $(SLEEP_SECONDS)") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The braced form in args, for a variable the container does not define.
+	c.Command, c.Args, c.Env = []string{"/app/server"}, []string{"--port=${PORT}"}, nil
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{`invalid value "${PORT}" for flag -port: parse error`}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD213", "ReplicaSet shop/worker-rs", "args uses ${PORT}")
+	if !strings.HasPrefix(f.Fix, "Define PORT") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Under sh -c the shell expands it: not this rule.
+	c.Command, c.Args = []string{"/bin/sh", "-c"}, []string{"exec server --port=$PORT"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"server: bad port $PORT"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD213" {
+		t.Errorf("a shell command: %s", f.Cause)
+	}
+}
+
+func TestVolumeMountHidesTheCommand(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"/app/server", "--port=8080"}
+	c.VolumeMounts = []kube.VolumeMount{{Name: "data", MountPath: "/app"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "data", EmptyDir: &kube.EmptyDirVolumeSource{}}}
+	notReady(&p)
+	p.Status.ContainerStatuses[0].RestartCount = 3
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}
+	p.Status.ContainerStatuses[0].LastTerminationState = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 128, Reason: "StartError",
+		Message: `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "/app/server": stat /app/server: no such file or directory`}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD214", "ReplicaSet shop/api-rs", "runs /app/server", "volume data (an emptyDir, which starts empty) is mounted at /app", "replaces everything the image has there")
+	if !strings.Contains(f.Fix, "/app/data") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The same error with no volume over the command is the plain "not in the image".
+	c.VolumeMounts = []kube.VolumeMount{{Name: "data", MountPath: "/var/cache"}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD114", "ReplicaSet shop/api-rs", "not in image")
+}
+
+func TestAppListensOnLocalhostOnly(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"httpd", "-f", "-p", "127.0.0.1:8080", "-h", "/www"}
+	c.ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/", Port: named("http")}}
+	s.Pods = []kube.Pod{p}
+	refused := event("Pod", p.Metadata.Name, "Unhealthy", `Readiness probe failed: Get "http://10.244.0.9:8080/": dial tcp 10.244.0.9:8080: connect: connection refused`, time.Minute)
+	s.Events = []kube.Event{refused}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD215", "ReplicaSet shop/web-rs", "refused on port 8080", "loopback address only (its command binds 127.0.0.1:8080)", "never becomes ready")
+	if !strings.Contains(f.Fix, "0.0.0.0") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A bind flag, a bind variable, and the server's own log line each show it.
+	c.Command = []string{"uvicorn", "app:api", "--host", "localhost", "--port", "8080"}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD215", "ReplicaSet shop/web-rs", "its command sets --host localhost")
+	c.Command, c.Env = []string{"node", "server.js"}, []kube.EnvVar{{Name: "HOST", Value: "127.0.0.1"}, {Name: "DB_HOST", Value: "localhost"}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD215", "ReplicaSet shop/web-rs", "its env sets HOST=127.0.0.1")
+	c.Env = []kube.EnvVar{{Name: "DB_HOST", Value: "localhost"}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Lines: []string{"Server listening on http://127.0.0.1:8080"}}}
+	expect(t, only(t, Diagnose(s)), "KD215", "ReplicaSet shop/web-rs", "its log says")
+
+	// A client setting such as DB_HOST=localhost alone, or another port in the log, is not a bind address.
+	s.Logs[0].Lines = []string{"metrics listening on 127.0.0.1:9100"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD215" {
+		t.Errorf("blamed a client setting or another port: %s", f.Cause)
+	}
+}
+
+func TestServiceAlsoSelectsAnotherWorkloadsPods(t *testing.T) {
+	s := snap()
+	web1, web2 := pod("web-1", "web"), pod("web-2", "web")
+	worker := pod("worker-1", "worker")
+	worker.Spec.Containers[0].Ports = nil
+	s.Pods = []kube.Pod{web1, web2, worker}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, port(8080))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 3)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD273", "Service shop/web", "selects pods with app=web", "matches ReplicaSet worker-rs as well as ReplicaSet web-rs", "1 ready pod do not declare port 8080", "about 1 in 3 connections")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "selector only its own pods match") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// A canary that serves the same port, and a named targetPort (which leaves the other pods out), are fine.
+	worker.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 8080}}
+	s.Pods = []kube.Pod{web1, web2, worker}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a second workload that serves the port: %v", r.Findings)
+	}
+	worker.Spec.Containers[0].Ports = nil
+	s.Pods = []kube.Pod{web1, web2, worker}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD273" {
+			t.Errorf("a named targetPort: %s", f.Cause)
+		}
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

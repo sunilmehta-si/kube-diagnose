@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-limitrange-default-memory-oom/worker",
+      "error": [
+        {
+          "Text": "Deployment kd-limitrange-default-memory-oom/worker has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-default-memory-oom",
+              "Masked": "WHRAX3YkOGZeKmtfakNAOW1eM21BcFJLNWg8JmpfKzQ="
+            },
+            {
+              "Unmasked": "worker",
+              "Masked": "P2hGI3hj"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-limitrange-default-memory-oom/worker-66df59b77f-qx8jn",
+      "error": [
+        {
+          "Text": "the last termination reason is OOMKilled container=worker pod=worker-66df59b77f-qx8jn",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/worker"
+    }
+  ]
+}

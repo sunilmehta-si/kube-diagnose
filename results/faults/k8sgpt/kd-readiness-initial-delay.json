@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-initial-delay",
-              "Masked": "fT0ybXBtQFgkSFNHOjQxW19rYU4pIUZbQDQ="
+              "Masked": "Tjk7MVRKdGlwNW43Pld7bWZldjtBNTI5NUU="
             },
             {
               "Unmasked": "api",
-              "Masked": "dFMv"
+              "Masked": "Y3BD"
             }
           ]
         }

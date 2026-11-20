@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-service-selects-other-workload",
+  "description": "A queue worker shares the label app=shop with the web server, and the Service selects on that label alone with a numeric targetPort; the worker's pod becomes an endpoint too, so a share of requests reach a pod that serves nothing on 8080.",
+  "rule": "KD273",
+  "object": "Service/shop",
+  "keywords": [
+    [
+      "worker"
+    ],
+    [
+      "selector",
+      "selects"
+    ]
+  ]
+}

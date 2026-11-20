@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-blocks-dns",
-              "Masked": "KDEmYyl9Tz4+bXpRLExvQitwazBZJHMvZjc1"
+              "Masked": "dWkocG1DJCZlTWEhX3dYamxALjR5MHc3VzBl"
             },
             {
               "Unmasked": "web",
-              "Masked": "X2Zp"
+              "Masked": "SGhm"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-networkpolicy-blocks-dns/web-bc988964d-zfq8n",
+      "name": "kd-networkpolicy-blocks-dns/web-bc988964d-2dj5d",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-bc988964d-zfq8n",
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-bc988964d-2dj5d",
           "KubernetesDoc": "",
           "Sensitive": []
         }

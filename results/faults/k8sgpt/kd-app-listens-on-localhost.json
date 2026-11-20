@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-app-listens-on-localhost/web",
+      "error": [
+        {
+          "Text": "Deployment kd-app-listens-on-localhost/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-app-listens-on-localhost",
+              "Masked": "QCxwa1tbQUowUjQxJXtKcD1YdmUzL3hAayUk"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "VEI1"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-app-listens-on-localhost/web-966bc545f-zcdqh",
+      "error": [
+        {
+          "Text": "Readiness probe failed: Get \"http://10.244.0.5:8080/\": dial tcp 10.244.0.5:8080: connect: connection refused",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

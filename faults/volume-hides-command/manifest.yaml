@@ -1,0 +1,32 @@
+# A scratch volume is mounted at /bin, the directory that holds the container's command; the empty volume replaces everything the image has there, so /bin/sleep no longer exists and the container cannot start.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-volume-hides-command
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kd-volume-hides-command
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["/bin/sleep", "3600"]
+          volumeMounts:
+            - name: scratch
+              mountPath: /bin
+      volumes:
+        - name: scratch
+          emptyDir: {}

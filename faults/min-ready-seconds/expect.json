@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-min-ready-seconds",
+  "description": "A Deployment sets minReadySeconds: 3600, meant as a timeout; its pods are ready within seconds but do not count as available for an hour, so it reports no available replicas and nothing says why.",
+  "rule": "KD288",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "minReadySeconds"
+    ],
+    [
+      "available"
+    ]
+  ]
+}

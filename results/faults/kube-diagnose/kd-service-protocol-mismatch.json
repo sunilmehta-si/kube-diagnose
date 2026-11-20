@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-protocol-mismatch"
   ],
-  "collectedAt": "2026-11-20 09:29 UTC",
+  "collectedAt": "2026-11-20 11:53 UTC",
   "findings": [
     {
       "rule": "KD271",
@@ -30,10 +30,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-protocol-mismatch",
-            "name": "syslog-7bc6df7679-dgfl7"
+            "name": "syslog-7bc6df7679-vbq4h"
           },
           "what": "the selected pods declare port 5140 as UDP",
-          "command": "kubectl get pod syslog-7bc6df7679-dgfl7 -n kd-service-protocol-mismatch -o jsonpath='{.spec.containers[*].ports}'"
+          "command": "kubectl get pod syslog-7bc6df7679-vbq4h -n kd-service-protocol-mismatch -o jsonpath='{.spec.containers[*].ports}'"
         }
       ],
       "fix": "Add a Service port with protocol UDP for it (a Service may list the same port number once per protocol, as DNS does with 53/UDP and 53/TCP), or correct the protocol."

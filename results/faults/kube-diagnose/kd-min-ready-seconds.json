@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-min-ready-seconds"
+  ],
+  "collectedAt": "2026-11-20 11:52 UTC",
+  "findings": [
+    {
+      "rule": "KD288",
+      "title": "Ready pods are held unavailable by minReadySeconds",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-min-ready-seconds",
+        "name": "web"
+      },
+      "cause": "Deployment web has 2 of 2 pods ready but only 0 available: its minReadySeconds is 3600, so a pod counts as available only after it has stayed ready for 1h0m0s, and a rollout waits that long at every step",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-min-ready-seconds",
+            "name": "web"
+          },
+          "what": "Deployment web has minReadySeconds 3600, 2 ready and 0 available",
+          "command": "kubectl get deployment web -n kd-min-ready-seconds -o jsonpath='{.spec.minReadySeconds}{\" \"}{.status.readyReplicas}{\" \"}{.status.availableReplicas}'"
+        }
+      ],
+      "fix": "Lower minReadySeconds to the few seconds a new pod needs to prove itself (it is not a timeout), and let the readiness probe say when the pod can serve."
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

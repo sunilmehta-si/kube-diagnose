@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-subpath-key-missing",
-              "Masked": "MndeTXVjd1NIRDInOTZbSWM5RF8uPg=="
+              "Masked": "LSlKITNuSFVsWF58RkBdO1ZkJClHNA=="
             },
             {
               "Unmasked": "app",
-              "Masked": "K0ti"
+              "Masked": "Vypy"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-subpath-key-missing/app-78795587d8-x25bw",
+      "name": "kd-subpath-key-missing/app-78795587d8-dwf7v",
       "error": [
         {
-          "Text": "the last termination reason is Error container=app pod=app-78795587d8-x25bw",
+          "Text": "the termination reason is Error exitCode=1 container=app pod=app-78795587d8-dwf7v",
           "KubernetesDoc": "",
           "Sensitive": []
         }

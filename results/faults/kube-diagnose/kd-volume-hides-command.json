@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-volume-hides-command"
+  ],
+  "collectedAt": "2026-11-20 11:54 UTC",
+  "findings": [
+    {
+      "rule": "KD214",
+      "title": "Volume mount hides the command",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-volume-hides-command",
+        "name": "api"
+      },
+      "cause": "container api runs /bin/sleep, but volume scratch (an emptyDir, which starts empty) is mounted at /bin and replaces everything the image has there, so the command is not in the container; Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-volume-hides-command",
+            "name": "api-544f5fbdf4-r9mv5"
+          },
+          "what": "container api did not start",
+          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/bin/sleep\": stat /bin/sleep: no such file or directory",
+          "command": "kubectl get pod api-544f5fbdf4-r9mv5 -n kd-volume-hides-command -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-volume-hides-command",
+            "name": "api-544f5fbdf4-r9mv5"
+          },
+          "what": "container api mounts volume scratch at /bin, and its command is /bin/sleep",
+          "command": "kubectl get pod api-544f5fbdf4-r9mv5 -n kd-volume-hides-command -o jsonpath='{.spec.containers[?(@.name==\"api\")].volumeMounts}'"
+        }
+      ],
+      "fix": "Mount volume scratch somewhere the image keeps no files (a subdirectory such as /bin/data), or use subPath to mount only the directory the app writes to.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-volume-hides-command",
+          "name": "api-544f5fbdf4-r9mv5"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

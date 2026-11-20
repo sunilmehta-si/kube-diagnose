@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-volume-hides-command",
+  "description": "A scratch volume is mounted at /bin, the directory that holds the container's command; the empty volume replaces everything the image has there, so /bin/sleep no longer exists and the container cannot start.",
+  "rule": "KD214",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "/bin"
+    ],
+    [
+      "volume",
+      "mounted"
+    ]
+  ]
+}

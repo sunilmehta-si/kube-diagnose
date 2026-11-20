@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-limitrange-default-memory-oom",
+  "description": "The namespace's LimitRange gives every container a default memory limit of 16Mi, and a worker that sets no limit of its own needs more, so it is OOMKilled again and again.",
+  "rule": "KD111",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "LimitRange"
+    ],
+    [
+      "memory"
+    ]
+  ]
+}

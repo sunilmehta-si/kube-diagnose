@@ -871,6 +871,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
 				return volumeFileProblem(p, cs.Name, m, fmt.Sprintf("container %s runs %s, which does not exist: %s", cs.Name, c.Command[0], what), ev)
 			}
+			if pr := volumeHidesCommand(p, cs, c.Command[0], ev); pr != nil {
+				return pr
+			}
 		}
 		cmd := strings.Join(append(append([]string{}, c.Command...), c.Args...), " ")
 		cause := fmt.Sprintf("container %s's command is not in image %s", cs.Name, imageOf(p, cs))
@@ -881,6 +884,36 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			"Correct the command (or the image's entrypoint): use a path that exists in the image.", ev...)
 	}
 	return nil
+}
+
+// volumeHidesCommand finds a command the runtime cannot find because a volume is mounted on the directory that holds
+// it: an emptyDir, a claim or a hostPath mounted at /app replaces everything the image has under /app, the binary
+// included. (A ConfigMap or Secret volume that lacks the file is told apart, with its keys.)
+func volumeHidesCommand(p kube.Pod, cs kube.ContainerStatus, cmd string, ev []Evidence) *problem {
+	if !strings.HasPrefix(cmd, "/") {
+		return nil
+	}
+	m, ok := p.MountAt(cs.Name, cmd)
+	if !ok || m.Rel == "" {
+		return nil
+	}
+	kind := ""
+	switch {
+	case m.Volume.EmptyDir != nil:
+		kind = "an emptyDir, which starts empty"
+	case m.Volume.PersistentVolumeClaim != nil:
+		kind = "PersistentVolumeClaim " + m.Volume.PersistentVolumeClaim.ClaimName
+	case m.Volume.HostPath != nil:
+		kind = "hostPath " + m.Volume.HostPath.Path
+	default:
+		return nil
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s mounts volume %s at %s, and its command is %s", cs.Name, m.Name, m.MountPath, cmd),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].volumeMounts}`, cs.Name))})
+	return newProblem(p, cs.Name, "KD214", "Volume mount hides the command", Critical,
+		fmt.Sprintf("container %s runs %s, but volume %s (%s) is mounted at %s and replaces everything the image has there, so the command is not in the container", cs.Name, cmd, m.Name, kind, m.MountPath),
+		"hidden|"+m.MountPath,
+		fmt.Sprintf("Mount volume %s somewhere the image keeps no files (a subdirectory such as %s/data), or use subPath to mount only the directory the app writes to.", m.Name, strings.TrimRight(m.MountPath, "/")), ev...)
 }
 
 var reNoExecName = regexp.MustCompile(`exec: "([^"]+)": (?:executable file not found|stat [^:]+: no such file or directory)`)
@@ -970,6 +1003,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		}
 	}
 	if pr := undefinedVar(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := shellVar(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := subPathIsADirectory(ix, p, cs, log.Lines, ev); pr != nil {
@@ -1274,8 +1310,17 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := memoryEmptyDir(p, cs, c, limit, ev); pr != nil {
 		return pr
 	}
-	return newProblem(p, cs.Name, "KD111", "Container runs out of memory", Critical, cause, "oom|"+limit,
-		"Raise the container's memory limit to what it needs at peak, or reduce the app's memory use.", ev...)
+	fix := "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use."
+	if limit != "" && limitRangerSetKind(p, "memory", "limit") == cs.Name {
+		cause += fmt.Sprintf("; the pod template sets no memory limit for %s: the namespace's LimitRange gave it its default", cs.Name)
+		fix = fmt.Sprintf("Set container %s's own memory limit in the pod template to what it needs at peak, or raise the default for memory in the namespace's LimitRange.", cs.Name)
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the LimitRanger admission plugin set container %s's memory limit", cs.Name),
+			Detail:  p.Metadata.Annotations[limitRangerAnnotation],
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.metadata.annotations.kubernetes\.io/limit-ranger}`)},
+			Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: p.Metadata.Namespace, Name: "*"}, What: "the namespace's LimitRanges",
+				Command: "kubectl get limitranges -n " + p.Metadata.Namespace + " -o yaml"})
+	}
+	return newProblem(p, cs.Name, "KD111", "Container runs out of memory", Critical, cause, "oom|"+limit, fix, ev...)
 }
 
 // memoryEmptyDir finds an OOMKilled container that mounts an emptyDir with medium Memory: a tmpfs whose pages are
@@ -1339,6 +1384,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			return pr
 		}
 		if pr := probeGRPC(ix, p, cs, k); pr != nil {
+			return pr
+		}
+		if pr := probeLoopback(ix, p, cs, k); pr != nil {
 			return pr
 		}
 	}
@@ -1447,6 +1495,9 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := probeGRPC(ix, p, cs, "readiness"); pr != nil {
+		return pr
+	}
+	if pr := probeLoopback(ix, p, cs, "readiness"); pr != nil {
 		return pr
 	}
 	for _, e := range ix.eventsFor(p.Ref(), "Unhealthy") {
