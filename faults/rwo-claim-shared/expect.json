@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-rwo-claim-shared",
+  "description": "A Deployment scaled to two replicas mounts one ReadWriteOnce claim for uploads; on kind's single node both start, but on a cluster with more nodes the replica placed elsewhere cannot attach the volume (Multi-Attach) and never starts.",
+  "rule": "KD287",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "ReadWriteOnce"
+    ],
+    [
+      "replicas",
+      "Multi-Attach"
+    ]
+  ]
+}

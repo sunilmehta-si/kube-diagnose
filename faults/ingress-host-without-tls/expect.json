@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-ingress-host-without-tls",
+  "description": "An Ingress has TLS for www.shop.example.com, but its rule serves shop.example.com, the name customers use; no TLS entry covers it, so HTTPS requests get the controller's default certificate.",
+  "rule": "KD272",
+  "object": "Ingress/web",
+  "keywords": [
+    [
+      "shop.example.com"
+    ],
+    [
+      "TLS",
+      "certificate"
+    ]
+  ]
+}

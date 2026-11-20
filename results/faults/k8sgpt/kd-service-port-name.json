@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "PWFF"
+              "Masked": "RUNR"
             },
             {
               "Unmasked": "web",
-              "Masked": "dV9C"
+              "Masked": "Iy8n"
             }
           ]
         }

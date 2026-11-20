@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-cronjob-runs-pile-up",
+  "description": "A CronJob runs a report every minute with the default concurrencyPolicy, Allow, and each report takes an hour; every minute another run starts beside the ones still going, and they pile up.",
+  "rule": "KD286",
+  "object": "CronJob/report",
+  "keywords": [
+    [
+      "Allow",
+      "concurrencyPolicy"
+    ],
+    [
+      "running at once",
+      "pile"
+    ]
+  ]
+}

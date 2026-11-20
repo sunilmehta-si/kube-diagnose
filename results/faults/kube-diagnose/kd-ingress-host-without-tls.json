@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-ingress-host-without-tls"
+  ],
+  "collectedAt": "2026-11-20 09:26 UTC",
+  "findings": [
+    {
+      "rule": "KD272",
+      "title": "Ingress serves a host that its TLS does not cover",
+      "severity": "warning",
+      "object": {
+        "kind": "Ingress",
+        "namespace": "kd-ingress-host-without-tls",
+        "name": "web"
+      },
+      "cause": "Ingress web has TLS for www.shop.example.com, but its rules also serve shop.example.com, which no TLS entry covers, so HTTPS requests to shop.example.com get the controller's default certificate, which clients reject",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-host-without-tls",
+            "name": "web"
+          },
+          "what": "the Ingress's rule hosts and TLS hosts",
+          "command": "kubectl get ingress web -n kd-ingress-host-without-tls -o jsonpath='{.spec.rules[*].host}{\"\\n\"}{.spec.tls}'"
+        }
+      ],
+      "fix": "Add shop.example.com to the hosts of a tls entry whose Secret's certificate covers it (or correct the rule's host if it is a typo)."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

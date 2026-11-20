@@ -1,0 +1,44 @@
+# A log collector listens for syslog on 5140/UDP, and its Service lists port 5140 without a protocol, which means TCP; Kubernetes forwards only TCP for it, so the UDP messages senders send to the Service never arrive.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-service-protocol-mismatch
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: syslog
+  namespace: kd-service-protocol-mismatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: syslog
+  template:
+    metadata:
+      labels:
+        app: syslog
+    spec:
+      containers:
+        - name: syslog
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "while true; do nc -u -l -p 5140; done"]
+          ports:
+            - name: syslog
+              containerPort: 5140
+              protocol: UDP
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: syslog
+  namespace: kd-service-protocol-mismatch
+spec:
+  selector:
+    app: syslog
+  ports:
+    - name: syslog
+      port: 5140
+      targetPort: 5140

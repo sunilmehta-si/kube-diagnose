@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-readiness-initial-delay",
+  "description": "A web server is up in a second, but its readiness probe waits initialDelaySeconds: 900 before its first check, set for a slow start; the pod stays not ready and gets no traffic for fifteen minutes after every start.",
+  "rule": "KD211",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "initialDelaySeconds"
+    ],
+    [
+      "readiness"
+    ]
+  ]
+}

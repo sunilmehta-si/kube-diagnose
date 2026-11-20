@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-readiness-initial-delay"
+  ],
+  "collectedAt": "2026-11-20 09:28 UTC",
+  "findings": [
+    {
+      "rule": "KD211",
+      "title": "Readiness probe has not run yet",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-readiness-initial-delay",
+        "name": "api"
+      },
+      "cause": "container api has run for 6m24s and is not ready because its readiness probe waits initialDelaySeconds 900 (15m0s) before its first check, so the pod gets no traffic until then, after every start and restart; Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readiness-initial-delay",
+            "name": "api-868866fccb-zjtll"
+          },
+          "what": "container api's readiness probe has initialDelaySeconds 900",
+          "command": "kubectl get pod api-868866fccb-zjtll -n kd-readiness-initial-delay -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readiness-initial-delay",
+            "name": "api-868866fccb-zjtll"
+          },
+          "what": "container api started 6m24s ago and is not ready",
+          "command": "kubectl get pod api-868866fccb-zjtll -n kd-readiness-initial-delay -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
+        }
+      ],
+      "fix": "For an app that starts slowly, give it a startupProbe (it holds the other probes back only until the app is up) and a short readiness initialDelaySeconds.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-readiness-initial-delay",
+          "name": "api-868866fccb-zjtll"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

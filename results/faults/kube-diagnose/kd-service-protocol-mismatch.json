@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-protocol-mismatch"
+  ],
+  "collectedAt": "2026-11-20 09:29 UTC",
+  "findings": [
+    {
+      "rule": "KD271",
+      "title": "Service port's protocol differs from the pods' port",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-protocol-mismatch",
+        "name": "syslog"
+      },
+      "cause": "Service syslog's port 5140 is TCP, but the pods declare its target port 5140 as UDP only: Kubernetes forwards only TCP for that port, so UDP traffic to the Service never reaches them",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-protocol-mismatch",
+            "name": "syslog"
+          },
+          "what": "Service port 5140 has protocol TCP",
+          "command": "kubectl get service syslog -n kd-service-protocol-mismatch -o jsonpath='{.spec.ports}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-protocol-mismatch",
+            "name": "syslog-7bc6df7679-dgfl7"
+          },
+          "what": "the selected pods declare port 5140 as UDP",
+          "command": "kubectl get pod syslog-7bc6df7679-dgfl7 -n kd-service-protocol-mismatch -o jsonpath='{.spec.containers[*].ports}'"
+        }
+      ],
+      "fix": "Add a Service port with protocol UDP for it (a Service may list the same port number once per protocol, as DNS does with 53/UDP and 53/TCP), or correct the protocol."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

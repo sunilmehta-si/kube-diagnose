@@ -316,6 +316,45 @@ func nodeDNS(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev 
 		"nodedns|"+what, fix, ev...)
 }
 
+// customDNS finds a container that exits because a Service of the cluster does not resolve, in a pod with dnsPolicy
+// None: its resolv.conf holds only the nameservers and search domains in spec.dnsConfig. Unless one of those
+// nameservers is cluster DNS and the search domains include the namespace's svc domain, Service names do not resolve.
+func customDNS(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	if p.Spec.DNSPolicy != "None" {
+		return nil
+	}
+	host, line := unresolvedHost(lines)
+	if host == "" {
+		return nil
+	}
+	lower := strings.ToLower(host)
+	if !strings.HasSuffix(lower, ".svc") && !strings.Contains(lower, ".svc.") {
+		svcNS, svc, isSvc := serviceName(p.Metadata.Namespace, host)
+		if !isSvc {
+			return nil
+		}
+		if exists, _ := ix.serviceExists(svcNS, svc); !exists {
+			return nil
+		}
+	}
+	servers, searches := "no nameservers", "no search domains"
+	if d := p.Spec.DNSConfig; d != nil {
+		if len(d.Nameservers) > 0 {
+			servers = "nameservers " + strings.Join(d.Nameservers, ", ")
+		}
+		if len(d.Searches) > 0 {
+			searches = "search domains " + strings.Join(d.Searches, ", ")
+		}
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the pod sets dnsPolicy None, with %s and %s", servers, searches),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.dnsPolicy}{" "}{.spec.dnsConfig}`)})
+	return newProblem(p, cs.Name, "KD269", "Pod's DNS settings leave out cluster DNS", Critical,
+		fmt.Sprintf("container %s exits because %s does not resolve: the pod sets dnsPolicy None, so its resolv.conf has only its dnsConfig (%s, %s), and those do not answer for the cluster's Services; its log says: %q", cs.Name, host, servers, searches, clip(line, 160)),
+		"nonedns|"+p.Metadata.Namespace,
+		fmt.Sprintf("Use dnsPolicy ClusterFirst and put extra nameservers or search domains in dnsConfig, which ClusterFirst adds to cluster DNS; or, keeping None, list the cluster DNS Service's IP (kubectl get svc -n kube-system kube-dns) and the search domains %s.svc.cluster.local, svc.cluster.local and cluster.local.", p.Metadata.Namespace),
+		ev...)
+}
+
 // subdomainUnserved says why a pod's spec.subdomain gives it no DNS name: cluster DNS answers
 // hostname.subdomain.namespace.svc only for a headless Service named subdomain that selects the pod. A StatefulSet's
 // pods get their subdomain from its serviceName, which KD182 checks. It returns "" when the name exists or the
@@ -387,4 +426,32 @@ func subdomainProblem(ix *index, p kube.Pod, cs *kube.ContainerStatus, lines []s
 	return newProblem(p, "", "KD266", "Pod's subdomain has no headless Service", Warning,
 		fmt.Sprintf("the pod sets hostname and subdomain for the DNS name %s.%s.svc, but %s, so that name does not resolve and peers that look it up fail", podDNSName(p), ns, why),
 		"subdomain|"+sub, fix, spec, svcEv)
+}
+
+// externalNameUnresolved finds a container that exits because it cannot resolve a Service that exists and is of type
+// ExternalName: cluster DNS answers the Service's name with a CNAME to its externalName, so when that name does not
+// resolve (a typo, an internal name the cluster's DNS cannot see, a record since removed) neither does the Service.
+func externalNameUnresolved(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	host, line := unresolvedHost(lines)
+	if host == "" {
+		return nil
+	}
+	svcNS, name, ok := serviceName(p.Metadata.Namespace, host)
+	if !ok {
+		return nil
+	}
+	for _, svc := range ix.s.Services {
+		if svc.Metadata.Namespace != svcNS || svc.Metadata.Name != name || svc.Spec.Type != "ExternalName" {
+			continue
+		}
+		target := svc.Spec.ExternalName
+		ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s is of type ExternalName and points at %s", name, target),
+			Command: cmdGet("service", svcNS, name, `{.spec.type}{" "}{.spec.externalName}`)})
+		return newProblem(p, cs.Name, "KD270", "ExternalName Service points at a name that does not resolve", Critical,
+			fmt.Sprintf("container %s exits because %s does not resolve: Service %s is of type ExternalName, so cluster DNS answers it with a CNAME to %s, and that name does not resolve from the cluster; its log says: %q", cs.Name, host, name, target, clip(line, 200)),
+			"extname|"+svcNS+"/"+name,
+			fmt.Sprintf("Correct Service %s's externalName to a name the cluster's DNS can resolve (check it from a pod: nslookup %s), or, for an address, use a Service without a selector and an EndpointSlice.", name, target),
+			ev...)
+	}
+	return nil
 }

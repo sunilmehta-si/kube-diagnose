@@ -2,6 +2,33 @@
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-20
+
+- The fault suite's committed run (44709934332): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 125 of 125 faults and raises no false alarm; k8sgpt v0.4.41 names 46, 27 of them first.
+- The fault suite's kind node takes 250 pods (`hack/kind-faults.yaml`): at 125 namespaces at once the default 110
+  ran out, and scenarios showed a pod waiting for a slot instead of their fault.
+
+### Added
+- 8 rules, 137 in all (`docs/rules.md`):
+  - resources: a memory limit without a unit, which Kubernetes reads as bytes, so the container dies as it starts
+    (KD210);
+  - probes and DNS: a readiness probe held back by an initialDelaySeconds of 5 minutes or more (KD211); a pod with
+    dnsPolicy None whose dnsConfig leaves out cluster DNS (KD269); an ExternalName Service whose externalName does not
+    resolve (KD270);
+  - Services and Ingresses: a Service port whose protocol the pods do not declare for it, as for UDP behind a TCP
+    port (KD271); an Ingress with TLS that also serves a host no TLS entry covers (KD272);
+  - workloads: a multi-replica Deployment whose pods share one ReadWriteOnce claim (KD287), and a CronJob with
+    concurrencyPolicy Allow whose runs outlast the schedule and pile up (KD286).
+- 10 fault scenarios, 125 broken namespaces in all, one for each new rule and each change below.
+- The snapshot holds a pod's dnsConfig.
+
+### Changed
+- KD140 names a cpu request written as a bare number of 100 or more (cpu: 500 is 500 cores) and the millicores it
+  likely meant.
+- KD110 says when a Job's podFailurePolicy matched the exit and failed the whole Job at once, without the retries its
+  backoffLimit allows, and names the rule.
+
 ## [0.8.0] - 2026-11-19
 
 - The fault suite's committed run (44485671336): kube-diagnose names the root cause in its first finding, with the

@@ -61,6 +61,9 @@ func serviceFindings(ix *index) ([]Finding, map[kube.Ref][]kube.Ref) {
 		if f := headlessRemap(svc, matching); f != nil {
 			out = append(out, *f)
 		}
+		if f := protocolMismatch(svc, matching); f != nil {
+			out = append(out, *f)
+		}
 		if len(ready) == 0 {
 			for _, p := range matching {
 				blocked[svc.Ref()] = append(blocked[svc.Ref()], p.Ref())
@@ -427,6 +430,50 @@ func headlessRemap(svc kube.Service, matching []kube.Pod) *Finding {
 			Evidence: []Evidence{{Object: svc.Ref(), What: fmt.Sprintf("Service %s has clusterIP None, port %d and targetPort %s", name, sp.Port, tp.String()),
 				Command: cmdGet("service", ns, name, `{.spec.clusterIP}{" "}{.spec.ports}`)}},
 			Fix: fmt.Sprintf("Make port equal the port the pods listen on (port: %d) so clients dial that, or give the Service a cluster IP (remove clusterIP: None, which takes recreating it) if clients need port %d mapped.", target, sp.Port)}
+	}
+	return nil
+}
+
+// protocolMismatch finds a Service port whose protocol (TCP when unset) differs from the protocol of the container
+// port it targets, with no container port of the Service's protocol there: a DNS server that declares 53/UDP behind
+// a Service with only 53/TCP, say. Kubernetes forwards only the Service's protocol, so the other one never arrives.
+func protocolMismatch(svc kube.Service, matching []kube.Pod) *Finding {
+	proto := func(p string) string {
+		if p == "" {
+			return "TCP"
+		}
+		return p
+	}
+	for _, sp := range svc.Spec.Ports {
+		want := proto(sp.Protocol)
+		target := sp.TargetPort.Int
+		if !sp.TargetPort.IsName && target == 0 {
+			target = sp.Port
+		}
+		have := map[string]bool{}
+		for _, p := range matching {
+			for _, c := range p.Spec.Containers {
+				for _, cp := range c.Ports {
+					if (sp.TargetPort.IsName && cp.Name == sp.TargetPort.Str) || (!sp.TargetPort.IsName && cp.ContainerPort == target) {
+						have[proto(cp.Protocol)] = true
+					}
+				}
+			}
+		}
+		if len(have) == 0 || have[want] {
+			continue
+		}
+		other := sortedKeys(have)
+		ns, name := svc.Metadata.Namespace, svc.Metadata.Name
+		return &Finding{Rule: "KD271", Title: "Service port's protocol differs from the pods' port", Severity: Warning, Object: svc.Ref(),
+			Cause: fmt.Sprintf("Service %s's port %d is %s, but the pods declare its target port %s as %s only: Kubernetes forwards only %s for that port, so %s traffic to the Service never reaches them",
+				name, sp.Port, want, sp.TargetPort.String(), strings.Join(other, ", "), want, strings.Join(other, ", ")),
+			Evidence: []Evidence{
+				{Object: svc.Ref(), What: fmt.Sprintf("Service port %d has protocol %s", sp.Port, want), Command: cmdGet("service", ns, name, "{.spec.ports}")},
+				{Object: matching[0].Ref(), What: fmt.Sprintf("the selected pods declare port %s as %s", sp.TargetPort.String(), strings.Join(other, ", ")),
+					Command: cmdGet("pod", ns, matching[0].Metadata.Name, "{.spec.containers[*].ports}")},
+			},
+			Fix: fmt.Sprintf("Add a Service port with protocol %s for it (a Service may list the same port number once per protocol, as DNS does with 53/UDP and 53/TCP), or correct the protocol.", strings.Join(other, ", "))}
 	}
 	return nil
 }

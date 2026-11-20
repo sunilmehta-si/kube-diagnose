@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-crashloop-missing-env",
-              "Masked": "cVVZUiQmVi0wXXxVa0okKiViJylPTGJF"
+              "Masked": "XUojVWovTj9eZUM4MGVQMyhGdForbSo5"
             },
             {
               "Unmasked": "web",
-              "Masked": "bEx2"
+              "Masked": "Rndi"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-crashloop-missing-env/web-dbf954cc7-jhz8b",
+      "name": "kd-crashloop-missing-env/web-dbf954cc7-lrf7z",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-dbf954cc7-jhz8b",
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-dbf954cc7-lrf7z",
           "KubernetesDoc": "",
           "Sensitive": []
         }

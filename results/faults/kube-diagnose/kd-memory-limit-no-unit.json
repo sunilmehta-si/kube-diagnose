@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-memory-limit-no-unit"
+  ],
+  "collectedAt": "2026-11-20 09:27 UTC",
+  "findings": [
+    {
+      "rule": "KD210",
+      "title": "Memory limit has no unit, so it is in bytes",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-memory-limit-no-unit",
+        "name": "api"
+      },
+      "cause": "container api's memory limit is memory: 512, which Kubernetes reads as 512 bytes: the kubelet sizes the pod's memory-backed volumes by that limit, so it cannot even write the service account token into one (no space left on device), and the pod never starts; Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-memory-limit-no-unit",
+            "name": "api-6f9bcbd468-fjpbm"
+          },
+          "what": "event FailedMount",
+          "detail": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-nvmjn\" : write /var/lib/kubelet/pods/c8445a41-1584-45df-aff4-2e9b24384dfa/volumes/kubernetes.io~projected/kube-api-access-nvmjn/..2026_11_20_09_26_32.1976847859/ca.crt: no space left on device",
+          "command": "kubectl get events -n kd-memory-limit-no-unit --field-selector involvedObject.kind=Pod,involvedObject.name=api-6f9bcbd468-fjpbm"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-memory-limit-no-unit",
+            "name": "api-6f9bcbd468-fjpbm"
+          },
+          "what": "container api's memory limit is 512, with no unit",
+          "command": "kubectl get pod api-6f9bcbd468-fjpbm -n kd-memory-limit-no-unit -o jsonpath='{.spec.containers[?(@.name==\"api\")].resources}'"
+        }
+      ],
+      "fix": "Give the limit a unit: 512Mi if mebibytes were meant (Mi and Gi are powers of 1024; M and G are powers of 1000), and the request the same way.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-memory-limit-no-unit",
+          "name": "api-6f9bcbd468-fjpbm"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

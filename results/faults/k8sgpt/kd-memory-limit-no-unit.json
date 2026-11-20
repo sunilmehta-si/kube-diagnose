@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-memory-limit-no-unit/api",
+      "error": [
+        {
+          "Text": "Deployment kd-memory-limit-no-unit/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-memory-limit-no-unit",
+              "Masked": "KGcvViNOUiY/Q2d9Nlc4QGszPiViW3M="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "KTQ+"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-memory-limit-no-unit/api-6f9bcbd468-fjpbm",
+      "error": [
+        {
+          "Text": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-nvmjn\" : write /var/lib/kubelet/pods/c8445a41-1584-45df-aff4-2e9b24384dfa/volumes/kubernetes.io~projected/kube-api-access-nvmjn/..2026_11_20_09_26_32.1976847859/ca.crt: no space left on device",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

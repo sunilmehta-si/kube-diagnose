@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-memory-limit-no-unit",
+  "description": "A Deployment sets memory: 512 as its limit, meaning 512 MiB; without a unit it is 512 bytes, so the runtime kills the container as it starts, every time.",
+  "rule": "KD210",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "512"
+    ],
+    [
+      "bytes",
+      "unit"
+    ]
+  ]
+}

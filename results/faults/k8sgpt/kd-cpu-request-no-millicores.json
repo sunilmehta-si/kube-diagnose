@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-cpu-request-no-millicores/api",
+      "error": [
+        {
+          "Text": "Deployment kd-cpu-request-no-millicores/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-cpu-request-no-millicores",
+              "Masked": "b0JsIWlINlFrRHAmIy95LkgkLHljRShxOn0hVA=="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "Rl9u"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-cpu-request-no-millicores/api-99c956787-xl468",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+# A migration Job allows six retries, but its podFailurePolicy fails the Job on exit code 3, which the migrator returns when its lock table is busy; the first busy lock fails the whole Job at once, without a retry.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-job-pod-failure-policy
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: migrate
+  namespace: kd-job-pod-failure-policy
+spec:
+  backoffLimit: 6
+  podFailurePolicy:
+    rules:
+      - action: FailJob
+        onExitCodes:
+          containerName: migrate
+          operator: In
+          values: [3]
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: migrate
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo 'migration lock is held by another run'; exit 3"]

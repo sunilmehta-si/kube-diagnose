@@ -1,0 +1,86 @@
+# An Ingress has TLS for www.shop.example.com, but its rule serves shop.example.com, the name customers use; no TLS entry covers it, so HTTPS requests get the controller's default certificate.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-ingress-host-without-tls
+
+---
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  name: kd-faults
+spec:
+  controller: example.com/kd-faults
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-ingress-host-without-tls
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+          ports:
+            - name: http
+              containerPort: 8080
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: web
+  namespace: kd-ingress-host-without-tls
+spec:
+  selector:
+    app: web
+  ports:
+    - name: http
+      port: 80
+      targetPort: "http"
+
+---
+# A placeholder certificate and key: no controller serves it here, and the Secret only has to exist with both keys.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: shop-tls
+  namespace: kd-ingress-host-without-tls
+type: kubernetes.io/tls
+stringData:
+  tls.crt: placeholder
+  tls.key: placeholder
+
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web
+  namespace: kd-ingress-host-without-tls
+spec:
+  ingressClassName: kd-faults
+  tls:
+    - hosts: [www.shop.example.com]
+      secretName: shop-tls
+  rules:
+    - host: shop.example.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: web
+                port:
+                  number: 80

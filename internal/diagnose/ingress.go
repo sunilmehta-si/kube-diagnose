@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -52,6 +53,8 @@ func ingressFindings(ix *index) []Finding {
 			out = append(out, *f)
 		}
 		if f := ingressTLSSecret(ix, ing); f != nil {
+			out = append(out, *f)
+		} else if f := ingressHostWithoutTLS(ing); f != nil {
 			out = append(out, *f)
 		}
 		ns := ing.Metadata.Namespace
@@ -204,6 +207,61 @@ func ingressTLSSecret(ix *index, ing kube.Ingress) *Finding {
 
 // ingressClass is the IngressClass that serves an Ingress: its ingressClassName, the legacy annotation, or the
 // cluster's default class.
+// tlsCovers reports whether a TLS host entry covers a rule's host: the same name, or a wildcard (*.example.com) for
+// one label in front of its domain.
+func tlsCovers(tlsHost, host string) bool {
+	tlsHost, host = strings.ToLower(tlsHost), strings.ToLower(host)
+	if tlsHost == host {
+		return true
+	}
+	if rest, ok := strings.CutPrefix(tlsHost, "*."); ok {
+		label, domain, found := strings.Cut(host, ".")
+		return found && label != "" && domain == rest
+	}
+	return false
+}
+
+// ingressHostWithoutTLS finds an Ingress that has TLS but a rule host no TLS entry covers, often a typo or a host
+// added to the rules and not to tls: the controller serves HTTPS for that host with its default certificate, which
+// clients reject.
+func ingressHostWithoutTLS(ing kube.Ingress) *Finding {
+	if len(ing.Spec.TLS) == 0 {
+		return nil
+	}
+	var tlsHosts []string
+	for _, t := range ing.Spec.TLS {
+		tlsHosts = append(tlsHosts, t.Hosts...)
+	}
+	if len(tlsHosts) == 0 {
+		return nil // a tls entry without hosts covers every host on most controllers
+	}
+	var uncovered []string
+	for _, r := range ing.Spec.Rules {
+		if r.Host == "" || slices.Contains(uncovered, r.Host) {
+			continue
+		}
+		covered := false
+		for _, h := range tlsHosts {
+			if tlsCovers(h, r.Host) {
+				covered = true
+			}
+		}
+		if !covered {
+			uncovered = append(uncovered, r.Host)
+		}
+	}
+	if len(uncovered) == 0 {
+		return nil
+	}
+	ns, name := ing.Metadata.Namespace, ing.Metadata.Name
+	return &Finding{Rule: "KD272", Title: "Ingress serves a host that its TLS does not cover", Severity: Warning, Object: ing.Ref(),
+		Cause: fmt.Sprintf("Ingress %s has TLS for %s, but its rules also serve %s, which no TLS entry covers, so HTTPS requests to %s get the controller's default certificate, which clients reject",
+			name, strings.Join(tlsHosts, ", "), strings.Join(uncovered, ", "), strings.Join(uncovered, ", ")),
+		Evidence: []Evidence{{Object: ing.Ref(), What: "the Ingress's rule hosts and TLS hosts",
+			Command: cmdGet("ingress", ns, name, `{.spec.rules[*].host}{"\n"}{.spec.tls}`)}},
+		Fix: fmt.Sprintf("Add %s to the hosts of a tls entry whose Secret's certificate covers it (or correct the rule's host if it is a typo).", strings.Join(uncovered, ", "))}
+}
+
 func ingressClass(ix *index, ing kube.Ingress) string {
 	if ing.Spec.IngressClassName != nil {
 		return *ing.Spec.IngressClassName

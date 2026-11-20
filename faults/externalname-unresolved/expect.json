@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-externalname-unresolved",
+  "description": "An app reaches its database through an ExternalName Service, db, that points at orders-db.invalid; the name does not resolve, so the CNAME cluster DNS answers with leads nowhere and the app exits.",
+  "rule": "KD270",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "ExternalName",
+      "externalName"
+    ],
+    [
+      "orders-db.invalid"
+    ]
+  ]
+}

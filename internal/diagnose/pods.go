@@ -63,6 +63,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if pr := unclaimed(ix, p); pr != nil {
 		return pr
 	}
+	if pr := memoryInBytesMount(ix, p); pr != nil {
+		return pr
+	}
 	if pr := mountProblem(ix, p); pr != nil {
 		return pr
 	}
@@ -759,10 +762,88 @@ var (
 // the file exists; it passes the path on.
 var reSeccompProfile = regexp.MustCompile(`cannot load seccomp profile \\?"([^"\\]+)\\?": (.*)`)
 
+// bareSmallMemory reports whether a memory quantity is a bare number of bytes under 4 MiB, too little for any process.
+func bareSmallMemory(v string) bool {
+	n, err := strconv.ParseInt(v, 10, 64)
+	return err == nil && n < 4<<20
+}
+
+// memoryInBytesMount finds a pod that never starts because a container's memory limit is a bare number of bytes: the
+// kubelet sizes the pod's memory-backed volumes, the projected service account token among them, by the pod's memory
+// limit, so it cannot even write the token ("no space left on device") and the pod stays in ContainerCreating.
+func memoryInBytesMount(ix *index, p kube.Pod) *problem {
+	var c kube.Container
+	for _, x := range p.Spec.Containers {
+		if bareSmallMemory(x.Resources.Limits["memory"]) {
+			c = x
+			break
+		}
+	}
+	if c.Name == "" {
+		return nil
+	}
+	for _, e := range ix.eventsFor(p.Ref(), "FailedMount") {
+		if !strings.Contains(e.Message, "no space left on device") {
+			continue
+		}
+		v := c.Resources.Limits["memory"]
+		return newProblem(p, c.Name, "KD210", "Memory limit has no unit, so it is in bytes", Critical,
+			fmt.Sprintf("container %s's memory limit is memory: %s, which Kubernetes reads as %s bytes: the kubelet sizes the pod's memory-backed volumes by that limit, so it cannot even write the service account token into one (no space left on device), and the pod never starts", c.Name, v, v),
+			"membytes|"+c.Name,
+			fmt.Sprintf("Give the limit a unit: %sMi if mebibytes were meant (Mi and Gi are powers of 1024; M and G are powers of 1000), and the request the same way.", v),
+			eventEvidence(p.Ref(), e),
+			Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's memory limit is %s, with no unit", c.Name, v),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].resources}`, c.Name))})
+	}
+	return nil
+}
+
+// memoryInBytes finds a failing container whose memory limit is a bare number under 4 MiB (memory: 512): Kubernetes
+// reads a number without a unit as bytes, so the limit is far too small for any process, and the runtime cannot start
+// the container ("container init was OOM-killed (memory limit too low?)") or the kernel kills it at once.
+func memoryInBytes(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem {
+	c, ok := containerSpec(p, cs.Name)
+	if !ok {
+		return nil
+	}
+	v := c.Resources.Limits["memory"]
+	if !bareSmallMemory(v) {
+		return nil
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's memory limit is %s, with no unit", cs.Name, v),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].resources}`, cs.Name))})
+	return newProblem(p, cs.Name, "KD210", "Memory limit has no unit, so it is in bytes", Critical,
+		fmt.Sprintf("container %s's memory limit is memory: %s, which Kubernetes reads as %s bytes, too little for any process, so the runtime kills the container as it starts", cs.Name, v, v),
+		"membytes|"+cs.Name,
+		fmt.Sprintf("Give the limit a unit: %sMi if mebibytes were meant (Mi and Gi are powers of 1024; M and G are powers of 1000), and the request the same way.", v),
+		ev...)
+}
+
+// failedByPolicy returns the Job that owns the pod when that Job failed because its podFailurePolicy matched a pod's
+// failure (condition Failed with reason PodFailurePolicy), and the condition.
+func failedByPolicy(ix *index, p kube.Pod) (*kube.Job, kube.Condition, bool) {
+	o, ok := p.Metadata.Controller()
+	if !ok || o.Kind != "Job" {
+		return nil, kube.Condition{}, false
+	}
+	j, ok := ix.jobs[kube.Ref{Kind: "Job", Namespace: p.Metadata.Namespace, Name: o.Name}]
+	if !ok {
+		return nil, kube.Condition{}, false
+	}
+	c, ok := kube.FindCondition(j.Status.Conditions, "Failed")
+	if !ok || c.Status != "True" || c.Reason != "PodFailurePolicy" {
+		return nil, kube.Condition{}, false
+	}
+	return j, c, true
+}
+
 func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *problem {
 	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("container %s did not start", cs.Name), Detail: msg,
 		Command: cmdContainerState(p, cs.Name, "state")}}
 	c, _ := containerSpec(p, cs.Name)
+	if pr := memoryInBytes(p, cs, ev); pr != nil {
+		return pr
+	}
 	if pr := subPathOntoFile(ix, p, cs.Name, msg, ev); pr != nil {
 		return pr
 	}
@@ -846,6 +927,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return newProblem(p, cs.Name, "KD110", "Container keeps crashing", Critical,
 			fmt.Sprintf("container %s keeps crashing", cs.Name), "crash|?", "Read the container's logs.", waitingEvidence(p, cs))
 	}
+	if pr := memoryInBytes(p, cs, []Evidence{terminatedEvidence(p, cs, t)}); pr != nil {
+		return pr
+	}
 	if t.Reason == "OOMKilled" {
 		return oomKilled(ix, p, cs)
 	}
@@ -909,6 +993,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := nodeDNS(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := customDNS(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -928,6 +1015,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := subdomainProblem(ix, p, &cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := externalNameUnresolved(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if svcNS, svc, line, ok := ix.missingService(p.Metadata.Namespace, log.Lines); ok {
@@ -971,6 +1061,12 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	}
 	if sidecar {
 		fix = "Fix what the sidecar's log reports; it is an init container with restartPolicy: Always, so the kubelet restarts it for as long as the pod runs."
+	}
+	if j, c, ok := failedByPolicy(ix, p); ok {
+		cause += fmt.Sprintf("; Job %s's podFailurePolicy matched that exit and failed the whole Job at once, without the retries backoffLimit allows (%s)", j.Metadata.Name, c.Message)
+		fix += " The Job's podFailurePolicy marks this exit as not worth retrying; if it can succeed on a retry, change that rule's action to Ignore or Count."
+		ev = append(ev, Evidence{Object: j.Ref(), What: "Job condition Failed: PodFailurePolicy", Detail: c.Message,
+			Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.spec.podFailurePolicy}{"\n"}{.status.conditions[?(@.type=="Failed")]}`)})
 	}
 	return newProblem(p, cs.Name, rule, title, Critical, cause, "exit|"+strconv.Itoa(int(t.ExitCode)), fix, ev...)
 }
@@ -1371,7 +1467,34 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			eventEvidence(p.Ref(), e), Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s is running but not ready", cs.Name),
 				Command: cmdContainerState(p, cs.Name, "ready")})
 	}
-	return nil
+	return readinessNotYet(ix, p, cs)
+}
+
+// readinessDelayLong is the initialDelaySeconds past which a readiness probe that has not run yet is reported: a
+// delay that long keeps the pod out of its Services after every start and restart, which a startupProbe would not.
+const readinessDelayLong = 300
+
+// readinessNotYet finds a running container that is not ready because its readiness probe has not run yet: its
+// initialDelaySeconds is long and has not passed since the container started, and no probe has failed.
+func readinessNotYet(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	pr := c.ReadinessProbe
+	if pr == nil || pr.InitialDelaySeconds < readinessDelayLong || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
+		return nil
+	}
+	delay := time.Duration(pr.InitialDelaySeconds) * time.Second
+	up := ix.s.CollectedAt.Sub(cs.State.Running.StartedAt)
+	if up >= delay {
+		return nil
+	}
+	return newProblem(p, cs.Name, "KD211", "Readiness probe has not run yet", Warning,
+		fmt.Sprintf("container %s has run for %s and is not ready because its readiness probe waits initialDelaySeconds %d (%s) before its first check, so the pod gets no traffic until then, after every start and restart", cs.Name, up.Round(time.Second), pr.InitialDelaySeconds, delay),
+		"readydelay|"+cs.Name,
+		"For an app that starts slowly, give it a startupProbe (it holds the other probes back only until the app is up) and a short readiness initialDelaySeconds.",
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's readiness probe has initialDelaySeconds %d", cs.Name, pr.InitialDelaySeconds),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].readinessProbe}`, cs.Name))},
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s started %s ago and is not ready", cs.Name, up.Round(time.Second)),
+			Command: cmdContainerState(p, cs.Name, "state")})
 }
 
 var (

@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-externalname-unresolved"
+  ],
+  "collectedAt": "2026-11-20 09:26 UTC",
+  "findings": [
+    {
+      "rule": "KD270",
+      "title": "ExternalName Service points at a name that does not resolve",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-externalname-unresolved",
+        "name": "api"
+      },
+      "cause": "container api exits because db does not resolve: Service db is of type ExternalName, so cluster DNS answers it with a CNAME to orders-db.invalid, and that name does not resolve from the cluster; its log says: \"wget: bad address 'db:5432'\"; Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-externalname-unresolved",
+            "name": "api-fc8cdb868-cvq8d"
+          },
+          "what": "container api exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod api-fc8cdb868-cvq8d -n kd-externalname-unresolved -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-externalname-unresolved",
+            "name": "api-fc8cdb868-cvq8d"
+          },
+          "what": "last lines of container api's log (current run)",
+          "detail": "connecting to db\nwget: bad address 'db:5432'",
+          "command": "kubectl logs api-fc8cdb868-cvq8d -n kd-externalname-unresolved -c api --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-externalname-unresolved",
+            "name": "db"
+          },
+          "what": "Service db is of type ExternalName and points at orders-db.invalid",
+          "command": "kubectl get service db -n kd-externalname-unresolved -o jsonpath='{.spec.type}{\" \"}{.spec.externalName}'"
+        }
+      ],
+      "fix": "Correct Service db's externalName to a name the cluster's DNS can resolve (check it from a pod: nslookup orders-db.invalid), or, for an address, use a Service without a selector and an EndpointSlice.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-externalname-unresolved",
+          "name": "api-fc8cdb868-cvq8d"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

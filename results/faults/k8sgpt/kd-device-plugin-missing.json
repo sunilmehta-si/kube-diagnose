@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-device-plugin-missing",
-              "Masked": "Q0VfdWxtekVNLnckPT0jOSk1eTQxPElv"
+              "Masked": "WkhAdF1IeEgsVE42NkQ2Y2JjIVt2RSVU"
             },
             {
               "Unmasked": "train",
-              "Masked": "VXZvc2E="
+              "Masked": "TDBBUXI="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-device-plugin-missing/train-f5cfdd7f-fmgkk",
+      "name": "kd-device-plugin-missing/train-f5cfdd7f-bx6qx",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 Insufficient example.com/accelerator. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

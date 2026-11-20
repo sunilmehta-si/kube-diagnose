@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-image-wrong-platform",
-              "Masked": "NnNZSGssUmp5RyFBNkZ4Wnc6dTlnUDc="
+              "Masked": "UT0zIzpDL1BCVmJOM1lZLXB4eG5aTDg="
             },
             {
               "Unmasked": "web",
-              "Masked": "aShQ"
+              "Masked": "SEUz"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-image-wrong-platform/web-56dcc9c758-vh4w9",
+      "name": "kd-image-wrong-platform/web-56dcc9c758-z7m5p",
       "error": [
         {
           "Text": "Back-off pulling image \"docker.io/arm64v8/busybox:1.37.0@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/arm64v8/busybox@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": no match for platform in manifest: not found",

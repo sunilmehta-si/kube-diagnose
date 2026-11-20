@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cpu-request-no-millicores"
+  ],
+  "collectedAt": "2026-11-20 09:25 UTC",
+  "findings": [
+    {
+      "rule": "KD140",
+      "title": "No node has enough cpu",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-cpu-request-no-millicores",
+        "name": "api"
+      },
+      "cause": "the pod requests 500 cpu, more than any node can offer (the largest, kd-faults-control-plane, has 4 allocatable); container api asks for cpu: 500, which is 500 whole cores: millicores need the m suffix (500m is half of a core); Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-cpu-request-no-millicores",
+            "name": "api-99c956787-xl468"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod api-99c956787-xl468 -n kd-cpu-request-no-millicores -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-cpu-request-no-millicores",
+            "name": "api-99c956787-xl468"
+          },
+          "what": "pod requests 500 cpu",
+          "command": "kubectl get pod api-99c956787-xl468 -n kd-cpu-request-no-millicores -o jsonpath='{.spec.containers[*].resources.requests}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "kd-faults-control-plane"
+          },
+          "what": "the largest node, kd-faults-control-plane, has 4 cpu allocatable",
+          "command": "kubectl get nodes -o custom-columns=NAME:.metadata.name,CPU:.status.allocatable.cpu"
+        }
+      ],
+      "fix": "Write container api's cpu request as 500m if it means millicores, and its limit the same way.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-cpu-request-no-millicores",
+          "name": "api-99c956787-xl468"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -254,6 +254,36 @@ func podRequest(p kube.Pod, res string) float64 {
 	return sum
 }
 
+// cpuUnitSlip finds a container whose cpu request is a bare whole number of 100 or more (cpu: 500): Kubernetes reads it
+// as that many cores, and no node has them, where 500m, half a core, was almost certainly meant. A request a LimitRange
+// filled in is not the pod's own writing, and is left to the LimitRange explanation.
+func cpuUnitSlip(p kube.Pod, res string) (container, value string) {
+	if res != "cpu" {
+		return "", ""
+	}
+	for _, c := range append(append([]kube.Container{}, p.Spec.InitContainers...), p.Spec.Containers...) {
+		v := c.Resources.Requests["cpu"]
+		if n, err := strconv.Atoi(v); err == nil && n >= 100 {
+			return c.Name, v
+		}
+	}
+	return "", ""
+}
+
+// coreFraction says what n millicores are, as a fraction of a core.
+func coreFraction(v string) string {
+	n, _ := strconv.Atoi(v)
+	switch {
+	case n == 500:
+		return "half"
+	case n == 250:
+		return "a quarter"
+	case n == 100:
+		return "a tenth"
+	}
+	return fmt.Sprintf("%g", float64(n)/1000)
+}
+
 func insufficient(ix *index, p kube.Pod, res string, nodes int) (*problem, string) {
 	req := podRequest(p, res)
 	var best float64
@@ -284,6 +314,10 @@ func insufficient(ix *index, p kube.Pod, res string, nodes int) (*problem, strin
 		fix = fmt.Sprintf("Lower the pod's %s request below %s, or add a node with more %s.", res, kube.FormatQuantity(res, best), res)
 	} else if req > 0 {
 		cause = fmt.Sprintf("the pod requests %s %s and no node has that much free (other pods hold the rest)", kube.FormatQuantity(res, req), res)
+	}
+	if c, v := cpuUnitSlip(p, res); c != "" && limitRangerSet(p, res) == "" {
+		cause += fmt.Sprintf("; container %s asks for cpu: %s, which is %s whole cores: millicores need the m suffix (%sm is %s of a core)", c, v, v, v, coreFraction(v))
+		fix = fmt.Sprintf("Write container %s's cpu request as %sm if it means millicores, and its limit the same way.", c, v)
 	}
 	if c := limitRangerSet(p, res); c != "" && req > 0 {
 		cause += fmt.Sprintf("; the pod template sets no %s request for container %s: the namespace's LimitRange gave it its default", res, c)

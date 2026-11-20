@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-oomkilled",
-              "Masked": "a1p0KkUsMTl2NUBp"
+              "Masked": "KEguMS1EcjhLc25y"
             },
             {
               "Unmasked": "web",
-              "Masked": "czk8"
+              "Masked": "KlVH"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-oomkilled/web-6f499f987f-j89wh",
+      "name": "kd-oomkilled/web-6f499f987f-q26fs",
       "error": [
         {
-          "Text": "the termination reason is OOMKilled exitCode=137 container=web pod=web-6f499f987f-j89wh",
+          "Text": "the last termination reason is OOMKilled container=web pod=web-6f499f987f-q26fs",
           "KubernetesDoc": "",
           "Sensitive": []
         }

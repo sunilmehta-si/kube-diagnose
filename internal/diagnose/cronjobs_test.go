@@ -162,3 +162,31 @@ func TestCronJobMissesItsStarts(t *testing.T) {
 		t.Errorf("a 10 s deadline: %v", r.Findings)
 	}
 }
+
+func TestCronJobRunsPileUp(t *testing.T) {
+	s := snap()
+	cj := cronJob("report", "")
+	for _, n := range []string{"report-29001", "report-29002", "report-29003"} {
+		cj.Status.Active = append(cj.Status.Active, struct {
+			Name string `json:"name"`
+		}{Name: n})
+	}
+	s.CronJobs = []kube.CronJob{cj}
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "report-29001", Namespace: "shop", OwnerReferences: []kube.OwnerReference{{Kind: "CronJob", Name: "report", Controller: yes()}}}
+	start := t0.Add(-14 * time.Minute)
+	j.Status.StartTime, j.Status.Active = &start, 1
+	s.Jobs = []kube.Job{j}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD286", "CronJob shop/report", "3 Jobs running at once", "concurrencyPolicy is Allow", "the oldest, report-29001, has run for 14m0s")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "Forbid") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// One run at a time, or Forbid: not this rule.
+	cj.Status.Active = cj.Status.Active[:1]
+	s.CronJobs = []kube.CronJob{cj}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("one active run: %v", r.Findings)
+	}
+}

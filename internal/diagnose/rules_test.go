@@ -2627,6 +2627,263 @@ func TestGRPCProbeCannotPass(t *testing.T) {
 	}
 }
 
+func TestCPURequestWithoutItsMillicoreSuffix(t *testing.T) {
+	s := snap()
+	s.Nodes = []kube.Node{node("node-1", "4", "16Gi")}
+	p := pod("api-7d9f-k2x8q", "api")
+	p.Spec.Containers[0].Resources.Requests = map[string]string{"cpu": "500", "memory": "256Mi"}
+	p.Status.Phase, p.Status.ContainerStatuses = "Pending", nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD140", "ReplicaSet shop/api-rs", "requests 500 cpu", "cpu: 500, which is 500 whole cores", "500m is half of a core")
+	if !strings.Contains(f.Fix, "as 500m") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A LimitRange's default of 64 cores is not the pod's own slip, and 8 cores is a request someone may mean: no hint.
+	p.Spec.Containers[0].Resources.Requests["cpu"] = "8"
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "whole cores") {
+		t.Errorf("hinted at a slip for cpu: 8: %s", f.Cause)
+	}
+}
+
+func TestMemoryLimitWithoutAUnit(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "512"}
+	notReady(&p)
+	p.Status.ContainerStatuses[0].RestartCount = 3
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "CrashLoopBackOff"}}
+	p.Status.ContainerStatuses[0].LastTerminationState = kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 128, Reason: "StartError",
+		Message: "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: container init was OOM-killed (memory limit too low?)"}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD210", "ReplicaSet shop/api-rs", "memory: 512, which Kubernetes reads as 512 bytes")
+	if !strings.Contains(f.Fix, "512Mi") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Killed as OOMKilled instead: the same answer, not "raise the limit".
+	p.Status.ContainerStatuses[0].LastTerminationState.Terminated = &kube.ContainerStateTerminated{ExitCode: 137, Reason: "OOMKilled"}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD210", "ReplicaSet shop/api-rs", "512 bytes")
+
+	// On kind the pod never gets that far: the token volume, sized by the limit, cannot be written.
+	q := pod("api-7d9f-m4n2b", "api")
+	q.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "512"}
+	q.Status.Phase = "Pending"
+	q.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "ContainerCreating"}}}}
+	s.Pods = []kube.Pod{q}
+	s.Events = []kube.Event{event("Pod", q.Metadata.Name, "FailedMount",
+		`MountVolume.SetUp failed for volume "kube-api-access-dm9rj" : write /var/lib/kubelet/pods/2354/volumes/kubernetes.io~projected/kube-api-access-dm9rj/..2026_11_20/ca.crt: no space left on device`, time.Minute)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD210", "ReplicaSet shop/api-rs", "memory: 512", "no space left on device", "never starts")
+	s.Events = nil
+
+	// A real limit with a unit, or a large bare number of bytes, is left to the OOM rule.
+	p.Spec.Containers[0].Resources.Limits["memory"] = "536870912"
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD210" {
+		t.Errorf("512 MiB in bytes called a unit slip: %s", f.Cause)
+	}
+}
+
+func TestReadinessProbeHasNotRunYet(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	notReady(&p)
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0.Add(-4 * time.Minute)}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/ready", Port: port(8080)}, InitialDelaySeconds: 600}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD211", "ReplicaSet shop/api-rs", "has run for 4m0s", "initialDelaySeconds 600 (10m0s)")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "startupProbe") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// The delay has passed, or it is short: not this rule.
+	p.Status.ContainerStatuses[0].State.Running.StartedAt = t0.Add(-11 * time.Minute)
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD211" {
+			t.Errorf("after the delay: %s", f.Cause)
+		}
+	}
+	p.Status.ContainerStatuses[0].State.Running.StartedAt = t0.Add(-30 * time.Second)
+	p.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds = 60
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD211" {
+			t.Errorf("a one-minute delay: %s", f.Cause)
+		}
+	}
+}
+
+func TestExternalNameServiceThatDoesNotResolve(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"connecting to db", "wget: bad address 'db:5432'"}}}
+	var db kube.Service
+	db.Metadata = kube.ObjectMeta{Name: "db", Namespace: "shop"}
+	db.Spec.Type, db.Spec.ExternalName = "ExternalName", "orders-db.prod.internal"
+	s.Services = []kube.Service{db}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD270", "ReplicaSet shop/api-rs", "db does not resolve", "CNAME to orders-db.prod.internal", "bad address")
+	if !strings.Contains(f.Fix, "nslookup orders-db.prod.internal") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A ClusterIP Service that resolves is not this rule; nor is a name that is no Service (KD121).
+	db.Spec.Type, db.Spec.ExternalName = "ClusterIP", ""
+	s.Services = []kube.Service{db}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD270" {
+			t.Errorf("a ClusterIP Service: %s", f.Cause)
+		}
+	}
+}
+
+func TestPodDNSSettingsLeaveOutClusterDNS(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	p.Spec.DNSPolicy = "None"
+	p.Spec.DNSConfig = &struct {
+		Nameservers []string `json:"nameservers,omitempty"`
+		Searches    []string `json:"searches,omitempty"`
+	}{Nameservers: []string{"1.1.1.1"}, Searches: []string{"corp.example"}}
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("payments", map[string]string{"app": "pay"}, port(8080))}
+	payments := pod("payments-1", "payments")
+	payments.Metadata.Labels = map[string]string{"app": "pay"}
+	s.Pods = append(s.Pods, payments)
+	s.EndpointSlices = []kube.EndpointSlice{slice("payments", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address 'payments:8080'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD269", "ReplicaSet shop/api-rs", "payments does not resolve", "dnsPolicy None", "nameservers 1.1.1.1, search domains corp.example")
+	if !strings.Contains(f.Fix, "shop.svc.cluster.local") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// An outside name that does not resolve is not this rule.
+	s.Logs[0].Lines = []string{"wget: bad address 'api.partner.example'"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD269" {
+		t.Errorf("an outside name: %s", f.Cause)
+	}
+}
+
+func TestServicePortProtocolDiffersFromThePods(t *testing.T) {
+	s := snap()
+	p := pod("dns-1", "dns")
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "dns", ContainerPort: 53, Protocol: "UDP"}}
+	s.Pods = []kube.Pod{p}
+	svc := service("dns", map[string]string{"app": "web"}, port(53))
+	svc.Spec.Ports[0].Port = 53
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("dns", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD271", "Service shop/dns", "port 53 is TCP", "declare its target port 53 as UDP only", "UDP traffic to the Service never reaches them")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "protocol UDP") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Both protocols declared, or the Service's protocol matches: nothing to say.
+	p.Spec.Containers[0].Ports = append(p.Spec.Containers[0].Ports, kube.ContainerPort{Name: "dns-tcp", ContainerPort: 53})
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("both protocols declared: %v", r.Findings)
+	}
+}
+
+func TestIngressServesAHostItsTLSDoesNotCover(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	deployment(s, "web", 1, 1)
+	s.Pods = []kube.Pod{pod("web-rs-a", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "kubernetes.io/tls", Keys: []string{"tls.crt", "tls.key"}}}
+	ing := ingress("shop", "web", 80, "")
+	api := ing.Spec.Rules[0]
+	api.Host = "api.shop.example.com"
+	ing.Spec.Rules = append(ing.Spec.Rules, api)
+	ing.Spec.TLS = []kube.IngressTLS{{Hosts: []string{"www.shop.example.com", "api.shop.example.com"}, SecretName: "shop-tls"}}
+	s.Ingresses = []kube.Ingress{ing}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD272", "Ingress shop/shop", "TLS for www.shop.example.com, api.shop.example.com", "also serve shop.example.com", "default certificate")
+
+	// A wildcard covers one label; a host covered exactly is fine.
+	ing.Spec.TLS = []kube.IngressTLS{{Hosts: []string{"*.shop.example.com", "shop.example.com"}, SecretName: "shop-tls"}}
+	s.Ingresses = []kube.Ingress{ing}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("covered hosts: %v", r.Findings)
+	}
+	for tls, host := range map[string]string{"*.example.com": "a.b.example.com", "*.shop.example.com": "shop.example.com"} {
+		if tlsCovers(tls, host) {
+			t.Errorf("%s should not cover %s", tls, host)
+		}
+	}
+}
+
+func TestReplicasShareAReadWriteOnceClaim(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 3, 3)
+	s.Workloads[0].Spec.Template.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "uploads"}}}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "uploads", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pvc.Status.Phase = "Bound"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.Pods = []kube.Pod{pod("web-1", "web"), pod("web-2", "web"), pod("web-3", "web")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD287", "Deployment shop/web", "runs 3 replicas", "PersistentVolumeClaim uploads, which is ReadWriteOnce", "Multi-Attach")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "volumeClaimTemplates") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// One replica, or a ReadWriteMany claim: nothing to say.
+	s.PVCs[0].Spec.AccessModes = []string{"ReadWriteMany"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("ReadWriteMany: %v", r.Findings)
+	}
+	s.PVCs[0].Spec.AccessModes = []string{"ReadWriteOnce"}
+	one := int32(1)
+	s.Workloads[0].Spec.Replicas = &one
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("one replica: %v", r.Findings)
+	}
+}
+
+func TestJobFailedAtOnceByItsPodFailurePolicy(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "migrate", Namespace: "shop"}
+	j.Status.Conditions = []kube.Condition{{Type: "Failed", Status: "True", Reason: "PodFailurePolicy",
+		Message: "Container migrate for pod shop/migrate-x2k9p failed with exit code 3 matching FailJob rule at index 0"}}
+	s.Jobs = []kube.Job{j}
+	p := pod("migrate-x2k9p", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "migrate", Controller: yes()}}
+	p.Status.Phase = "Failed"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 3, Reason: "Error"}}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "Job shop/migrate", "exited with code 3", "podFailurePolicy matched that exit", "without the retries", "matching FailJob rule at index 0")
+	if !strings.Contains(f.Fix, "Ignore or Count") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Failed by its backoff limit: no word about a policy.
+	s.Jobs[0].Status.Conditions[0].Reason = "BackoffLimitExceeded"
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "podFailurePolicy") {
+		t.Errorf("a backoff failure: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)

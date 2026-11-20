@@ -1,0 +1,12 @@
+{
+  "namespace": "kd-cpu-request-no-millicores",
+  "description": "A Deployment asks for cpu: 500, meaning half a core; without the m suffix it is 500 cores, which no node has, so the pod is never scheduled.",
+  "rule": "KD140",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "500m",
+      "millicore"
+    ]
+  ]
+}
