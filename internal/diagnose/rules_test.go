@@ -2765,6 +2765,29 @@ func TestPodDNSSettingsLeaveOutClusterDNS(t *testing.T) {
 	}
 }
 
+func TestServicePortProtocolDiffersFromThePods(t *testing.T) {
+	s := snap()
+	p := pod("dns-1", "dns")
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "dns", ContainerPort: 53, Protocol: "UDP"}}
+	s.Pods = []kube.Pod{p}
+	svc := service("dns", map[string]string{"app": "web"}, port(53))
+	svc.Spec.Ports[0].Port = 53
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("dns", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD271", "Service shop/dns", "port 53 is TCP", "declare its target port 53 as UDP only", "UDP traffic to the Service never reaches them")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "protocol UDP") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Both protocols declared, or the Service's protocol matches: nothing to say.
+	p.Spec.Containers[0].Ports = append(p.Spec.Containers[0].Ports, kube.ContainerPort{Name: "dns-tcp", ContainerPort: 53})
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("both protocols declared: %v", r.Findings)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
