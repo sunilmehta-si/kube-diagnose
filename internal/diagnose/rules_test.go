@@ -2627,6 +2627,29 @@ func TestGRPCProbeCannotPass(t *testing.T) {
 	}
 }
 
+func TestCPURequestWithoutItsMillicoreSuffix(t *testing.T) {
+	s := snap()
+	s.Nodes = []kube.Node{node("node-1", "4", "16Gi")}
+	p := pod("api-7d9f-k2x8q", "api")
+	p.Spec.Containers[0].Resources.Requests = map[string]string{"cpu": "500", "memory": "256Mi"}
+	p.Status.Phase, p.Status.ContainerStatuses = "Pending", nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD140", "ReplicaSet shop/api-rs", "requests 500 cpu", "cpu: 500, which is 500 whole cores", "500m is half of a core")
+	if !strings.Contains(f.Fix, "as 500m") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// 8 cores is a request someone may mean: no hint.
+	p.Spec.Containers[0].Resources.Requests["cpu"] = "8"
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "whole cores") {
+		t.Errorf("hinted at a slip for cpu: 8: %s", f.Cause)
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
