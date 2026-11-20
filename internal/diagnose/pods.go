@@ -1399,7 +1399,34 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			eventEvidence(p.Ref(), e), Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s is running but not ready", cs.Name),
 				Command: cmdContainerState(p, cs.Name, "ready")})
 	}
-	return nil
+	return readinessNotYet(ix, p, cs)
+}
+
+// readinessDelayLong is the initialDelaySeconds past which a readiness probe that has not run yet is reported: a
+// delay that long keeps the pod out of its Services after every start and restart, which a startupProbe would not.
+const readinessDelayLong = 300
+
+// readinessNotYet finds a running container that is not ready because its readiness probe has not run yet: its
+// initialDelaySeconds is long and has not passed since the container started, and no probe has failed.
+func readinessNotYet(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	pr := c.ReadinessProbe
+	if pr == nil || pr.InitialDelaySeconds < readinessDelayLong || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
+		return nil
+	}
+	delay := time.Duration(pr.InitialDelaySeconds) * time.Second
+	up := ix.s.CollectedAt.Sub(cs.State.Running.StartedAt)
+	if up >= delay {
+		return nil
+	}
+	return newProblem(p, cs.Name, "KD211", "Readiness probe has not run yet", Warning,
+		fmt.Sprintf("container %s has run for %s and is not ready because its readiness probe waits initialDelaySeconds %d (%s) before its first check, so the pod gets no traffic until then, after every start and restart", cs.Name, up.Round(time.Second), pr.InitialDelaySeconds, delay),
+		"readydelay|"+cs.Name,
+		"For an app that starts slowly, give it a startupProbe (it holds the other probes back only until the app is up) and a short readiness initialDelaySeconds.",
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's readiness probe has initialDelaySeconds %d", cs.Name, pr.InitialDelaySeconds),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].readinessProbe}`, cs.Name))},
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s started %s ago and is not ready", cs.Name, up.Round(time.Second)),
+			Command: cmdContainerState(p, cs.Name, "state")})
 }
 
 var (

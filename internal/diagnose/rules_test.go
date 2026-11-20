@@ -2679,6 +2679,37 @@ func TestMemoryLimitWithoutAUnit(t *testing.T) {
 	}
 }
 
+func TestReadinessProbeHasNotRunYet(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	notReady(&p)
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0.Add(-4 * time.Minute)}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/ready", Port: port(8080)}, InitialDelaySeconds: 600}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD211", "ReplicaSet shop/api-rs", "has run for 4m0s", "initialDelaySeconds 600 (10m0s)")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "startupProbe") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// The delay has passed, or it is short: not this rule.
+	p.Status.ContainerStatuses[0].State.Running.StartedAt = t0.Add(-11 * time.Minute)
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD211" {
+			t.Errorf("after the delay: %s", f.Cause)
+		}
+	}
+	p.Status.ContainerStatuses[0].State.Running.StartedAt = t0.Add(-30 * time.Second)
+	p.Spec.Containers[0].ReadinessProbe.InitialDelaySeconds = 60
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD211" {
+			t.Errorf("a one-minute delay: %s", f.Cause)
+		}
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
