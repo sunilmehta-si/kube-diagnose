@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-dnspolicy-none",
+  "description": "An app sets dnsPolicy None with a public nameserver and its company's search domain, to reach outside names; with None its resolv.conf has only those, so the payments Service does not resolve and the app exits.",
+  "rule": "KD269",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "dnsPolicy",
+      "None"
+    ],
+    [
+      "payments"
+    ]
+  ]
+}
