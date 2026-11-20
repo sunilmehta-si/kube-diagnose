@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-externalname-ip"
   ],
-  "collectedAt": "2026-11-20 09:26 UTC",
+  "collectedAt": "2026-11-20 11:51 UTC",
   "findings": [
     {
       "rule": "KD260",

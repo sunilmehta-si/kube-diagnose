@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-command-one-string",
-              "Masked": "SiUtUnpvSGN5ViU8aixzMj9eY1Rm"
+              "Masked": "QGdoX1Zbd15ZZCFSP3RnY3VHYz8s"
             },
             {
               "Unmasked": "worker",
-              "Masked": "SGlNLi1X"
+              "Masked": "PEdHI3x6"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-command-one-string/worker-66444d4765-xh8v8",
+      "name": "kd-command-one-string/worker-66444d4765-d7d9z",
       "error": [
         {
           "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"sleep 3600\": executable file not found in $PATH",

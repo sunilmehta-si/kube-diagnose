@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-port-name-missing"
   ],
-  "collectedAt": "2026-11-20 09:28 UTC",
+  "collectedAt": "2026-11-20 11:53 UTC",
   "findings": [
     {
       "rule": "KD203",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-port-name-missing",
-            "name": "api-c688bf54b-nlvzx"
+            "name": "api-c688bf54b-csb5r"
           },
-          "what": "event Unhealthy (65 times)",
+          "what": "event Unhealthy (64 times)",
           "detail": "Readiness probe errored and resulted in unknown state: port \"health\" not found",
-          "command": "kubectl get events -n kd-probe-port-name-missing --field-selector involvedObject.kind=Pod,involvedObject.name=api-c688bf54b-nlvzx"
+          "command": "kubectl get events -n kd-probe-port-name-missing --field-selector involvedObject.kind=Pod,involvedObject.name=api-c688bf54b-csb5r"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-port-name-missing",
-            "name": "api-c688bf54b-nlvzx"
+            "name": "api-c688bf54b-csb5r"
           },
           "what": "container api's readiness probe",
-          "command": "kubectl get pod api-c688bf54b-nlvzx -n kd-probe-port-name-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
+          "command": "kubectl get pod api-c688bf54b-csb5r -n kd-probe-port-name-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-port-name-missing",
-            "name": "api-c688bf54b-nlvzx"
+            "name": "api-c688bf54b-csb5r"
           },
           "what": "container api declares ports http (8080)",
-          "command": "kubectl get pod api-c688bf54b-nlvzx -n kd-probe-port-name-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].ports}'"
+          "command": "kubectl get pod api-c688bf54b-csb5r -n kd-probe-port-name-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].ports}'"
         }
       ],
       "fix": "Name a port the container declares, or give the number; or add a ports entry named \"health\".",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-port-name-missing",
-          "name": "api-c688bf54b-nlvzx"
+          "name": "api-c688bf54b-csb5r"
         }
       ]
     }

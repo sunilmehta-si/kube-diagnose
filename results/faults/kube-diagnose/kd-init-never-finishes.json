@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-init-never-finishes"
   ],
-  "collectedAt": "2026-11-20 09:26 UTC",
+  "collectedAt": "2026-11-20 11:51 UTC",
   "findings": [
     {
       "rule": "KD119",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-never-finishes",
-            "name": "web-658bdbddd-bn7dk"
+            "name": "web-658bdbddd-dq2wr"
           },
-          "what": "init container wait-for-db has been running since 2026-11-20T09:22:21Z",
-          "command": "kubectl get pod web-658bdbddd-bn7dk -n kd-init-never-finishes -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state}'"
+          "what": "init container wait-for-db has been running since 2026-11-20T11:47:08Z",
+          "command": "kubectl get pod web-658bdbddd-dq2wr -n kd-init-never-finishes -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-never-finishes",
-            "name": "web-658bdbddd-bn7dk"
+            "name": "web-658bdbddd-dq2wr"
           },
           "what": "last lines of container wait-for-db's log (current run)",
-          "detail": "wget: bad address 'db:5432'\nwaiting for db:5432\nwaiting for db:5432\nwget: bad address 'db:5432'\nwget: bad address 'db:5432'\nwaiting for db:5432",
-          "command": "kubectl logs web-658bdbddd-bn7dk -n kd-init-never-finishes -c wait-for-db --tail=20"
+          "detail": "wget: bad address 'db:5432'\nwaiting for db:5432\nwget: bad address 'db:5432'\nwaiting for db:5432\nwget: bad address 'db:5432'\nwaiting for db:5432",
+          "command": "kubectl logs web-658bdbddd-dq2wr -n kd-init-never-finishes -c wait-for-db --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-init-never-finishes",
-          "name": "web-658bdbddd-bn7dk"
+          "name": "web-658bdbddd-dq2wr"
         }
       ]
     }

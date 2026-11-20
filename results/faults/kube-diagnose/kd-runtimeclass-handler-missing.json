@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-runtimeclass-handler-missing"
   ],
-  "collectedAt": "2026-11-20 09:29 UTC",
+  "collectedAt": "2026-11-20 11:53 UTC",
   "findings": [
     {
       "rule": "KD196",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-runtimeclass-handler-missing",
-            "name": "infer-59c655c685-42dtr"
+            "name": "infer-59c655c685-xsxkr"
           },
           "what": "event FailedCreatePodSandBox (17 times)",
-          "detail": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"77f21e5a33e2e7aaee70a734d3e115d8438129643e8cad5cd92a84bebaeb947b\": no runtime for \"nvidia\" is configured",
-          "command": "kubectl get events -n kd-runtimeclass-handler-missing --field-selector involvedObject.kind=Pod,involvedObject.name=infer-59c655c685-42dtr"
+          "detail": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"e09d546ce0fecbb4c198d020596b8758b7fab1a686f17e93beb6367ab1ee333e\": no runtime for \"nvidia\" is configured",
+          "command": "kubectl get events -n kd-runtimeclass-handler-missing --field-selector involvedObject.kind=Pod,involvedObject.name=infer-59c655c685-xsxkr"
         },
         {
           "object": {
@@ -41,7 +41,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-runtimeclass-handler-missing",
-          "name": "infer-59c655c685-42dtr"
+          "name": "infer-59c655c685-xsxkr"
         }
       ]
     }

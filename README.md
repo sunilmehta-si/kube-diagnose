@@ -8,7 +8,7 @@ that shows it to you. It never changes anything: every kubectl command it runs i
 
 ```text
 $ kubectl diagnose -n kd-liveness-wrong-port
-kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-20 09:27 UTC
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-20 11:52 UTC
 1 problem: 1 critical.
 
 1. CRITICAL  Liveness probe kills the container  KD112
@@ -17,15 +17,15 @@ kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2
           port 8080), so the kubelet restarts it (6 restarts); Deployment web has 0 of 1 replicas
           ready
    Evidence:
-     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-8g6h2: event Unhealthy (7 times)
-         │ Liveness probe failed: Get "http://10.244.0.45:9090/": dial tcp 10.244.0.45:9090: connect: connection refused
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-8g6h2
-     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-8g6h2: event Killing (6 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-ztbfq: event Unhealthy (7 times)
+         │ Liveness probe failed: Get "http://10.244.0.51:9090/": dial tcp 10.244.0.51:9090: connect: connection refused
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-ztbfq
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-ztbfq: event Killing (6 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-8g6h2
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-ztbfq
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pod web-67fbcb44db-8g6h2
+   Affects: Pod web-67fbcb44db-ztbfq
 ```
 
 That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
@@ -146,20 +146,22 @@ healthy namespace count as false alarms. The workflow's summary shows the table 
 the same suite on any machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any
 kubeconfig context that is not kind-*.
 
-The run committed in [`results/faults`](results/faults) ([run 44709934332](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/44709934332),
+The run committed in [`results/faults`](results/faults) ([run 44730219543](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/44730219543),
 20 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
 
 | Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
 |---|---|---|---|---|
-| kube-diagnose | 125 of 125 (exact rule and object: 125) | 125 | 0 | 0 |
-| k8sgpt | 46 of 125 | 27 | 0 | 178 |
+| kube-diagnose | 131 of 131 (exact rule and object: 131) | 131 | 0 | 0 |
+| k8sgpt | 48 of 131 | 27 | 0 | 185 |
 | holmesgpt | not run | | | |
 
 | Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
 |---|---|---|---|---|
+| app-listens-on-localhost | A web server is started with -p 127.0.0.1:8080, as on a laptop; in a pod that address is reachable only from the pod itself, so the kubelet's readiness probe is refused and the pod never becomes ready. | ✅ | ✅ | – |
 | bad-image-tag | A Deployment's image tag does not exist. | ✅ | ☑️ | – |
-| command-not-found | The container's command is not in the image. | ✅ | ☑️ | – |
+| command-not-found | The container's command is not in the image. | ✅ | ❌ | – |
 | command-one-string | A Deployment's command is one string, "sleep 3600", so the runtime looks for an executable with that whole name and cannot start the container. | ✅ | ❌ | – |
+| command-shell-var-no-shell | A Deployment runs ["sleep", "$SLEEP_SECONDS"] with SLEEP_SECONDS in its env; there is no shell to expand $SLEEP_SECONDS, so sleep gets the literal text and exits. | ✅ | ❌ | – |
 | command-undefined-var | A Deployment runs ["sleep", "$(SLEEP_SECONDS)"] but its env defines SLEEP_SECOND; the kubelet passes the literal $(SLEEP_SECONDS), and sleep exits on it. | ✅ | ❌ | – |
 | configmap-command-missing | A container runs /scripts/start.sh from a ConfigMap volume whose key is run.sh, so the runtime cannot find the command. | ✅ | ❌ | – |
 | configmap-file-missing | An app reads /etc/app/config.yaml, but its ConfigMap's key is config.yml, so the file is not in the volume and the app exits. | ✅ | ❌ | – |
@@ -210,17 +212,19 @@ The run committed in [`results/faults`](results/faults) ([run 44709934332](https
 | job-parallelism-zero | A Job sets parallelism 0, so it starts no pods and never completes, and nothing reports an error. | ✅ | ❌ | – |
 | job-pod-failure-policy | A migration Job allows six retries, but its podFailurePolicy fails the Job on exit code 3, which the migrator returns when its lock table is busy; the first busy lock fails the whole Job at once, without a retry. | ✅ | ❌ | – |
 | job-suspended | A Job was created suspended and never resumed, so it runs no pods and reports no error. | ✅ | ✅ | – |
+| limitrange-default-memory-oom | The namespace's LimitRange gives every container a default memory limit of 16Mi, and a worker that sets no limit of its own needs more, so it is OOMKilled again and again. | ✅ | ✅ | – |
 | limitrange-default-request | The namespace's LimitRange gives every container a default cpu request of 64, which no node has, and the Deployment sets no request of its own. | ✅ | ☑️ | – |
 | limitrange-max-memory | A LimitRange caps containers at 64 MiB and the Deployment asks for a 128 MiB limit, so no pod is created. | ✅ | ☑️ | – |
 | liveness-wrong-port | The liveness probe checks a port nothing listens on, so the kubelet keeps restarting a healthy server. | ✅ | ❌ | – |
 | loadbalancer-pending | A Service of type LoadBalancer on a cluster with no load balancer implementation never gets an external address. | ✅ | ❌ | – |
 | memory-limit-no-unit | A Deployment sets memory: 512 as its limit, meaning 512 MiB; without a unit it is 512 bytes, so the runtime kills the container as it starts, every time. | ✅ | ❌ | – |
+| min-ready-seconds | A Deployment sets minReadySeconds: 3600, meant as a timeout; its pods are ready within seconds but do not count as available for an hour, so it reports no available replicas and nothing says why. | ✅ | ❌ | – |
 | missing-configmap-env | A container's envFrom names a ConfigMap that does not exist. | ✅ | ☑️ | – |
 | missing-configmap-volume | A volume mounts a ConfigMap that does not exist, so the pod never starts. | ✅ | ☑️ | – |
 | missing-repository | A Deployment's image is in a repository that does not exist; the registry answers 403 denied. | ✅ | ☑️ | – |
 | missing-scheduler | Pods name a scheduler (volcano) that is not installed, so nothing ever schedules them. | ✅ | ❌ | – |
 | missing-secret-key | A container reads a key the Secret does not have. | ✅ | ☑️ | – |
-| missing-serviceaccount | Pods run as a ServiceAccount that does not exist, so none is created. | ✅ | ✅ | – |
+| missing-serviceaccount | Pods run as a ServiceAccount that does not exist, so none is created. | ✅ | ☑️ | – |
 | netpol-port-name-unknown | A NetworkPolicy lets other pods reach the web servers on port "web", but the containers name their port http; a named port matches only the selected pods' own port names, so the rule allows nothing. | ✅ | ❌ | – |
 | networkpolicy-blocks-dns | An egress NetworkPolicy allows the app to reach only its database, which also blocks DNS, so the app cannot resolve the database's name and exits. | ✅ | ❌ | – |
 | networkpolicy-blocks-service | An egress NetworkPolicy lets the app resolve names but reach nothing else, so its connection to the db Service times out and it exits. | ✅ | ❌ | – |
@@ -252,7 +256,7 @@ The run committed in [`results/faults`](results/faults) ([run 44709934332](https
 | pull-secret-wrong-type | A private image is pulled with an imagePullSecret of type Opaque, which the kubelet ignores. | ✅ | ❌ | – |
 | pv-reserved-elsewhere | A claim names a PersistentVolume that is reserved for another claim, so it stays Pending with no event, and the database that mounts it never starts. | ✅ | ❌ | – |
 | pvc-access-mode | A claim asks for ReadWriteMany from kind's default StorageClass, whose node-local provisioner supports only ReadWriteOnce. | ✅ | ❌ | – |
-| pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ✅ | – |
+| pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ☑️ | – |
 | quota-exceeded | A ResourceQuota allows one pod and the Deployment wants three. | ✅ | ✅ | – |
 | readiness-failing | The readiness probe asks for a path the server does not have, so the pods never get traffic. | ✅ | ☑️ | – |
 | readiness-gate-unset | A Deployment's pods have a readiness gate that no controller in the cluster sets, so they run with every container ready but never become Ready, and their Service has no endpoints. | ✅ | ❌ | – |
@@ -272,6 +276,7 @@ The run committed in [`results/faults`](results/faults) ([run 44709934332](https
 | service-protocol-mismatch | A log collector listens for syslog on 5140/UDP, and its Service lists port 5140 without a protocol, which means TCP; Kubernetes forwards only TCP for it, so the UDP messages senders send to the Service never arrive. | ✅ | ❌ | – |
 | service-refused | An app connects to Service db, whose Deployment is scaled to 0, so the connection is refused and the app exits. | ✅ | ❌ | – |
 | service-selector-mismatch | A Service selects app=web while its pods are labelled app=webapp. | ✅ | ✅ | – |
+| service-selects-other-workload | A queue worker shares the label app=shop with the web server, and the Service selects on that label alone with a numeric targetPort; the worker's pod becomes an endpoint too, so a share of requests reach a pod that serves nothing on 8080. | ✅ | ❌ | – |
 | service-wrong-target-port | A Service sends traffic to port 80, but the container listens on 8080. | ✅ | ❌ | – |
 | statefulset-claim-quota | A ResourceQuota allows 100 MiB of storage and the StatefulSet's volumeClaimTemplate asks for 1 GiB, so its first claim, and so its first pod, is never created. | ✅ | ✅ | – |
 | statefulset-first-pod-unready | A three-replica StatefulSet's first pod never passes its readiness probe, so the StatefulSet never creates the other two. | ✅ | ❌ | – |
@@ -281,6 +286,7 @@ The run committed in [`results/faults`](results/faults) ([run 44709934332](https
 | subpath-onto-file | A container mounts a ConfigMap key over /etc/group with subPath, but the key is not in the ConfigMap; the kubelet makes a directory in its place, and the runtime cannot mount a directory onto the image's file. | ✅ | ❌ | – |
 | sysctl-forbidden | A Redis pod sets the sysctl net.core.somaxconn, which the kubelet does not allow by default, so it rejects the pod with SysctlForbidden and the pod never runs. | ✅ | ❌ | – |
 | token-not-mounted | A controller reads its ServiceAccount token at start, but its ServiceAccount turns token automounting off, so the token is never mounted and the container exits. | ✅ | ❌ | – |
+| volume-hides-command | A scratch volume is mounted at /bin, the directory that holds the container's command; the empty volume replaces everything the image has there, so /bin/sleep no longer exists and the container cannot start. | ✅ | ☑️ | – |
 | volume-mounted-read-only | A container writes to a volume its mount sets readOnly: true, so it exits with read-only file system. | ✅ | ❌ | – |
 | volume-permission-denied | A container that runs as user 1000 writes to a hostPath directory the kubelet created for root, so it exits with permission denied. | ✅ | ❌ | – |
 
@@ -313,8 +319,10 @@ the pod's connection through, so KD267 has unit tests and no scenario. The first
 of 125: at 125 namespaces at once the kind node ran out of its 110 pod slots, so two scenarios showed only a pod waiting
 for one (the suite's node now takes 250), and a memory limit of 512 bytes failed sooner than the unit tests had it, when
 the kubelet could not write the service account token into a volume sized by that limit. The second run named all 125
-first. Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make test` replays all of them
-through the current code.
+first. The 6 added for 0.10.0 were named first, with the exact rule and object, on their first run. Their recordings
+caught another gap in redaction: 127.0.0.1 in a command was replaced like any other address, which hid that the app
+listened on localhost only; loopback addresses are now left as they are. Each recorded namespace is also in
+[`testdata/faults`](testdata/faults), and `make test` replays all of them through the current code.
 
 ## How it works
 

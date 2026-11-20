@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-sysctl-forbidden"
   ],
-  "collectedAt": "2026-11-20 09:29 UTC",
+  "collectedAt": "2026-11-20 11:54 UTC",
   "findings": [
     {
       "rule": "KD232",

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-nodename-out-of-cpu"
   ],
-  "collectedAt": "2026-11-20 09:27 UTC",
+  "collectedAt": "2026-11-20 11:52 UTC",
   "findings": [
     {
       "rule": "KD241",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-out-of-cpu",
-            "name": "batch-hjv98"
+            "name": "batch-99mzm"
           },
           "what": "pod status is Failed, reason OutOfcpu",
           "detail": "Pod was rejected: Node didn't have enough resource: cpu, requested: 1000000, used: 970, capacity: 4000",
-          "command": "kubectl get pod batch-hjv98 -n kd-nodename-out-of-cpu -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+          "command": "kubectl get pod batch-99mzm -n kd-nodename-out-of-cpu -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
         }
       ],
       "fix": "Lower the pod's cpu request to what a node has free, or free that much on the node; leave spec.nodeName unset (use a nodeSelector) so the scheduler places the pod where it fits.",
@@ -33,22 +33,22 @@
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-hjv98"
+          "name": "batch-99mzm"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-kxzxj"
+          "name": "batch-krk7f"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-mhj89"
+          "name": "batch-lb7n5"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-pfc7j"
+          "name": "batch-mfqqh"
         }
       ]
     }

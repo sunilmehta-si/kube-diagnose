@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-port-name"
   ],
-  "collectedAt": "2026-11-20 09:29 UTC",
+  "collectedAt": "2026-11-20 11:53 UTC",
   "findings": [
     {
       "rule": "KD161",
@@ -30,10 +30,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-port-name",
-            "name": "web-59c4f75cc7-8sksd"
+            "name": "web-59c4f75cc7-c7cwk"
           },
           "what": "the selected pods declare named ports http (8080)",
-          "command": "kubectl get pod web-59c4f75cc7-8sksd -n kd-service-port-name -o jsonpath='{.spec.containers[*].ports}'"
+          "command": "kubectl get pod web-59c4f75cc7-c7cwk -n kd-service-port-name -o jsonpath='{.spec.containers[*].ports}'"
         },
         {
           "object": {

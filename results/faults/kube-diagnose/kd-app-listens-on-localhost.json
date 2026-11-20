@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-app-listens-on-localhost"
+  ],
+  "collectedAt": "2026-11-20 11:49 UTC",
+  "findings": [
+    {
+      "rule": "KD215",
+      "title": "App listens on localhost only",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-app-listens-on-localhost",
+        "name": "web"
+      },
+      "cause": "container web's readiness probe is refused on port 8080 because the app listens on the loopback address only (its command binds 127.0.0.1:8080): in a pod, 127.0.0.1 is reachable from the pod's own containers and from nothing else, not the kubelet, a Service or another pod, so the container never becomes ready and gets no traffic; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-app-listens-on-localhost",
+            "name": "web-966bc545f-zcdqh"
+          },
+          "what": "event Unhealthy (25 times)",
+          "detail": "Readiness probe failed: Get \"http://10.244.0.5:8080/\": dial tcp 10.244.0.5:8080: connect: connection refused",
+          "command": "kubectl get events -n kd-app-listens-on-localhost --field-selector involvedObject.kind=Pod,involvedObject.name=web-966bc545f-zcdqh"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-app-listens-on-localhost",
+            "name": "web-966bc545f-zcdqh"
+          },
+          "what": "container web's readiness probe",
+          "command": "kubectl get pod web-966bc545f-zcdqh -n kd-app-listens-on-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-app-listens-on-localhost",
+            "name": "web-966bc545f-zcdqh"
+          },
+          "what": "container web's command and env",
+          "command": "kubectl get pod web-966bc545f-zcdqh -n kd-app-listens-on-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}{\"\\n\"}{.spec.containers[?(@.name==\"web\")].env}'"
+        }
+      ],
+      "fix": "Have the app listen on 0.0.0.0 (or [::]) instead of 127.0.0.1 or localhost: its bind flag or variable, such as --host 0.0.0.0.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-app-listens-on-localhost",
+          "name": "web-966bc545f-zcdqh"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

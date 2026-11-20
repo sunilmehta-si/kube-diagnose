@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-selects-other-workload"
+  ],
+  "collectedAt": "2026-11-20 11:54 UTC",
+  "findings": [
+    {
+      "rule": "KD273",
+      "title": "Service also selects another workload's pods",
+      "severity": "warning",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-selects-other-workload",
+        "name": "shop"
+      },
+      "cause": "Service shop selects pods with app=shop, which matches Deployment worker as well as Deployment web: its 1 ready pod do not declare port 8080, yet a numeric targetPort makes them endpoints too, so about 1 in 3 connections to the Service reach a pod that does not serve it",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-selects-other-workload",
+            "name": "shop"
+          },
+          "what": "Service shop has selector app=shop and targetPort 8080",
+          "command": "kubectl get service shop -n kd-service-selects-other-workload -o jsonpath='{.spec.selector}{\" \"}{.spec.ports}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-selects-other-workload",
+            "name": "*"
+          },
+          "what": "the pods the selector matches, with their labels",
+          "command": "kubectl get pods -n kd-service-selects-other-workload -l app=shop --show-labels"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-selects-other-workload",
+            "name": "worker-858b8dd46b-hwqb5"
+          },
+          "what": "pod worker-858b8dd46b-hwqb5 is selected and does not declare port 8080",
+          "command": "kubectl get pod worker-858b8dd46b-hwqb5 -n kd-service-selects-other-workload -o jsonpath='{.spec.containers[*].ports}'"
+        }
+      ],
+      "fix": "Give the Service a selector only its own pods match: add a label that tells the workloads apart (for example a component label) to the pod templates and to Service shop's selector."
+    }
+  ],
+  "checked": {
+    "pods": 3,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

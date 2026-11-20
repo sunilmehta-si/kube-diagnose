@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-limitrange-default-memory-oom"
+  ],
+  "collectedAt": "2026-11-20 11:51 UTC",
+  "findings": [
+    {
+      "rule": "KD111",
+      "title": "Container runs out of memory",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-limitrange-default-memory-oom",
+        "name": "worker"
+      },
+      "cause": "container worker uses more than its 16Mi memory limit and is killed (OOMKilled); the pod template sets no memory limit for worker: the namespace's LimitRange gave it its default; Deployment worker has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-limitrange-default-memory-oom",
+            "name": "worker-66df59b77f-qx8jn"
+          },
+          "what": "container worker exited with code 137 (OOMKilled), restarted 5 times",
+          "command": "kubectl get pod worker-66df59b77f-qx8jn -n kd-limitrange-default-memory-oom -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-limitrange-default-memory-oom",
+            "name": "worker-66df59b77f-qx8jn"
+          },
+          "what": "container worker has memory limit 16Mi",
+          "command": "kubectl get pod worker-66df59b77f-qx8jn -n kd-limitrange-default-memory-oom -o jsonpath='{.spec.containers[?(@.name==\"worker\")].resources.limits.memory}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-limitrange-default-memory-oom",
+            "name": "worker-66df59b77f-qx8jn"
+          },
+          "what": "the LimitRanger admission plugin set container worker's memory limit",
+          "detail": "LimitRanger plugin set: memory request for container worker; memory limit for container worker",
+          "command": "kubectl get pod worker-66df59b77f-qx8jn -n kd-limitrange-default-memory-oom -o jsonpath='{.metadata.annotations.kubernetes\\.io/limit-ranger}'"
+        },
+        {
+          "object": {
+            "kind": "LimitRange",
+            "namespace": "kd-limitrange-default-memory-oom",
+            "name": "*"
+          },
+          "what": "the namespace's LimitRanges",
+          "command": "kubectl get limitranges -n kd-limitrange-default-memory-oom -o yaml"
+        }
+      ],
+      "fix": "Set container worker's own memory limit in the pod template to what it needs at peak, or raise the default for memory in the namespace's LimitRange.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-limitrange-default-memory-oom",
+          "name": "worker-66df59b77f-qx8jn"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

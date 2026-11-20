@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-statefulset-missing-service",
-              "Masked": "WkxmVSc2I1EhQjghWj49M1Ntc1syN3RAdSUsQSpE"
+              "Masked": "QjhzazRjPyEsWFEzJWQoQCwuSGQtVVEoM0VKVzty"
             },
             {
               "Unmasked": "db-headless",
-              "Masked": "YUE2WncmSEBsWGU="
+              "Masked": "My5CZDtEQHdbbUs="
             }
           ]
         }

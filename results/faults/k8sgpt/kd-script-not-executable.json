@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-script-not-executable",
-              "Masked": "TWVMSTMkZzBqakdmKFFXQTJOP2xLd3s9"
+              "Masked": "PXJebTNYTDk6NCV4PHx2a0FSdUJpOTBo"
             },
             {
               "Unmasked": "web",
-              "Masked": "b2dm"
+              "Masked": "dG0l"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-script-not-executable/web-fd58cb87d-7qh68",
+      "name": "kd-script-not-executable/web-fd58cb87d-fttkf",
       "error": [
         {
           "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/scripts/run.sh\": permission denied",

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-missing-configmap-env"
   ],
-  "collectedAt": "2026-11-20 09:27 UTC",
+  "collectedAt": "2026-11-20 11:52 UTC",
   "findings": [
     {
       "rule": "KD130",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-configmap-env",
-            "name": "web-797b746fc4-269zf"
+            "name": "web-797b746fc4-s7hz5"
           },
           "what": "container web is waiting: CreateContainerConfigError",
           "detail": "configmap \"app-config\" not found",
-          "command": "kubectl get pod web-797b746fc4-269zf -n kd-missing-configmap-env -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "command": "kubectl get pod web-797b746fc4-s7hz5 -n kd-missing-configmap-env -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         },
         {
           "object": {
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-missing-configmap-env",
-          "name": "web-797b746fc4-269zf"
+          "name": "web-797b746fc4-s7hz5"
         }
       ]
     }

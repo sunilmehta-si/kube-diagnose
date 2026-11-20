@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-nodename-hostport-taken"
   ],
-  "collectedAt": "2026-11-20 09:27 UTC",
+  "collectedAt": "2026-11-20 11:52 UTC",
   "findings": [
     {
       "rule": "KD243",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-hostport-taken",
-            "name": "agent-422jv"
+            "name": "agent-8g8kw"
           },
           "what": "pod status is Failed, reason NodePorts",
           "detail": "Pod was rejected: Predicate NodePorts failed: node(s) didn't have free ports for the requested pod ports",
-          "command": "kubectl get pod agent-422jv -n kd-nodename-hostport-taken -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+          "command": "kubectl get pod agent-8g8kw -n kd-nodename-hostport-taken -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-hostport-taken",
-            "name": "agent-422jv"
+            "name": "agent-8g8kw"
           },
           "what": "the pod's host ports",
-          "command": "kubectl get pod agent-422jv -n kd-nodename-hostport-taken -o jsonpath='{.spec.containers[*].ports[*].hostPort}'"
+          "command": "kubectl get pod agent-8g8kw -n kd-nodename-hostport-taken -o jsonpath='{.spec.containers[*].ports[*].hostPort}'"
         }
       ],
       "fix": "Drop hostPort if a Service can reach the pod instead, or leave spec.nodeName unset so the scheduler puts the pod on a node where the port is free (kubectl get pods -A -o wide shows what runs on the node).",
@@ -42,22 +42,22 @@
         {
           "kind": "Pod",
           "namespace": "kd-nodename-hostport-taken",
-          "name": "agent-422jv"
+          "name": "agent-8g8kw"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-hostport-taken",
-          "name": "agent-bgqkk"
+          "name": "agent-mwnvm"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-hostport-taken",
-          "name": "agent-fzfw6"
+          "name": "agent-wdmg6"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-hostport-taken",
-          "name": "agent-jqp94"
+          "name": "agent-xnzmr"
         }
       ]
     }

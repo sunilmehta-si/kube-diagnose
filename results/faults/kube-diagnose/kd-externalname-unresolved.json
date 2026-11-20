@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-externalname-unresolved"
   ],
-  "collectedAt": "2026-11-20 09:26 UTC",
+  "collectedAt": "2026-11-20 11:51 UTC",
   "findings": [
     {
       "rule": "KD270",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-externalname-unresolved",
-            "name": "api-fc8cdb868-cvq8d"
+            "name": "api-fc8cdb868-krgxd"
           },
           "what": "container api exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod api-fc8cdb868-cvq8d -n kd-externalname-unresolved -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state.terminated}'"
+          "command": "kubectl get pod api-fc8cdb868-krgxd -n kd-externalname-unresolved -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-externalname-unresolved",
-            "name": "api-fc8cdb868-cvq8d"
+            "name": "api-fc8cdb868-krgxd"
           },
-          "what": "last lines of container api's log (current run)",
+          "what": "last lines of container api's log (run that exited)",
           "detail": "connecting to db\nwget: bad address 'db:5432'",
-          "command": "kubectl logs api-fc8cdb868-cvq8d -n kd-externalname-unresolved -c api --tail=20"
+          "command": "kubectl logs api-fc8cdb868-krgxd -n kd-externalname-unresolved -c api --tail=20 --previous"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-externalname-unresolved",
-          "name": "api-fc8cdb868-cvq8d"
+          "name": "api-fc8cdb868-krgxd"
         }
       ]
     }

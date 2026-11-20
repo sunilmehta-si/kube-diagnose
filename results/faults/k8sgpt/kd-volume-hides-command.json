@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-volume-hides-command/api",
+      "error": [
+        {
+          "Text": "Deployment kd-volume-hides-command/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-volume-hides-command",
+              "Masked": "KmUqcGhLRT1kM2lUeWdBO2lFeCRPe0w="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "MzND"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-volume-hides-command/api-544f5fbdf4-r9mv5",
+      "error": [
+        {
+          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/bin/sleep\": stat /bin/sleep: no such file or directory",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}
