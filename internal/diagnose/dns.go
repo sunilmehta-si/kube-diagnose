@@ -388,3 +388,31 @@ func subdomainProblem(ix *index, p kube.Pod, cs *kube.ContainerStatus, lines []s
 		fmt.Sprintf("the pod sets hostname and subdomain for the DNS name %s.%s.svc, but %s, so that name does not resolve and peers that look it up fail", podDNSName(p), ns, why),
 		"subdomain|"+sub, fix, spec, svcEv)
 }
+
+// externalNameUnresolved finds a container that exits because it cannot resolve a Service that exists and is of type
+// ExternalName: cluster DNS answers the Service's name with a CNAME to its externalName, so when that name does not
+// resolve (a typo, an internal name the cluster's DNS cannot see, a record since removed) neither does the Service.
+func externalNameUnresolved(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	host, line := unresolvedHost(lines)
+	if host == "" {
+		return nil
+	}
+	svcNS, name, ok := serviceName(p.Metadata.Namespace, host)
+	if !ok {
+		return nil
+	}
+	for _, svc := range ix.s.Services {
+		if svc.Metadata.Namespace != svcNS || svc.Metadata.Name != name || svc.Spec.Type != "ExternalName" {
+			continue
+		}
+		target := svc.Spec.ExternalName
+		ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s is of type ExternalName and points at %s", name, target),
+			Command: cmdGet("service", svcNS, name, `{.spec.type}{" "}{.spec.externalName}`)})
+		return newProblem(p, cs.Name, "KD270", "ExternalName Service points at a name that does not resolve", Critical,
+			fmt.Sprintf("container %s exits because %s does not resolve: Service %s is of type ExternalName, so cluster DNS answers it with a CNAME to %s, and that name does not resolve from the cluster; its log says: %q", cs.Name, host, name, target, clip(line, 200)),
+			"extname|"+svcNS+"/"+name,
+			fmt.Sprintf("Correct Service %s's externalName to a name the cluster's DNS can resolve (check it from a pod: nslookup %s), or, for an address, use a Service without a selector and an EndpointSlice.", name, target),
+			ev...)
+	}
+	return nil
+}

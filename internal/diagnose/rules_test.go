@@ -2710,6 +2710,32 @@ func TestReadinessProbeHasNotRunYet(t *testing.T) {
 	}
 }
 
+func TestExternalNameServiceThatDoesNotResolve(t *testing.T) {
+	s := snap()
+	p := pod("api-7d9f-k2x8q", "api")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"connecting to db", "wget: bad address 'db:5432'"}}}
+	var db kube.Service
+	db.Metadata = kube.ObjectMeta{Name: "db", Namespace: "shop"}
+	db.Spec.Type, db.Spec.ExternalName = "ExternalName", "orders-db.prod.internal"
+	s.Services = []kube.Service{db}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD270", "ReplicaSet shop/api-rs", "db does not resolve", "CNAME to orders-db.prod.internal", "bad address")
+	if !strings.Contains(f.Fix, "nslookup orders-db.prod.internal") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A ClusterIP Service that resolves is not this rule; nor is a name that is no Service (KD121).
+	db.Spec.Type, db.Spec.ExternalName = "ClusterIP", ""
+	s.Services = []kube.Service{db}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD270" {
+			t.Errorf("a ClusterIP Service: %s", f.Cause)
+		}
+	}
+}
+
 func TestPodRanPastItsActiveDeadline(t *testing.T) {
 	s := snap()
 	d := int64(20)
