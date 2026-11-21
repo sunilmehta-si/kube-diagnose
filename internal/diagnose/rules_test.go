@@ -3187,3 +3187,35 @@ func TestStartupProbeThatCannotPass(t *testing.T) {
 		event("Pod", "api", "Killing", "Container web failed startup probe, will be restarted", time.Minute)}
 	expect(t, only(t, Diagnose(s)), "KD202", "Pod shop/api", "startup probe uses scheme HTTPS", "before it is ever marked started (6 restarts)")
 }
+
+func TestPodsCoveredByMoreThanOnePDB(t *testing.T) {
+	s := snap()
+	s.Pods = []kube.Pod{pod("web-1", "web"), pod("web-2", "web")}
+	budget := func(name string, labels map[string]string) kube.PodDisruptionBudget {
+		var b kube.PodDisruptionBudget
+		b.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
+		b.Spec.MaxUnavailable = &kube.IntOrString{Int: 1}
+		b.Spec.Selector = &kube.LabelSelector{MatchLabels: labels}
+		b.Status.DisruptionsAllowed, b.Status.CurrentHealthy, b.Status.DesiredHealthy, b.Status.ExpectedPods = 1, 2, 1, 2
+		return b
+	}
+	s.PDBs = []kube.PodDisruptionBudget{budget("web", map[string]string{"app": "web"}), budget("team-default", map[string]string{})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD289", "PodDisruptionBudget shop/team-default", "PodDisruptionBudgets team-default and web all select 2 pods", "eviction API refuses a pod that more than one budget covers", "node drain")
+	if f.Severity != Warning || len(f.Evidence) != 3 || !strings.Contains(f.Fix, "one budget") {
+		t.Errorf("severity %s evidence %d fix %q", f.Severity, len(f.Evidence), f.Fix)
+	}
+
+	// Budgets for different pods do not overlap.
+	s.PDBs[1].Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"app": "worker"}}
+	s.PDBs[1].Status.ExpectedPods = 0
+	s.Pods = append(s.Pods, func() kube.Pod {
+		p := pod("worker-1", "worker")
+		p.Metadata.Labels = map[string]string{"app": "worker"}
+		return p
+	}())
+	s.PDBs[1].Status.ExpectedPods = 1
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("separate budgets: %v", r.Findings)
+	}
+}
