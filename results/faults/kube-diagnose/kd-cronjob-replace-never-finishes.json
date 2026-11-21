@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-replace-never-finishes"
   ],
-  "collectedAt": "2026-11-20 11:50 UTC",
+  "collectedAt": "2026-11-21 06:54 UTC",
   "findings": [
     {
       "rule": "KD280",
@@ -15,7 +15,7 @@
         "namespace": "kd-cronjob-replace-never-finishes",
         "name": "sync"
       },
-      "cause": "CronJob sync has concurrencyPolicy Replace and schedule \"* * * * *\", and its runs take longer than that: each new run deletes the one still going, so none finishes; it deleted 3 Jobs (sync-29919587, sync-29919588, sync-29919589), and it has never completed a run",
+      "cause": "CronJob sync has concurrencyPolicy Replace and schedule \"* * * * *\", and its runs take longer than that: each new run deletes the one still going, so none finishes; it deleted 2 Jobs (sync-29920732, sync-29920733), and it has never completed a run",
       "evidence": [
         {
           "object": {
@@ -24,7 +24,7 @@
             "name": "sync"
           },
           "what": "event SuccessfulDelete",
-          "detail": "Deleted job sync-29919589",
+          "detail": "Deleted job sync-29920733",
           "command": "kubectl get events -n kd-cronjob-replace-never-finishes --field-selector involvedObject.kind=CronJob,involvedObject.name=sync"
         },
         {
@@ -33,7 +33,7 @@
             "namespace": "kd-cronjob-replace-never-finishes",
             "name": "sync"
           },
-          "what": "CronJob sync has concurrencyPolicy Replace and schedule \"* * * * *\", and Job sync-29919590 is active",
+          "what": "CronJob sync has concurrencyPolicy Replace and schedule \"* * * * *\", and Job sync-29920734 is active",
           "command": "kubectl get cronjob sync -n kd-cronjob-replace-never-finishes -o jsonpath='{.spec.schedule}{\" \"}{.spec.concurrencyPolicy}{\" \"}{.status}'"
         }
       ],
@@ -41,7 +41,7 @@
     }
   ],
   "checked": {
-    "pods": 2,
+    "pods": 1,
     "services": 0,
     "persistentVolumeClaims": 0,
     "nodes": 1

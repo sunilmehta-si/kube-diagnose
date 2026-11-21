@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-init-waits-for-own-service/web",
+      "error": [
+        {
+          "Text": "Deployment kd-init-waits-for-own-service/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-init-waits-for-own-service",
+              "Masked": "QDg5dFlubHhLR0BlcVl5b2lYUiVQLjtIN2wtWSc="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "JUB4"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Service",
+      "name": "kd-init-waits-for-own-service/web",
+      "error": [
+        {
+          "Text": "Service has not ready endpoints, pods: [Pod/web-df8d558d8-vwxm9], expected 1",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

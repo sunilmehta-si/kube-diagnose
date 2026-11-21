@@ -1,0 +1,70 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-init-waits-for-own-service"
+  ],
+  "collectedAt": "2026-11-21 06:56 UTC",
+  "findings": [
+    {
+      "rule": "KD220",
+      "title": "Init container waits for its own pod",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-init-waits-for-own-service",
+        "name": "web"
+      },
+      "cause": "init container wait-for-web waits for Service web, and the only pods behind that Service are Deployment web's own: they serve only once their app containers run, and those start only after this init container exits, so each waits for the other; its log says: \"wget: can't connect to remote host (10.96.176.55): Connection refused\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-waits-for-own-service",
+            "name": "web-df8d558d8-vwxm9"
+          },
+          "what": "init container wait-for-web has been running since 2026-11-21T06:51:39Z",
+          "command": "kubectl get pod web-df8d558d8-vwxm9 -n kd-init-waits-for-own-service -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-web\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-waits-for-own-service",
+            "name": "web-df8d558d8-vwxm9"
+          },
+          "what": "last lines of container wait-for-web's log (current run)",
+          "detail": "wget: can't connect to remote host (10.96.176.55): Connection refused\nwaiting for web\nwget: can't connect to remote host (10.96.176.55): Connection refused\nwaiting for web\nwget: can't connect to remote host (10.96.176.55): Connection refused\nwaiting for web",
+          "command": "kubectl logs web-df8d558d8-vwxm9 -n kd-init-waits-for-own-service -c wait-for-web --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-init-waits-for-own-service",
+            "name": "web"
+          },
+          "what": "Service web selects pods with app=web: the pods of Deployment web, this one included",
+          "command": "kubectl get pods -n kd-init-waits-for-own-service -l app=web"
+        }
+      ],
+      "fix": "Remove the wait for web from init container wait-for-web, or point it at what the pod really depends on. A pod cannot wait for itself: its readiness and startup probes are what hold traffic back until the app is up.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-init-waits-for-own-service",
+          "name": "web-df8d558d8-vwxm9"
+        },
+        {
+          "kind": "Service",
+          "namespace": "kd-init-waits-for-own-service",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

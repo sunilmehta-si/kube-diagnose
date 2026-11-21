@@ -5,19 +5,6 @@
   "problems": 2,
   "results": [
     {
-      "kind": "Pod",
-      "name": "kd-pod-anti-affinity/web-769478f8ff-bz9x4",
-      "error": [
-        {
-          "Text": "0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
-    },
-    {
       "kind": "Deployment",
       "name": "kd-pod-anti-affinity/web",
       "error": [
@@ -27,17 +14,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pod-anti-affinity",
-              "Masked": "cnNTZ2psbUFLUF1EU19HVSswel0="
+              "Masked": "ISRsKkEoTDl2KW1fJTB7XmJmTmc="
             },
             {
               "Unmasked": "web",
-              "Masked": "OE9F"
+              "Masked": "YT9Y"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pod-anti-affinity/web-769478f8ff-5dwlw",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

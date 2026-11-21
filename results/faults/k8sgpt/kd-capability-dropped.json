@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-capability-dropped/web",
+      "error": [
+        {
+          "Text": "Deployment kd-capability-dropped/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-capability-dropped",
+              "Masked": "cThOV0tCbDdIKUldaVcyYklGWDNY"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "aUUw"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-capability-dropped/web-5cb88d7c4b-dk69l",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-5cb88d7c4b-dk69l",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

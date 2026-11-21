@@ -5,6 +5,19 @@
   "problems": 2,
   "results": [
     {
+      "kind": "ConfigMap",
+      "name": "kd-job-suspended/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Job",
       "name": "kd-job-suspended/train",
       "error": [
@@ -14,26 +27,13 @@
           "Sensitive": [
             {
               "Unmasked": "kd-job-suspended",
-              "Masked": "UEl3U0gsRml0RmgyIkolYg=="
+              "Masked": "PzpwS1Nlcy47TGEoIXh1Xw=="
             },
             {
               "Unmasked": "train",
-              "Masked": "VSZlSkM="
+              "Masked": "RiFCSjM="
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "ConfigMap",
-      "name": "kd-job-suspended/kube-root-ca.crt",
-      "error": [
-        {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
-          "KubernetesDoc": "",
-          "Sensitive": []
         }
       ],
       "details": "",

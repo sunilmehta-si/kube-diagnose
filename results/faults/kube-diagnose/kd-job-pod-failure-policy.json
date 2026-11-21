@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-pod-failure-policy"
   ],
-  "collectedAt": "2026-11-20 11:51 UTC",
+  "collectedAt": "2026-11-21 06:56 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -15,26 +15,26 @@
         "namespace": "kd-job-pod-failure-policy",
         "name": "migrate"
       },
-      "cause": "container migrate exited with code 3 (the app reported an error); its log says: \"migration lock is held by another run\"; Job migrate's podFailurePolicy matched that exit and failed the whole Job at once, without the retries backoffLimit allows (Container migrate for pod kd-job-pod-failure-policy/migrate-vnqcc failed with exit code 3 matching FailJob rule at index 0)",
+      "cause": "container migrate exited with code 3 (the app reported an error); its log says: \"migration lock is held by another run\"; Job migrate's podFailurePolicy matched that exit and failed the whole Job at once, without the retries backoffLimit allows (Container migrate for pod kd-job-pod-failure-policy/migrate-rmtbc failed with exit code 3 matching FailJob rule at index 0)",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-pod-failure-policy",
-            "name": "migrate-vnqcc"
+            "name": "migrate-rmtbc"
           },
           "what": "container migrate exited with code 3 (Error)",
-          "command": "kubectl get pod migrate-vnqcc -n kd-job-pod-failure-policy -o jsonpath='{.status.containerStatuses[?(@.name==\"migrate\")].state.terminated}'"
+          "command": "kubectl get pod migrate-rmtbc -n kd-job-pod-failure-policy -o jsonpath='{.status.containerStatuses[?(@.name==\"migrate\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-pod-failure-policy",
-            "name": "migrate-vnqcc"
+            "name": "migrate-rmtbc"
           },
           "what": "last lines of container migrate's log (current run)",
           "detail": "migration lock is held by another run",
-          "command": "kubectl logs migrate-vnqcc -n kd-job-pod-failure-policy -c migrate --tail=20"
+          "command": "kubectl logs migrate-rmtbc -n kd-job-pod-failure-policy -c migrate --tail=20"
         },
         {
           "object": {
@@ -43,7 +43,7 @@
             "name": "migrate"
           },
           "what": "Job condition Failed: PodFailurePolicy",
-          "detail": "Container migrate for pod kd-job-pod-failure-policy/migrate-vnqcc failed with exit code 3 matching FailJob rule at index 0",
+          "detail": "Container migrate for pod kd-job-pod-failure-policy/migrate-rmtbc failed with exit code 3 matching FailJob rule at index 0",
           "command": "kubectl get job migrate -n kd-job-pod-failure-policy -o jsonpath='{.spec.podFailurePolicy}{\"\\n\"}{.status.conditions[?(@.type==\"Failed\")]}'"
         }
       ],
@@ -52,7 +52,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-job-pod-failure-policy",
-          "name": "migrate-vnqcc"
+          "name": "migrate-rmtbc"
         }
       ]
     }

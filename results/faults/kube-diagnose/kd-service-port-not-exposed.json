@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-port-not-exposed"
+  ],
+  "collectedAt": "2026-11-21 06:59 UTC",
+  "findings": [
+    {
+      "rule": "KD218",
+      "title": "Container connects to a port the Service does not expose",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-service-port-not-exposed",
+        "name": "client"
+      },
+      "cause": "container client exits because its connection to Service web on port 8080 times out: the Service does not expose 8080, it listens on 80 and forwards to the pods' port 8080; its log says: \"wget: download timed out\"; Deployment client has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-port-not-exposed",
+            "name": "client-5d4f8f9d6-vpcgr"
+          },
+          "what": "container client exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod client-5d4f8f9d6-vpcgr -n kd-service-port-not-exposed -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-port-not-exposed",
+            "name": "client-5d4f8f9d6-vpcgr"
+          },
+          "what": "last lines of container client's log (run that exited)",
+          "detail": "Connecting to web:8080 (10.96.72.2:8080)\nwget: download timed out",
+          "command": "kubectl logs client-5d4f8f9d6-vpcgr -n kd-service-port-not-exposed -c client --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-port-not-exposed",
+            "name": "web"
+          },
+          "what": "Service web exposes port 80, not 8080",
+          "command": "kubectl get service web -n kd-service-port-not-exposed -o jsonpath='{range .spec.ports[*]}{.port}{\" -\u003e \"}{.targetPort}{\"\\n\"}{end}'"
+        }
+      ],
+      "fix": "Connect to web:80: 8080 is the pods' port (the Service's targetPort), and a client of a Service uses the Service's own port. Or change the Service's port to 8080.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-service-port-not-exposed",
+          "name": "client-5d4f8f9d6-vpcgr"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

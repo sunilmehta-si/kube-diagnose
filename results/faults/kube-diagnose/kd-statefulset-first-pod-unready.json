@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-first-pod-unready"
   ],
-  "collectedAt": "2026-11-20 11:54 UTC",
+  "collectedAt": "2026-11-21 06:59 UTC",
   "findings": [
     {
       "rule": "KD120",

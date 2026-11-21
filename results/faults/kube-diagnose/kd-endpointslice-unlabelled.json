@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-endpointslice-unlabelled"
   ],
-  "collectedAt": "2026-11-20 11:50 UTC",
+  "collectedAt": "2026-11-21 06:55 UTC",
   "findings": [
     {
       "rule": "KD264",

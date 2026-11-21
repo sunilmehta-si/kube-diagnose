@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-env-var-defined-later"
+  ],
+  "collectedAt": "2026-11-21 06:55 UTC",
+  "findings": [
+    {
+      "rule": "KD216",
+      "title": "Env value refers to a variable not defined before it",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-env-var-defined-later",
+        "name": "worker"
+      },
+      "cause": "container worker's env API_URL refers to $(API_HOST), which is defined after API_URL in the env list: the kubelet expands a reference only from variables defined before it, so API_URL holds the text $(API_HOST) unexpanded and the process fails on it; its log says: \"wget: bad address '$(API_HOST):8080'\"; Deployment worker has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-env-var-defined-later",
+            "name": "worker-86bfdfc864-w9jsr"
+          },
+          "what": "container worker exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod worker-86bfdfc864-w9jsr -n kd-env-var-defined-later -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-env-var-defined-later",
+            "name": "worker-86bfdfc864-w9jsr"
+          },
+          "what": "last lines of container worker's log (current run)",
+          "detail": "fetching http://$(API_HOST):8080/\nwget: bad address '$(API_HOST):8080'",
+          "command": "kubectl logs worker-86bfdfc864-w9jsr -n kd-env-var-defined-later -c worker --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-env-var-defined-later",
+            "name": "worker-86bfdfc864-w9jsr"
+          },
+          "what": "container worker's env, in order: API_URL is entry 1 and refers to $(API_HOST)",
+          "command": "kubectl get pod worker-86bfdfc864-w9jsr -n kd-env-var-defined-later -o jsonpath='{range .spec.containers[?(@.name==\"worker\")].env[*]}{.name}={.value}{\"\\n\"}{end}'"
+        }
+      ],
+      "fix": "Move API_HOST above API_URL in the container's env list: a value can refer only to variables defined before it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-env-var-defined-later",
+          "name": "worker-86bfdfc864-w9jsr"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

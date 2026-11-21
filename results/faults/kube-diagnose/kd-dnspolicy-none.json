@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dnspolicy-none"
   ],
-  "collectedAt": "2026-11-20 11:50 UTC",
+  "collectedAt": "2026-11-21 06:55 UTC",
   "findings": [
     {
       "rule": "KD269",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dnspolicy-none",
-            "name": "api-5c4f64b4b7-hgc4r"
+            "name": "api-5c4f64b4b7-t4q96"
           },
           "what": "container api exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod api-5c4f64b4b7-hgc4r -n kd-dnspolicy-none -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state.terminated}'"
+          "command": "kubectl get pod api-5c4f64b4b7-t4q96 -n kd-dnspolicy-none -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dnspolicy-none",
-            "name": "api-5c4f64b4b7-hgc4r"
+            "name": "api-5c4f64b4b7-t4q96"
           },
           "what": "last lines of container api's log (current run)",
           "detail": "calling payments:8080\nwget: bad address 'payments:8080'",
-          "command": "kubectl logs api-5c4f64b4b7-hgc4r -n kd-dnspolicy-none -c api --tail=20"
+          "command": "kubectl logs api-5c4f64b4b7-t4q96 -n kd-dnspolicy-none -c api --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dnspolicy-none",
-            "name": "api-5c4f64b4b7-hgc4r"
+            "name": "api-5c4f64b4b7-t4q96"
           },
           "what": "the pod sets dnsPolicy None, with nameservers 1.1.1.1 and search domains corp.example",
-          "command": "kubectl get pod api-5c4f64b4b7-hgc4r -n kd-dnspolicy-none -o jsonpath='{.spec.dnsPolicy}{\" \"}{.spec.dnsConfig}'"
+          "command": "kubectl get pod api-5c4f64b4b7-t4q96 -n kd-dnspolicy-none -o jsonpath='{.spec.dnsPolicy}{\" \"}{.spec.dnsConfig}'"
         }
       ],
       "fix": "Use dnsPolicy ClusterFirst and put extra nameservers or search domains in dnsConfig, which ClusterFirst adds to cluster DNS; or, keeping None, list the cluster DNS Service's IP (kubectl get svc -n kube-system kube-dns) and the search domains kd-dnspolicy-none.svc.cluster.local, svc.cluster.local and cluster.local.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dnspolicy-none",
-          "name": "api-5c4f64b4b7-hgc4r"
+          "name": "api-5c4f64b4b7-t4q96"
         }
       ]
     }

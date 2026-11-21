@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-emptydir-memory-oom",
-              "Masked": "YVcqP21oJ2chfE54czFYYi5oS0BFaw=="
+              "Masked": "cmloT1dONllkMyRiVnRDXlZnJmxFcQ=="
             },
             {
               "Unmasked": "cache",
-              "Masked": "Zzw4SVk="
+              "Masked": "aVZCPXc="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-emptydir-memory-oom/cache-888b88f6f-twhzq",
+      "name": "kd-emptydir-memory-oom/cache-888b88f6f-4btrl",
       "error": [
         {
-          "Text": "the termination reason is OOMKilled exitCode=137 container=warm pod=cache-888b88f6f-twhzq",
+          "Text": "the termination reason is OOMKilled exitCode=137 container=warm pod=cache-888b88f6f-4btrl",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-localhost-for-service"
+  ],
+  "collectedAt": "2026-11-21 06:57 UTC",
+  "findings": [
+    {
+      "rule": "KD217",
+      "title": "Container connects to localhost for a Service in another pod",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-localhost-for-service",
+        "name": "worker"
+      },
+      "cause": "container worker exits because its connection to 127.0.0.1:6379 is refused: in a pod, localhost is the pod itself, and none of its containers listens on 6379. What serves that port here is Service cache, in other pods; its log says: \"wget: can't connect to remote host (127.0.0.1): Connection refused\"; Deployment worker has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-localhost-for-service",
+            "name": "worker-59b4bbb7cd-d8bnw"
+          },
+          "what": "container worker exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod worker-59b4bbb7cd-d8bnw -n kd-localhost-for-service -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-localhost-for-service",
+            "name": "worker-59b4bbb7cd-d8bnw"
+          },
+          "what": "last lines of container worker's log (run that exited)",
+          "detail": "Connecting to 127.0.0.1:6379 (127.0.0.1:6379)\nwget: can't connect to remote host (127.0.0.1): Connection refused",
+          "command": "kubectl logs worker-59b4bbb7cd-d8bnw -n kd-localhost-for-service -c worker --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-localhost-for-service",
+            "name": "worker-59b4bbb7cd-d8bnw"
+          },
+          "what": "no container of pod worker-59b4bbb7cd-d8bnw declares port 6379",
+          "command": "kubectl get pod worker-59b4bbb7cd-d8bnw -n kd-localhost-for-service -o jsonpath='{range .spec.containers[*]}{.name}{\" \"}{.ports[*].containerPort}{\"\\n\"}{end}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-localhost-for-service",
+            "name": "cache"
+          },
+          "what": "Service cache serves port 6379 from other pods (selector app=cache)",
+          "command": "kubectl get service cache -n kd-localhost-for-service -o jsonpath='{.spec.selector}{\" \"}{.spec.ports}'"
+        }
+      ],
+      "fix": "Connect to cache:6379 instead of 127.0.0.1:6379: set it in env CACHE_URL (now http://127.0.0.1:6379/).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-localhost-for-service",
+          "name": "worker-59b4bbb7cd-d8bnw"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}
