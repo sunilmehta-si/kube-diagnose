@@ -467,6 +467,10 @@ func TestQuotaStopsAStatefulSetsClaim(t *testing.T) {
 	if !strings.Contains(f.Fix, "volumeClaimTemplates") {
 		t.Errorf("fix %q", f.Fix)
 	}
+
+	// Kubernetes 1.37 writes the event with a capital: "Create Claim ...". The claim is named all the same.
+	s.Events[0].Message = "C" + s.Events[0].Message[1:]
+	expect(t, only(t, Diagnose(s)), "KD170", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates")
 }
 
 func TestServiceAccountMissing(t *testing.T) {
