@@ -3433,3 +3433,38 @@ func TestContainerLacksACapabilityItUses(t *testing.T) {
 		t.Errorf("nothing dropped: %s", f.Cause)
 	}
 }
+
+func TestInitContainerWaitsForItsOwnPod(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "wait-for-web", Image: "busybox"}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "PodInitializing", "")
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "wait-for-web", State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0.Add(-5 * time.Minute)}}}}
+	s.Pods = []kube.Pod{p}
+	web := service("web", map[string]string{"app": "web"}, port(8080))
+	web.Spec.ClusterIP = "10.96.20.5"
+	s.Services = []kube.Service{web}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "wait-for-web", Lines: []string{"waiting for web", "wget: can't connect to remote host (10.96.20.5): Connection refused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD220", "Deployment shop/web", "init container wait-for-web waits for Service web", "the only pods behind that Service are Deployment web's own", "each waits for the other")
+	if !strings.HasPrefix(f.Fix, "Remove the wait for web from init container wait-for-web") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// With another workload behind the Service, the init container waits for that one: the plain finding.
+	other := pod("web-canary-1", "web-canary")
+	notReady(&other)
+	s.Pods = []kube.Pod{p, other}
+	found := false
+	for _, x := range Diagnose(s).Findings {
+		if x.Rule == "KD220" {
+			t.Errorf("another workload serves it: %s", x.Cause)
+		}
+		found = found || (x.Rule == "KD119" && strings.Contains(x.Cause, "it waits for Service web, which has no ready pods"))
+	}
+	if !found {
+		t.Errorf("want KD119 naming the Service: %v", Diagnose(s).Findings)
+	}
+}

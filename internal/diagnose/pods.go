@@ -350,6 +350,9 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	}
 	fix := "Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0."
 	lines := ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines
+	if pr := initWaitsForItself(ix, p, cs, lines, ev); pr != nil {
+		return pr
+	}
 	if svc, _, ok := refusedService(ix, p.Metadata.Namespace, lines); ok && len(svc.Spec.Selector) > 0 && readyBehind(ix, svc) == 0 {
 		cause += fmt.Sprintf("; it waits for Service %s, which has no ready pods", svc.Metadata.Name)
 		fix = fmt.Sprintf("Fix Service %s's pods (their own findings say why they are not ready, or the workload is scaled to 0); the init container finishes once they answer.", svc.Metadata.Name)
@@ -363,6 +366,31 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})
 	}
 	return newProblem(p, cs.Name, "KD119", "Init container never finishes", Critical, cause, "initstuck", fix, ev...)
+}
+
+// initWaitsForItself finds an init container that waits for a Service whose only pods are its own workload's. Those
+// pods serve only once their app containers run, and the app containers start only after the init container exits:
+// each waits for the other, so the workload never starts.
+func initWaitsForItself(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	ns := p.Metadata.Namespace
+	svc, line, ok := refusedService(ix, ns, lines)
+	if !ok || len(svc.Spec.Selector) == 0 || !kube.MatchesMap(svc.Spec.Selector, p.Metadata.Labels) {
+		return nil
+	}
+	owner := ix.owner(p)
+	for _, q := range ix.s.Pods {
+		if q.Metadata.Namespace == ns && kube.MatchesMap(svc.Spec.Selector, q.Metadata.Labels) && q.Status.Phase != "Succeeded" && q.Status.Phase != "Failed" && ix.owner(q) != owner {
+			return nil // another workload serves the Service too: its pods are what the init container waits for
+		}
+	}
+	name := svc.Metadata.Name
+	ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s selects pods with %s: the pods of %s %s, this one included", name, kube.FormatMap(svc.Spec.Selector), owner.Kind, owner.Name),
+		Command: "kubectl get pods -n " + ns + " -l " + kube.FormatMap(svc.Spec.Selector)})
+	return newProblem(p, cs.Name, "KD220", "Init container waits for its own pod", Critical,
+		fmt.Sprintf("init container %s waits for Service %s, and the only pods behind that Service are %s %s's own: they serve only once their app containers run, and those start only after this init container exits, so each waits for the other; its log says: %q",
+			cs.Name, name, owner.Kind, owner.Name, clip(line, 200)),
+		"initself|"+name,
+		fmt.Sprintf("Remove the wait for %s from init container %s, or point it at what the pod really depends on. A pod cannot wait for itself: its readiness and startup probes are what hold traffic back until the app is up.", name, cs.Name), ev...)
 }
 
 func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
