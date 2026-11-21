@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-service-port-not-exposed",
+  "description": "A client calls Service web on 8080, the pods' own port; the Service listens on 80 and forwards to 8080, and its cluster IP answers on no other port, so the connection fails though the pods are healthy.",
+  "rule": "KD218",
+  "object": "Deployment/client",
+  "keywords": [
+    [
+      "8080"
+    ],
+    [
+      "does not expose",
+      "targetPort",
+      "port 80"
+    ]
+  ]
+}
