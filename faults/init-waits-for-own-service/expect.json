@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-init-waits-for-own-service",
+  "description": "An init container waits until Service web answers, but the only pods behind that Service are this Deployment's own, which cannot serve until the init container exits: each waits for the other and the workload never starts.",
+  "rule": "KD220",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "init container"
+    ],
+    [
+      "its own",
+      "own:",
+      "each waits",
+      "web's own"
+    ]
+  ]
+}
