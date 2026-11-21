@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-hpa-target-scaled-to-zero",
+  "description": "A Deployment under an HPA was scaled to 0 replicas; the HPA leaves a workload at zero alone, so it never comes back up, and the only sign is a condition on the HPA.",
+  "rule": "KD290",
+  "object": "HorizontalPodAutoscaler/web",
+  "keywords": [
+    [
+      "0 replicas",
+      "zero"
+    ],
+    [
+      "HPA"
+    ]
+  ]
+}
