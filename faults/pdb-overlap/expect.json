@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-pdb-overlap",
+  "description": "Two PodDisruptionBudgets select the same pods, one by app and one by tier; each allows a disruption, but the eviction API refuses a pod with more than one budget, so a node drain fails on them.",
+  "rule": "KD289",
+  "object": "PodDisruptionBudget/frontend",
+  "keywords": [
+    [
+      "more than one",
+      "PodDisruptionBudgets"
+    ],
+    [
+      "evict",
+      "drain"
+    ]
+  ]
+}

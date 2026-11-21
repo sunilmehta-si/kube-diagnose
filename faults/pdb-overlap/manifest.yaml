@@ -1,0 +1,57 @@
+# Two PodDisruptionBudgets select the same pods, one by app and one by tier; each allows a disruption, but the eviction API refuses a pod with more than one budget, so a node drain fails on them.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pdb-overlap
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-pdb-overlap
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+        tier: frontend
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 5
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: web
+  namespace: kd-pdb-overlap
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: web
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend
+  namespace: kd-pdb-overlap
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      tier: frontend
