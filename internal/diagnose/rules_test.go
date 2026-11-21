@@ -3319,3 +3319,43 @@ func TestEnvValueRefersToAVariableDefinedLater(t *testing.T) {
 		t.Errorf("defined before: %s", f.Cause)
 	}
 }
+
+func TestContainerConnectsToLocalhostForAService(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	p.Metadata.Labels = map[string]string{"app": "worker"}
+	c := &p.Spec.Containers[0]
+	c.Ports = nil
+	c.Env = []kube.EnvVar{{Name: "LOG_LEVEL", Value: "info"}, {Name: "REDIS_URL", Value: "redis://127.0.0.1:6379/0"}}
+	crashed(&p, 1, "Error", 4)
+	redis := pod("redis-0", "redis")
+	redis.Metadata.Labels = map[string]string{"app": "redis"}
+	redis.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "redis", ContainerPort: 6379}}
+	s.Pods = []kube.Pod{p, redis}
+	s.Services = []kube.Service{service("redis", map[string]string{"app": "redis"}, port(6379))}
+	s.Services[0].Spec.Ports[0].Port = 6379
+	s.EndpointSlices = []kube.EndpointSlice{slice("redis", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"starting worker", "dial tcp 127.0.0.1:6379: connect: connection refused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD217", "ReplicaSet shop/worker-rs", "connection to 127.0.0.1:6379 is refused", "localhost is the pod itself", "Service redis, in other pods")
+	if f.Fix != "Connect to redis:6379 instead of 127.0.0.1:6379: set it in env REDIS_URL (now redis://127.0.0.1:6379/0)." {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// busybox wget names the port only in its "Connecting to" line.
+	s.Logs[0].Lines = []string{"Connecting to localhost:6379 (127.0.0.1:6379)", "wget: can't connect to remote host (127.0.0.1): Connection refused"}
+	expect(t, only(t, Diagnose(s)), "KD217", "ReplicaSet shop/worker-rs", "connection to localhost:6379 is refused")
+
+	// A port one of the pod's own containers declares, or one no Service serves, is another problem.
+	c.Ports = []kube.ContainerPort{{Name: "cache", ContainerPort: 6379}}
+	s.Pods = []kube.Pod{p, redis}
+	if f := only(t, Diagnose(s)); f.Rule == "KD217" {
+		t.Errorf("the pod's own port: %s", f.Cause)
+	}
+	c.Ports = nil
+	s.Pods = []kube.Pod{p, redis}
+	s.Logs[0].Lines = []string{"dial tcp 127.0.0.1:9999: connect: connection refused"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD217" {
+		t.Errorf("a port no Service serves: %s", f.Cause)
+	}
+}

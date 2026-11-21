@@ -48,7 +48,7 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
 - **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 136 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 147 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
+It knows 148 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
 no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or of the
 wrong type, commands written as one string or using a $(VARIABLE) the container does not define or the shell's $VARIABLE
 with no shell, volumes mounted over the command, Localhost seccomp profiles the node does not have, memory limits
