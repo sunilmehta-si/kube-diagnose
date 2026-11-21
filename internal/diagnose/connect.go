@@ -113,3 +113,44 @@ func localhostForService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines [
 		"localhost|"+strconv.Itoa(int(port)),
 		fmt.Sprintf("Connect to %s instead of %s:%d: set it in %s.", addr, host, port, where), ev...)
 }
+
+// servicePortNotExposed finds a container that exits because it connects to a Service of its namespace on a port
+// the Service does not expose: most often the pods' own port (the targetPort) where the Service's port was meant. A
+// cluster IP answers only on the Service's ports, so the connection is refused or times out though the pods are up.
+func servicePortNotExposed(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	host, port, how, line := connectFailure(lines)
+	if port == 0 || loopback(host) {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	svc, ok := serviceByHost(ix, ns, host)
+	if !ok || svc.Spec.ClusterIP == "None" || svc.Spec.Type == "ExternalName" || len(svc.Spec.Ports) == 0 {
+		return nil // a headless Service resolves to the pods themselves, where the pods' port is the right one
+	}
+	var exposed []string
+	var forwards *kube.ServicePort
+	for i, sp := range svc.Spec.Ports {
+		if sp.Port == port {
+			return nil
+		}
+		exposed = append(exposed, strconv.Itoa(int(sp.Port)))
+		if !sp.TargetPort.IsName && sp.TargetPort.Int == port {
+			forwards = &svc.Spec.Ports[i]
+		}
+	}
+	name := svc.Metadata.Name
+	result := map[string]string{"refused": "is refused", "timed out": "times out", "unreachable": "finds no route"}[how]
+	listens := fmt.Sprintf("it listens on %s", strings.Join(exposed, ", "))
+	fix := fmt.Sprintf("Connect to one of Service %s's ports (%s), or add port %d to the Service.", name, strings.Join(exposed, ", "), port)
+	if forwards != nil {
+		listens = fmt.Sprintf("it listens on %d and forwards to the pods' port %d", forwards.Port, port)
+		fix = fmt.Sprintf("Connect to %s:%d: %d is the pods' port (the Service's targetPort), and a client of a Service uses the Service's own port. Or change the Service's port to %d.",
+			name, forwards.Port, port, port)
+	}
+	ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s exposes port %s, not %d", name, strings.Join(exposed, ", "), port),
+		Command: cmdGet("service", ns, name, `{range .spec.ports[*]}{.port}{" -> "}{.targetPort}{"\n"}{end}`)})
+	return newProblem(p, cs.Name, "KD218", "Container connects to a port the Service does not expose", Critical,
+		fmt.Sprintf("container %s exits because its connection to Service %s on port %d %s: the Service does not expose %d, %s; its log says: %q",
+			cs.Name, name, port, result, port, listens, clip(line, 200)),
+		"svcport|"+name+"|"+strconv.Itoa(int(port)), fix, ev...)
+}

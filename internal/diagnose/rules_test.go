@@ -1299,7 +1299,7 @@ func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
 	crashed(&p, 1, "Error", 3)
 	s.Pods = []kube.Pod{p}
 	db := service("db", map[string]string{"app": "db"}, port(5432))
-	db.Spec.ClusterIP = "10.96.12.7"
+	db.Spec.ClusterIP, db.Spec.Ports[0].Port = "10.96.12.7", 5432
 	s.Services = []kube.Service{db}
 	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: can't connect to remote host (10.96.12.7): Connection refused"}}}
 	f := Diagnose(s).Findings[0]
@@ -3357,5 +3357,46 @@ func TestContainerConnectsToLocalhostForAService(t *testing.T) {
 	s.Logs[0].Lines = []string{"dial tcp 127.0.0.1:9999: connect: connection refused"}
 	if f := only(t, Diagnose(s)); f.Rule == "KD217" {
 		t.Errorf("a port no Service serves: %s", f.Cause)
+	}
+}
+
+func TestContainerConnectsToAPortTheServiceDoesNotExpose(t *testing.T) {
+	s := snap()
+	client := pod("client-6d9f7-abcde", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	client.Spec.Containers[0].Ports = nil
+	crashed(&client, 1, "Error", 4)
+	s.Pods = []kube.Pod{client, pod("web-1", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, port(8080))}
+	s.Services[0].Spec.ClusterIP = "10.96.14.7"
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web:8080 (10.96.14.7:8080)", "wget: download timed out"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD218", "ReplicaSet shop/client-rs", "connection to Service web on port 8080 times out", "does not expose 8080", "listens on 80 and forwards to the pods' port 8080")
+	if !strings.HasPrefix(f.Fix, "Connect to web:80: 8080 is the pods' port") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// By cluster IP, refused, on a port that is not the pods' either.
+	s.Logs[0].Lines = []string{"dial tcp 10.96.14.7:9090: connect: connection refused"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD218", "ReplicaSet shop/client-rs", "on port 9090 is refused", "it listens on 80")
+	if !strings.HasPrefix(f.Fix, "Connect to one of Service web's ports (80)") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The Service's own port, or a headless Service (where the pods' port is right), is another problem.
+	s.Logs[0].Lines = []string{"dial tcp 10.96.14.7:80: connect: connection refused"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD218" {
+			t.Errorf("the Service's port: %s", f.Cause)
+		}
+	}
+	s.Services[0].Spec.ClusterIP = "None"
+	s.Logs[0].Lines = []string{"Connecting to web:9090 (10.244.0.12:9090)", "wget: can't connect to remote host (10.244.0.12): Connection refused"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD218" {
+			t.Errorf("a headless Service: %s", f.Cause)
+		}
 	}
 }
