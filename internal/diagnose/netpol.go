@@ -12,7 +12,7 @@ import (
 // Connection timeouts as clients print them. A NetworkPolicy drops packets rather than refusing them, so a blocked
 // connection times out. Each pattern captures the host or IP and, when the line has it, the port.
 var (
-	reConnecting = regexp.MustCompile(`Connecting to ([A-Za-z0-9.-]+) \(([0-9.]+):(\d+)\)`) // busybox wget, before it times out
+	reConnecting = regexp.MustCompile(`Connecting to ([A-Za-z0-9.-]+)(?::\d+)? \(([0-9.]+):(\d+)\)`) // busybox wget, before it times out
 	reTimedOut   = []*regexp.Regexp{
 		regexp.MustCompile(`dial tcp ([0-9.]+):(\d+): (?:i/o timeout|connect: connection timed out)`),
 		regexp.MustCompile(`(?i)failed to connect to ([A-Za-z0-9.-]+) port (\d+).*(?:timed out|Timeout was reached)`),

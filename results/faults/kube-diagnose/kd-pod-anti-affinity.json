@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pod-anti-affinity"
   ],
-  "collectedAt": "2026-11-20 11:52 UTC",
+  "collectedAt": "2026-11-21 06:58 UTC",
   "findings": [
     {
       "rule": "KD144",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-pod-anti-affinity",
-            "name": "web-769478f8ff-bz9x4"
+            "name": "web-769478f8ff-5dwlw"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
-          "command": "kubectl get pod web-769478f8ff-bz9x4 -n kd-pod-anti-affinity -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-769478f8ff-5dwlw -n kd-pod-anti-affinity -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-pod-anti-affinity",
-            "name": "web-769478f8ff-bz9x4"
+            "name": "web-769478f8ff-5dwlw"
           },
           "what": "pod scheduling constraints",
-          "command": "kubectl get pod web-769478f8ff-bz9x4 -n kd-pod-anti-affinity -o jsonpath='{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}'"
+          "command": "kubectl get pod web-769478f8ff-5dwlw -n kd-pod-anti-affinity -o jsonpath='{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}'"
         }
       ],
       "fix": "Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pod-anti-affinity",
-          "name": "web-769478f8ff-bz9x4"
+          "name": "web-769478f8ff-5dwlw"
         }
       ]
     }

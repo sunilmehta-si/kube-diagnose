@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-selects-other-workload"
   ],
-  "collectedAt": "2026-11-20 11:54 UTC",
+  "collectedAt": "2026-11-21 06:59 UTC",
   "findings": [
     {
       "rule": "KD273",
@@ -39,10 +39,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-selects-other-workload",
-            "name": "worker-858b8dd46b-hwqb5"
+            "name": "worker-858b8dd46b-9wccw"
           },
-          "what": "pod worker-858b8dd46b-hwqb5 is selected and does not declare port 8080",
-          "command": "kubectl get pod worker-858b8dd46b-hwqb5 -n kd-service-selects-other-workload -o jsonpath='{.spec.containers[*].ports}'"
+          "what": "pod worker-858b8dd46b-9wccw is selected and does not declare port 8080",
+          "command": "kubectl get pod worker-858b8dd46b-9wccw -n kd-service-selects-other-workload -o jsonpath='{.spec.containers[*].ports}'"
         }
       ],
       "fix": "Give the Service a selector only its own pods match: add a label that tells the workloads apart (for example a component label) to the pod templates and to Service shop's selector."

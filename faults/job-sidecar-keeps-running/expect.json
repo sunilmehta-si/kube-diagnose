@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-job-sidecar-keeps-running",
+  "description": "A Job's pod runs its work next to a proxy declared as an ordinary container; the work exits 0 but the proxy keeps running, so the pod never succeeds and the Job never completes.",
+  "rule": "KD292",
+  "object": "Job/report",
+  "keywords": [
+    [
+      "never completes",
+      "never succeeds"
+    ],
+    [
+      "proxy"
+    ]
+  ]
+}

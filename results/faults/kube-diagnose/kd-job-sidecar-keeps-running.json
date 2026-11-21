@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-job-sidecar-keeps-running"
+  ],
+  "collectedAt": "2026-11-21 06:56 UTC",
+  "findings": [
+    {
+      "rule": "KD292",
+      "title": "Job never completes: a sidecar keeps its pod running",
+      "severity": "warning",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-job-sidecar-keeps-running",
+        "name": "report"
+      },
+      "cause": "Job report's pod report-qnkzt has done its work (1 container main exited 0, 5m0s ago) but 1 container proxy is still running, so the pod never succeeds and the Job never completes",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-job-sidecar-keeps-running",
+            "name": "report-qnkzt"
+          },
+          "what": "container main exited 0 at 2026-11-21T06:51:37Z",
+          "command": "kubectl get pod report-qnkzt -n kd-job-sidecar-keeps-running -o jsonpath='{.status.containerStatuses[?(@.name==\"main\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-job-sidecar-keeps-running",
+            "name": "report-qnkzt"
+          },
+          "what": "container proxy is still running, and the pod's phase is Running",
+          "command": "kubectl get pod report-qnkzt -n kd-job-sidecar-keeps-running -o jsonpath='{.status.containerStatuses[?(@.name==\"proxy\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-job-sidecar-keeps-running",
+            "name": "report"
+          },
+          "what": "Job report has not completed",
+          "command": "kubectl get job report -n kd-job-sidecar-keeps-running -o jsonpath='{.status.active}{\" \"}{.status.succeeded}'"
+        }
+      ],
+      "fix": "Declare proxy under initContainers with restartPolicy: Always (a sidecar): the kubelet stops a sidecar once the pod's other containers have exited. Or have the work tell proxy to quit when it ends.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-job-sidecar-keeps-running",
+          "name": "report-qnkzt"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

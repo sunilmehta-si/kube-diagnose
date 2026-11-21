@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-runs-pile-up"
   ],
-  "collectedAt": "2026-11-20 11:50 UTC",
+  "collectedAt": "2026-11-21 06:54 UTC",
   "findings": [
     {
       "rule": "KD286",
@@ -15,7 +15,7 @@
         "namespace": "kd-cronjob-runs-pile-up",
         "name": "report"
       },
-      "cause": "CronJob report has 3 Jobs running at once (report-29919588, report-29919589, report-29919590): its concurrencyPolicy is Allow, and each run takes longer than the schedule \"* * * * *\" leaves, so every new run starts beside the ones still going; the oldest, report-29919588, has run for 2m22s",
+      "cause": "CronJob report has 4 Jobs running at once (report-29920732, report-29920733, report-29920734, report-29920735): its concurrencyPolicy is Allow, and each run takes longer than the schedule \"* * * * *\" leaves, so every new run starts beside the ones still going; the oldest, report-29920732, has run for 3m0s",
       "evidence": [
         {
           "object": {
@@ -23,7 +23,7 @@
             "namespace": "kd-cronjob-runs-pile-up",
             "name": "report"
           },
-          "what": "CronJob report has concurrencyPolicy Allow and 3 active Jobs",
+          "what": "CronJob report has concurrencyPolicy Allow and 4 active Jobs",
           "command": "kubectl get cronjob report -n kd-cronjob-runs-pile-up -o jsonpath='{.spec.schedule}{\" \"}{.spec.concurrencyPolicy}{\" \"}{.status.active[*].name}'"
         }
       ],

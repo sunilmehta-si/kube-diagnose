@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-env-var-defined-later",
+  "description": "A container's API_URL is built from $(API_HOST), but API_HOST is defined below it in the env list; the kubelet expands only variables defined earlier, so the app gets the literal text and fails to resolve it.",
+  "rule": "KD216",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "API_HOST"
+    ],
+    [
+      "defined after",
+      "defined before",
+      "unexpanded"
+    ]
+  ]
+}

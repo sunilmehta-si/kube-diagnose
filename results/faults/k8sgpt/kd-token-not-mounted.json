@@ -5,28 +5,6 @@
   "problems": 3,
   "results": [
     {
-      "kind": "Deployment",
-      "name": "kd-token-not-mounted/watcher",
-      "error": [
-        {
-          "Text": "Deployment kd-token-not-mounted/watcher has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-token-not-mounted",
-              "Masked": "KEJdNHBeP3NWZWJ3NGMhUk4jNF0="
-            },
-            {
-              "Unmasked": "watcher",
-              "Masked": "XT5YN0A0Ow=="
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "ConfigMap",
       "name": "kd-token-not-mounted/kube-root-ca.crt",
       "error": [
@@ -40,11 +18,33 @@
       "parentObject": ""
     },
     {
-      "kind": "Pod",
-      "name": "kd-token-not-mounted/watcher-7975754ccb-4t77x",
+      "kind": "Deployment",
+      "name": "kd-token-not-mounted/watcher",
       "error": [
         {
-          "Text": "the last termination reason is Error container=watcher pod=watcher-7975754ccb-4t77x",
+          "Text": "Deployment kd-token-not-mounted/watcher has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-token-not-mounted",
+              "Masked": "Xyh9JUNVX0xpNj45ZkkiamwlLUA="
+            },
+            {
+              "Unmasked": "watcher",
+              "Masked": "SVYiPlM+cQ=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-token-not-mounted/watcher-7975754ccb-pg8lj",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=watcher pod=watcher-7975754ccb-pg8lj",
           "KubernetesDoc": "",
           "Sensitive": []
         }

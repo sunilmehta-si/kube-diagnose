@@ -13,7 +13,7 @@ import (
 var (
 	reQuota         = regexp.MustCompile(`exceeded quota: ([^,]+), requested: ([^,]+(?:,[^,:]+)*), used: ([^,]+(?:,[^,:]+)*), limited: (.+)$`)
 	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
-	reCreateClaim   = regexp.MustCompile(`^create Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
+	reCreateClaim   = regexp.MustCompile(`^[Cc]reate Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
 	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
 	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)

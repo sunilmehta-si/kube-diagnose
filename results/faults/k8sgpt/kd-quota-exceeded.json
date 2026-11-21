@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-exceeded",
-              "Masked": "Pzl2ck0ma2VnZ09UVHFzXi0="
+              "Masked": "dGNMPGlEdiZ1cyFraHB0Qz8="
             },
             {
               "Unmasked": "web",
-              "Masked": "dnlP"
+              "Masked": "ckBu"
             }
           ]
         }
@@ -31,7 +31,7 @@
       "name": "kd-quota-exceeded/web-54b9bbc47f",
       "error": [
         {
-          "Text": "pods \"web-54b9bbc47f-v89pl\" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=1, limited: pods=1",
+          "Text": "pods \"web-54b9bbc47f-pxmds\" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=1, limited: pods=1",
           "KubernetesDoc": "",
           "Sensitive": []
         }

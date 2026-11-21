@@ -467,6 +467,10 @@ func TestQuotaStopsAStatefulSetsClaim(t *testing.T) {
 	if !strings.Contains(f.Fix, "volumeClaimTemplates") {
 		t.Errorf("fix %q", f.Fix)
 	}
+
+	// Kubernetes 1.37 writes the event with a capital: "Create Claim ...". The claim is named all the same.
+	s.Events[0].Message = "C" + s.Events[0].Message[1:]
+	expect(t, only(t, Diagnose(s)), "KD170", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates")
 }
 
 func TestServiceAccountMissing(t *testing.T) {
@@ -1299,7 +1303,7 @@ func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
 	crashed(&p, 1, "Error", 3)
 	s.Pods = []kube.Pod{p}
 	db := service("db", map[string]string{"app": "db"}, port(5432))
-	db.Spec.ClusterIP = "10.96.12.7"
+	db.Spec.ClusterIP, db.Spec.Ports[0].Port = "10.96.12.7", 5432
 	s.Services = []kube.Service{db}
 	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: can't connect to remote host (10.96.12.7): Connection refused"}}}
 	f := Diagnose(s).Findings[0]
@@ -3186,4 +3190,317 @@ func TestStartupProbeThatCannotPass(t *testing.T) {
 	s.Events = []kube.Event{event("Pod", "api", "Unhealthy", `Startup probe failed: Get "https://10.244.0.9:8080/": http: server gave HTTP response to HTTPS client`, time.Minute),
 		event("Pod", "api", "Killing", "Container web failed startup probe, will be restarted", time.Minute)}
 	expect(t, only(t, Diagnose(s)), "KD202", "Pod shop/api", "startup probe uses scheme HTTPS", "before it is ever marked started (6 restarts)")
+}
+
+func TestPodsCoveredByMoreThanOnePDB(t *testing.T) {
+	s := snap()
+	s.Pods = []kube.Pod{pod("web-1", "web"), pod("web-2", "web")}
+	budget := func(name string, labels map[string]string) kube.PodDisruptionBudget {
+		var b kube.PodDisruptionBudget
+		b.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
+		b.Spec.MaxUnavailable = &kube.IntOrString{Int: 1}
+		b.Spec.Selector = &kube.LabelSelector{MatchLabels: labels}
+		b.Status.DisruptionsAllowed, b.Status.CurrentHealthy, b.Status.DesiredHealthy, b.Status.ExpectedPods = 1, 2, 1, 2
+		return b
+	}
+	s.PDBs = []kube.PodDisruptionBudget{budget("web", map[string]string{"app": "web"}), budget("team-default", map[string]string{})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD289", "PodDisruptionBudget shop/team-default", "PodDisruptionBudgets team-default and web all select 2 pods", "eviction API refuses a pod that more than one budget covers", "node drain")
+	if f.Severity != Warning || len(f.Evidence) != 3 || !strings.Contains(f.Fix, "one budget") {
+		t.Errorf("severity %s evidence %d fix %q", f.Severity, len(f.Evidence), f.Fix)
+	}
+
+	// Budgets for different pods do not overlap.
+	s.PDBs[1].Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"app": "worker"}}
+	s.PDBs[1].Status.ExpectedPods = 0
+	s.Pods = append(s.Pods, func() kube.Pod {
+		p := pod("worker-1", "worker")
+		p.Metadata.Labels = map[string]string{"app": "worker"}
+		return p
+	}())
+	s.PDBs[1].Status.ExpectedPods = 1
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("separate budgets: %v", r.Findings)
+	}
+}
+
+func TestHPASwitchedOffByZeroReplicas(t *testing.T) {
+	s := snap()
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web", kube.Condition{Type: "AbleToScale", Status: "True", Reason: "SucceededGetScale"},
+		kube.Condition{Type: "ScalingActive", Status: "False", Reason: "ScalingDisabled", Message: "scaling is disabled since the replica count of the target is zero"})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD290", "HorizontalPodAutoscaler shop/web", "does not scale Deployment web", "has 0 replicas", "stays at zero")
+	if f.Severity != Warning || f.Affects[0] != (kube.Ref{Kind: "Deployment", Namespace: "shop", Name: "web"}) || !strings.Contains(f.Fix, "drop the replicas field") {
+		t.Errorf("%+v", f)
+	}
+}
+
+func TestMoreThanOneHPAControlsTheSamePods(t *testing.T) {
+	s := snap()
+	amb := kube.Condition{Type: "ScalingActive", Status: "False", Reason: "AmbiguousSelector",
+		Message: "pods by selector app=web are controlled by more than one HPA (e.g. [shop/web-cpu shop/web-memory])"}
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web-memory", amb), hpa("web-cpu", amb)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD291", "HorizontalPodAutoscaler shop/web-cpu", "HPAs web-cpu and web-memory all scale Deployment web", "none of them scales it")
+	if f.Severity != Warning || len(f.Evidence) != 3 || !strings.Contains(f.Fix, "list every metric") {
+		t.Errorf("severity %s evidence %d fix %q", f.Severity, len(f.Evidence), f.Fix)
+	}
+
+	// Before the controller has said so, two HPAs with one target are reported from their specs.
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web-memory"), hpa("web-cpu")}
+	expect(t, only(t, Diagnose(s)), "KD291", "HorizontalPodAutoscaler shop/web-cpu", "HPAs web-cpu and web-memory")
+
+	// Different targets whose pods overlap: only the controller's condition shows it.
+	other := hpa("api", amb)
+	other.Spec.ScaleTargetRef.Name = "api"
+	s.HPAs = []kube.HorizontalPodAutoscaler{other}
+	expect(t, only(t, Diagnose(s)), "KD291", "HorizontalPodAutoscaler shop/api", "another HPA controls the same pods", "more than one HPA")
+}
+
+func TestJobHeldByASidecar(t *testing.T) {
+	s := snap()
+	p := pod("report-x7k2p", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "report", Controller: yes()}}
+	p.Spec.Containers = []kube.Container{{Name: "main", Image: "registry.example.com/shop/report:2.0"}, {Name: "proxy", Image: "registry.example.com/shop/proxy:1.9"}}
+	p.Status.Conditions[1].Status = "False"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{
+		{Name: "main", State: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 0, Reason: "Completed", FinishedAt: t0.Add(-10 * time.Minute)}}},
+		{Name: "proxy", Ready: true, State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0.Add(-11 * time.Minute)}}},
+	}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD292", "Job shop/report", "has done its work (1 container main exited 0, 10m0s ago)", "1 container proxy is still running", "the Job never completes")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "initContainers with restartPolicy: Always") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Just finished: the other container may be about to stop too.
+	p.Status.ContainerStatuses[0].State.Terminated.FinishedAt = t0.Add(-20 * time.Second)
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("finished 20 seconds ago: %v", r.Findings)
+	}
+
+	// The same pod under a Deployment is not a Job waiting to complete.
+	p.Status.ContainerStatuses[0].State.Terminated.FinishedAt = t0.Add(-10 * time.Minute)
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "ReplicaSet", Name: "report-rs", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD292" {
+			t.Errorf("a Deployment's pod: %s", f.Cause)
+		}
+	}
+}
+
+func TestEnvValueRefersToAVariableDefinedLater(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"sh", "-c", `wget -q -T 5 -O /dev/null "$API_URL" || exit 1; sleep 3600`}
+	c.Env = []kube.EnvVar{{Name: "API_URL", Value: "http://$(API_HOST):8080/"}, {Name: "API_HOST", Value: "api"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address '$(API_HOST):8080'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD216", "ReplicaSet shop/worker-rs", "env API_URL refers to $(API_HOST), which is defined after API_URL in the env list", "holds the text $(API_HOST) unexpanded", "bad address")
+	if !strings.HasPrefix(f.Fix, "Move API_HOST above API_URL") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Not defined anywhere.
+	c.Env = c.Env[:1]
+	s.Pods = []kube.Pod{p}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD216", "ReplicaSet shop/worker-rs", "which the container's env and envFrom do not define")
+	if !strings.HasPrefix(f.Fix, "Define API_HOST in the container's env above API_URL") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Defined before it: the kubelet expands it, and the crash is something else.
+	c.Env = []kube.EnvVar{{Name: "API_HOST", Value: "api"}, {Name: "API_URL", Value: "http://$(API_HOST):8080/"}}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD216" {
+		t.Errorf("defined before: %s", f.Cause)
+	}
+}
+
+func TestContainerConnectsToLocalhostForAService(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	p.Metadata.Labels = map[string]string{"app": "worker"}
+	c := &p.Spec.Containers[0]
+	c.Ports = nil
+	c.Env = []kube.EnvVar{{Name: "LOG_LEVEL", Value: "info"}, {Name: "REDIS_URL", Value: "redis://127.0.0.1:6379/0"}}
+	crashed(&p, 1, "Error", 4)
+	redis := pod("redis-0", "redis")
+	redis.Metadata.Labels = map[string]string{"app": "redis"}
+	redis.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "redis", ContainerPort: 6379}}
+	s.Pods = []kube.Pod{p, redis}
+	s.Services = []kube.Service{service("redis", map[string]string{"app": "redis"}, port(6379))}
+	s.Services[0].Spec.Ports[0].Port = 6379
+	s.EndpointSlices = []kube.EndpointSlice{slice("redis", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"starting worker", "dial tcp 127.0.0.1:6379: connect: connection refused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD217", "ReplicaSet shop/worker-rs", "connection to 127.0.0.1:6379 is refused", "localhost is the pod itself", "Service redis, in other pods")
+	if f.Fix != "Connect to redis:6379 instead of 127.0.0.1:6379: set it in env REDIS_URL (now redis://127.0.0.1:6379/0)." {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// busybox wget names the port only in its "Connecting to" line.
+	s.Logs[0].Lines = []string{"Connecting to localhost:6379 (127.0.0.1:6379)", "wget: can't connect to remote host (127.0.0.1): Connection refused"}
+	expect(t, only(t, Diagnose(s)), "KD217", "ReplicaSet shop/worker-rs", "connection to localhost:6379 is refused")
+
+	// A port one of the pod's own containers declares, or one no Service serves, is another problem.
+	c.Ports = []kube.ContainerPort{{Name: "cache", ContainerPort: 6379}}
+	s.Pods = []kube.Pod{p, redis}
+	if f := only(t, Diagnose(s)); f.Rule == "KD217" {
+		t.Errorf("the pod's own port: %s", f.Cause)
+	}
+	c.Ports = nil
+	s.Pods = []kube.Pod{p, redis}
+	s.Logs[0].Lines = []string{"dial tcp 127.0.0.1:9999: connect: connection refused"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD217" {
+		t.Errorf("a port no Service serves: %s", f.Cause)
+	}
+}
+
+func TestContainerConnectsToAPortTheServiceDoesNotExpose(t *testing.T) {
+	s := snap()
+	client := pod("client-6d9f7-abcde", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	client.Spec.Containers[0].Ports = nil
+	crashed(&client, 1, "Error", 4)
+	s.Pods = []kube.Pod{client, pod("web-1", "web")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, port(8080))}
+	s.Services[0].Spec.ClusterIP = "10.96.14.7"
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web:8080 (10.96.14.7:8080)", "wget: download timed out"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD218", "ReplicaSet shop/client-rs", "connection to Service web on port 8080 times out", "does not expose 8080", "listens on 80 and forwards to the pods' port 8080")
+	if !strings.HasPrefix(f.Fix, "Connect to web:80: 8080 is the pods' port") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// By cluster IP, refused, on a port that is not the pods' either.
+	s.Logs[0].Lines = []string{"dial tcp 10.96.14.7:9090: connect: connection refused"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD218", "ReplicaSet shop/client-rs", "on port 9090 is refused", "it listens on 80")
+	if !strings.HasPrefix(f.Fix, "Connect to one of Service web's ports (80)") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The Service's own port, or a headless Service (where the pods' port is right), is another problem.
+	s.Logs[0].Lines = []string{"dial tcp 10.96.14.7:80: connect: connection refused"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD218" {
+			t.Errorf("the Service's port: %s", f.Cause)
+		}
+	}
+	s.Services[0].Spec.ClusterIP = "None"
+	s.Logs[0].Lines = []string{"Connecting to web:9090 (10.244.0.12:9090)", "wget: can't connect to remote host (10.244.0.12): Connection refused"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD218" {
+			t.Errorf("a headless Service: %s", f.Cause)
+		}
+	}
+}
+
+func TestContainerLacksACapabilityItUses(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	c := &p.Spec.Containers[0]
+	c.SecurityContext = &kube.SecurityContext{Capabilities: &kube.Capabilities{Drop: []string{"ALL"}}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"chown: /var/cache/app: Operation not permitted"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD219", "ReplicaSet shop/web-rs", "securityContext drops ALL capabilities", "changing a file's owner needs CHOWN", "root too must hold")
+	if !strings.HasPrefix(f.Fix, "Add CHOWN under securityContext.capabilities.add, keeping drop: [ALL]") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// One named capability dropped, and nginx's way of saying it.
+	c.SecurityContext.Capabilities.Drop = []string{"NET_BIND_SERVICE"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"nginx: [emerg] bind() to 0.0.0.0:80 failed (1: Operation not permitted)"}
+	expect(t, only(t, Diagnose(s)), "KD219", "ReplicaSet shop/web-rs", "securityContext drops NET_BIND_SERVICE", "binding a port below 1024 needs NET_BIND_SERVICE")
+
+	// The capability is added back, or nothing is dropped: the refusal has another cause.
+	c.SecurityContext.Capabilities = &kube.Capabilities{Drop: []string{"ALL"}, Add: []string{"NET_BIND_SERVICE"}}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD219" {
+		t.Errorf("added back: %s", f.Cause)
+	}
+	c.SecurityContext.Capabilities = nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD219" {
+		t.Errorf("nothing dropped: %s", f.Cause)
+	}
+}
+
+func TestInitContainerWaitsForItsOwnPod(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "wait-for-web", Image: "busybox"}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "PodInitializing", "")
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "wait-for-web", State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0.Add(-5 * time.Minute)}}}}
+	s.Pods = []kube.Pod{p}
+	web := service("web", map[string]string{"app": "web"}, port(8080))
+	web.Spec.ClusterIP = "10.96.20.5"
+	s.Services = []kube.Service{web}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "wait-for-web", Lines: []string{"waiting for web", "wget: can't connect to remote host (10.96.20.5): Connection refused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD220", "Deployment shop/web", "init container wait-for-web waits for Service web", "the only pods behind that Service are Deployment web's own", "each waits for the other")
+	if !strings.HasPrefix(f.Fix, "Remove the wait for web from init container wait-for-web") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// With another workload behind the Service, the init container waits for that one: the plain finding.
+	other := pod("web-canary-1", "web-canary")
+	notReady(&other)
+	s.Pods = []kube.Pod{p, other}
+	found := false
+	for _, x := range Diagnose(s).Findings {
+		if x.Rule == "KD220" {
+			t.Errorf("another workload serves it: %s", x.Cause)
+		}
+		found = found || (x.Rule == "KD119" && strings.Contains(x.Cause, "it waits for Service web, which has no ready pods"))
+	}
+	if !found {
+		t.Errorf("want KD119 naming the Service: %v", Diagnose(s).Findings)
+	}
+}
+
+func TestProbeFailureSaysWhatTheStatusMeans(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/ready", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", "Readiness probe failed: HTTP probe failed with statuscode: 404", time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD120", "ReplicaSet shop/web-rs", "so it gets no traffic: the app answers 404, so it does not serve the probe's path")
+	if !strings.HasPrefix(f.Fix, "Set the probe's path to one the app serves") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	for code, want := range map[string]string{"401": "needs credentials", "403": "needs credentials", "400": "Host header", "405": "does not accept GET",
+		"503": "serves the path and reports itself unhealthy", "418": "the app answers 418"} {
+		s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", "Readiness probe failed: HTTP probe failed with statuscode: "+code, time.Minute)}
+		expect(t, only(t, Diagnose(s)), "KD120", "ReplicaSet shop/web-rs", want)
+	}
+
+	// A liveness probe answered 503 restarts the container; the status is explained the same way.
+	q := pod("api-7d9f-k2x8q", "api")
+	q.Spec.Containers[0].LivenessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/healthz", Port: port(8080)}}
+	crashed(&q, 137, "Error", 6)
+	s.Pods = []kube.Pod{q}
+	s.Events = []kube.Event{event("Pod", q.Metadata.Name, "Unhealthy", "Liveness probe failed: HTTP probe failed with statuscode: 503", time.Minute),
+		event("Pod", q.Metadata.Name, "Killing", "Container web failed liveness probe, will be restarted", time.Minute)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD112", "ReplicaSet shop/api-rs", "restarts it (6 restarts): the app answers 503, so it serves the path and reports itself unhealthy")
+	if !strings.Contains(f.Fix, "out of a liveness probe") {
+		t.Errorf("fix %q", f.Fix)
+	}
 }

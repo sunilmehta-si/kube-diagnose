@@ -1,0 +1,24 @@
+# A Job's pod runs its work next to a proxy declared as an ordinary container; the work exits 0 but the proxy keeps running, so the pod never succeeds and the Job never completes.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-job-sidecar-keeps-running
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: report
+  namespace: kd-job-sidecar-keeps-running
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: main
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo 'report written'"]
+        - name: proxy
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && exec httpd -f -p 15001 -h /www"]

@@ -249,6 +249,15 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"another", "workload"}, "KD273"},
 		{[]string{"minReadySeconds"}, "KD288"},
 		{[]string{"LimitRange", "memory"}, "KD111"},
+		{[]string{"defined", "before"}, "KD216"},
+		{[]string{"localhost", "Service"}, "KD217"},
+		{[]string{"expose"}, "KD218"},
+		{[]string{"capability"}, "KD219"},
+		{[]string{"init", "own"}, "KD220"},
+		{[]string{"more", "PodDisruptionBudget"}, "KD289"},
+		{[]string{"switched", "off"}, "KD290"},
+		{[]string{"AmbiguousSelector"}, "KD291"},
+		{[]string{"sidecar", "Job"}, "KD292"},
 	} {
 		env, out, _, _ = testEnv(nil)
 		if Run(append([]string{"rules"}, c.words...), env) != 0 || !strings.Contains(out.String(), c.want) {

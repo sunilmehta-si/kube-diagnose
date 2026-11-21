@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-probe-needs-credentials",
+  "description": "The app puts every path behind basic auth, the health path included; the kubelet's readiness probe sends no credentials and is answered 401, so the pod never becomes ready.",
+  "rule": "KD120",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "401"
+    ],
+    [
+      "credentials",
+      "authentication"
+    ]
+  ]
+}

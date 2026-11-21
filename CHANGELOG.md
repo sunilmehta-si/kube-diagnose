@@ -2,6 +2,44 @@
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-21
+
+- The fault suite's committed run (44877424146): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 141 of 141 faults and raises no false alarm; k8sgpt v0.4.41 names 33, 11 of them first.
+  k8sgpt's count is lower than in earlier releases because the judge was wrong, not because k8sgpt changed (see Fixed).
+
+### Added
+- 9 rules, 151 in all (`docs/rules.md`):
+  - configuration: an env value that refers to $(NAME) where NAME is defined later in the env list, or not at all, so
+    the process gets the literal text (KD216);
+  - connections: a container that connects to 127.0.0.1 or localhost for something a Service serves from other pods
+    (KD217), or to a Service on a port it does not expose, most often the pods' targetPort (KD218);
+  - security: a container that exits with "Operation not permitted" on something a Linux capability guards while its
+    securityContext drops that capability or ALL (KD219);
+  - init containers: one that waits for a Service whose only pods are its own workload's, so each waits for the other
+    (KD220);
+  - disruption: pods that more than one PodDisruptionBudget covers, which the eviction API refuses (KD289);
+  - autoscaling: an HPA switched off because its target has 0 replicas (KD290), and HPAs that control the same pods,
+    none of which scales (KD291);
+  - Jobs: a Job that never completes because a container declared next to the work, a proxy say, keeps running
+    (KD292).
+- 10 fault scenarios, 141 broken namespaces in all: one for each new rule and one for a probe answered 401.
+- The snapshot holds a container's securityContext.capabilities.
+
+### Changed
+- KD120 and KD112 say what the HTTP status means when an httpGet probe fails: 404 (the app does not serve the path),
+  401 or 403 (the path needs credentials the kubelet does not send), 400, 405, and 5xx (the app reports itself
+  unhealthy).
+
+### Fixed
+- The fault suite's judge counted the namespace's own name as naming the cause. Each namespace is named for its fault
+  (kd-oomkilled) and its keywords are often words of that name, so a tool that printed only the path of an object,
+  such as "ConfigMap kd-oomkilled/kube-root-ca.crt is not used", scored. The judge now takes the namespace's name out
+  of the text first. Scored again, the 0.10.0 run reads: k8sgpt 32 of 131, 9 of them first (published as 48 and 27).
+- That check also caught kube-diagnose once: for a StatefulSet whose claim a quota refuses, Kubernetes 1.37 writes the
+  event as "Create Claim" with a capital, the rule expected a small letter, and KD170 said "cannot create pods" without
+  naming the claim. It names the claim now.
+
 ## [0.10.0] - 2026-11-20
 
 - The fault suite's committed run (44730219543): kube-diagnose names the root cause in its first finding, with the

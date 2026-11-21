@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-claim-quota"
   ],
-  "collectedAt": "2026-11-20 11:54 UTC",
+  "collectedAt": "2026-11-21 06:59 UTC",
   "findings": [
     {
       "rule": "KD170",
@@ -15,7 +15,7 @@
         "namespace": "kd-statefulset-claim-quota",
         "name": "db"
       },
-      "cause": "StatefulSet kd-statefulset-claim-quota/db cannot create pods: ResourceQuota storage is used up (requested requests.storage=1Gi, used requests.storage=0, limit requests.storage=100Mi)",
+      "cause": "StatefulSet kd-statefulset-claim-quota/db cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates, so the pod that mounts it is never created: ResourceQuota storage is used up (requested requests.storage=1Gi, used requests.storage=0, limit requests.storage=100Mi)",
       "evidence": [
         {
           "object": {
@@ -37,7 +37,7 @@
           "command": "kubectl get resourcequota storage -n kd-statefulset-claim-quota -o jsonpath='{.status}'"
         }
       ],
-      "fix": "Raise ResourceQuota storage, lower what StatefulSet kd-statefulset-claim-quota/db asks for, or remove workloads that hold the quota."
+      "fix": "Raise ResourceQuota storage, lower the storage the volumeClaimTemplates ask for, or delete claims that hold the quota (a StatefulSet keeps its claims after its pods are gone)."
     }
   ],
   "checked": {

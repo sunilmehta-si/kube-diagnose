@@ -86,6 +86,14 @@ func TestNames(t *testing.T) {
 	if (Scenario{}).Names("anything") {
 		t.Error("the control names nothing")
 	}
+	// The namespace is named for its fault. Repeating its name is not naming the cause; saying the word is.
+	oom := Scenario{Namespace: "kd-oomkilled", Keywords: [][]string{{"oom"}}}
+	if oom.Names("ConfigMap kd-oomkilled/kube-root-ca.crt is not used by any pods in the namespace") {
+		t.Error("the namespace's own name satisfied the keywords")
+	}
+	if !oom.Names("Deployment kd-oomkilled/web: the last termination reason is OOMKilled") {
+		t.Error("the cause, said next to the namespace's name")
+	}
 }
 
 const kdJSON = `{"findings":[{"rule":"KD112","title":"Liveness probe kills the container","severity":"critical",

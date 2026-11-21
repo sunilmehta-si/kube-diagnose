@@ -1,0 +1,33 @@
+# A container drops ALL capabilities, as the restricted Pod Security standard asks, but its start script chowns a cache directory; root without CAP_CHOWN is refused, so the container exits at every start.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-capability-dropped
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-capability-dropped
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /var/cache/app && chown -R 1000:1000 /var/cache/app && exec httpd -f -p 8080 -h /var/cache/app"]
+          ports:
+            - name: http
+              containerPort: 8080
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]

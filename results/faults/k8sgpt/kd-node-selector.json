@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-node-selector",
-              "Masked": "dlleXnViI1hZI1hbPHlUKg=="
+              "Masked": "dDMkU0kvLExJTjhEaVBhVw=="
             },
             {
               "Unmasked": "web",
-              "Masked": "SEd2"
+              "Masked": "YkJQ"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-node-selector/web-6f58b76845-jfnzn",
+      "name": "kd-node-selector/web-6f58b76845-7ffbk",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

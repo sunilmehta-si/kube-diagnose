@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hpa-target-scaled-to-zero"
+  ],
+  "collectedAt": "2026-11-21 06:56 UTC",
+  "findings": [
+    {
+      "rule": "KD290",
+      "title": "HPA is switched off: its target is scaled to zero",
+      "severity": "warning",
+      "object": {
+        "kind": "HorizontalPodAutoscaler",
+        "namespace": "kd-hpa-target-scaled-to-zero",
+        "name": "web"
+      },
+      "cause": "HPA web does not scale Deployment web: the Deployment has 0 replicas, and an HPA leaves a workload at zero alone, so it stays at zero whatever the load",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-target-scaled-to-zero",
+            "name": "web"
+          },
+          "what": "ScalingActive is False, reason ScalingDisabled",
+          "detail": "scaling is disabled since the replica count of the target is zero",
+          "command": "kubectl get hpa web -n kd-hpa-target-scaled-to-zero -o jsonpath='{.status.conditions[?(@.type==\"ScalingActive\")]}'"
+        },
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-hpa-target-scaled-to-zero",
+            "name": "web"
+          },
+          "what": "Deployment web asks for 0 replicas",
+          "command": "kubectl get deployment web -n kd-hpa-target-scaled-to-zero -o jsonpath='{.spec.replicas}'"
+        }
+      ],
+      "fix": "Scale Deployment web to 1 or more replicas and the HPA takes over again. If its manifest says replicas: 0, drop the replicas field, so applying the manifest does not undo what the HPA sets.",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "namespace": "kd-hpa-target-scaled-to-zero",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-parallelism-zero"
   ],
-  "collectedAt": "2026-11-20 11:51 UTC",
+  "collectedAt": "2026-11-21 06:56 UTC",
   "findings": [
     {
       "rule": "KD283",

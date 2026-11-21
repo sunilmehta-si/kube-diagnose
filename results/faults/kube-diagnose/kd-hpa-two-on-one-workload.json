@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hpa-two-on-one-workload"
+  ],
+  "collectedAt": "2026-11-21 06:56 UTC",
+  "findings": [
+    {
+      "rule": "KD291",
+      "title": "More than one HPA controls the same pods",
+      "severity": "warning",
+      "object": {
+        "kind": "HorizontalPodAutoscaler",
+        "namespace": "kd-hpa-two-on-one-workload",
+        "name": "web-cpu"
+      },
+      "cause": "HPAs web-cpu and web-memory all scale Deployment web: the HPA controller does not act on pods that more than one HPA controls, so none of them scales it",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-two-on-one-workload",
+            "name": "web-cpu"
+          },
+          "what": "HPA web-cpu has scaleTargetRef Deployment web",
+          "command": "kubectl get hpa web-cpu -n kd-hpa-two-on-one-workload -o jsonpath='{.spec.scaleTargetRef}'"
+        },
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-two-on-one-workload",
+            "name": "web-memory"
+          },
+          "what": "HPA web-memory has scaleTargetRef Deployment web",
+          "command": "kubectl get hpa web-memory -n kd-hpa-two-on-one-workload -o jsonpath='{.spec.scaleTargetRef}'"
+        },
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-two-on-one-workload",
+            "name": "web-cpu"
+          },
+          "what": "ScalingActive is False, reason AmbiguousSelector",
+          "detail": "pods by selector app=web are controlled by more than one HPA (e.g. [kd-hpa-two-on-one-workload/web-cpu kd-hpa-two-on-one-workload/web-memory])",
+          "command": "kubectl get hpa web-cpu -n kd-hpa-two-on-one-workload -o jsonpath='{.status.conditions[?(@.type==\"ScalingActive\")]}'"
+        }
+      ],
+      "fix": "Keep one HPA for Deployment web and list every metric in it (an HPA with several metrics scales to the highest answer); delete the others.",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "namespace": "kd-hpa-two-on-one-workload",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

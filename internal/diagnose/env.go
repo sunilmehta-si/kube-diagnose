@@ -117,6 +117,64 @@ func shellVar(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev
 	return nil
 }
 
+// envOrder finds a container that fails because one of its env values refers to $(NAME) where NAME is defined later
+// in the env list, or not at all. The kubelet expands a reference only from the variables defined before it (envFrom,
+// the Service variables and the env entries above), and leaves any other as the literal text; the log shows that text.
+func envOrder(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, ok := containerSpec(p, cs.Name)
+	if !ok {
+		return nil
+	}
+	fromSources := map[string]bool{}
+	all, known := containerEnv(ix, p.Metadata.Namespace, c)
+	position := map[string]int{}
+	for i, e := range c.Env {
+		position[e.Name] = i
+	}
+	for name := range all {
+		if _, inEnv := position[name]; !inEnv {
+			fromSources[name] = true
+		}
+	}
+	for i, e := range c.Env {
+		for _, m := range reVarRef.FindAllStringSubmatch(e.Value, -1) {
+			name := m[2]
+			at, inEnv := position[name]
+			if fromSources[name] || (inEnv && at < i) || serviceLinkVar(ix, p.Metadata.Namespace, name) {
+				continue
+			}
+			if !inEnv && !known {
+				continue // an envFrom source the snapshot cannot list may define it
+			}
+			line := ""
+			for j := len(lines) - 1; j >= 0 && line == ""; j-- {
+				if strings.Contains(lines[j], "$("+name+")") {
+					line = lines[j]
+				}
+			}
+			if line == "" {
+				continue
+			}
+			why := "which the container's env and envFrom do not define"
+			fix := fmt.Sprintf("Define %s in the container's env above %s (or in a ConfigMap in envFrom), or correct the name.", name, e.Name)
+			if inEnv && at == i {
+				why = "which is the variable itself"
+				fix = fmt.Sprintf("Give %s its value directly: a variable cannot refer to itself.", e.Name)
+			} else if inEnv {
+				why = fmt.Sprintf("which is defined after %s in the env list", e.Name)
+				fix = fmt.Sprintf("Move %s above %s in the container's env list: a value can refer only to variables defined before it.", name, e.Name)
+			}
+			ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's env, in order: %s is entry %d and refers to $(%s)", cs.Name, e.Name, i+1, name),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{range .spec.containers[?(@.name=="%s")].env[*]}{.name}={.value}{"\n"}{end}`, cs.Name))})
+			return newProblem(p, cs.Name, "KD216", "Env value refers to a variable not defined before it", Critical,
+				fmt.Sprintf("container %s's env %s refers to $(%s), %s: the kubelet expands a reference only from variables defined before it, so %s holds the text $(%s) unexpanded and the process fails on it; its log says: %q",
+					cs.Name, e.Name, name, why, e.Name, name, clip(line, 200)),
+				"envorder|"+e.Name+"|"+name, fix, ev...)
+		}
+	}
+	return nil
+}
+
 // serviceLinkVar reports whether name is one of the variables the kubelet sets for a Service of the namespace
 // (FOO_SERVICE_HOST, FOO_SERVICE_PORT, FOO_PORT, FOO_PORT_80_TCP and so on for Service foo), which it expands too.
 // When the Services were not read, any name of that form counts.

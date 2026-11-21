@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-env-var-defined-later/worker",
+      "error": [
+        {
+          "Text": "Deployment kd-env-var-defined-later/worker has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-env-var-defined-later",
+              "Masked": "O1lybTFrZD1TWUVrOVd2Yz96RUVSOjM+"
+            },
+            {
+              "Unmasked": "worker",
+              "Masked": "KHYvdiFi"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-env-var-defined-later/worker-86bfdfc864-w9jsr",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=worker-86bfdfc864-w9jsr",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/worker"
+    }
+  ]
+}

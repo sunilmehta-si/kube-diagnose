@@ -83,6 +83,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
+	if pr := jobHeldBySidecar(ix, p); pr != nil {
+		return pr
+	}
 	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probePortMissing(ix, p, cs, "startup", "readiness"); pr != nil {
 			return pr
@@ -272,6 +275,61 @@ const initStuckAfter = 2 * time.Minute
 
 // initStuck finds an init container that is still running long after it started, holding the pod in Init. Init
 // containers that wait for a dependency loop until it appears, so the log usually names what is missing.
+// jobSidecarAfter is how long a Job's pod may keep running after one of its containers has finished before the
+// container still running is reported as holding the Job.
+const jobSidecarAfter = time.Minute
+
+// jobHeldBySidecar finds a Job's pod whose work is done, a container has exited 0, while another container of the
+// pod keeps running: a proxy or log shipper declared as an ordinary container. A pod succeeds only when every
+// container has exited, so the Job never completes and nothing fails.
+func jobHeldBySidecar(ix *index, p kube.Pod) *problem {
+	o, ok := p.Metadata.Controller()
+	if !ok || o.Kind != "Job" || p.Status.Phase != "Running" {
+		return nil
+	}
+	var done, running []kube.ContainerStatus
+	for _, cs := range p.Status.ContainerStatuses {
+		switch {
+		case cs.State.Terminated != nil && cs.State.Terminated.ExitCode == 0:
+			done = append(done, cs)
+		case cs.State.Running != nil:
+			running = append(running, cs)
+		default:
+			return nil
+		}
+	}
+	if len(done) == 0 || len(running) == 0 {
+		return nil
+	}
+	last := done[0].State.Terminated.FinishedAt
+	for _, cs := range done {
+		if cs.State.Terminated.FinishedAt.After(last) {
+			last = cs.State.Terminated.FinishedAt
+		}
+	}
+	if last.IsZero() || ix.s.CollectedAt.Sub(last) < jobSidecarAfter {
+		return nil
+	}
+	names := func(l []kube.ContainerStatus) string {
+		var out []string
+		for _, cs := range l {
+			out = append(out, cs.Name)
+		}
+		return strings.Join(out, ", ")
+	}
+	side := running[0].Name
+	return newProblem(p, side, "KD292", "Job never completes: a sidecar keeps its pod running", Warning,
+		fmt.Sprintf("Job %s's pod %s has done its work (%s %s exited 0, %s ago) but %s %s is still running, so the pod never succeeds and the Job never completes",
+			o.Name, p.Metadata.Name, plural(len(done), "container"), names(done), ix.s.CollectedAt.Sub(last).Round(time.Minute), plural(len(running), "container"), names(running)),
+		"jobsidecar|"+side,
+		fmt.Sprintf("Declare %s under initContainers with restartPolicy: Always (a sidecar): the kubelet stops a sidecar once the pod's other containers have exited. Or have the work tell %s to quit when it ends.", side, side),
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s exited 0 at %s", done[0].Name, done[0].State.Terminated.FinishedAt.UTC().Format(time.RFC3339)),
+			Command: cmdContainerState(p, done[0].Name, "state")},
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s is still running, and the pod's phase is Running", side), Command: cmdContainerState(p, side, "state")},
+		Evidence{Object: kube.Ref{Kind: "Job", Namespace: p.Metadata.Namespace, Name: o.Name}, What: fmt.Sprintf("Job %s has not completed", o.Name),
+			Command: cmdGet("job", p.Metadata.Namespace, o.Name, `{.status.active}{" "}{.status.succeeded}`)})
+}
+
 func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if p.Status.Phase != "Pending" || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
 		return nil
@@ -292,6 +350,9 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	}
 	fix := "Make what the init container waits for available (its log names it), or fix the check it loops on; the app containers start only after every init container exits 0."
 	lines := ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}].Lines
+	if pr := initWaitsForItself(ix, p, cs, lines, ev); pr != nil {
+		return pr
+	}
 	if svc, _, ok := refusedService(ix, p.Metadata.Namespace, lines); ok && len(svc.Spec.Selector) > 0 && readyBehind(ix, svc) == 0 {
 		cause += fmt.Sprintf("; it waits for Service %s, which has no ready pods", svc.Metadata.Name)
 		fix = fmt.Sprintf("Fix Service %s's pods (their own findings say why they are not ready, or the workload is scaled to 0); the init container finishes once they answer.", svc.Metadata.Name)
@@ -305,6 +366,31 @@ func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})
 	}
 	return newProblem(p, cs.Name, "KD119", "Init container never finishes", Critical, cause, "initstuck", fix, ev...)
+}
+
+// initWaitsForItself finds an init container that waits for a Service whose only pods are its own workload's. Those
+// pods serve only once their app containers run, and the app containers start only after the init container exits:
+// each waits for the other, so the workload never starts.
+func initWaitsForItself(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	ns := p.Metadata.Namespace
+	svc, line, ok := refusedService(ix, ns, lines)
+	if !ok || len(svc.Spec.Selector) == 0 || !kube.MatchesMap(svc.Spec.Selector, p.Metadata.Labels) {
+		return nil
+	}
+	owner := ix.owner(p)
+	for _, q := range ix.s.Pods {
+		if q.Metadata.Namespace == ns && kube.MatchesMap(svc.Spec.Selector, q.Metadata.Labels) && q.Status.Phase != "Succeeded" && q.Status.Phase != "Failed" && ix.owner(q) != owner {
+			return nil // another workload serves the Service too: its pods are what the init container waits for
+		}
+	}
+	name := svc.Metadata.Name
+	ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s selects pods with %s: the pods of %s %s, this one included", name, kube.FormatMap(svc.Spec.Selector), owner.Kind, owner.Name),
+		Command: "kubectl get pods -n " + ns + " -l " + kube.FormatMap(svc.Spec.Selector)})
+	return newProblem(p, cs.Name, "KD220", "Init container waits for its own pod", Critical,
+		fmt.Sprintf("init container %s waits for Service %s, and the only pods behind that Service are %s %s's own: they serve only once their app containers run, and those start only after this init container exits, so each waits for the other; its log says: %q",
+			cs.Name, name, owner.Kind, owner.Name, clip(line, 200)),
+		"initself|"+name,
+		fmt.Sprintf("Remove the wait for %s from init container %s, or point it at what the pod really depends on. A pod cannot wait for itself: its readiness and startup probes are what hold traffic back until the app is up.", name, cs.Name), ev...)
 }
 
 func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
@@ -1008,6 +1094,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := shellVar(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := envOrder(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := subPathIsADirectory(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -1018,6 +1107,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := volumeDenied(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := capabilityDropped(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
@@ -1035,7 +1127,13 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := localhostForService(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := refusedByEmptyService(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := servicePortNotExposed(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := apiServerBlocked(ix, p, cs, log.Lines, ev); pr != nil {
@@ -1404,6 +1502,10 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		cause = fmt.Sprintf("container %s fails its %s probe (%s), so the kubelet restarts it (%d restarts)", cs.Name, kind, d, cs.RestartCount)
 	}
 	fix := "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly."
+	if what, how := probeStatus(ix, p, cs.Name, kind); what != "" {
+		cause += ": " + what
+		fix = how
+	}
 	if probeTimedOut(ix, p, cs.Name, kind) && probe != nil {
 		limit := probe.TimeoutSeconds
 		if limit == 0 {
@@ -1510,6 +1612,10 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			cause = fmt.Sprintf("container %s runs but fails its readiness probe (%s), so it gets no traffic", cs.Name, d)
 		}
 		fix := "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready."
+		if what, how := probeStatus(ix, p, cs.Name, "readiness"); what != "" {
+			cause += ": " + what
+			fix = how
+		}
 		if exe := probeExecMissing(ix, p, cs.Name, "readiness"); exe != "" {
 			cause = fmt.Sprintf("container %s's readiness probe runs %s, which is not in image %s, so the probe can never pass and the container gets no traffic", cs.Name, exe, imageOf(p, cs))
 			fix = probeExecFix(exe)

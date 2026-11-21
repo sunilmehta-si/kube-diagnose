@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-misses-starts"
   ],
-  "collectedAt": "2026-11-20 11:50 UTC",
+  "collectedAt": "2026-11-21 06:54 UTC",
   "findings": [
     {
       "rule": "KD285",

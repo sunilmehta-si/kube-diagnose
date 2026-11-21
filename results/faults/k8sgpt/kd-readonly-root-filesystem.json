@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readonly-root-filesystem",
-              "Masked": "eTlodStQRGU4RUknaWhVL18hdChQI1cocE0q"
+              "Masked": "OTlMKDtMMEd2MSNbaFQwMF5GKil1KTxqcW1t"
             },
             {
               "Unmasked": "web",
-              "Masked": "ZDlr"
+              "Masked": "a1RI"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-readonly-root-filesystem/web-5ff6c69c94-5wwwm",
+      "name": "kd-readonly-root-filesystem/web-5ff6c69c94-54d5v",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-5ff6c69c94-5wwwm",
+          "Text": "the last termination reason is Error container=web pod=web-5ff6c69c94-54d5v",
           "KubernetesDoc": "",
           "Sensitive": []
         }

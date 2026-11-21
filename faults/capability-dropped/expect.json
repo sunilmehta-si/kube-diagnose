@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-capability-dropped",
+  "description": "A container drops ALL capabilities, as the restricted Pod Security standard asks, but its start script chowns a cache directory; root without CAP_CHOWN is refused, so the container exits at every start.",
+  "rule": "KD219",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "CHOWN",
+      "capabilit"
+    ],
+    [
+      "drops"
+    ]
+  ]
+}
