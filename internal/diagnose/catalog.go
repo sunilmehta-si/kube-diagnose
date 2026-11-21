@@ -154,6 +154,7 @@ var Rules = []Rule{
 	{"KD287", "Replicas share a ReadWriteOnce claim", Warning, "A Deployment (or a ReplicaSet of its own) with two or more replicas mounts a PersistentVolumeClaim that is ReadWriteOnce only: the volume attaches to one node at a time, so replicas on another node cannot start and rolling updates can stall. It works only while they share a node.", "The workload's replicas and volumes, and the claim's access modes."},
 	{"KD288", "Ready pods are held unavailable by minReadySeconds", Warning, "A Deployment's pods are ready but not counted available because its minReadySeconds is a minute or more: a pod is available only after staying ready that long, so the Deployment reports unavailable replicas and every rollout step waits.", "The Deployment's minReadySeconds and its ready and available replica counts."},
 	{"KD289", "Pods are covered by more than one PodDisruptionBudget", Warning, "Two or more PodDisruptionBudgets select the same pods. The eviction API refuses a pod with more than one budget, so node drains and cluster upgrades fail on those pods, and nothing shows it until then.", "Each budget's selector and the labels of a pod they all match."},
+	{"KD290", "HPA is switched off: its target is scaled to zero", Warning, "An HPA's target has 0 replicas, so the HPA has stopped scaling it (ScalingActive is False, reason ScalingDisabled): a workload scaled to zero by hand or by its manifest stays there whatever the load.", "The HPA's ScalingActive condition and the target's replica count."},
 }
 
 // RuleByID finds a rule.

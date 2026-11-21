@@ -17,6 +17,8 @@ func hpaFindings(ix *index) []Finding {
 	for _, h := range ix.s.HPAs {
 		if f := hpaTarget(ix, h); f != nil {
 			out = append(out, *f)
+		} else if f := hpaDisabled(h); f != nil {
+			out = append(out, *f)
 		} else if f := hpaMetrics(h); f != nil {
 			out = append(out, *f)
 		} else if f := hpaAtMax(h); f != nil {
@@ -94,4 +96,24 @@ func hpaTarget(ix *index, h kube.HorizontalPodAutoscaler) *Finding {
 	return &Finding{Rule: "KD178", Title: "HPA targets a workload that does not exist", Severity: Warning, Object: h.Ref(),
 		Cause:    fmt.Sprintf("HPA %s scales %s %s, which does not exist in namespace %s, so it scales nothing", h.Metadata.Name, ref.Kind, ref.Name, h.Metadata.Namespace),
 		Evidence: evs, Fix: "Correct scaleTargetRef to the workload's kind and name, or delete the HPA if the workload is gone."}
+}
+
+// hpaDisabled finds an HPA that has stopped scaling because its target has 0 replicas. The HPA controller leaves a
+// workload at zero alone (ScalingActive is False, reason ScalingDisabled), so one scaled down by hand, or by a
+// manifest that says replicas: 0, stays down whatever the load.
+func hpaDisabled(h kube.HorizontalPodAutoscaler) *Finding {
+	c, ok := kube.FindCondition(h.Status.Conditions, "ScalingActive")
+	if !ok || c.Status != "False" || c.Reason != "ScalingDisabled" {
+		return nil
+	}
+	ref, ns := h.Spec.ScaleTargetRef, h.Metadata.Namespace
+	ev := hpaCondition(h, "ScalingActive")
+	ev.What, ev.Detail = "ScalingActive is False, reason ScalingDisabled", c.Message
+	return &Finding{Rule: "KD290", Title: "HPA is switched off: its target is scaled to zero", Severity: Warning, Object: h.Ref(),
+		Cause: fmt.Sprintf("HPA %s does not scale %s %s: the %s has 0 replicas, and an HPA leaves a workload at zero alone, so it stays at zero whatever the load",
+			h.Metadata.Name, ref.Kind, ref.Name, ref.Kind),
+		Evidence: []Evidence{ev, {Object: kube.Ref{Kind: ref.Kind, Namespace: ns, Name: ref.Name}, What: fmt.Sprintf("%s %s asks for 0 replicas", ref.Kind, ref.Name),
+			Command: cmdGet(strings.ToLower(ref.Kind), ns, ref.Name, "{.spec.replicas}")}},
+		Fix:     fmt.Sprintf("Scale %s %s to 1 or more replicas and the HPA takes over again. If its manifest says replicas: 0, drop the replicas field, so applying the manifest does not undo what the HPA sets.", ref.Kind, ref.Name),
+		Affects: []kube.Ref{{Kind: ref.Kind, Namespace: ns, Name: ref.Name}}}
 }

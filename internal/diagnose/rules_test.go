@@ -3219,3 +3219,14 @@ func TestPodsCoveredByMoreThanOnePDB(t *testing.T) {
 		t.Errorf("separate budgets: %v", r.Findings)
 	}
 }
+
+func TestHPASwitchedOffByZeroReplicas(t *testing.T) {
+	s := snap()
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web", kube.Condition{Type: "AbleToScale", Status: "True", Reason: "SucceededGetScale"},
+		kube.Condition{Type: "ScalingActive", Status: "False", Reason: "ScalingDisabled", Message: "scaling is disabled since the replica count of the target is zero"})}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD290", "HorizontalPodAutoscaler shop/web", "does not scale Deployment web", "has 0 replicas", "stays at zero")
+	if f.Severity != Warning || f.Affects[0] != (kube.Ref{Kind: "Deployment", Namespace: "shop", Name: "web"}) || !strings.Contains(f.Fix, "drop the replicas field") {
+		t.Errorf("%+v", f)
+	}
+}
