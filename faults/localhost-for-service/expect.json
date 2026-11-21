@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-localhost-for-service",
+  "description": "A worker is configured to reach its cache at 127.0.0.1:6379, as on a developer's machine; in the cluster the cache runs in another pod behind a Service, so the connection to the pod's own loopback is refused.",
+  "rule": "KD217",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "localhost",
+      "127.0.0.1"
+    ],
+    [
+      "Service cache",
+      "cache:6379"
+    ]
+  ]
+}
