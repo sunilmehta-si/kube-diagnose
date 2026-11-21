@@ -3287,3 +3287,35 @@ func TestJobHeldByASidecar(t *testing.T) {
 		}
 	}
 }
+
+func TestEnvValueRefersToAVariableDefinedLater(t *testing.T) {
+	s := snap()
+	p := pod("worker-6d9f7-abcde", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"sh", "-c", `wget -q -T 5 -O /dev/null "$API_URL" || exit 1; sleep 3600`}
+	c.Env = []kube.EnvVar{{Name: "API_URL", Value: "http://$(API_HOST):8080/"}, {Name: "API_HOST", Value: "api"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"wget: bad address '$(API_HOST):8080'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD216", "ReplicaSet shop/worker-rs", "env API_URL refers to $(API_HOST), which is defined after API_URL in the env list", "holds the text $(API_HOST) unexpanded", "bad address")
+	if !strings.HasPrefix(f.Fix, "Move API_HOST above API_URL") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Not defined anywhere.
+	c.Env = c.Env[:1]
+	s.Pods = []kube.Pod{p}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD216", "ReplicaSet shop/worker-rs", "which the container's env and envFrom do not define")
+	if !strings.HasPrefix(f.Fix, "Define API_HOST in the container's env above API_URL") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Defined before it: the kubelet expands it, and the crash is something else.
+	c.Env = []kube.EnvVar{{Name: "API_HOST", Value: "api"}, {Name: "API_URL", Value: "http://$(API_HOST):8080/"}}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD216" {
+		t.Errorf("defined before: %s", f.Cause)
+	}
+}
