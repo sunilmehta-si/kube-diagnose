@@ -3468,3 +3468,35 @@ func TestInitContainerWaitsForItsOwnPod(t *testing.T) {
 		t.Errorf("want KD119 naming the Service: %v", Diagnose(s).Findings)
 	}
 }
+
+func TestProbeFailureSaysWhatTheStatusMeans(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	notReady(&p)
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/ready", Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", "Readiness probe failed: HTTP probe failed with statuscode: 404", time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD120", "ReplicaSet shop/web-rs", "so it gets no traffic: the app answers 404, so it does not serve the probe's path")
+	if !strings.HasPrefix(f.Fix, "Set the probe's path to one the app serves") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	for code, want := range map[string]string{"401": "needs credentials", "403": "needs credentials", "400": "Host header", "405": "does not accept GET",
+		"503": "serves the path and reports itself unhealthy", "418": "the app answers 418"} {
+		s.Events = []kube.Event{event("Pod", p.Metadata.Name, "Unhealthy", "Readiness probe failed: HTTP probe failed with statuscode: "+code, time.Minute)}
+		expect(t, only(t, Diagnose(s)), "KD120", "ReplicaSet shop/web-rs", want)
+	}
+
+	// A liveness probe answered 503 restarts the container; the status is explained the same way.
+	q := pod("api-7d9f-k2x8q", "api")
+	q.Spec.Containers[0].LivenessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/healthz", Port: port(8080)}}
+	crashed(&q, 137, "Error", 6)
+	s.Pods = []kube.Pod{q}
+	s.Events = []kube.Event{event("Pod", q.Metadata.Name, "Unhealthy", "Liveness probe failed: HTTP probe failed with statuscode: 503", time.Minute),
+		event("Pod", q.Metadata.Name, "Killing", "Container web failed liveness probe, will be restarted", time.Minute)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD112", "ReplicaSet shop/api-rs", "restarts it (6 restarts): the app answers 503, so it serves the path and reports itself unhealthy")
+	if !strings.Contains(f.Fix, "out of a liveness probe") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}

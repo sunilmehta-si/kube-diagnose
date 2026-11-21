@@ -1502,6 +1502,10 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		cause = fmt.Sprintf("container %s fails its %s probe (%s), so the kubelet restarts it (%d restarts)", cs.Name, kind, d, cs.RestartCount)
 	}
 	fix := "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly."
+	if what, how := probeStatus(ix, p, cs.Name, kind); what != "" {
+		cause += ": " + what
+		fix = how
+	}
 	if probeTimedOut(ix, p, cs.Name, kind) && probe != nil {
 		limit := probe.TimeoutSeconds
 		if limit == 0 {
@@ -1608,6 +1612,10 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			cause = fmt.Sprintf("container %s runs but fails its readiness probe (%s), so it gets no traffic", cs.Name, d)
 		}
 		fix := "Point the readiness probe at a port and path the app serves, or fix what makes the app report not ready."
+		if what, how := probeStatus(ix, p, cs.Name, "readiness"); what != "" {
+			cause += ": " + what
+			fix = how
+		}
 		if exe := probeExecMissing(ix, p, cs.Name, "readiness"); exe != "" {
 			cause = fmt.Sprintf("container %s's readiness probe runs %s, which is not in image %s, so the probe can never pass and the container gets no traffic", cs.Name, exe, imageOf(p, cs))
 			fix = probeExecFix(exe)

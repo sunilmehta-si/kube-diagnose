@@ -294,3 +294,31 @@ func probePortMissing(ix *index, p kube.Pod, cs kube.ContainerStatus, kinds ...s
 	}
 	return nil
 }
+
+var reProbeStatus = regexp.MustCompile(`HTTP probe failed with statuscode: (\d+)`)
+
+// probeStatus reads the HTTP status an httpGet probe was answered with and says what that status means for the
+// probe, and what to change. The kubelet counts 200 to 399 as success, so only 4xx and 5xx fail a probe.
+func probeStatus(ix *index, p kube.Pod, container, kind string) (what, fix string) {
+	e, ok := probeEvent(ix, p, container, kind, reProbeStatus)
+	if !ok {
+		return "", ""
+	}
+	code, _ := strconv.Atoi(reProbeStatus.FindStringSubmatch(e.Message)[1])
+	switch {
+	case code == 404:
+		return "the app answers 404, so it does not serve the probe's path", "Set the probe's path to one the app serves (its health endpoint), or add that endpoint to the app."
+	case code == 401 || code == 403:
+		return fmt.Sprintf("the app answers %d, so the probe's path needs credentials, and the kubelet sends none", code),
+			"Probe a path that needs no authentication, or send what the app asks for with the probe's httpHeaders."
+	case code == 400:
+		return "the app answers 400, so it rejects the kubelet's request, often for its Host header (the pod's IP)",
+			"Set the Host header the app expects with the probe's httpHeaders, or let the app accept health checks by IP."
+	case code == 405:
+		return "the app answers 405, so the probe's path does not accept GET", "Probe a path that answers GET; an httpGet probe sends nothing else."
+	case code >= 500:
+		return fmt.Sprintf("the app answers %d, so it serves the path and reports itself unhealthy", code),
+			"The probe works; read the app's log for what its health check reports (a dependency it cannot reach, most often), and keep checks of other services out of a liveness probe."
+	}
+	return fmt.Sprintf("the app answers %d", code), "Point the probe at a path the app answers with a 2xx or 3xx status."
+}
