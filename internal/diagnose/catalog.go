@@ -155,6 +155,7 @@ var Rules = []Rule{
 	{"KD288", "Ready pods are held unavailable by minReadySeconds", Warning, "A Deployment's pods are ready but not counted available because its minReadySeconds is a minute or more: a pod is available only after staying ready that long, so the Deployment reports unavailable replicas and every rollout step waits.", "The Deployment's minReadySeconds and its ready and available replica counts."},
 	{"KD289", "Pods are covered by more than one PodDisruptionBudget", Warning, "Two or more PodDisruptionBudgets select the same pods. The eviction API refuses a pod with more than one budget, so node drains and cluster upgrades fail on those pods, and nothing shows it until then.", "Each budget's selector and the labels of a pod they all match."},
 	{"KD290", "HPA is switched off: its target is scaled to zero", Warning, "An HPA's target has 0 replicas, so the HPA has stopped scaling it (ScalingActive is False, reason ScalingDisabled): a workload scaled to zero by hand or by its manifest stays there whatever the load.", "The HPA's ScalingActive condition and the target's replica count."},
+	{"KD291", "More than one HPA controls the same pods", Warning, "Two or more HPAs name the same workload, or an HPA's ScalingActive condition is False with reason AmbiguousSelector: the HPA controller does not act on pods that more than one HPA controls, so none of them scales.", "Each HPA's scaleTargetRef and the ScalingActive condition."},
 }
 
 // RuleByID finds a rule.

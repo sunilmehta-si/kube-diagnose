@@ -3230,3 +3230,25 @@ func TestHPASwitchedOffByZeroReplicas(t *testing.T) {
 		t.Errorf("%+v", f)
 	}
 }
+
+func TestMoreThanOneHPAControlsTheSamePods(t *testing.T) {
+	s := snap()
+	amb := kube.Condition{Type: "ScalingActive", Status: "False", Reason: "AmbiguousSelector",
+		Message: "pods by selector app=web are controlled by more than one HPA (e.g. [shop/web-cpu shop/web-memory])"}
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web-memory", amb), hpa("web-cpu", amb)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD291", "HorizontalPodAutoscaler shop/web-cpu", "HPAs web-cpu and web-memory all scale Deployment web", "none of them scales it")
+	if f.Severity != Warning || len(f.Evidence) != 3 || !strings.Contains(f.Fix, "list every metric") {
+		t.Errorf("severity %s evidence %d fix %q", f.Severity, len(f.Evidence), f.Fix)
+	}
+
+	// Before the controller has said so, two HPAs with one target are reported from their specs.
+	s.HPAs = []kube.HorizontalPodAutoscaler{hpa("web-memory"), hpa("web-cpu")}
+	expect(t, only(t, Diagnose(s)), "KD291", "HorizontalPodAutoscaler shop/web-cpu", "HPAs web-cpu and web-memory")
+
+	// Different targets whose pods overlap: only the controller's condition shows it.
+	other := hpa("api", amb)
+	other.Spec.ScaleTargetRef.Name = "api"
+	s.HPAs = []kube.HorizontalPodAutoscaler{other}
+	expect(t, only(t, Diagnose(s)), "KD291", "HorizontalPodAutoscaler shop/api", "another HPA controls the same pods", "more than one HPA")
+}

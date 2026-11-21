@@ -3,6 +3,7 @@ package diagnose
 import (
 	"fmt"
 	"regexp"
+	"sort"
 	"strings"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
@@ -17,6 +18,10 @@ func hpaFindings(ix *index) []Finding {
 	for _, h := range ix.s.HPAs {
 		if f := hpaTarget(ix, h); f != nil {
 			out = append(out, *f)
+		} else if f, shared := hpaShared(ix, h); shared {
+			if f != nil {
+				out = append(out, *f)
+			}
 		} else if f := hpaDisabled(h); f != nil {
 			out = append(out, *f)
 		} else if f := hpaMetrics(h); f != nil {
@@ -116,4 +121,49 @@ func hpaDisabled(h kube.HorizontalPodAutoscaler) *Finding {
 			Command: cmdGet(strings.ToLower(ref.Kind), ns, ref.Name, "{.spec.replicas}")}},
 		Fix:     fmt.Sprintf("Scale %s %s to 1 or more replicas and the HPA takes over again. If its manifest says replicas: 0, drop the replicas field, so applying the manifest does not undo what the HPA sets.", ref.Kind, ref.Name),
 		Affects: []kube.Ref{{Kind: ref.Kind, Namespace: ns, Name: ref.Name}}}
+}
+
+// hpaShared finds HPAs that scale the same workload, or whose pods another HPA also controls. The HPA controller
+// refuses to act on pods that more than one HPA controls (ScalingActive is False, reason AmbiguousSelector), so none
+// of them scales anything. The finding is on the first of them by name; shared is true for every HPA of the group.
+func hpaShared(ix *index, h kube.HorizontalPodAutoscaler) (f *Finding, shared bool) {
+	ref, ns := h.Spec.ScaleTargetRef, h.Metadata.Namespace
+	group := []kube.HorizontalPodAutoscaler{}
+	for _, o := range ix.s.HPAs {
+		if o.Metadata.Namespace == ns && o.Spec.ScaleTargetRef == ref {
+			group = append(group, o)
+		}
+	}
+	c, ok := kube.FindCondition(h.Status.Conditions, "ScalingActive")
+	ambiguous := ok && c.Status == "False" && c.Reason == "AmbiguousSelector"
+	if len(group) < 2 && !ambiguous {
+		return nil, false
+	}
+	sort.Slice(group, func(i, j int) bool { return group[i].Metadata.Name < group[j].Metadata.Name })
+	if len(group) > 1 && group[0].Metadata.Name != h.Metadata.Name {
+		return nil, true
+	}
+	target := ref.Kind + " " + ref.Name
+	var names []string
+	var ev []Evidence
+	for _, o := range group {
+		names = append(names, o.Metadata.Name)
+		ev = append(ev, Evidence{Object: o.Ref(), What: fmt.Sprintf("HPA %s has scaleTargetRef %s", o.Metadata.Name, target),
+			Command: cmdGet("hpa", ns, o.Metadata.Name, "{.spec.scaleTargetRef}")})
+	}
+	cause := fmt.Sprintf("HPAs %s all scale %s: the HPA controller does not act on pods that more than one HPA controls, so none of them scales it",
+		strings.Join(names, " and "), target)
+	fix := fmt.Sprintf("Keep one HPA for %s and list every metric in it (an HPA with several metrics scales to the highest answer); delete the others.", target)
+	if len(group) < 2 {
+		cause = fmt.Sprintf("HPA %s does not scale %s: another HPA controls the same pods, and the HPA controller does not act on pods that more than one HPA controls (%s)",
+			h.Metadata.Name, target, clip(c.Message, 200))
+		fix = "Give each HPA a workload whose pods no other HPA's target selects: the targets' selectors overlap, so make their pod labels distinct, or delete the extra HPA."
+	}
+	if ambiguous {
+		e := hpaCondition(h, "ScalingActive")
+		e.What, e.Detail = "ScalingActive is False, reason AmbiguousSelector", c.Message
+		ev = append(ev, e)
+	}
+	return &Finding{Rule: "KD291", Title: "More than one HPA controls the same pods", Severity: Warning, Object: h.Ref(), Cause: cause, Evidence: ev, Fix: fix,
+		Affects: []kube.Ref{{Kind: ref.Kind, Namespace: ns, Name: ref.Name}}}, true
 }
