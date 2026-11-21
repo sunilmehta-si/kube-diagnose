@@ -3252,3 +3252,38 @@ func TestMoreThanOneHPAControlsTheSamePods(t *testing.T) {
 	s.HPAs = []kube.HorizontalPodAutoscaler{other}
 	expect(t, only(t, Diagnose(s)), "KD291", "HorizontalPodAutoscaler shop/api", "another HPA controls the same pods", "more than one HPA")
 }
+
+func TestJobHeldByASidecar(t *testing.T) {
+	s := snap()
+	p := pod("report-x7k2p", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "report", Controller: yes()}}
+	p.Spec.Containers = []kube.Container{{Name: "main", Image: "registry.example.com/shop/report:2.0"}, {Name: "proxy", Image: "registry.example.com/shop/proxy:1.9"}}
+	p.Status.Conditions[1].Status = "False"
+	p.Status.ContainerStatuses = []kube.ContainerStatus{
+		{Name: "main", State: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 0, Reason: "Completed", FinishedAt: t0.Add(-10 * time.Minute)}}},
+		{Name: "proxy", Ready: true, State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0.Add(-11 * time.Minute)}}},
+	}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD292", "Job shop/report", "has done its work (1 container main exited 0, 10m0s ago)", "1 container proxy is still running", "the Job never completes")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "initContainers with restartPolicy: Always") {
+		t.Errorf("severity %s fix %q", f.Severity, f.Fix)
+	}
+
+	// Just finished: the other container may be about to stop too.
+	p.Status.ContainerStatuses[0].State.Terminated.FinishedAt = t0.Add(-20 * time.Second)
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("finished 20 seconds ago: %v", r.Findings)
+	}
+
+	// The same pod under a Deployment is not a Job waiting to complete.
+	p.Status.ContainerStatuses[0].State.Terminated.FinishedAt = t0.Add(-10 * time.Minute)
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "ReplicaSet", Name: "report-rs", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD292" {
+			t.Errorf("a Deployment's pod: %s", f.Cause)
+		}
+	}
+}

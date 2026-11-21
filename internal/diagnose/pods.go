@@ -83,6 +83,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
+	if pr := jobHeldBySidecar(ix, p); pr != nil {
+		return pr
+	}
 	for _, cs := range p.Status.ContainerStatuses {
 		if pr := probePortMissing(ix, p, cs, "startup", "readiness"); pr != nil {
 			return pr
@@ -272,6 +275,61 @@ const initStuckAfter = 2 * time.Minute
 
 // initStuck finds an init container that is still running long after it started, holding the pod in Init. Init
 // containers that wait for a dependency loop until it appears, so the log usually names what is missing.
+// jobSidecarAfter is how long a Job's pod may keep running after one of its containers has finished before the
+// container still running is reported as holding the Job.
+const jobSidecarAfter = time.Minute
+
+// jobHeldBySidecar finds a Job's pod whose work is done, a container has exited 0, while another container of the
+// pod keeps running: a proxy or log shipper declared as an ordinary container. A pod succeeds only when every
+// container has exited, so the Job never completes and nothing fails.
+func jobHeldBySidecar(ix *index, p kube.Pod) *problem {
+	o, ok := p.Metadata.Controller()
+	if !ok || o.Kind != "Job" || p.Status.Phase != "Running" {
+		return nil
+	}
+	var done, running []kube.ContainerStatus
+	for _, cs := range p.Status.ContainerStatuses {
+		switch {
+		case cs.State.Terminated != nil && cs.State.Terminated.ExitCode == 0:
+			done = append(done, cs)
+		case cs.State.Running != nil:
+			running = append(running, cs)
+		default:
+			return nil
+		}
+	}
+	if len(done) == 0 || len(running) == 0 {
+		return nil
+	}
+	last := done[0].State.Terminated.FinishedAt
+	for _, cs := range done {
+		if cs.State.Terminated.FinishedAt.After(last) {
+			last = cs.State.Terminated.FinishedAt
+		}
+	}
+	if last.IsZero() || ix.s.CollectedAt.Sub(last) < jobSidecarAfter {
+		return nil
+	}
+	names := func(l []kube.ContainerStatus) string {
+		var out []string
+		for _, cs := range l {
+			out = append(out, cs.Name)
+		}
+		return strings.Join(out, ", ")
+	}
+	side := running[0].Name
+	return newProblem(p, side, "KD292", "Job never completes: a sidecar keeps its pod running", Warning,
+		fmt.Sprintf("Job %s's pod %s has done its work (%s %s exited 0, %s ago) but %s %s is still running, so the pod never succeeds and the Job never completes",
+			o.Name, p.Metadata.Name, plural(len(done), "container"), names(done), ix.s.CollectedAt.Sub(last).Round(time.Minute), plural(len(running), "container"), names(running)),
+		"jobsidecar|"+side,
+		fmt.Sprintf("Declare %s under initContainers with restartPolicy: Always (a sidecar): the kubelet stops a sidecar once the pod's other containers have exited. Or have the work tell %s to quit when it ends.", side, side),
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s exited 0 at %s", done[0].Name, done[0].State.Terminated.FinishedAt.UTC().Format(time.RFC3339)),
+			Command: cmdContainerState(p, done[0].Name, "state")},
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s is still running, and the pod's phase is Running", side), Command: cmdContainerState(p, side, "state")},
+		Evidence{Object: kube.Ref{Kind: "Job", Namespace: p.Metadata.Namespace, Name: o.Name}, What: fmt.Sprintf("Job %s has not completed", o.Name),
+			Command: cmdGet("job", p.Metadata.Namespace, o.Name, `{.status.active}{" "}{.status.succeeded}`)})
+}
+
 func initStuck(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if p.Status.Phase != "Pending" || cs.State.Running == nil || cs.State.Running.StartedAt.IsZero() {
 		return nil
