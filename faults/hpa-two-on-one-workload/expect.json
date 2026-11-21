@@ -1,0 +1,15 @@
+{
+  "namespace": "kd-hpa-two-on-one-workload",
+  "description": "Two HPAs scale the same Deployment, one on CPU and one on memory; the HPA controller does not act on pods that more than one HPA controls, so neither scales it.",
+  "rule": "KD291",
+  "object": "HorizontalPodAutoscaler/web-cpu",
+  "keywords": [
+    [
+      "more than one HPA",
+      "HPAs"
+    ],
+    [
+      "web-memory"
+    ]
+  ]
+}
