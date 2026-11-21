@@ -3400,3 +3400,36 @@ func TestContainerConnectsToAPortTheServiceDoesNotExpose(t *testing.T) {
 		}
 	}
 }
+
+func TestContainerLacksACapabilityItUses(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	c := &p.Spec.Containers[0]
+	c.SecurityContext = &kube.SecurityContext{Capabilities: &kube.Capabilities{Drop: []string{"ALL"}}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"chown: /var/cache/app: Operation not permitted"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD219", "ReplicaSet shop/web-rs", "securityContext drops ALL capabilities", "changing a file's owner needs CHOWN", "root too must hold")
+	if !strings.HasPrefix(f.Fix, "Add CHOWN under securityContext.capabilities.add, keeping drop: [ALL]") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// One named capability dropped, and nginx's way of saying it.
+	c.SecurityContext.Capabilities.Drop = []string{"NET_BIND_SERVICE"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"nginx: [emerg] bind() to 0.0.0.0:80 failed (1: Operation not permitted)"}
+	expect(t, only(t, Diagnose(s)), "KD219", "ReplicaSet shop/web-rs", "securityContext drops NET_BIND_SERVICE", "binding a port below 1024 needs NET_BIND_SERVICE")
+
+	// The capability is added back, or nothing is dropped: the refusal has another cause.
+	c.SecurityContext.Capabilities = &kube.Capabilities{Drop: []string{"ALL"}, Add: []string{"NET_BIND_SERVICE"}}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD219" {
+		t.Errorf("added back: %s", f.Cause)
+	}
+	c.SecurityContext.Capabilities = nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD219" {
+		t.Errorf("nothing dropped: %s", f.Cause)
+	}
+}

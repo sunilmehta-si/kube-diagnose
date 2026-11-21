@@ -215,6 +215,14 @@ type SecurityContext struct {
 	RunAsNonRoot           *bool  `json:"runAsNonRoot,omitempty"`
 	RunAsUser              *int64 `json:"runAsUser,omitempty"`
 	RunAsGroup             *int64 `json:"runAsGroup,omitempty"`
+	// Capabilities adds to or drops from the Linux capabilities the runtime grants a container by default.
+	Capabilities *Capabilities `json:"capabilities,omitempty"`
+}
+
+// Capabilities lists Linux capabilities by name, without the CAP_ prefix; ALL names every one.
+type Capabilities struct {
+	Add  []string `json:"add,omitempty"`
+	Drop []string `json:"drop,omitempty"`
 }
 
 // PodSecurityContext holds the pod-wide user and group settings; a container's own securityContext overrides them.

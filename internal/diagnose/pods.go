@@ -1081,6 +1081,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := volumeDenied(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := capabilityDropped(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := readOnlyRoot(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
