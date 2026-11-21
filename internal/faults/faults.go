@@ -60,12 +60,17 @@ func Load(dir string) ([]Scenario, error) {
 }
 
 // Names reports whether text names the cause: for every keyword group, it contains at least one of the words,
-// ignoring case.
+// ignoring case. The scenario's own namespace is taken out of the text first. Its name describes the fault
+// (kd-oomkilled), and every tool is given it, so a tool that only repeats the name of the namespace, as in the path
+// of an object it reports, has named nothing.
 func (s Scenario) Names(text string) bool {
 	if len(s.Keywords) == 0 {
 		return false
 	}
 	text = strings.ToLower(text)
+	if s.Namespace != "" {
+		text = strings.ReplaceAll(text, strings.ToLower(s.Namespace), "")
+	}
 	for _, group := range s.Keywords {
 		hit := false
 		for _, w := range group {
