@@ -4210,3 +4210,34 @@ func TestLimitRangeDefaultLimitIsBelowTheRequest(t *testing.T) {
 		t.Errorf("fix %q", f.Fix)
 	}
 }
+
+// TestClaimFindingOutlastsTheTenMinuteMarks holds a pending claim's finding steady once the cluster is more than ten
+// minutes into the fault, as the fault suite recorded it: the scheduler stops saying which claim it waits for, and
+// the Deployment passes its progress deadline. Neither is a second cause.
+func TestClaimFindingOutlastsTheTenMinuteMarks(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	s.Workloads[0].Status.Conditions = []kube.Condition{{Type: "Progressing", Status: "False", Reason: "ProgressDeadlineExceeded", Message: `ReplicaSet "web-rs" has timed out progressing.`}}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "shared", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteMany"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.StorageClasses = []kube.StorageClass{{Metadata: kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}},
+		Provisioner: "rancher.io/local-path", VolumeBindingMode: "WaitForFirstConsumer"}}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "shared", "ProvisioningFailed",
+		`failed to provision volume with StorageClass "standard": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes`, time.Minute)}
+	p := pod("web-rs-a", "web")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "SchedulerError",
+		Message: `running PreBind plugin "VolumeBinding": binding volumes: context deadline exceeded`}}
+	p.Spec.Volumes = []kube.Volume{{Name: "shared", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "shared"}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD156", "PersistentVolumeClaim shop/shared", "asks for access mode ReadWriteMany")
+	if len(f.Affects) != 1 || f.Affects[0].Name != "web-rs-a" {
+		t.Errorf("the waiting pod should be listed under the claim: %v", f.Affects)
+	}
+}

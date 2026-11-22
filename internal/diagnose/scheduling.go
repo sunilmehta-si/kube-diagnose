@@ -97,6 +97,13 @@ func unschedulable(ix *index, p kube.Pod, c kube.Condition) *problem {
 			first = pr
 		}
 	}
+	// The scheduler picked a node and then gave up waiting for the pod's volumes to bind there, which it does after
+	// ten minutes: the claim it waits for is the cause, as it was before the wait ran out.
+	if first == nil && strings.Contains(msg, "VolumeBinding") {
+		pr := pvcBlocked(ix, p, msg)
+		pr.evidence = append(ev, pr.evidence...)
+		return pr
+	}
 	if first == nil {
 		return newProblem(p, "", "KD149", "Pod cannot be scheduled", Critical,
 			"the scheduler places the pod on no node: "+msg, "sched|"+msg,
