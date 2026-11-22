@@ -1,0 +1,45 @@
+# A container requests 256Mi of memory and sets no limit; the namespace LimitRange gives it a default limit of 128Mi, below the request, so the API server calls every pod invalid and none is created.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-limitrange-default-below-request
+
+---
+apiVersion: v1
+kind: LimitRange
+metadata:
+  name: defaults
+  namespace: kd-limitrange-default-below-request
+spec:
+  limits:
+    - type: Container
+      default:
+        memory: 128Mi
+      defaultRequest:
+        memory: 64Mi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-limitrange-default-below-request
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - name: http
+              containerPort: 8080
+          resources:
+            requests:
+              memory: 256Mi
