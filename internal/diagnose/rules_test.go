@@ -4274,3 +4274,22 @@ func TestCommandUsesAShellOperatorWithNoShell(t *testing.T) {
 		t.Errorf("with a shell: %s", f.Cause)
 	}
 }
+
+func TestFlagsAreInCommand(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	p.Spec.Containers[0].Command = []string{"--port=8080", "--verbose"}
+	waiting(&p, "RunContainerError", `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "--port=8080": executable file not found in $PATH`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD229", "ReplicaSet shop/web-rs", `command is ["--port=8080", "--verbose"]`, "command replaces the image's ENTRYPOINT", `a program named "--port=8080"`)
+	if !strings.HasPrefix(f.Fix, `Move the flags to args and leave command out: args: ["--port=8080", "--verbose"].`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A program that is simply not in the image is still KD114.
+	p.Spec.Containers[0].Command = []string{"webserver", "--port=8080"}
+	waiting(&p, "RunContainerError", `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "webserver": executable file not found in $PATH`)
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD114", "ReplicaSet shop/web-rs")
+}

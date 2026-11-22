@@ -266,6 +266,7 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"non-root", "image"}, "KD224"},
 		{[]string{"refuse", "targets"}, "KD225"},
 		{[]string{"shell", "operator"}, "KD226"},
+		{[]string{"flags", "entrypoint"}, "KD229"},
 		{[]string{"PersistentVolume", "fits"}, "KD250"},
 		{[]string{"Released"}, "KD251"},
 		{[]string{"Lost", "claim"}, "KD252"},

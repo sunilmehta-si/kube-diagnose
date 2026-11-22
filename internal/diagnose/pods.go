@@ -953,6 +953,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 		if pr := commandOneString(p, cs, c, msg, ev); pr != nil {
 			return pr
 		}
+		if pr := flagAsCommand(p, cs, c, ev); pr != nil {
+			return pr
+		}
 		if len(c.Command) > 0 {
 			if m, what, ok := missingVolumeFile(ix, p, cs.Name, c.Command[0]); ok {
 				return volumeFileProblem(p, cs.Name, m, fmt.Sprintf("container %s runs %s, which does not exist: %s", cs.Name, c.Command[0], what), ev)

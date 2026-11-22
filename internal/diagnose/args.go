@@ -151,3 +151,25 @@ func shellOperators(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Ev
 	}
 	return nil
 }
+
+// flagAsCommand finds a container that cannot start because the first item of its command is a flag ("--port=8080").
+// In a pod spec, command replaces the image's ENTRYPOINT and args replaces its CMD, the reverse of what the names
+// suggest to someone who knows docker run: flags written under command take the place of the program they were meant
+// for, and the runtime looks for a program called "--port=8080".
+func flagAsCommand(p kube.Pod, cs kube.ContainerStatus, c kube.Container, ev []Evidence) *problem {
+	if len(c.Command) == 0 || !strings.HasPrefix(c.Command[0], "-") {
+		return nil
+	}
+	quoted := make([]string, len(c.Command))
+	for i, w := range c.Command {
+		quoted[i] = strconv.Quote(w)
+	}
+	list := "[" + strings.Join(quoted, ", ") + "]"
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's command starts with the flag %s", cs.Name, c.Command[0]),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].command}{" "}{.spec.containers[?(@.name=="%s")].args}`, cs.Name, cs.Name))})
+	return newProblem(p, cs.Name, "KD229", "Flags are in command, which replaces the image's entrypoint", Critical,
+		fmt.Sprintf("container %s's command is %s: command replaces the image's ENTRYPOINT, so the runtime looks for a program named %q and finds none. The flags were meant for the image's own program, which command has displaced",
+			cs.Name, clip(list, 160), c.Command[0]),
+		"flagcommand|"+c.Command[0],
+		fmt.Sprintf("Move the flags to args and leave command out: args: %s. Then the image's entrypoint runs with them (args replaces the image's CMD, command its ENTRYPOINT). If the image has no entrypoint, put the program first in command.", clip(list, 160)), ev...)
+}
