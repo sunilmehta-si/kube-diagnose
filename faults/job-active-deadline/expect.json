@@ -1,0 +1,21 @@
+{
+  "namespace": "kd-job-active-deadline",
+  "description": "A Job has activeDeadlineSeconds: 30 and its work takes longer, so the Job controller ends its running pod at 30 seconds and fails the Job; no pod is left and nothing crashed.",
+  "rule": "KD180",
+  "object": "Job/export",
+  "keywords": [
+    [
+      "activeDeadlineSeconds",
+      "active deadline",
+      "specified deadline",
+      "DeadlineExceeded"
+    ],
+    [
+      "stopped",
+      "cut off",
+      "ended its pods",
+      "longer than",
+      "exceeded"
+    ]
+  ]
+}
