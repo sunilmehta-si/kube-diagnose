@@ -136,6 +136,9 @@ func noVolumeFits(ix *index, pvc kube.PersistentVolumeClaim, state Evidence) (f 
 		if len(cands[i].why) != len(cands[j].why) {
 			return len(cands[i].why) < len(cands[j].why)
 		}
+		if cands[i].released != cands[j].released {
+			return cands[i].released // a volume that fits but for its old reference is the one to act on
+		}
 		return cands[i].pv.Metadata.Name < cands[j].pv.Metadata.Name
 	})
 	near := cands[0]
