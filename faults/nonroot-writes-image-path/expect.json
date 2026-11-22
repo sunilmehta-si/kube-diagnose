@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-nonroot-writes-image-path",
+  "description": "A pod runs as user 1000 and its start command creates /www in the image, where only root may write, so the container exits with permission denied.",
+  "rule": "KD224",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "1000",
+      "non-root",
+      "nonroot",
+      "not root",
+      "other than root",
+      "runAsUser"
+    ],
+    [
+      "/www"
+    ]
+  ]
+}
