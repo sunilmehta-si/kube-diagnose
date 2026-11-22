@@ -22,6 +22,8 @@ var (
 	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)
 	reSA            = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
 	reWebhk         = regexp.MustCompile(`admission webhook "([^"]+)" denied the request`)
+	reWebhkCall     = regexp.MustCompile(`failed calling webhook "([^"]+)": (?:failed to call webhook: )?(.*)$`)
+	reWebhkService  = regexp.MustCompile(`"https://([a-z0-9-]+)\.([a-z0-9-]+)\.svc(?::\d+)?[^"]*"`)
 	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
 )
 
@@ -131,6 +133,8 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Namespace", Name: ns}, What: "namespace PodSecurity labels",
 			Command: "kubectl get namespace " + ns + " --show-labels"})
 		f.Fix = "Change the pod spec to meet the level (the message lists each violation), or relax the namespace's pod-security.kubernetes.io/enforce label if that is intended."
+	case reWebhkCall.MatchString(msg):
+		webhookUnreachable(&f, owner, reWebhkCall.FindStringSubmatch(msg))
 	case reWebhk.MatchString(msg):
 		wh := reWebhk.FindStringSubmatch(msg)[1]
 		f.Rule, f.Title = "KD173", "Admission webhook rejects the pods"
@@ -483,4 +487,51 @@ func defaultBelowRequest(ix *index, f *Finding, src, owner kube.Ref, m []string)
 		Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{range .spec.template.spec.containers[*]}{.name}{" "}{.resources}{"\n"}{end}`)},
 		Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: ns, Name: "*"}, What: "the namespace's LimitRanges and their defaults", Command: "kubectl get limitranges -n " + ns + " -o yaml"})
 	f.Fix = fmt.Sprintf("Set the %s limit of %s in the pod template, at or above its request of %s, so that the LimitRange's default is not used; or lower the request to %s or less; or raise the default in the LimitRange.", res, container, request, limit)
+}
+
+// webhookUnreachable explains pods refused because the API server could not call an admission webhook: its Service
+// is gone or has no pods, the connection fails or times out, or its certificate is not trusted. The webhook did not
+// reject anything; with failurePolicy Fail, not reaching it refuses every request it covers, here every new pod.
+// m is reWebhkCall's match.
+func webhookUnreachable(f *Finding, owner kube.Ref, m []string) {
+	hook, detail := m[1], m[2]
+	svc, svcNS := "", ""
+	if s := reWebhkService.FindStringSubmatch(detail); s != nil {
+		svc, svcNS = s[1], s[2]
+	}
+	where := "its endpoint"
+	if svc != "" {
+		where = fmt.Sprintf("Service %s in namespace %s", svc, svcNS)
+	}
+	// What went wrong follows the URL, which itself ends in "?timeout=...".
+	reason := detail
+	if i := strings.LastIndex(detail, `": `); i >= 0 {
+		reason = detail[i+3:]
+	}
+	var why string
+	switch {
+	case strings.Contains(reason, "x509"):
+		why = "the API server does not accept the certificate of " + where + " (the caBundle in the webhook's configuration does not match it, or it has expired)"
+	case strings.Contains(reason, "not found"):
+		why = where + " does not exist"
+	case strings.Contains(reason, "no endpoints available"):
+		why = where + " has no ready pods"
+	case strings.Contains(reason, "connection refused"):
+		why = where + " refuses the connection"
+	case strings.Contains(reason, "deadline exceeded") || strings.Contains(reason, "timeout") || strings.Contains(reason, "timed out"):
+		why = where + " does not answer in time"
+	default:
+		why = clip(detail, 200)
+	}
+	f.Rule, f.Title = "KD277", "Admission webhook cannot be reached"
+	f.Cause = fmt.Sprintf("%s cannot create pods: the API server must ask admission webhook %s before it admits a pod, and cannot: %s. The webhook rejected nothing; its failurePolicy is Fail, so every pod is refused for as long as it cannot be asked", owner, hook, why)
+	f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "ValidatingWebhookConfiguration", Name: "*"},
+		What: fmt.Sprintf("the configuration that lists webhook %s", hook), Command: "kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations"})
+	fix := "Bring the webhook back"
+	if svc != "" {
+		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc}, What: "the webhook's Service and the pods behind it",
+			Command: "kubectl get service,endpointslices,pods -n " + svcNS})
+		fix = fmt.Sprintf("Bring the webhook back: Service %s in namespace %s and the pods behind it", svc, svcNS)
+	}
+	f.Fix = fmt.Sprintf("%s. If the webhook is gone for good, delete the ValidatingWebhookConfiguration or MutatingWebhookConfiguration that lists %s. A webhook that should not stop the cluster when it is down can set failurePolicy: Ignore, or leave this namespace out with a namespaceSelector.", fix, hook)
 }

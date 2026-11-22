@@ -4293,3 +4293,36 @@ func TestFlagsAreInCommand(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD114", "ReplicaSet shop/web-rs")
 }
+
+func TestAdmissionWebhookCannotBeReached(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: Internal error occurred: failed calling webhook "pods.policy.example.com": failed to call webhook: Post "https://policy.shop.svc:443/validate?timeout=5s": service "policy" not found`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD277", "Deployment shop/web", "must ask admission webhook pods.policy.example.com", "cannot: Service policy in namespace shop does not exist", "The webhook rejected nothing")
+	if !strings.HasPrefix(f.Fix, "Bring the webhook back: Service policy in namespace shop and the pods behind it.") || !strings.Contains(f.Fix, "failurePolicy: Ignore") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	for msg, want := range map[string]string{
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": no endpoints available for service "policy"`:                                      "Service policy in namespace shop has no ready pods",
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": dial tcp 10.96.4.7:443: connect: connection refused`:                              "Service policy in namespace shop refuses the connection",
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": context deadline exceeded`:                                                        "Service policy in namespace shop does not answer in time",
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": tls: failed to verify certificate: x509: certificate signed by unknown authority`: "does not accept the certificate of Service policy in namespace shop",
+		`Post "https://hooks.example.com/validate?timeout=5s": EOF`:                                                                                `Post "https://hooks.example.com/validate?timeout=5s": EOF`,
+	} {
+		s.Events[0].Message = `Error creating: Internal error occurred: failed calling webhook "pods.policy.example.com": failed to call webhook: ` + msg
+		f := only(t, Diagnose(s))
+		if f.Rule != "KD277" || !strings.Contains(f.Cause, want) {
+			t.Errorf("%s:\n got %s %s", msg, f.Rule, f.Cause)
+		}
+	}
+
+	// A webhook that answers and says no is a policy, not an outage: KD173.
+	s.Events[0].Message = `Error creating: admission webhook "pods.policy.example.com" denied the request: images must come from registry.example.com`
+	expect(t, only(t, Diagnose(s)), "KD173", "Deployment shop/web")
+}
