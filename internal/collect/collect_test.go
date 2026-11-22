@@ -5,6 +5,7 @@ import (
 	"errors"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -53,6 +54,7 @@ func TestKubectlRefusesBeforeRunningAnything(t *testing.T) {
 type fake struct {
 	answers map[string]string
 	errs    map[string]error
+	mu      sync.Mutex // the collector runs several reads at once
 	calls   [][]string
 }
 
@@ -60,7 +62,9 @@ func (f *fake) Run(_ context.Context, args ...string) ([]byte, error) {
 	if err := CheckReadOnly(args); err != nil {
 		return nil, err
 	}
+	f.mu.Lock()
 	f.calls = append(f.calls, args)
+	f.mu.Unlock()
 	key := strings.Join(args[:min(2, len(args))], " ")
 	if args[0] == "logs" {
 		key = "logs " + args[1] + " " + args[5]
@@ -291,5 +295,50 @@ func TestLogsSkipARunningSidecar(t *testing.T) {
 	}
 	if len(s.Logs) != 1 || s.Logs[0].Container != "wait-for-db" {
 		t.Errorf("logs %+v", s.Logs)
+	}
+}
+
+// slow is a kubectl whose every read takes a moment; it counts how many run at once and refuses two resources.
+type slow struct {
+	mu       sync.Mutex
+	inFlight int
+	most     int
+}
+
+func (s *slow) Run(_ context.Context, args ...string) ([]byte, error) {
+	s.mu.Lock()
+	s.inFlight++
+	if s.inFlight > s.most {
+		s.most = s.inFlight
+	}
+	s.mu.Unlock()
+	time.Sleep(5 * time.Millisecond)
+	s.mu.Lock()
+	s.inFlight--
+	s.mu.Unlock()
+	if len(args) > 1 && (args[1] == "secrets" || args[1] == "jobs.batch") {
+		return nil, &CommandError{Args: args, Message: "Error from server (Forbidden): " + args[1] + " is forbidden"}
+	}
+	if args[0] == "get" && strings.HasPrefix(args[3], "go-template=") {
+		return nil, nil
+	}
+	return []byte(`{"items":[]}`), nil
+}
+
+// TestCollectReadsSeveralAtOnce holds the collector to running a few kubectl reads at a time, never more than
+// maxParallel, and to a snapshot that does not depend on which finished first: gaps come out in the order of the reads.
+func TestCollectReadsSeveralAtOnce(t *testing.T) {
+	for i := 0; i < 20; i++ {
+		r := &slow{}
+		s, err := Collect(context.Background(), r, Options{Namespace: "shop"})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.most < 2 || r.most > maxParallel {
+			t.Fatalf("reads at once: %d; want 2 to %d", r.most, maxParallel)
+		}
+		if len(s.Gaps) != 2 || s.Gaps[0].Resource != "jobs.batch" || s.Gaps[1].Resource != "secrets" {
+			t.Fatalf("gaps %+v", s.Gaps)
+		}
 	}
 }
