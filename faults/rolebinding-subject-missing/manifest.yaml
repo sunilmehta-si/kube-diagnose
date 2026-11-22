@@ -1,0 +1,66 @@
+# A RoleBinding grants its Role to ServiceAccount apps, which does not exist; the worker runs as app, which no binding names, so the API server answers it with 403.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rolebinding-subject-missing
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  namespace: kd-rolebinding-subject-missing
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: configmap-reader
+  namespace: kd-rolebinding-subject-missing
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: read-config
+  namespace: kd-rolebinding-subject-missing
+subjects:
+  - kind: ServiceAccount
+    name: apps
+    namespace: kd-rolebinding-subject-missing
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: configmap-reader
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: settings
+  namespace: kd-rolebinding-subject-missing
+data:
+  mode: production
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: kd-rolebinding-subject-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      serviceAccountName: app
+      containers:
+        - name: worker
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Lists the namespace's ConfigMaps through the API, as an app that watches its settings does.
+          command: ["sh", "-c", "wget -T 10 -O /dev/null --no-check-certificate --header \"Authorization: Bearer $(cat /var/run/secrets/kubernetes.io/serviceaccount/token)\" https://kubernetes.default.svc/api/v1/namespaces/kd-rolebinding-subject-missing/configmaps || exit 1; echo 'settings loaded'; sleep 3600"]
