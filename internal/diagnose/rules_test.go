@@ -3881,7 +3881,7 @@ func TestResourceQuotaRequiresALimitThePodsDoNotSet(t *testing.T) {
 	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
 		`Error creating: pods "web-rs-x7k2p" is forbidden: failed quota: compute: must specify limits.memory for: web`, time.Minute)}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD293", "Deployment shop/web", "ResourceQuota compute puts a quota on limits.memory, which", "container web sets no resources.limits.memory", "The quota is not used up")
+	expect(t, f, "KD275", "Deployment shop/web", "ResourceQuota compute puts a quota on limits.memory, which", "container web sets no resources.limits.memory", "The quota is not used up")
 	if !strings.HasPrefix(f.Fix, "Set resources.limits.memory on the containers named, or add a LimitRange") {
 		t.Errorf("fix %q", f.Fix)
 	}
@@ -3889,7 +3889,7 @@ func TestResourceQuotaRequiresALimitThePodsDoNotSet(t *testing.T) {
 	// Two resources, one of them missing from two containers; plain cpu counts requests.
 	s.Events[0].Message = `Error creating: pods "web-rs-x7k2p" is forbidden: failed quota: compute: must specify cpu for: proxy,web; limits.memory for: web`
 	f = only(t, Diagnose(s))
-	expect(t, f, "KD293", "Deployment shop/web", "puts a quota on cpu and limits.memory", "containers proxy, web set no resources.requests.cpu; container web sets no resources.limits.memory")
+	expect(t, f, "KD275", "Deployment shop/web", "puts a quota on cpu and limits.memory", "containers proxy, web set no resources.requests.cpu; container web sets no resources.limits.memory")
 
 	// A quota that is used up is still KD170.
 	s.Events[0].Message = `Error creating: pods "web-rs-x7k2p" is forbidden: exceeded quota: compute, requested: limits.memory=1Gi, used: limits.memory=4Gi, limited: limits.memory=4Gi`
@@ -4004,7 +4004,7 @@ func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
 	s, _ := rbacSnapshot()
 	s.RoleBindings[0].RoleRef.Name = "config-reader"
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD294", "ReplicaSet shop/worker-rs", "the API server refuses its ServiceAccount app", "RoleBinding read-config grants Role config-reader to ServiceAccount app",
+	expect(t, f, "KD227", "ReplicaSet shop/worker-rs", "the API server refuses its ServiceAccount app", "RoleBinding read-config grants Role config-reader to ServiceAccount app",
 		"there is no Role config-reader in namespace shop, so the binding grants nothing", "the namespace's Roles are configmap-reader", "403 Forbidden")
 	if !strings.Contains(f.Fix, "a binding's roleRef cannot be changed, so delete RoleBinding read-config and create it again") {
 		t.Errorf("fix %q", f.Fix)
@@ -4012,7 +4012,7 @@ func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
 
 	// The API server's own sentence, as client-go prints it.
 	s.Logs[0].Lines = []string{`configmaps is forbidden: User "system:serviceaccount:shop:app" cannot list resource "configmaps" in API group "" in the namespace "shop"`}
-	expect(t, only(t, Diagnose(s)), "KD294", "ReplicaSet shop/worker-rs", "RoleBinding read-config grants Role config-reader")
+	expect(t, only(t, Diagnose(s)), "KD227", "ReplicaSet shop/worker-rs", "RoleBinding read-config grants Role config-reader")
 
 	// Nothing fails yet: the binding is reported on its own, as a warning.
 	s, p := rbacSnapshot()
@@ -4020,14 +4020,14 @@ func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
 	*p = pod("worker-5c7d9-qwert", "worker")
 	s.Logs = nil
 	f = only(t, Diagnose(s))
-	expect(t, f, "KD294", "RoleBinding shop/read-config", "there is no Role config-reader in namespace shop")
+	expect(t, f, "KD227", "RoleBinding shop/read-config", "there is no Role config-reader in namespace shop")
 	if f.Severity != Warning {
 		t.Errorf("severity %v", f.Severity)
 	}
 
 	// A ClusterRole that does not exist, and one that does.
 	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "ClusterRole", "viewer"
-	expect(t, only(t, Diagnose(s)), "KD294", "RoleBinding shop/read-config", "there is no ClusterRole viewer in the cluster")
+	expect(t, only(t, Diagnose(s)), "KD227", "RoleBinding shop/read-config", "there is no ClusterRole viewer in the cluster")
 	s.RoleBindings[0].RoleRef.Name = "view"
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("%+v", r.Findings)
@@ -4043,7 +4043,7 @@ func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
 	s.RoleBindings[0].RoleRef.Name = "config-reader"
 	s.Roles = nil
 	s.Gaps = []snapshot.Gap{{Resource: "roles.rbac.authorization.k8s.io", Namespace: "shop", Error: "forbidden"}}
-	if f := only(t, Diagnose(s)); f.Rule == "KD294" {
+	if f := only(t, Diagnose(s)); f.Rule == "KD227" {
 		t.Errorf("roles unread: %s", f.Cause)
 	}
 }
@@ -4053,7 +4053,7 @@ func TestRoleBindingNamesAServiceAccountThatDoesNotExist(t *testing.T) {
 	s, _ := rbacSnapshot()
 	s.RoleBindings[0].Subjects[0].Name = "apps"
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD295", "ReplicaSet shop/worker-rs", "refuses its ServiceAccount app, which no RoleBinding of namespace shop names",
+	expect(t, f, "KD228", "ReplicaSet shop/worker-rs", "refuses its ServiceAccount app, which no RoleBinding of namespace shop names",
 		"RoleBinding read-config grants Role configmap-reader to ServiceAccount apps", "there is no ServiceAccount apps")
 	if !strings.HasPrefix(f.Fix, "Set the subject of RoleBinding read-config to ServiceAccount app (a binding's subjects can be edited)") {
 		t.Errorf("fix %q", f.Fix)
@@ -4066,7 +4066,7 @@ func TestRoleBindingNamesAServiceAccountThatDoesNotExist(t *testing.T) {
 	p.Spec.ServiceAccountName = "app"
 	s.Logs = nil
 	f = only(t, Diagnose(s))
-	expect(t, f, "KD295", "RoleBinding shop/read-config", "there is no ServiceAccount apps in namespace shop, so nothing receives the permission",
+	expect(t, f, "KD228", "RoleBinding shop/read-config", "there is no ServiceAccount apps in namespace shop, so nothing receives the permission",
 		"pods here run as ServiceAccount app, which no RoleBinding of the namespace names")
 	if f.Severity != Warning {
 		t.Errorf("severity %v", f.Severity)
@@ -4205,7 +4205,7 @@ func TestLimitRangeDefaultLimitIsBelowTheRequest(t *testing.T) {
 	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
 		`Error creating: Pod "web-rs-x7k2p" is invalid: spec.containers[0].resources.requests: Invalid value: "256Mi": must be less than or equal to memory limit of 128Mi`, time.Minute)}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD296", "Deployment shop/web", "container web requests 256Mi of memory and sets no memory limit", "the namespace's LimitRange gave it its default limit, 128Mi")
+	expect(t, f, "KD276", "Deployment shop/web", "container web requests 256Mi of memory and sets no memory limit", "the namespace's LimitRange gave it its default limit, 128Mi")
 	if !strings.HasPrefix(f.Fix, "Set the memory limit of container web in the pod template, at or above its request of 256Mi") {
 		t.Errorf("fix %q", f.Fix)
 	}

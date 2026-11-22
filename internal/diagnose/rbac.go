@@ -147,13 +147,13 @@ func rbacFindings(ix *index) []Finding {
 		if missing, have := roleMissing(ix, b); missing {
 			cause, fix := roleMissingText(b, have)
 			kind := strings.ToLower(b.RoleRef.Kind) + "s"
-			out = append(out, Finding{Rule: "KD294", Title: "RoleBinding grants a Role that does not exist", Severity: Warning, Object: b.Ref(), Cause: cause, Fix: fix,
+			out = append(out, Finding{Rule: "KD227", Title: "RoleBinding grants a Role that does not exist", Severity: Warning, Object: b.Ref(), Cause: cause, Fix: fix,
 				Evidence: []Evidence{bindingEvidence(b), {Object: kube.Ref{Kind: b.RoleRef.Kind, Namespace: ns, Name: b.RoleRef.Name},
 					What: fmt.Sprintf("there is no %s %s", b.RoleRef.Kind, b.RoleRef.Name), Command: "kubectl get " + kind + nsFlagFor(b)}}})
 			continue
 		}
 		if sa, ok := missingSubject(ix, b); ok {
-			out = append(out, Finding{Rule: "KD295", Title: "RoleBinding names a ServiceAccount that does not exist", Severity: Warning, Object: b.Ref(),
+			out = append(out, Finding{Rule: "KD228", Title: "RoleBinding names a ServiceAccount that does not exist", Severity: Warning, Object: b.Ref(),
 				Cause: fmt.Sprintf("RoleBinding %s grants %s %s to ServiceAccount %s, and there is no ServiceAccount %s in namespace %s, so nothing receives the permission%s",
 					b.Metadata.Name, b.RoleRef.Kind, b.RoleRef.Name, sa, sa, ns, unboundAccounts(ix, ns)),
 				Fix: fmt.Sprintf("Set the subject of RoleBinding %s to the ServiceAccount the pods run as (a binding's subjects can be edited), or create ServiceAccount %s and run the pods as it.", b.Metadata.Name, sa),
@@ -221,7 +221,7 @@ func rbacBroken(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, 
 		named = true
 		if missing, have := roleMissing(ix, b); missing {
 			cause, fix := roleMissingText(b, have)
-			return newProblem(p, cs.Name, "KD294", "RoleBinding grants a Role that does not exist", Critical,
+			return newProblem(p, cs.Name, "KD227", "RoleBinding grants a Role that does not exist", Critical,
 				fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: %s; its log says: %q", cs.Name, sa, cause, clip(line, 200)),
 				"rbacrole|"+b.Metadata.Name, fix, append(ev, bindingEvidence(b))...)
 		}
@@ -234,7 +234,7 @@ func rbacBroken(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, 
 			continue
 		}
 		if ghost, ok := missingSubject(ix, b); ok {
-			return newProblem(p, cs.Name, "KD295", "RoleBinding names a ServiceAccount that does not exist", Critical,
+			return newProblem(p, cs.Name, "KD228", "RoleBinding names a ServiceAccount that does not exist", Critical,
 				fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s, which no RoleBinding of namespace %s names: RoleBinding %s grants %s %s to ServiceAccount %s, and there is no ServiceAccount %s, so nothing receives the permission; its log says: %q",
 					cs.Name, sa, ns, b.Metadata.Name, b.RoleRef.Kind, b.RoleRef.Name, ghost, ghost, clip(line, 200)),
 				"rbacsubject|"+b.Metadata.Name,

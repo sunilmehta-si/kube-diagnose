@@ -1,7 +1,7 @@
 {
   "namespace": "kd-rolebinding-subject-missing",
   "description": "A RoleBinding grants its Role to ServiceAccount apps, which does not exist; the worker runs as app, which no binding names, so the API server answers it with 403.",
-  "rule": "KD295",
+  "rule": "KD228",
   "object": "Deployment/worker",
   "keywords": [
     [

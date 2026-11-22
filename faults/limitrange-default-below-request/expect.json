@@ -1,7 +1,7 @@
 {
   "namespace": "kd-limitrange-default-below-request",
   "description": "A container requests 256Mi of memory and sets no limit; the namespace LimitRange gives it a default limit of 128Mi, below the request, so the API server calls every pod invalid and none is created.",
-  "rule": "KD296",
+  "rule": "KD276",
   "object": "Deployment/web",
   "keywords": [
     [

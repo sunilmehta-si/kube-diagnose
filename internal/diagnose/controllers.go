@@ -425,7 +425,7 @@ func quotaRequires(f *Finding, owner kube.Ref, m []string) {
 		names = append(names, res)
 		set = append(set, field(res))
 	}
-	f.Rule, f.Title = "KD293", "ResourceQuota requires a request or limit the pods do not set"
+	f.Rule, f.Title = "KD275", "ResourceQuota requires a request or limit the pods do not set"
 	f.Cause = fmt.Sprintf("%s cannot create pods: ResourceQuota %s puts a quota on %s, which the API server can only count when every container sets it, and %s. The quota is not used up: the pods are refused for leaving the field out",
 		owner, quota, strings.Join(names, " and "), strings.Join(missing, "; "))
 	f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "ResourceQuota", Namespace: ns, Name: quota},
@@ -474,7 +474,7 @@ func defaultBelowRequest(ix *index, f *Finding, src, owner kube.Ref, m []string)
 		}
 		break
 	}
-	f.Rule, f.Title = "KD296", "LimitRange's default limit is below the container's request"
+	f.Rule, f.Title = "KD276", "LimitRange's default limit is below the container's request"
 	f.Cause = fmt.Sprintf("%s cannot create pods: %s requests %s of %s and sets no %s limit, so the namespace's LimitRange gave it its default limit, %s, and a request above the limit makes the pod invalid", owner, container, request, res, res, limit)
 	if ownLimit != "" {
 		f.Cause = fmt.Sprintf("%s cannot create pods: %s requests %s of %s, above its %s limit of %s, which makes the pod invalid", owner, container, request, res, res, limit)
