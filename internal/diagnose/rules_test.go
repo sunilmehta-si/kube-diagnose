@@ -4078,3 +4078,44 @@ func TestRoleBindingNamesAServiceAccountThatDoesNotExist(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestNetworkPolicyAllowsTheServicePortNotThePodsPort(t *testing.T) {
+	s := snap()
+	web := pod("web-7d4f8-abcde", "web")
+	client := pod("client-5c7d9-qwert", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	crashed(&client, 1, "Error", 3)
+	s.Pods = []kube.Pod{client, web}
+	svc := service("web", map[string]string{"app": "web"}, port(8080))
+	svc.Spec.ClusterIP = "10.96.40.12"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web (10.96.40.12:80)", "wget: download timed out"}}}
+	eighty, dns := kube.IntOrString{Int: 80}, kube.IntOrString{Int: 53}
+	np := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "client-egress", Namespace: "shop"}}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "client"}}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	np.Spec.Egress = []kube.NetworkPolicyRule{
+		{Ports: []kube.NetworkPolicyPort{{Port: &dns}}},
+		{To: []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}}}, Ports: []kube.NetworkPolicyPort{{Port: &eighty}}},
+	}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy client-egress allows egress between them on port 80, the Service's port",
+		"checked after the Service has forwarded the connection, against the pods' own port 8080 (the targetPort), which no rule allows")
+	if !strings.HasPrefix(f.Fix, "In NetworkPolicy client-egress, allow port 8080, the pods' port, in place of 80") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The same mistake on the servers' side: ingress allowed on the Service's port.
+	in := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "web-ingress", Namespace: "shop"}}
+	in.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+	in.Spec.Ingress = []kube.NetworkPolicyRule{{From: []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "client"}}}}, Ports: []kube.NetworkPolicyPort{{Port: &eighty}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{in}
+	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy web-ingress allows ingress between them on port 80, the Service's port")
+
+	// The rule for port 80 is for other pods: the client is simply not allowed, as before.
+	s.NetworkPolicies[0].Spec.Ingress[0].From[0].PodSelector.MatchLabels["app"] = "api"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy web-ingress allows no ingress traffic between them on port 8080")
+}
