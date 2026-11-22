@@ -434,6 +434,14 @@ func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if t := cs.State.Terminated; t != nil && (t.ExitCode != 0 || t.Reason == "OOMKilled") && (p.Status.Phase == "Failed" || cs.RestartCount > 0) {
 		return crash(ix, p, cs)
 	}
+	// Exited just now with code 0, again: a container of a long-running workload whose process keeps finishing. The
+	// kubelet restarts it each time, and between an exit and the back-off its state reads Completed, not
+	// CrashLoopBackOff. An init container, and a Job's container, are meant to finish.
+	if t := cs.State.Terminated; t != nil && t.ExitCode == 0 && cs.RestartCount >= 2 && p.Status.Phase == "Running" && !isInit(p, cs.Name) {
+		if o, ok := p.Metadata.Controller(); !ok || o.Kind != "Job" {
+			return crash(ix, p, cs)
+		}
+	}
 	// Running now, but killed before: out of memory or by its liveness probe, again and again.
 	if lt := cs.LastTerminationState.Terminated; lt != nil && cs.RestartCount > 0 && cs.State.Running != nil {
 		if lt.Reason == "OOMKilled" {

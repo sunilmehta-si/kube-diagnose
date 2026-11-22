@@ -4342,3 +4342,27 @@ func TestAdmissionWebhookCannotBeReached(t *testing.T) {
 	s.Events[0].Message = `Error creating: admission webhook "pods.policy.example.com" denied the request: images must come from registry.example.com`
 	expect(t, only(t, Diagnose(s)), "KD173", "Deployment shop/web")
 }
+
+// TestContainerCaughtJustAfterFinishing is a Deployment's container whose process ends with code 0 each time, as the
+// fault suite recorded it between an exit and the kubelet's back-off: state terminated, reason Completed, five
+// restarts. It used to yield no finding at all.
+func TestContainerCaughtJustAfterFinishing(t *testing.T) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	p.Spec.Containers[0].Command = []string{"/app/migrate"}
+	notReady(&p)
+	done := &kube.ContainerStateTerminated{ExitCode: 0, Reason: "Completed"}
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Terminated: done}
+	p.Status.ContainerStatuses[0].LastTerminationState = kube.ContainerState{Terminated: done}
+	p.Status.ContainerStatuses[0].RestartCount = 5
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "ReplicaSet shop/worker-rs", "process finishes with code 0", "a long-running container is expected")
+
+	// A Job's container that finished, and an init container, did what they were meant to.
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "migrate", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("job: %+v", r.Findings)
+	}
+}
