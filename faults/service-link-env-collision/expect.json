@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-service-link-env-collision",
+  "description": "A worker keeps its cache port in CACHE_PORT, and a Service named cache makes the kubelet set CACHE_PORT=tcp://IP:6379 in every container of the namespace, so the worker gets an address where it expects a port number.",
+  "rule": "KD223",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "CACHE_PORT"
+    ],
+    [
+      "service link",
+      "enableServiceLinks",
+      "kubelet set",
+      "Kubernetes set",
+      "injected"
+    ]
+  ]
+}

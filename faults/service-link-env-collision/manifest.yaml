@@ -1,0 +1,67 @@
+# A worker keeps its cache port in CACHE_PORT, and a Service named cache makes the kubelet set CACHE_PORT=tcp://IP:6379 in every container of the namespace, so the worker gets an address where it expects a port number.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-service-link-env-collision
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache
+  namespace: kd-service-link-env-collision
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cache
+  template:
+    metadata:
+      labels:
+        app: cache
+    spec:
+      containers:
+        - name: cache
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 6379 -h /www"]
+          ports:
+            - name: cache
+              containerPort: 6379
+          readinessProbe:
+            tcpSocket:
+              port: 6379
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cache
+  namespace: kd-service-link-env-collision
+spec:
+  selector:
+    app: cache
+  ports:
+    - name: cache
+      port: 6379
+      targetPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: worker
+  namespace: kd-service-link-env-collision
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: worker
+  template:
+    metadata:
+      labels:
+        app: worker
+    spec:
+      containers:
+        - name: worker
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # The worker keeps the cache's port in CACHE_PORT, 6379 unless it is set.
+          command: ["sh", "-c", "port=\"${CACHE_PORT:-6379}\"; echo \"connecting to cache:$port\"; wget -q -T 5 -O /dev/null \"http://cache:$port/\" || { echo \"cannot reach the cache on port $port\"; exit 1; }; sleep 3600"]
