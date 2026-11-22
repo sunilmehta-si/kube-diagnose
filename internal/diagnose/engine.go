@@ -99,7 +99,11 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	r.Findings = append(r.Findings, cronJobFindings(ix, explained)...)
 	r.Findings = append(r.Findings, hpaFindings(ix)...)
 	r.Findings = append(r.Findings, pdbFindings(ix)...)
-	r.Findings = append(r.Findings, networkPolicyFindings(ix)...)
+	for _, f := range networkPolicyFindings(ix) {
+		if !reported(r.Findings, f) {
+			r.Findings = append(r.Findings, f)
+		}
+	}
 	r.Findings = append(r.Findings, statefulSetFindings(ix)...)
 	r.Findings = append(r.Findings, nodeFindings(ix)...)
 	sort.SliceStable(r.Findings, func(i, j int) bool {
@@ -196,4 +200,20 @@ func uncreatedOrdinals(ix *index, sts kube.Ref, desired int32) []string {
 		}
 	}
 	return missing
+}
+
+// reported says whether a finding for a pod already rests on the object a finding of the same rule is about: the
+// pod's finding names that object as its cause, so saying it again would count one cause twice.
+func reported(findings []Finding, f Finding) bool {
+	for _, g := range findings {
+		if g.Rule != f.Rule {
+			continue
+		}
+		for _, e := range g.Evidence {
+			if e.Object == f.Object {
+				return true
+			}
+		}
+	}
+	return false
 }

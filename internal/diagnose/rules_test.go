@@ -3895,3 +3895,85 @@ func TestResourceQuotaRequiresALimitThePodsDoNotSet(t *testing.T) {
 	s.Events[0].Message = `Error creating: pods "web-rs-x7k2p" is forbidden: exceeded quota: compute, requested: limits.memory=1Gi, used: limits.memory=4Gi, limited: limits.memory=4Gi`
 	expect(t, only(t, Diagnose(s)), "KD170", "Deployment shop/web", "is used up")
 }
+
+func TestNetworkPolicyNamespaceSelectorMatchesNoNamespace(t *testing.T) {
+	namespaces := func(names ...string) []kube.Namespace {
+		var out []kube.Namespace
+		for _, n := range names {
+			out = append(out, kube.Namespace{Metadata: kube.ObjectMeta{Name: n, Labels: map[string]string{"kubernetes.io/metadata.name": n}}})
+		}
+		return out
+	}
+	build := func() *snapshot.Snapshot {
+		s := snap()
+		web := pod("web-7d4f8-abcde", "web")
+		client := pod("client-5c7d9-qwert", "client")
+		client.Metadata.Labels = map[string]string{"app": "client"}
+		crashed(&client, 1, "Error", 3)
+		s.Pods = []kube.Pod{client, web}
+		svc := service("web", map[string]string{"app": "web"}, port(8080))
+		svc.Spec.ClusterIP = "10.96.40.12"
+		s.Services = []kube.Service{svc}
+		s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+		s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web (10.96.40.12:80)", "wget: download timed out"}}}
+		np := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "web-ingress", Namespace: "shop"}}
+		np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+		np.Spec.Ingress = []kube.NetworkPolicyRule{{From: []kube.NetworkPolicyPeer{{NamespaceSelector: &kube.LabelSelector{MatchLabels: map[string]string{"name": "shop"}}}}}}
+		s.NetworkPolicies = []kube.NetworkPolicy{np}
+		s.NamespaceObjects = namespaces("default", "kube-system", "shop")
+		return s
+	}
+
+	// The client's connection is dropped, and the selector that matches no namespace is why: one finding, on the
+	// client, naming the policy; the policy's own finding is not repeated.
+	s := build()
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD274", "ReplicaSet shop/client-rs", "connection to Service web times out", "NetworkPolicy web-ingress allows ingress on port 8080 only from namespaces labelled name=shop",
+		"no namespace of the cluster has those labels", "namespace shop exists, and its labels are kubernetes.io/metadata.name=shop")
+	if !strings.Contains(f.Fix, "namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: shop}}") || !strings.Contains(f.Fix, "kubectl label namespace shop name=shop") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Nothing is failing: the policy's finding stands alone, as a warning.
+	s = build()
+	s.Pods[0] = pod("client-5c7d9-qwert", "client")
+	s.Pods[0].Metadata.Labels = map[string]string{"app": "client"}
+	s.Logs = nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD274", "NetworkPolicy shop/web-ingress", "has an ingress rule that allows traffic from namespaces labelled name=shop", "so the rule allows nothing")
+	if f.Severity != Warning {
+		t.Errorf("severity %v", f.Severity)
+	}
+
+	// A label that names no namespace either: no namespace to point at.
+	s = build()
+	s.NetworkPolicies[0].Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels = map[string]string{"team": "frontend"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD274", "ReplicaSet shop/client-rs", "namespaces labelled team=frontend")
+	if strings.Contains(f.Cause, "exists, and its labels") || !strings.Contains(f.Fix, "kubectl get namespaces --show-labels") {
+		t.Errorf("cause %q fix %q", f.Cause, f.Fix)
+	}
+
+	// The namespace has the label: the selector matches, and the connection has another cause.
+	s = build()
+	s.NamespaceObjects[2].Metadata.Labels["name"] = "shop"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD274" || f.Rule == "KD127" {
+			t.Errorf("labelled namespace: %s %s", f.Rule, f.Cause)
+		}
+	}
+
+	// The selector matches another namespace only: the rule is alive, and it does not admit this namespace's client.
+	s = build()
+	s.NamespaceObjects[0].Metadata.Labels["name"] = "shop"
+	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy web-ingress allows no ingress traffic")
+
+	// A snapshot without the cluster's namespaces (recorded before they were read, or not permitted): no claim.
+	s = build()
+	s.NamespaceObjects = nil
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD274" || f.Rule == "KD127" {
+			t.Errorf("namespaces unread: %s %s", f.Rule, f.Cause)
+		}
+	}
+}
