@@ -1094,6 +1094,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := shellVar(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := shellOperators(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := envOrder(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}

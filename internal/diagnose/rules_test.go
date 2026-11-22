@@ -4241,3 +4241,36 @@ func TestClaimFindingOutlastsTheTenMinuteMarks(t *testing.T) {
 		t.Errorf("the waiting pod should be listed under the claim: %v", f.Affects)
 	}
 }
+
+func TestCommandUsesAShellOperatorWithNoShell(t *testing.T) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"echo", "starting", "&&", "sleep", "3600"}
+	crashed(&p, 0, "Completed", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"starting && sleep 3600"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD226", "ReplicaSet shop/worker-rs", "runs echo starting && sleep 3600 with no shell", "&& is a shell operator (run the next command if the first succeeds)",
+		"one more argument to echo", `its log shows the operator as text: "starting && sleep 3600"`)
+	if !strings.HasPrefix(f.Fix, `Run the line through a shell: command: ["sh", "-c", "echo starting && sleep 3600"]`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A pipe in args, and a log that does not show it.
+	c.Command, c.Args = []string{"/app/export"}, []string{"--all", "|", "gzip"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"export: unexpected argument"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD226", "ReplicaSet shop/worker-rs", "| is a shell operator (pipe the output into the next command)", "one more argument to /app/export")
+	if strings.Contains(f.Cause, "its log shows") {
+		t.Errorf("cause %q", f.Cause)
+	}
+
+	// A shell does run the line: the operator works, and the crash has another cause.
+	c.Command, c.Args = []string{"sh", "-c", "echo starting && exit 3"}, nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD226" {
+		t.Errorf("with a shell: %s", f.Cause)
+	}
+}
