@@ -1312,9 +1312,11 @@ func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
 	s.Logs[0].Lines = []string{`psql: error: connection to server at "db" (10.96.12.7), port 5432 failed: Connection refused`}
 	expect(t, Diagnose(s).Findings[0], "KD124", "Deployment shop/web", "Service db refuses its connection")
 
-	// A Service with a ready pod refuses for another reason: the crash rule quotes the log.
+	// A Service with a ready pod whose readiness probe reaches the port refuses for another reason: the crash rule
+	// quotes the log.
 	q := pod("db-1", "")
 	q.Metadata.Labels = map[string]string{"app": "db"}
+	q.Spec.Containers[0].ReadinessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: port(5432)}}
 	s.Pods = append(s.Pods, q)
 	if f := Diagnose(s).Findings[0]; f.Rule != "KD110" {
 		t.Errorf("with a ready db pod: %s %s", f.Rule, f.Cause)
@@ -3691,5 +3693,67 @@ func TestNonRootContainerIsDeniedAPathInItsImage(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	if f := only(t, Diagnose(s)); f.Rule == "KD224" {
 		t.Errorf("root: %s", f.Cause)
+	}
+}
+
+func TestServicesPodsRefuseThePortItTargets(t *testing.T) {
+	s := snap()
+	web := pod("web-7d4f8-abcde", "web")
+	web.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 80}}
+	web.Spec.Containers[0].Command = []string{"sh", "-c", "exec httpd -f -p 8080 -h /www"}
+	client := pod("client-5c7d9-qwert", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	client.Spec.Containers[0].Ports = nil
+	crashed(&client, 1, "Error", 4)
+	s.Pods = []kube.Pod{client, web}
+	svc := service("web", map[string]string{"app": "web"}, port(80))
+	svc.Spec.ClusterIP = "10.96.20.5"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true,
+		Lines: []string{"Connecting to web (10.96.20.5:80)", "wget: can't connect to remote host (10.96.20.5): Connection refused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD225", "ReplicaSet shop/client-rs", "Service web refuses its connection on port 80, though the Service has ready pods",
+		"forwards port 80 to the pods' port 80", "nothing in pod web-7d4f8-abcde listens there", "no readiness probe checks that port", "names port 8080")
+	if !strings.HasPrefix(f.Fix, "Set Service web's targetPort to 8080, the port the app listens on by its command or env") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// No port in the command to point at.
+	web.Spec.Containers[0].Command = []string{"/server"}
+	s.Pods = []kube.Pod{client, web}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD225", "ReplicaSet shop/client-rs")
+	if strings.Contains(f.Cause, "likely where the app listens") || !strings.HasPrefix(f.Fix, "Set Service web's targetPort to the port the app listens on (") {
+		t.Errorf("cause %q fix %q", f.Cause, f.Fix)
+	}
+
+	// A readiness probe on the target port passes, so something does listen there: not this rule.
+	web.Spec.Containers[0].ReadinessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: port(80)}}
+	s.Pods = []kube.Pod{client, web}
+	if f := only(t, Diagnose(s)); f.Rule == "KD225" {
+		t.Errorf("probed port: %s", f.Cause)
+	}
+
+	// The client was refused seconds after the server's container started: it may only have been early.
+	web.Spec.Containers[0].ReadinessProbe = nil
+	client.Status.ContainerStatuses[0].LastTerminationState.Terminated.FinishedAt = t0.Add(5 * time.Second)
+	s.Pods = []kube.Pod{client, web}
+	if f := only(t, Diagnose(s)); f.Rule == "KD225" {
+		t.Errorf("early client: %s", f.Cause)
+	}
+	client.Status.ContainerStatuses[0].LastTerminationState.Terminated.FinishedAt = t0.Add(5 * time.Minute)
+	s.Pods = []kube.Pod{client, web}
+	expect(t, only(t, Diagnose(s)), "KD225", "ReplicaSet shop/client-rs")
+
+	// No ready pods: the Service refuses for that reason (KD124).
+	web.Spec.Containers[0].ReadinessProbe = nil
+	notReady(&web)
+	s.Pods = []kube.Pod{client, web}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 0)}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD225" {
+			t.Errorf("no ready pods: %s", f.Cause)
+		}
 	}
 }

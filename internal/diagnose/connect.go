@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -153,4 +154,122 @@ func servicePortNotExposed(ix *index, p kube.Pod, cs kube.ContainerStatus, lines
 		fmt.Sprintf("container %s exits because its connection to Service %s on port %d %s: the Service does not expose %d, %s; its log says: %q",
 			cs.Name, name, port, result, port, listens, clip(line, 200)),
 		"svcport|"+name+"|"+strconv.Itoa(int(port)), fix, ev...)
+}
+
+// rePortInCommand matches a port given to a server on its command line: "-p 8080", "--port=8080", "--listen :8080",
+// "--bind 0.0.0.0:8080".
+var rePortInCommand = regexp.MustCompile(`(?:(?:^|\s)-p|--[a-z-]*(?:port|listen|bind|addr[a-z]*))[ =](?:[^\s:]*:)?(\d{2,5})\b`)
+
+// commandPorts lists the ports a pod's containers are told to listen on by their command lines or by a PORT-like
+// variable, in the order found.
+func commandPorts(p kube.Pod) []int32 {
+	var out []int32
+	add := func(s string) {
+		n, err := strconv.Atoi(s)
+		if err != nil || n < 1 || n > 65535 {
+			return
+		}
+		for _, x := range out {
+			if x == int32(n) {
+				return
+			}
+		}
+		out = append(out, int32(n))
+	}
+	for _, c := range p.Spec.Containers {
+		cmd := strings.Join(append(append([]string{}, c.Command...), c.Args...), " ")
+		for _, m := range rePortInCommand.FindAllStringSubmatch(cmd, -1) {
+			add(m[1])
+		}
+		for _, e := range c.Env {
+			if e.Name == "PORT" || strings.HasSuffix(e.Name, "_PORT") {
+				add(e.Value)
+			}
+		}
+	}
+	return out
+}
+
+// probesPort reports whether a readiness probe of the pod checks the port over the network.
+func probesPort(p kube.Pod, port int32, name string) bool {
+	is := func(v kube.IntOrString) bool {
+		return (!v.IsName && v.Int == port) || (v.IsName && name != "" && v.Str == name)
+	}
+	for _, c := range p.Spec.Containers {
+		pr := c.ReadinessProbe
+		if pr == nil {
+			continue
+		}
+		if (pr.HTTPGet != nil && is(pr.HTTPGet.Port)) || (pr.TCPSocket != nil && is(pr.TCPSocket.Port)) || (pr.GRPC != nil && pr.GRPC.Port == port) {
+			return true
+		}
+	}
+	return false
+}
+
+// refusedByReadyPods finds a container that exits because a Service of its namespace refuses its connection on a
+// port the Service does expose, while the Service has ready pods. With endpoints behind it a cluster IP forwards
+// the connection, so the refusal comes from the pod: nothing listens on the Service's targetPort there. The pod
+// still counts as ready when no readiness probe checks that port.
+func refusedByReadyPods(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	host, port, how, line := connectFailure(lines)
+	if how != "refused" || loopback(host) {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	svc, ok := serviceByHost(ix, ns, host)
+	if !ok || len(svc.Spec.Selector) == 0 || svc.Spec.ClusterIP == "None" || svc.Spec.Type == "ExternalName" {
+		return nil
+	}
+	var sp *kube.ServicePort
+	for i, q := range svc.Spec.Ports {
+		if q.Port == port || (port == 0 && len(svc.Spec.Ports) == 1) {
+			sp = &svc.Spec.Ports[i]
+		}
+	}
+	if sp == nil {
+		return nil
+	}
+	var backend *kube.Pod
+	for i, q := range ix.s.Pods {
+		if q.Metadata.Namespace == ns && q.Ready() && kube.MatchesMap(svc.Spec.Selector, q.Metadata.Labels) {
+			backend = &ix.s.Pods[i]
+			break
+		}
+	}
+	if backend == nil {
+		return nil // no ready pods: KD124
+	}
+	tport, tname := backendPort(svc, sp.Port, *backend)
+	if probesPort(*backend, tport, tname) {
+		return nil // the kubelet reaches that port, so something listens there: the refusal has another cause
+	}
+	// A server with no readiness probe is Ready the moment its container starts, before it listens: a client that
+	// was refused within the server's first half minute may only have been early.
+	if t := lastExit(cs); t != nil && !t.FinishedAt.IsZero() {
+		for _, bs := range backend.Status.ContainerStatuses {
+			if r := bs.State.Running; r != nil && !r.StartedAt.IsZero() && t.FinishedAt.Before(r.StartedAt.Add(30*time.Second)) {
+				return nil
+			}
+		}
+	}
+	name := svc.Metadata.Name
+	hint, fixPort := "", "the port the app listens on"
+	for _, n := range commandPorts(*backend) {
+		if n != tport {
+			hint = fmt.Sprintf("; the pod's command or env names port %d, which is likely where the app listens", n)
+			fixPort = fmt.Sprintf("%d, the port the app listens on by its command or env", n)
+			break
+		}
+	}
+	ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s forwards port %d to the pods' port %d", name, sp.Port, tport),
+		Command: cmdGet("service", ns, name, `{range .spec.ports[*]}{.port}{" -> "}{.targetPort}{"\n"}{end}`)},
+		Evidence{Object: backend.Ref(), What: fmt.Sprintf("pod %s is Ready and behind Service %s, and no readiness probe of it checks port %d", backend.Metadata.Name, name, tport),
+			Command: cmdGet("pod", ns, backend.Metadata.Name, `{range .spec.containers[*]}{.name}{" ports="}{.ports[*].containerPort}{" readiness="}{.readinessProbe}{" command="}{.command}{" "}{.args}{"\n"}{end}`)})
+	return newProblem(p, cs.Name, "KD225", "Service's pods refuse the port it targets", Critical,
+		fmt.Sprintf("container %s exits because Service %s refuses its connection on port %d, though the Service has ready pods: it forwards port %d to the pods' port %d, and nothing in pod %s listens there, so the pod itself refuses. The pod counts as ready only because no readiness probe checks that port%s; its log says: %q",
+			cs.Name, name, sp.Port, sp.Port, tport, backend.Metadata.Name, hint, clip(line, 200)),
+		"notlistening|"+name+"|"+strconv.Itoa(int(sp.Port)),
+		fmt.Sprintf("Set Service %s's targetPort to %s (a containerPort in the pod spec is a label, not a setting: it does not make the app listen there), or make the app listen on %d on all interfaces (0.0.0.0, not 127.0.0.1). Then add a readiness probe on that port, so a pod that does not answer gets no traffic and shows as not ready.",
+			name, fixPort, tport), ev...)
 }
