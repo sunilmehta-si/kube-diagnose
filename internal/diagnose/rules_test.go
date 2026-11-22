@@ -4141,3 +4141,18 @@ func TestProbeCommandIsOneString(t *testing.T) {
 	s.Events[0].Message = strings.Replace(s.Events[0].Message, "Liveness probe errored and resulted in unknown state", "Readiness probe errored and resulted in unknown state", 1)
 	expect(t, only(t, Diagnose(s)), "KD120", "Pod shop/web", `readiness probe has the command line "cat /tmp/healthy" as one item`, "gets no traffic")
 }
+
+func TestJobStoppedByItsActiveDeadline(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "export", Namespace: "shop"}
+	limit, completions := int64(30), int32(1)
+	j.Spec.ActiveDeadlineSeconds, j.Spec.Completions = &limit, &completions
+	j.Status.Conditions = []kube.Condition{{Type: "Failed", Status: "True", Reason: "DeadlineExceeded", Message: "Job was active longer than specified deadline"}}
+	s.Jobs = []kube.Job{j}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD180", "Job shop/export", "stopped by its own activeDeadlineSeconds (30)", "still running 30s after it started", "0 of 1 completions had succeeded", "Nothing crashed")
+	if !strings.Contains(f.Fix, "recreate the Job with a higher activeDeadlineSeconds") || !strings.Contains(f.Fix, "kubectl logs -f job/export") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}

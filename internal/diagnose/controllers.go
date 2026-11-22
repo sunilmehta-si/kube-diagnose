@@ -151,11 +151,15 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		if !ok || c.Status != "True" || explained[j.Ref()] {
 			continue
 		}
-		out = append(out, Finding{Rule: "KD180", Title: "Job failed", Severity: Critical, Object: j.Ref(),
+		jf := Finding{Rule: "KD180", Title: "Job failed", Severity: Critical, Object: j.Ref(),
 			Cause: fmt.Sprintf("Job %s failed: %s (%s)", j.Metadata.Name, c.Reason, c.Message),
 			Evidence: []Evidence{{Object: j.Ref(), What: "Job condition Failed: " + c.Reason, Detail: c.Message,
 				Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.status.conditions[?(@.type=="Failed")]}`)}},
-			Fix: "Read the failed pods' logs if they still exist (kubectl logs job/" + j.Metadata.Name + "); raise backoffLimit or activeDeadlineSeconds only if the work is slow, not broken."})
+			Fix: "Read the failed pods' logs if they still exist (kubectl logs job/" + j.Metadata.Name + "); raise backoffLimit or activeDeadlineSeconds only if the work is slow, not broken."}
+		if c.Reason == "DeadlineExceeded" && j.Spec.ActiveDeadlineSeconds != nil {
+			pastDeadline(&jf, j)
+		}
+		out = append(out, jf)
 	}
 	for _, j := range ix.s.Jobs {
 		if f := suspendedJob(ix, j); f != nil && !explained[j.Ref()] {
@@ -425,4 +429,20 @@ func quotaRequires(f *Finding, owner kube.Ref, m []string) {
 		Evidence{Object: owner, What: "the containers' requests and limits",
 			Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{range .spec.template.spec.containers[*]}{.name}{" "}{.resources}{"\n"}{end}`)})
 	f.Fix = fmt.Sprintf("Set %s on the containers named, or add a LimitRange to the namespace with a default for it, so that containers which set none are given one.", strings.Join(set, " and "))
+}
+
+// pastDeadline explains a Job that its own activeDeadlineSeconds stopped. The deadline counts from the Job's start
+// and covers every retry; when it passes, the Job controller ends the pods that are still running and fails the
+// Job, so nothing has crashed and there is no failed pod to read: the work was cut off.
+func pastDeadline(f *Finding, j kube.Job) {
+	limit := *j.Spec.ActiveDeadlineSeconds
+	done := fmt.Sprintf("%d of its pods had succeeded", j.Status.Succeeded)
+	if j.Spec.Completions != nil {
+		done = fmt.Sprintf("%d of %d completions had succeeded", j.Status.Succeeded, *j.Spec.Completions)
+	}
+	f.Cause = fmt.Sprintf("Job %s was stopped by its own activeDeadlineSeconds (%d): it was still running %ds after it started, so the Job controller ended its pods and failed the Job (%s). Nothing crashed: the work was cut off, and its pods are gone",
+		j.Metadata.Name, limit, limit, done)
+	f.Evidence = append(f.Evidence, Evidence{Object: j.Ref(), What: fmt.Sprintf("the Job's activeDeadlineSeconds is %d", limit),
+		Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.spec.activeDeadlineSeconds}{" "}{.status.startTime}{" "}{.status.succeeded}`)})
+	f.Fix = fmt.Sprintf("If the work needs longer than %ds, recreate the Job with a higher activeDeadlineSeconds, or none: the deadline covers the whole Job from its start, every retry included. If the work hangs, read its log while it runs (kubectl logs -f job/%s): once the deadline passes the pods are deleted.", limit, j.Metadata.Name)
 }
