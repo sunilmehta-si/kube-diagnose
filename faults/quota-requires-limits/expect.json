@@ -1,0 +1,20 @@
+{
+  "namespace": "kd-quota-requires-limits",
+  "description": "A ResourceQuota limits limits.memory in the namespace and a Deployment sets requests only, so the API server refuses its pods for having no memory limit, though the quota is unused.",
+  "rule": "KD293",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "limits.memory",
+      "memory limit"
+    ],
+    [
+      "must specify",
+      "sets no",
+      "set no",
+      "requires",
+      "does not set",
+      "without"
+    ]
+  ]
+}
