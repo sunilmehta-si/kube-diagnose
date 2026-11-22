@@ -1,0 +1,23 @@
+{
+  "namespace": "kd-webhook-unreachable",
+  "description": "A validating webhook for pods points at a Service that does not exist and has failurePolicy: Fail, so the API server refuses every pod of the namespace though the webhook rejected nothing.",
+  "rule": "KD277",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "webhook"
+    ],
+    [
+      "pods.policy.example.com",
+      "policy"
+    ],
+    [
+      "does not exist",
+      "not found",
+      "cannot be reached",
+      "unreachable",
+      "failed calling",
+      "no endpoints"
+    ]
+  ]
+}
