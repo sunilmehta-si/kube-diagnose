@@ -375,7 +375,7 @@ The 19 added for 0.12.0 were named first, with the exact rule and object, on the
 with && and no shell, whose container the run caught just after it had finished with code 0, a state that gave no
 finding for any workload. The suite by then ran for more than ten minutes, and that showed two more gaps: past ten
 minutes the scheduler stops naming the claim a pod waits for and a Deployment passes its progress deadline, and each
-changed what was said about a pending claim. One scenario passed five runs and missed the sixth, through its own fault:
+changed what was said about a pending claim. One scenario passed four runs and missed the fifth, through its own fault:
 its client made a single request, in the moment before the NetworkPolicy took effect, and then sat idle; the clients of
 the policy scenarios now call every five seconds. A twentieth scenario, an admission webhook whose Service does not
 exist, was taken out again: a webhook configuration belongs to no namespace, and k8sgpt reported it in every namespace

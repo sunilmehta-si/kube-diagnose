@@ -38,8 +38,8 @@
 
 ### Changed
 - The cluster is read with up to eight kubectl calls at once, not one by one. On the fault suite's cluster a
-  namespace took about 2.0 seconds to read before and 0.8 after (the timings of runs 44985530110 and 44996999466).
-  The snapshot is the same either way.
+  namespace took 1.4 to 2.3 seconds to read before, over this round's three runs, and 0.8 to 1.4 after, over its
+  four (the runners differ from run to run). The snapshot is the same either way.
 - NetworkPolicy rules that select by namespace are judged against the namespaces' labels when those were read;
   before, any such rule counted as allowing the connection.
 - KD127 names a policy that allows the Service's port where the pods' port (the targetPort) is meant.
