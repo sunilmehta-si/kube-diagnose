@@ -3652,3 +3652,44 @@ func TestServiceLinkVariableReplacesTheAppsSetting(t *testing.T) {
 		}
 	}
 }
+
+func TestNonRootContainerIsDeniedAPathInItsImage(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	uid := int64(1000)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"mkdir: can't create directory '/www': Permission denied"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD224", "ReplicaSet shop/web-rs", "runs as user 1000 and is denied /www, a path of the image itself, not of a volume", "belong to root")
+	if !strings.HasPrefix(f.Fix, "Give the app a place it may write: mount an emptyDir at /www") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// nginx's way of saying it, in a container that only sets runAsNonRoot.
+	p.Spec.SecurityContext = nil
+	p.Spec.Containers[0].SecurityContext = &kube.SecurityContext{RunAsNonRoot: yes()}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{`nginx: [emerg] open() "/run/nginx.pid" failed (13: Permission denied)`}
+	expect(t, only(t, Diagnose(s)), "KD224", "ReplicaSet shop/web-rs", "runs as a user other than root and is denied /run/nginx.pid")
+
+	// The path is on a volume: that is KD137's, with fsGroup as the fix.
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "run", MountPath: "/run"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "run", EmptyDir: &kube.EmptyDirVolumeSource{}}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD137", "ReplicaSet shop/web-rs")
+
+	// Nothing says the container is not root: the denial has another cause.
+	p.Spec.Containers[0].VolumeMounts, p.Spec.Volumes, p.Spec.Containers[0].SecurityContext = nil, nil, nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD224" {
+		t.Errorf("no user set: %s", f.Cause)
+	}
+	root := int64(0)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &root}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD224" {
+		t.Errorf("root: %s", f.Cause)
+	}
+}

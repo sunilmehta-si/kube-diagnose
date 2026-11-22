@@ -393,3 +393,41 @@ func subPathIsADirectory(ix *index, p kube.Pod, cs kube.ContainerStatus, lines [
 	}
 	return nil
 }
+
+// nonRootDenied finds a container that the pod runs as a user other than root and that exits with "permission
+// denied" on a path of its image, not of a volume: the image's files and directories belong to root, as the image
+// was built to run as root, and another user may not create or change them.
+func nonRootDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	uid, set := p.RunAsUser(cs.Name)
+	c, _ := containerSpec(p, cs.Name)
+	nonRoot := c.SecurityContext != nil && c.SecurityContext.RunAsNonRoot != nil && *c.SecurityContext.RunAsNonRoot
+	if (!set || uid == 0) && !nonRoot {
+		return nil
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !strings.Contains(strings.ToLower(lines[i]), "permission denied") {
+			continue
+		}
+		m := rePath.FindStringSubmatch(lines[i])
+		if m == nil {
+			continue
+		}
+		path := m[1]
+		if _, mounted := p.MountAt(cs.Name, path); mounted {
+			continue // a volume's path: KD137
+		}
+		user, field := fmt.Sprintf("user %d", uid), "runAsUser"
+		if !set || uid == 0 {
+			user, field = "a user other than root", "runAsNonRoot"
+		}
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s runs as %s (%s), and %s is not under any of its volume mounts", cs.Name, user, field, path),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.securityContext}{" "}{.spec.containers[?(@.name=="%s")].securityContext}{" "}{.spec.containers[?(@.name=="%s")].volumeMounts[*].mountPath}`, cs.Name, cs.Name))})
+		return newProblem(p, cs.Name, "KD224", "Non-root container is denied a path in its image", Critical,
+			fmt.Sprintf("container %s runs as %s and is denied %s, a path of the image itself, not of a volume: the image's files belong to root, and another user may not create or change them; its log says: %q",
+				cs.Name, user, path, clip(lines[i], 160)),
+			"nonroot|"+path,
+			fmt.Sprintf("Give the app a place it may write: mount an emptyDir at %s (or its parent directory) and set the pod's fsGroup, or point the app at a writable directory such as /tmp. Or build the image so that %s belongs to the user it runs as.", path, path),
+			ev...)
+	}
+	return nil
+}
