@@ -887,7 +887,11 @@ type PersistentVolumeClaim struct {
 		StorageClassName *string  `json:"storageClassName,omitempty"`
 		AccessModes      []string `json:"accessModes,omitempty"`
 		VolumeName       string   `json:"volumeName,omitempty"`
-		Resources        struct {
+		// VolumeMode is Filesystem (the default) or Block; a claim binds only to a volume of the same mode.
+		VolumeMode string `json:"volumeMode,omitempty"`
+		// Selector narrows the PersistentVolumes the claim may bind to by their labels.
+		Selector  *LabelSelector `json:"selector,omitempty"`
+		Resources struct {
 			Requests map[string]string `json:"requests,omitempty"`
 		} `json:"resources,omitempty"`
 	} `json:"spec"`
@@ -928,6 +932,10 @@ type PersistentVolume struct {
 		Capacity         map[string]string `json:"capacity,omitempty"`
 		AccessModes      []string          `json:"accessModes,omitempty"`
 		ClaimRef         *ClaimReference   `json:"claimRef,omitempty"`
+		VolumeMode       string            `json:"volumeMode,omitempty"`
+		// PersistentVolumeReclaimPolicy says what happens to the volume when its claim is deleted: Retain keeps it,
+		// Released, until someone clears its claimRef.
+		PersistentVolumeReclaimPolicy string `json:"persistentVolumeReclaimPolicy,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		Phase string `json:"phase,omitempty"`

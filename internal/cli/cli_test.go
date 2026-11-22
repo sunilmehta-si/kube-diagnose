@@ -258,6 +258,8 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"service", "link"}, "KD223"},
 		{[]string{"non-root", "image"}, "KD224"},
 		{[]string{"refuse", "targets"}, "KD225"},
+		{[]string{"PersistentVolume", "fits"}, "KD250"},
+		{[]string{"Released"}, "KD251"},
 		{[]string{"init", "own"}, "KD220"},
 		{[]string{"more", "PodDisruptionBudget"}, "KD289"},
 		{[]string{"switched", "off"}, "KD290"},

@@ -1753,7 +1753,12 @@ func TestStaticVolumeClassNeedsNoStorageClassObject(t *testing.T) {
 	pv.Spec.StorageClassName = "manual"
 	pv.Status.Phase = "Bound"
 	s.PVs = []kube.PersistentVolume{pv}
-	// "manual" names no StorageClass, but static volumes carry it: KD150 would be a false alarm.
+	// "manual" names no StorageClass, but static volumes carry it: KD150 would be a false alarm. The claim waits
+	// because the one volume of that class is taken.
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "the nearest, data-pv, is bound to another claim")
+
+	// A free volume of the class: the claim is binding.
+	s.PVs[0].Status.Phase = "Available"
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("%+v", r.Findings)
 	}
@@ -3756,4 +3761,113 @@ func TestServicesPodsRefuseThePortItTargets(t *testing.T) {
 			t.Errorf("no ready pods: %s", f.Cause)
 		}
 	}
+}
+
+func TestNoPersistentVolumeFitsTheClaim(t *testing.T) {
+	build := func() *snapshot.Snapshot {
+		s := snap()
+		var pvc kube.PersistentVolumeClaim
+		pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", UID: "new-uid"}
+		pvc.Spec.StorageClassName = strp("manual")
+		pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+		pvc.Spec.Resources.Requests = map[string]string{"storage": "5Gi"}
+		pvc.Status.Phase = "Pending"
+		s.PVCs = []kube.PersistentVolumeClaim{pvc}
+		var pv kube.PersistentVolume
+		pv.Metadata.Name = "data-pv"
+		pv.Spec.StorageClassName = "manual"
+		pv.Spec.Capacity = map[string]string{"storage": "1Gi"}
+		pv.Spec.AccessModes = []string{"ReadWriteOnce"}
+		pv.Status.Phase = "Available"
+		s.PVs = []kube.PersistentVolume{pv}
+		s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "ProvisioningFailed", `storageclass.storage.k8s.io "manual" not found`, time.Minute)}
+		return s
+	}
+
+	// Too small. The controller's own event blames a StorageClass that static volumes do not need.
+	s := build()
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD250", "PersistentVolumeClaim shop/data", `it asks for 5Gi; ReadWriteOnce; storageClassName "manual", a name no StorageClass has`,
+		"only an existing PersistentVolume can satisfy it, and none fits", "the nearest, data-pv, holds 1Gi, less than the 5Gi the claim asks for")
+
+	// Other access modes, and a pod that waits for the claim is listed under it.
+	s = build()
+	s.PVs[0].Spec.Capacity["storage"] = "5Gi"
+	s.PVCs[0].Spec.AccessModes = []string{"ReadWriteMany"}
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "data-pv, offers access mode ReadWriteOnce, not the ReadWriteMany the claim asks for")
+
+	// Volume mode and selector.
+	s = build()
+	s.PVs[0].Spec.Capacity["storage"] = "5Gi"
+	s.PVs[0].Spec.VolumeMode = "Block"
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "has volumeMode Block, and the claim asks for Filesystem")
+	s = build()
+	s.PVs[0].Spec.Capacity["storage"] = "5Gi"
+	s.PVs[0].Metadata.Labels = map[string]string{"tier": "slow"}
+	s.PVCs[0].Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"tier": "fast"}}
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "has labels tier=slow, which the claim's selector (tier=fast) does not match")
+
+	// Two volumes, both wrong: the one with fewer reasons against it is named, the other counted.
+	s = build()
+	other := s.PVs[0]
+	other.Metadata.Name = "old-pv"
+	other.Spec.Capacity = map[string]string{"storage": "1Gi"}
+	other.Spec.AccessModes = []string{"ReadOnlyMany"}
+	s.PVs = append(s.PVs, other)
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "the nearest, data-pv, holds 1Gi", "the other volume of class manual, old-pv, does not fit either")
+
+	// No class at all: "" turns provisioning off, and there is no volume without a class.
+	s = build()
+	s.PVCs[0].Spec.StorageClassName = strp("")
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "FailedBinding", "no persistent volumes available for this claim and no storage class is set", time.Minute)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD250", "PersistentVolumeClaim shop/data", `storageClassName "", which turns dynamic provisioning off`, "there is no PersistentVolume without a class")
+	if !strings.Contains(f.Fix, "leave storageClassName out to use the default class") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A class that a StorageClass does provision is not static: the provisioner's event is the finding.
+	s = build()
+	s.StorageClasses = []kube.StorageClass{{Metadata: kube.ObjectMeta{Name: "manual"}, Provisioner: "example.com/nfs"}}
+	if f := only(t, Diagnose(s)); f.Rule == "KD250" {
+		t.Errorf("dynamic class: %s", f.Cause)
+	}
+}
+
+func TestPersistentVolumeIsReleased(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", UID: "new-uid"}
+	pvc.Spec.StorageClassName = strp("")
+	pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pvc.Spec.Resources.Requests = map[string]string{"storage": "5Gi"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	var pv kube.PersistentVolume
+	pv.Metadata.Name = "data-pv"
+	pv.Spec.Capacity = map[string]string{"storage": "5Gi"}
+	pv.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pv.Spec.PersistentVolumeReclaimPolicy = "Retain"
+	pv.Spec.ClaimRef = &kube.ClaimReference{Namespace: "shop", Name: "old-data", UID: "old-uid"}
+	pv.Status.Phase = "Released"
+	s.PVs = []kube.PersistentVolume{pv}
+	p := pod("db", "")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable", Message: "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims."}}
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD251", "PersistentVolumeClaim shop/data", "PersistentVolume data-pv fits it, but is Released", "reference to claim shop/old-data, which was deleted", "reclaim policy Retain")
+	if !strings.Contains(f.Fix, `kubectl patch pv data-pv --type=json -p '[{"op":"remove","path":"/spec/claimRef"}]'`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+	if len(f.Affects) != 1 || f.Affects[0].Name != "db" {
+		t.Errorf("the waiting pod should be listed under the claim: %v", f.Affects)
+	}
+
+	// Released and too small as well: it does not fit, so clearing the reference would not help.
+	s.PVs[0].Spec.Capacity["storage"] = "1Gi"
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "holds 1Gi, less than the 5Gi", "is Released")
 }

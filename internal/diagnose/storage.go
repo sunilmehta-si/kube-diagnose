@@ -42,6 +42,9 @@ func pendingClaim(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
 			return f
 		}
 	}
+	if f, static := noVolumeFits(ix, pvc, state); static {
+		return f
+	}
 	switch {
 	case pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "":
 		class := *pvc.Spec.StorageClassName
