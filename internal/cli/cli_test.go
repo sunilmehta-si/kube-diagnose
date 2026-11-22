@@ -255,6 +255,7 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"capability"}, "KD219"},
 		{[]string{"flag", "argument"}, "KD221"},
 		{[]string{"interpreter"}, "KD222"},
+		{[]string{"service", "link"}, "KD223"},
 		{[]string{"init", "own"}, "KD220"},
 		{[]string{"more", "PodDisruptionBudget"}, "KD289"},
 		{[]string{"switched", "off"}, "KD290"},

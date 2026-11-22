@@ -3597,3 +3597,58 @@ func TestCommandsInterpreterIsNotInTheImage(t *testing.T) {
 		t.Errorf("app's own error: %s", f.Cause)
 	}
 }
+
+func TestServiceLinkVariableReplacesTheAppsSetting(t *testing.T) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	p.Metadata.Labels = map[string]string{"app": "worker"}
+	crashed(&p, 1, "Error", 4)
+	cache := pod("cache-7d4f8-abcde", "cache")
+	cache.Metadata.Labels = map[string]string{"app": "cache"}
+	s.Pods = []kube.Pod{cache, p}
+	svc := service("cache", map[string]string{"app": "cache"}, port(8080))
+	svc.Spec.ClusterIP = "10.96.14.7"
+	svc.Spec.Ports[0].Port = 6379
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("cache", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"connecting to cache:tcp://10.96.14.7:6379", "nc: bad port 'tcp://10.96.14.7:6379'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD223", "ReplicaSet shop/worker-rs", "reading CACHE_PORT as a setting of its own", "for Service cache that includes CACHE_PORT=tcp://10.96.14.7:6379", "expects a port number")
+	if !strings.HasPrefix(f.Fix, "Set enableServiceLinks: false in the pod spec") || !strings.Contains(f.Fix, "define CACHE_PORT in the container's env") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The container sets the variable itself, or the pod turns service links off: the value did not come from there.
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "CACHE_PORT", Value: "6379"}}
+	s.Pods = []kube.Pod{cache, p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD223" {
+		t.Errorf("own value: %s", f.Cause)
+	}
+	p.Spec.Containers[0].Env = nil
+	off := false
+	p.Spec.EnableServiceLinks = &off
+	s.Pods = []kube.Pod{cache, p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD223" {
+		t.Errorf("links off: %s", f.Cause)
+	}
+
+	// A Service created after the pod gave it no variables, and a headless Service gives none at all.
+	p.Spec.EnableServiceLinks = nil
+	p.Metadata.CreationTimestamp = t0.Add(-time.Hour)
+	s.Pods = []kube.Pod{cache, p}
+	s.Services[0].Metadata.CreationTimestamp = t0.Add(-time.Minute)
+	if f := only(t, Diagnose(s)); f.Rule == "KD223" {
+		t.Errorf("later Service: %s", f.Cause)
+	}
+	s.Services[0].Metadata.CreationTimestamp = t0.Add(-2 * time.Hour)
+	if f := only(t, Diagnose(s)); f.Rule != "KD223" {
+		t.Errorf("earlier Service: %s %s", f.Rule, f.Cause)
+	}
+	s.Services[0].Spec.ClusterIP = "None"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD223" {
+			t.Errorf("headless: %s", f.Cause)
+		}
+	}
+}

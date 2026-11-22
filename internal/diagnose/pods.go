@@ -1100,6 +1100,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := flagAndValueOneArg(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := serviceLinkOverride(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := interpreterMissing(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}

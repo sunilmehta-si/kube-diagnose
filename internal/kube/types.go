@@ -365,6 +365,9 @@ type PodSpec struct {
 	RuntimeClassName string `json:"runtimeClassName,omitempty"`
 	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+	// EnableServiceLinks false keeps the kubelet from giving containers a set of variables for each Service of
+	// the namespace (FOO_SERVICE_HOST, FOO_PORT and so on); they are added when it is unset.
+	EnableServiceLinks *bool `json:"enableServiceLinks,omitempty"`
 	// ReadinessGates are extra conditions, set by a controller, that must be True for the pod to be Ready.
 	ReadinessGates []PodReadinessGate `json:"readinessGates,omitempty"`
 	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
