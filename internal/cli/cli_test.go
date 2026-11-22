@@ -262,6 +262,8 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"Released"}, "KD251"},
 		{[]string{"ResourceQuota", "requires"}, "KD293"},
 		{[]string{"namespaceSelector"}, "KD274"},
+		{[]string{"RoleBinding", "Role", "exist"}, "KD294"},
+		{[]string{"RoleBinding", "ServiceAccount"}, "KD295"},
 		{[]string{"init", "own"}, "KD220"},
 		{[]string{"more", "PodDisruptionBudget"}, "KD289"},
 		{[]string{"switched", "off"}, "KD290"},

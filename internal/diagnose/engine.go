@@ -99,6 +99,11 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	r.Findings = append(r.Findings, cronJobFindings(ix, explained)...)
 	r.Findings = append(r.Findings, hpaFindings(ix)...)
 	r.Findings = append(r.Findings, pdbFindings(ix)...)
+	for _, f := range rbacFindings(ix) {
+		if !reported(r.Findings, f) {
+			r.Findings = append(r.Findings, f)
+		}
+	}
 	for _, f := range networkPolicyFindings(ix) {
 		if !reported(r.Findings, f) {
 			r.Findings = append(r.Findings, f)

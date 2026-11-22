@@ -3977,3 +3977,104 @@ func TestNetworkPolicyNamespaceSelectorMatchesNoNamespace(t *testing.T) {
 		}
 	}
 }
+
+func rbacSnapshot() (*snapshot.Snapshot, *kube.Pod) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	p.Metadata.Labels = map[string]string{"app": "worker"}
+	p.Spec.ServiceAccountName = "app"
+	p.Spec.Containers[0].Command = []string{"sh", "-c", "wget -O - https://kubernetes.default.svc/api/v1/namespaces/shop/configmaps"}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ServiceAccounts = []kube.ServiceAccount{{Metadata: kube.ObjectMeta{Name: "app", Namespace: "shop"}}, {Metadata: kube.ObjectMeta{Name: "default", Namespace: "shop"}}}
+	s.Roles = []kube.Role{{Metadata: kube.ObjectMeta{Name: "configmap-reader", Namespace: "shop"}}}
+	var b kube.RoleBinding
+	b.Metadata = kube.ObjectMeta{Name: "read-config", Namespace: "shop"}
+	b.RoleRef.Kind, b.RoleRef.Name = "Role", "configmap-reader"
+	b.Subjects = []kube.Subject{{Kind: "ServiceAccount", Name: "app", Namespace: "shop"}}
+	s.RoleBindings = []kube.RoleBinding{b}
+	s.ClusterRoles = []string{"admin", "edit", "view"}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"Connecting to kubernetes.default.svc (10.96.0.1:443)", "wget: server returned error: HTTP/1.1 403 Forbidden"}}}
+	return s, &s.Pods[0]
+}
+
+func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
+	// The pod's ServiceAccount is refused, and its binding names a Role the namespace does not have.
+	s, _ := rbacSnapshot()
+	s.RoleBindings[0].RoleRef.Name = "config-reader"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD294", "ReplicaSet shop/worker-rs", "the API server refuses its ServiceAccount app", "RoleBinding read-config grants Role config-reader to ServiceAccount app",
+		"there is no Role config-reader in namespace shop, so the binding grants nothing", "the namespace's Roles are configmap-reader", "403 Forbidden")
+	if !strings.Contains(f.Fix, "a binding's roleRef cannot be changed, so delete RoleBinding read-config and create it again") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The API server's own sentence, as client-go prints it.
+	s.Logs[0].Lines = []string{`configmaps is forbidden: User "system:serviceaccount:shop:app" cannot list resource "configmaps" in API group "" in the namespace "shop"`}
+	expect(t, only(t, Diagnose(s)), "KD294", "ReplicaSet shop/worker-rs", "RoleBinding read-config grants Role config-reader")
+
+	// Nothing fails yet: the binding is reported on its own, as a warning.
+	s, p := rbacSnapshot()
+	s.RoleBindings[0].RoleRef.Name = "config-reader"
+	*p = pod("worker-5c7d9-qwert", "worker")
+	s.Logs = nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD294", "RoleBinding shop/read-config", "there is no Role config-reader in namespace shop")
+	if f.Severity != Warning {
+		t.Errorf("severity %v", f.Severity)
+	}
+
+	// A ClusterRole that does not exist, and one that does.
+	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "ClusterRole", "viewer"
+	expect(t, only(t, Diagnose(s)), "KD294", "RoleBinding shop/read-config", "there is no ClusterRole viewer in the cluster")
+	s.RoleBindings[0].RoleRef.Name = "view"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+
+	// The binding is sound: a refusal is then a missing permission, which KD126 names from the API server's sentence.
+	s, _ = rbacSnapshot()
+	s.Logs[0].Lines = []string{`secrets is forbidden: User "system:serviceaccount:shop:app" cannot list resource "secrets" in API group "" in the namespace "shop"`}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs", "it may not list secrets")
+
+	// Roles could not be read: no claim that one is missing.
+	s, _ = rbacSnapshot()
+	s.RoleBindings[0].RoleRef.Name = "config-reader"
+	s.Roles = nil
+	s.Gaps = []snapshot.Gap{{Resource: "roles.rbac.authorization.k8s.io", Namespace: "shop", Error: "forbidden"}}
+	if f := only(t, Diagnose(s)); f.Rule == "KD294" {
+		t.Errorf("roles unread: %s", f.Cause)
+	}
+}
+
+func TestRoleBindingNamesAServiceAccountThatDoesNotExist(t *testing.T) {
+	// The pod runs as app, the binding says apps, and the API server refuses app.
+	s, _ := rbacSnapshot()
+	s.RoleBindings[0].Subjects[0].Name = "apps"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD295", "ReplicaSet shop/worker-rs", "refuses its ServiceAccount app, which no RoleBinding of namespace shop names",
+		"RoleBinding read-config grants Role configmap-reader to ServiceAccount apps", "there is no ServiceAccount apps")
+	if !strings.HasPrefix(f.Fix, "Set the subject of RoleBinding read-config to ServiceAccount app (a binding's subjects can be edited)") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Nothing fails yet: a warning on the binding, which says who it was most likely meant for.
+	s, p := rbacSnapshot()
+	s.RoleBindings[0].Subjects[0].Name = "apps"
+	*p = pod("worker-5c7d9-qwert", "worker")
+	p.Spec.ServiceAccountName = "app"
+	s.Logs = nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD295", "RoleBinding shop/read-config", "there is no ServiceAccount apps in namespace shop, so nothing receives the permission",
+		"pods here run as ServiceAccount app, which no RoleBinding of the namespace names")
+	if f.Severity != Warning {
+		t.Errorf("severity %v", f.Severity)
+	}
+
+	// A ServiceAccount of another namespace is not ours to judge, and users and groups are not objects at all.
+	s.RoleBindings[0].Subjects = []kube.Subject{{Kind: "ServiceAccount", Name: "ci", Namespace: "build"}, {Kind: "User", Name: "priya"}, {Kind: "Group", Name: "devs"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
