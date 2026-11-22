@@ -3556,3 +3556,44 @@ func TestFlagAndItsValueAreOneArgument(t *testing.T) {
 		t.Errorf("split items: %s", f.Cause)
 	}
 }
+
+func TestCommandsInterpreterIsNotInTheImage(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"/scripts/run.sh"}
+	c.VolumeMounts = []kube.VolumeMount{{Name: "scripts", MountPath: "/scripts"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "scripts", ConfigMap: &kube.ConfigMapVolumeSource{Name: "scripts"}}}
+	crashed(&p, 255, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "run.sh")}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"exec /scripts/run.sh: no such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD222", "ReplicaSet shop/web-rs", "cannot run /scripts/run.sh, though the file is there (key run.sh of ConfigMap scripts)", "interpreter named on the script's first line (#!)")
+	if !strings.Contains(f.Fix, "#!/bin/sh where there is no bash") || !strings.Contains(f.Fix, "Unix line endings") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The key is not in the ConfigMap: the file itself is missing, which is KD230's.
+	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "start.sh")}
+	if f := only(t, Diagnose(s)); f.Rule == "KD222" {
+		t.Errorf("missing key: %s", f.Cause)
+	}
+
+	// A file of the image: a script, or a binary whose loader the image lacks.
+	c.Command, c.VolumeMounts = []string{"/usr/local/bin/server"}, nil
+	p.Spec.Volumes = nil
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"exec /usr/local/bin/server: no such file or directory"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD222", "ReplicaSet shop/web-rs", "cannot run /usr/local/bin/server, though the file is there", "dynamic loader of a binary built for another C library")
+	if !strings.Contains(f.Fix, "CGO_ENABLED=0") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A file the app opens and does not find is not the runtime's exec line.
+	s.Logs[0].Lines = []string{"open /etc/app/config.yaml: no such file or directory"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD222" {
+		t.Errorf("app's own error: %s", f.Cause)
+	}
+}

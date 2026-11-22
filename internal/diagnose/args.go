@@ -61,3 +61,52 @@ func flagAndValueOneArg(p kube.Pod, cs kube.ContainerStatus, lines []string, ev 
 	}
 	return nil
 }
+
+// reExecNoFile matches what the runtime prints when the kernel refuses to run a command it has just found: the
+// file is there, and what does not exist is the program the file needs to run.
+var reExecNoFile = regexp.MustCompile(`^exec (/\S+): no such file or directory$`)
+
+// interpreterMissing finds a container whose command exists and still fails with "no such file or directory" the
+// moment it is run. The runtime checks that the command is there before it starts the container, so the missing
+// file is the one the kernel loads to run it: the interpreter on a script's "#!" line (bash in an image that has
+// only sh, or any name followed by a Windows line ending), or the dynamic loader of a binary built for another C
+// library (a glibc binary on Alpine, or any dynamically linked binary on scratch or a static distroless image).
+func interpreterMissing(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	path, line := "", ""
+	for _, l := range lines {
+		if m := reExecNoFile.FindStringSubmatch(strings.TrimSpace(l)); m != nil {
+			path, line = m[1], strings.TrimSpace(l)
+		}
+	}
+	if path == "" {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	m, mounted := p.MountAt(cs.Name, path)
+	if mounted {
+		if _, _, missing := missingVolumeFile(ix, p, cs.Name, path); missing {
+			return nil // the file itself is not in the volume: KD230
+		}
+	}
+	if mounted && m.Volume.AlwaysReadOnly() {
+		kind, name, _, _ := ix.volumeFiles(ns, m.Volume)
+		src := m.Volume.Source()
+		if kind != "" && name != "" {
+			src = kind + " " + name
+		}
+		key := strings.SplitN(m.Rel, "/", 2)[0]
+		return newProblem(p, cs.Name, "KD222", "Command's interpreter is not in the image", Critical,
+			fmt.Sprintf("container %s cannot run %s, though the file is there (key %s of %s): the kernel reports \"no such file or directory\" for the interpreter named on the script's first line (#!), which image %s does not have; its log says: %q",
+				cs.Name, path, key, src, imageOf(p, cs), line),
+			"interpreter|"+path,
+			fmt.Sprintf("Read the first line of %s in %s. Name an interpreter the image has (#!/bin/sh where there is no bash), or use an image that has it; and save the file with Unix line endings, since a Windows line ending makes the kernel look for an interpreter whose name ends in a carriage return.", key, src),
+			append(ev, mountEvidence(p, cs.Name, m), Evidence{Object: kube.Ref{Kind: kind, Namespace: ns, Name: name}, What: fmt.Sprintf("the first line of %s names the interpreter", key),
+				Command: cmdGet(strings.ToLower(kind), ns, name, "{.data}")})...)
+	}
+	return newProblem(p, cs.Name, "KD222", "Command's interpreter is not in the image", Critical,
+		fmt.Sprintf("container %s cannot run %s, though the file is there: the kernel reports \"no such file or directory\" for the program the file needs in order to run, which image %s does not have: the interpreter on a script's first line (#!), or the dynamic loader of a binary built for another C library; its log says: %q",
+			cs.Name, path, imageOf(p, cs), line),
+		"interpreter|"+path,
+		"If it is a script, name an interpreter the image has on its first line (#!/bin/sh where there is no bash) and save it with Unix line endings. If it is a binary, build it for the image's C library or link it statically (for Go, CGO_ENABLED=0): a binary linked against glibc does not run on Alpine, scratch or a static distroless image.",
+		ev...)
+}
