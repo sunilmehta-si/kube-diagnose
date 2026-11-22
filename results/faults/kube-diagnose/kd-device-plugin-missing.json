@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-device-plugin-missing"
   ],
-  "collectedAt": "2026-11-21 06:55 UTC",
+  "collectedAt": "2026-11-22 07:15 UTC",
   "findings": [
     {
       "rule": "KD140",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-device-plugin-missing",
-            "name": "train-f5cfdd7f-bddfc"
+            "name": "train-f5cfdd7f-9bhqh"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 Insufficient example.com/accelerator. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod train-f5cfdd7f-bddfc -n kd-device-plugin-missing -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod train-f5cfdd7f-9bhqh -n kd-device-plugin-missing -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-device-plugin-missing",
-            "name": "train-f5cfdd7f-bddfc"
+            "name": "train-f5cfdd7f-9bhqh"
           },
           "what": "pod requests 1 example.com/accelerator",
-          "command": "kubectl get pod train-f5cfdd7f-bddfc -n kd-device-plugin-missing -o jsonpath='{.spec.containers[*].resources.requests}'"
+          "command": "kubectl get pod train-f5cfdd7f-9bhqh -n kd-device-plugin-missing -o jsonpath='{.spec.containers[*].resources.requests}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-device-plugin-missing",
-          "name": "train-f5cfdd7f-bddfc"
+          "name": "train-f5cfdd7f-9bhqh"
         }
       ]
     }

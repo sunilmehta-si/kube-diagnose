@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-bad-image-tag",
-              "Masked": "V1kqSUghOCpZNjleYigvew=="
+              "Masked": "MzNAQjhsNmRkTWh8TjYkVg=="
             },
             {
               "Unmasked": "web",
-              "Masked": "QS1B"
+              "Masked": "Y1dC"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-bad-image-tag/web-6847787ffb-c4n9g",
+      "name": "kd-bad-image-tag/web-6847787ffb-mdcnh",
       "error": [
         {
-          "Text": "Back-off pulling image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
+          "Text": "rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -41,10 +41,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-bad-image-tag/web-6847787ffb-pzk97",
+      "name": "kd-bad-image-tag/web-6847787ffb-s4sct",
       "error": [
         {
-          "Text": "Back-off pulling image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
+          "Text": "rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
           "KubernetesDoc": "",
           "Sensitive": []
         }

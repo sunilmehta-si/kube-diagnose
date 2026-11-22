@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-flag-value-one-arg/web",
+      "error": [
+        {
+          "Text": "Deployment kd-flag-value-one-arg/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-flag-value-one-arg",
+              "Masked": "dXFXT3pyIUddfHtWJTJCIU89ZGxF"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "UV1A"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-flag-value-one-arg/web-5769d4bf87-mnfq7",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-5769d4bf87-mnfq7",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

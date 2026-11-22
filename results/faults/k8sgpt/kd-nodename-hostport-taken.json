@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-nodename-hostport-taken",
-              "Masked": "SzUzUTU5TGMuY0w2OElpc19vQy12UjpVIyQ="
+              "Masked": "Z1QkLnlyXi1FTihVO3ZtVyUkZXphNlFueiw="
             },
             {
               "Unmasked": "agent",
-              "Masked": "QFFmdXk="
+              "Masked": "cWZaeVE="
             }
           ]
         }

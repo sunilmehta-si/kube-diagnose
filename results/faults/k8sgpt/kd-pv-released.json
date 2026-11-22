@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pv-released/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pv-released/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-released",
+              "Masked": "SWNRZkh8SllWITxMWDM="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "UUs="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pv-released/db-56f8666648-n4zfh",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "name": "kd-pv-released/data",
+      "error": [
+        {
+          "Text": "no persistent volumes available for this claim and no storage class is set",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

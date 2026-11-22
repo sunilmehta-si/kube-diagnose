@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-port-name-missing",
-              "Masked": "LjJrNlk1LzhxbClpczR4THE2bndQTW1RIlc="
+              "Masked": "Z3x1OEQpJG1mVVNHfTRSU2Y4I2IxVm9BNzg="
             },
             {
               "Unmasked": "api",
-              "Masked": "TXFh"
+              "Masked": "cFQk"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-port-name-missing/api-c688bf54b-mxxw6",
+      "name": "kd-probe-port-name-missing/api-c688bf54b-stfk2",
       "error": [
         {
           "Text": "Readiness probe errored and resulted in unknown state: port \"health\" not found",

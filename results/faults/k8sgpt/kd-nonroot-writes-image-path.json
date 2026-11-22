@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-nonroot-writes-image-path/web",
+      "error": [
+        {
+          "Text": "Deployment kd-nonroot-writes-image-path/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nonroot-writes-image-path",
+              "Masked": "blRUT08pOTFlQzV2dzhLSlEzdFotOEZCSyEqaw=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "ayoy"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-nonroot-writes-image-path/web-8cbd88466-sg9q9",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-8cbd88466-sg9q9",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-script-interpreter-missing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-script-interpreter-missing/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-script-interpreter-missing",
+              "Masked": "c2JlZDxSbyNlZyFBOkBANTx4Kkx0XUNnbGZMIjc="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "fCRN"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-script-interpreter-missing/web-84b4ff95fc-nsnsz",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-84b4ff95fc-nsnsz",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

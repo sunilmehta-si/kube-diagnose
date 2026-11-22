@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-suspended"
   ],
-  "collectedAt": "2026-11-21 06:56 UTC",
+  "collectedAt": "2026-11-22 07:18 UTC",
   "findings": [
     {
       "rule": "KD187",
@@ -15,7 +15,7 @@
         "namespace": "kd-job-suspended",
         "name": "train"
       },
-      "cause": "Job train has been suspended for 5m0s, so it runs no pods until spec.suspend is set to false",
+      "cause": "Job train has been suspended for 6m0s, so it runs no pods until spec.suspend is set to false",
       "evidence": [
         {
           "object": {

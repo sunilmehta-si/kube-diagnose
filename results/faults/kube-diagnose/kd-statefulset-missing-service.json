@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-missing-service"
   ],
-  "collectedAt": "2026-11-21 06:59 UTC",
+  "collectedAt": "2026-11-22 07:22 UTC",
   "findings": [
     {
       "rule": "KD182",

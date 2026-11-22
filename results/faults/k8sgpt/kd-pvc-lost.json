@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pvc-lost/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pvc-lost/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-lost",
+              "Masked": "WVdqcnRnezJLQ3M="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "ZXw="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pvc-lost/db-56f8666648-fd7wd",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: persistentvolumeclaim \"data\" bound to non-existent persistentvolume \"pvc-4c1d9a7e-2b6f-4e0a-9c3d-8f5a1b7e6d20\". not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    }
+  ]
+}

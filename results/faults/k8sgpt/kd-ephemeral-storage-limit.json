@@ -2,11 +2,11 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 36,
+  "problems": 42,
   "results": [
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-r9fmg",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-5hwr7",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -14,7 +14,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-r9fmg",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-5hwr7",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -24,7 +24,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-t6srr",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-5lnwd",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -32,7 +32,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-t6srr",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-5lnwd",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -42,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-wgfxp",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-cdsxq",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -50,7 +50,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-wgfxp",
+          "Text": "the termination reason is ContainerStatusUnknown exitCode=137 container=web pod=web-84cfc45967-cdsxq",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -60,7 +60,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-69tng",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-npbpf",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -68,7 +68,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-69tng",
+          "Text": "the termination reason is ContainerStatusUnknown exitCode=137 container=web pod=web-84cfc45967-npbpf",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -78,7 +78,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-666r2",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-nqnrx",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -86,7 +86,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-666r2",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-nqnrx",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -96,7 +96,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-mf6m5",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-t7fds",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -104,7 +104,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-mf6m5",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-t7fds",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -114,7 +114,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-mwv4c",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-tq6bv",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -122,7 +122,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-mwv4c",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-tq6bv",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -132,7 +132,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-sh9wq",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-vgkkv",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -140,7 +140,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-sh9wq",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-vgkkv",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -150,7 +150,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-25fq9",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-g4csw",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -158,7 +158,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-25fq9",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-g4csw",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -168,7 +168,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-jws7q",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-hjr7z",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -176,7 +176,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-jws7q",
+          "Text": "the termination reason is ContainerStatusUnknown exitCode=137 container=web pod=web-84cfc45967-hjr7z",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -186,7 +186,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-lh9h8",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-mkw2m",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -194,7 +194,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-lh9h8",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-mkw2m",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -204,7 +204,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-ljs8z",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-ncz6p",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -212,7 +212,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-ljs8z",
+          "Text": "the termination reason is ContainerStatusUnknown exitCode=137 container=web pod=web-84cfc45967-ncz6p",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -222,7 +222,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-wk6p7",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-s7hbk",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -230,7 +230,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-wk6p7",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-s7hbk",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -240,7 +240,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-xvvsr",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-vth2k",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -248,7 +248,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-xvvsr",
+          "Text": "the termination reason is ContainerStatusUnknown exitCode=137 container=web pod=web-84cfc45967-vth2k",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -258,7 +258,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-58jqq",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-wkq76",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -266,7 +266,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-58jqq",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-wkq76",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -276,7 +276,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-5kqnp",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-44sn9",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -284,7 +284,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-5kqnp",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-44sn9",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -294,7 +294,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-99s9m",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-58vfn",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -302,7 +302,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-99s9m",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-58vfn",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -312,7 +312,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-ephemeral-storage-limit/web-84cfc45967-h5cq6",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-5t6q5",
       "error": [
         {
           "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
@@ -320,7 +320,61 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-h5cq6",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-5t6q5",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-9g5q7",
+      "error": [
+        {
+          "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        },
+        {
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-9g5q7",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-jvlfs",
+      "error": [
+        {
+          "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        },
+        {
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-84cfc45967-jvlfs",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-ephemeral-storage-limit/web-84cfc45967-8t5bs",
+      "error": [
+        {
+          "Text": "Pod ephemeral local storage usage exceeds the total limit of containers 10Mi. ",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        },
+        {
+          "Text": "the termination reason is ContainerStatusUnknown exitCode=137 container=web pod=web-84cfc45967-8t5bs",
           "KubernetesDoc": "",
           "Sensitive": []
         }

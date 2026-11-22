@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-probe-command-one-string/web",
+      "error": [
+        {
+          "Text": "Deployment kd-probe-command-one-string/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-command-one-string",
+              "Masked": "Q11XMkkwYU1MQGJ4aGEhSVFhbGhtPmZAITBU"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "NzUk"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Service",
+      "name": "kd-probe-command-one-string/web",
+      "error": [
+        {
+          "Text": "Service has not ready endpoints, pods: [Pod/web-7ffb5945f5-8q866], expected 1",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-probe-command-one-string/web-7ffb5945f5-8q866",
+      "error": [
+        {
+          "Text": "(combined from similar events): Readiness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"2e2cc712e79d6b71353bb1e0f3530e65273c192936ee414e92167c85b123c58a\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"cat /tmp/ready\": stat cat /tmp/ready: no such file or directory",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

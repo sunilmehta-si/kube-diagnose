@@ -1,0 +1,73 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-namespace-label"
+  ],
+  "collectedAt": "2026-11-22 07:18 UTC",
+  "findings": [
+    {
+      "rule": "KD274",
+      "title": "NetworkPolicy's namespaceSelector matches no namespace",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-networkpolicy-namespace-label",
+        "name": "client"
+      },
+      "cause": "container client exits because its connection to Service web times out: NetworkPolicy web-ingress allows ingress on port 8080 only from namespaces labelled name=kd-networkpolicy-namespace-label, and no namespace of the cluster has those labels, so the rule admits nothing and the connection is dropped (namespace kd-networkpolicy-namespace-label exists, and its labels are kubernetes.io/metadata.name=kd-networkpolicy-namespace-label); its log says: \"wget: download timed out\"; Deployment client has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-namespace-label",
+            "name": "client-5858c98f74-gg5pp"
+          },
+          "what": "container client exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod client-5858c98f74-gg5pp -n kd-networkpolicy-namespace-label -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-namespace-label",
+            "name": "client-5858c98f74-gg5pp"
+          },
+          "what": "last lines of container client's log (current run)",
+          "detail": "Connecting to web (10.96.66.125:80)\nwget: download timed out",
+          "command": "kubectl logs client-5858c98f74-gg5pp -n kd-networkpolicy-namespace-label -c client --tail=20"
+        },
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-namespace-label",
+            "name": "web-ingress"
+          },
+          "what": "NetworkPolicy web-ingress's ingress rule selects namespaces labelled name=kd-networkpolicy-namespace-label",
+          "command": "kubectl get networkpolicy web-ingress -n kd-networkpolicy-namespace-label -o jsonpath='{.spec.ingress}'"
+        },
+        {
+          "object": {
+            "kind": "Namespace",
+            "name": "*"
+          },
+          "what": "none of the 166 namespaces has labels name=kd-networkpolicy-namespace-label",
+          "command": "kubectl get namespaces --show-labels"
+        }
+      ],
+      "fix": "Select the namespace by the label Kubernetes sets on every namespace: namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: kd-networkpolicy-namespace-label}} in NetworkPolicy web-ingress. Or add the label the policy expects (kubectl label namespace kd-networkpolicy-namespace-label name=kd-networkpolicy-namespace-label). For pods of the policy's own namespace a podSelector alone is enough.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-networkpolicy-namespace-label",
+          "name": "client-5858c98f74-gg5pp"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

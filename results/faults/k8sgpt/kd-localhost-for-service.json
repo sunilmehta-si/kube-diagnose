@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-localhost-for-service",
-              "Masked": "VGlDY2g1IXREdmEhPStXKHVvd19YInQr"
+              "Masked": "eGV6ZzcpNzhnfGdqOEtoUXt0Kjd2NzhW"
             },
             {
               "Unmasked": "worker",
-              "Masked": "ITBhRS07"
+              "Masked": "I3JmY3ww"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-localhost-for-service/worker-59b4bbb7cd-d8bnw",
+      "name": "kd-localhost-for-service/worker-59b4bbb7cd-65d7s",
       "error": [
         {
-          "Text": "the last termination reason is Error container=worker pod=worker-59b4bbb7cd-d8bnw",
+          "Text": "the last termination reason is Error container=worker pod=worker-59b4bbb7cd-65d7s",
           "KubernetesDoc": "",
           "Sensitive": []
         }

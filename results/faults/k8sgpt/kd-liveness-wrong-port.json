@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-liveness-wrong-port",
-              "Masked": "dDlRJnw2L2loNkxxOFlXI10qQm5WRg=="
+              "Masked": "SjJyRmpXdjBQfHNMX1FRK21odTRAcw=="
             },
             {
               "Unmasked": "web",
-              "Masked": "U01z"
+              "Masked": "RDNS"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-liveness-wrong-port/web-67fbcb44db-r4h9m",
+      "name": "kd-liveness-wrong-port/web-67fbcb44db-6snln",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-67fbcb44db-r4h9m",
+          "Text": "the last termination reason is Error container=web pod=web-67fbcb44db-6snln",
           "KubernetesDoc": "",
           "Sensitive": []
         }

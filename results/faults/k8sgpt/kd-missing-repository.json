@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-missing-repository",
-              "Masked": "IUplNl1CWm5mJDFLXjN8dVpaaHp6"
+              "Masked": "XlUxd1Ziem1SZyV3RDRZZVgrczg7"
             },
             {
               "Unmasked": "web",
-              "Masked": "IVd8"
+              "Masked": "eilu"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-missing-repository/web-ffc979654-rnqfm",
+      "name": "kd-missing-repository/web-ffc979654-t9gbz",
       "error": [
         {
           "Text": "Back-off pulling image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": ErrImagePull: failed to pull and unpack image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to resolve reference \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Asunilmehta-si%2Fkube-diagnose-missing%3Apull\u0026service=ghcr.io: 403 Forbidden",

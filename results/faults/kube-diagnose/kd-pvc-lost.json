@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pvc-lost"
+  ],
+  "collectedAt": "2026-11-22 07:20 UTC",
+  "findings": [
+    {
+      "rule": "KD252",
+      "title": "Claim has lost its PersistentVolume",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pvc-lost",
+        "name": "data"
+      },
+      "cause": "PersistentVolumeClaim data is Lost: it is marked as bound to PersistentVolume pvc-4c1d9a7e-2b6f-4e0a-9c3d-8f5a1b7e6d20, and there is no such PersistentVolume, so pods that mount it are not scheduled. The volume was deleted under the claim, or the claim was created from a copy of a bound claim, with its volumeName and pv.kubernetes.io/bind-completed annotation, in a cluster that does not have that volume",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-lost",
+            "name": "data"
+          },
+          "what": "PersistentVolumeClaim is Lost",
+          "command": "kubectl get pvc data -n kd-pvc-lost -o jsonpath='{.status.phase}{\" \"}{.spec.volumeName}{\" \"}{.metadata.annotations}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-lost",
+            "name": "data"
+          },
+          "what": "event ClaimLost",
+          "detail": "Bound claim has lost its PersistentVolume. Data on the volume is lost!",
+          "command": "kubectl get events -n kd-pvc-lost --field-selector involvedObject.kind=PersistentVolumeClaim,involvedObject.name=data"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolume",
+            "name": "pvc-4c1d9a7e-2b6f-4e0a-9c3d-8f5a1b7e6d20"
+          },
+          "what": "there is no PersistentVolume pvc-4c1d9a7e-2b6f-4e0a-9c3d-8f5a1b7e6d20",
+          "command": "kubectl get pv"
+        }
+      ],
+      "fix": "A Lost claim never binds again. If the data still exists in the storage backend, create PersistentVolume pvc-4c1d9a7e-2b6f-4e0a-9c3d-8f5a1b7e6d20 again for it, with a claimRef to this claim. Otherwise delete the claim and create it without spec.volumeName and without the pv.kubernetes.io annotations, so that a new volume is provisioned; when copying claims from another cluster or a backup, leave those fields out.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pvc-lost",
+          "name": "db-56f8666648-fd7wd"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

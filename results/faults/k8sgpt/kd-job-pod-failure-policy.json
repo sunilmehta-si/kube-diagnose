@@ -5,35 +5,35 @@
   "problems": 2,
   "results": [
     {
-      "kind": "Pod",
-      "name": "kd-job-pod-failure-policy/migrate-rmtbc",
+      "kind": "Job",
+      "name": "kd-job-pod-failure-policy/migrate",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=3 container=migrate pod=migrate-rmtbc",
+          "Text": "Container migrate for pod kd-job-pod-failure-policy/migrate-tmhqd failed with exit code 3 matching FailJob rule at index 0",
           "KubernetesDoc": "",
-          "Sensitive": []
+          "Sensitive": [
+            {
+              "Unmasked": "kd-job-pod-failure-policy",
+              "Masked": "MUp7SzB7LzRmXmYjUnE0Qnw/X3hpZDApMQ=="
+            },
+            {
+              "Unmasked": "migrate",
+              "Masked": "TiJZM1EpRg=="
+            }
+          ]
         }
       ],
       "details": "",
       "parentObject": ""
     },
     {
-      "kind": "Job",
-      "name": "kd-job-pod-failure-policy/migrate",
+      "kind": "Pod",
+      "name": "kd-job-pod-failure-policy/migrate-tmhqd",
       "error": [
         {
-          "Text": "Container migrate for pod kd-job-pod-failure-policy/migrate-rmtbc failed with exit code 3 matching FailJob rule at index 0",
+          "Text": "the termination reason is Error exitCode=3 container=migrate pod=migrate-tmhqd",
           "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-job-pod-failure-policy",
-              "Masked": "fSk9ai1PP295P3QjRHhHMmNZQVNNaktIag=="
-            },
-            {
-              "Unmasked": "migrate",
-              "Masked": "OD1aYncsOA=="
-            }
-          ]
+          "Sensitive": []
         }
       ],
       "details": "",

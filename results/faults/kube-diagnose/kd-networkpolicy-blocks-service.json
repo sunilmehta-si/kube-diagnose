@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-blocks-service"
   ],
-  "collectedAt": "2026-11-21 06:57 UTC",
+  "collectedAt": "2026-11-22 07:18 UTC",
   "findings": [
     {
       "rule": "KD127",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-service",
-            "name": "web-645cb7cf7b-zfzrl"
+            "name": "web-6b85fb4bb8-9xrmn"
           },
-          "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-645cb7cf7b-zfzrl -n kd-networkpolicy-blocks-service -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod web-6b85fb4bb8-9xrmn -n kd-networkpolicy-blocks-service -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-service",
-            "name": "web-645cb7cf7b-zfzrl"
+            "name": "web-6b85fb4bb8-9xrmn"
           },
-          "what": "last lines of container web's log (run that exited)",
-          "detail": "Connecting to db (10.96.138.92:80)\nwget: download timed out",
-          "command": "kubectl logs web-645cb7cf7b-zfzrl -n kd-networkpolicy-blocks-service -c web --tail=20 --previous"
+          "what": "last lines of container web's log (current run)",
+          "detail": "Connecting to db (10.96.160.86:80)\nwget: download timed out",
+          "command": "kubectl logs web-6b85fb4bb8-9xrmn -n kd-networkpolicy-blocks-service -c web --tail=20"
         },
         {
           "object": {
@@ -42,7 +42,7 @@
             "namespace": "kd-networkpolicy-blocks-service",
             "name": "egress-dns-only"
           },
-          "what": "NetworkPolicy egress-dns-only restricts the client's egress and no egress rule in the namespace allows app=web,pod-template-hash=645cb7cf7b pods to port 8080 of app=db,pod-template-hash=756d549855 pods",
+          "what": "NetworkPolicy egress-dns-only restricts the client's egress and no egress rule in the namespace allows app=web,pod-template-hash=6b85fb4bb8 pods to port 8080 of app=db,pod-template-hash=756d549855 pods",
           "command": "kubectl get networkpolicies -n kd-networkpolicy-blocks-service -o yaml"
         }
       ],
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-blocks-service",
-          "name": "web-645cb7cf7b-zfzrl"
+          "name": "web-6b85fb4bb8-9xrmn"
         }
       ]
     }

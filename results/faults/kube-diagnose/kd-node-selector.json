@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-node-selector"
   ],
-  "collectedAt": "2026-11-21 06:57 UTC",
+  "collectedAt": "2026-11-22 07:19 UTC",
   "findings": [
     {
       "rule": "KD141",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-node-selector",
-            "name": "web-6f58b76845-7ffbk"
+            "name": "web-6f58b76845-ksdvq"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod web-6f58b76845-7ffbk -n kd-node-selector -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-6f58b76845-ksdvq -n kd-node-selector -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-node-selector",
-            "name": "web-6f58b76845-7ffbk"
+            "name": "web-6f58b76845-ksdvq"
           },
           "what": "pod requires node labels disktype=ssd",
-          "command": "kubectl get pod web-6f58b76845-7ffbk -n kd-node-selector -o jsonpath='{.spec.nodeSelector}'"
+          "command": "kubectl get pod web-6f58b76845-ksdvq -n kd-node-selector -o jsonpath='{.spec.nodeSelector}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-node-selector",
-          "name": "web-6f58b76845-7ffbk"
+          "name": "web-6f58b76845-ksdvq"
         }
       ]
     }
