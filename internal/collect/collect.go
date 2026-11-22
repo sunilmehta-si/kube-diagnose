@@ -102,6 +102,7 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		func() error { return list(ctx, r, s, "storageclasses.storage.k8s.io", "", nil, &s.StorageClasses) },
 		func() error { return list(ctx, r, s, "ingressclasses.networking.k8s.io", "", nil, &s.IngressClasses) },
 		func() error { return list(ctx, r, s, "persistentvolumes", "", nil, &s.PVs) },
+		func() error { return namespaces(ctx, r, s) },
 	}
 	for _, step := range steps {
 		if err := step(); err != nil {
@@ -110,6 +111,19 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 	}
 	logs(ctx, r, s, o.LogLines, o.MaxLogs)
 	return s, nil
+}
+
+// namespaces reads every namespace of the cluster and keeps its name and labels only: a NetworkPolicy's
+// namespaceSelector is judged against the labels, and nothing else of a namespace is needed or kept.
+func namespaces(ctx context.Context, r Runner, s *snapshot.Snapshot) error {
+	var all []kube.Namespace
+	if err := list(ctx, r, s, "namespaces", "", nil, &all); err != nil {
+		return err
+	}
+	for _, n := range all {
+		s.NamespaceObjects = append(s.NamespaceObjects, kube.Namespace{Metadata: kube.ObjectMeta{Name: n.Metadata.Name, Labels: n.Metadata.Labels}})
+	}
+	return nil
 }
 
 // list runs `kubectl get <resource> -o json` into out. Errors become gaps unless the context is cancelled.

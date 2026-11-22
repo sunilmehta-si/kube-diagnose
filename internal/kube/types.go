@@ -942,6 +942,12 @@ type PersistentVolume struct {
 	} `json:"status"`
 }
 
+// Namespace is a namespace reduced to its name and labels: what a NetworkPolicy's namespaceSelector is matched
+// against. The collector keeps nothing else of it.
+type Namespace struct {
+	Metadata ObjectMeta `json:"metadata"`
+}
+
 // ---- Policy and quota ----
 
 type NetworkPolicyPeer struct {

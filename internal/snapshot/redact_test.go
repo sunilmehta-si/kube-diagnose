@@ -171,3 +171,30 @@ func TestRedactLeavesLoopbackAddresses(t *testing.T) {
 		}
 	}
 }
+
+func TestRedactRenamesEveryNamespaceOfTheCluster(t *testing.T) {
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}}
+	s.NamespaceObjects = []kube.Namespace{
+		{Metadata: kube.ObjectMeta{Name: "shop", Labels: map[string]string{"kubernetes.io/metadata.name": "shop", "team": "storefront"}}},
+		{Metadata: kube.ObjectMeta{Name: "payments-prod", Labels: map[string]string{"kubernetes.io/metadata.name": "payments-prod"}}},
+	}
+	out, err := Redact(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(out)
+	for _, leaked := range []string{"shop", "payments-prod", "storefront"} {
+		if strings.Contains(string(b), leaked) {
+			t.Errorf("%q survives redaction: %s", leaked, b)
+		}
+	}
+	// A namespace's own name label still equals its name, so a selector on it matches as before.
+	for _, n := range out.NamespaceObjects {
+		if n.Metadata.Labels["kubernetes.io/metadata.name"] != n.Metadata.Name {
+			t.Errorf("name label %q differs from name %q", n.Metadata.Labels["kubernetes.io/metadata.name"], n.Metadata.Name)
+		}
+	}
+	if out.NamespaceObjects[0].Metadata.Name != out.Namespaces[0] {
+		t.Errorf("namespace renamed two ways: %q and %q", out.NamespaceObjects[0].Metadata.Name, out.Namespaces[0])
+	}
+}

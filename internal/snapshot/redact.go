@@ -134,6 +134,9 @@ func (r *redactor) collect(s *Snapshot) {
 	for _, ns := range s.Namespaces {
 		r.addName("ns", ns)
 	}
+	for _, ns := range s.NamespaceObjects {
+		r.addName("ns", ns.Metadata.Name)
+	}
 	for _, p := range s.Pods {
 		r.addName("ns", p.Metadata.Namespace)
 		r.addName("pod", p.Metadata.Name)

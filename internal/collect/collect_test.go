@@ -94,6 +94,7 @@ func TestCollect(t *testing.T) {
 			"get horizontalpodautoscalers.autoscaling": `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"scaleTargetRef":{"kind":"Deployment","name":"web"},"maxReplicas":5},"status":{"conditions":[{"type":"ScalingActive","status":"False","reason":"FailedGetResourceMetric"}]}}]}`,
 			"get cronjobs.batch":                       `{"items":[{"metadata":{"name":"nightly","namespace":"shop"},"spec":{"schedule":"0 2 * * *","concurrencyPolicy":"Forbid","suspend":false},"status":{"active":[{"kind":"Job","name":"nightly-29001"}],"lastScheduleTime":"2026-11-13T02:00:00Z"}}]}`,
 			"get configmaps":                           "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
+			"get namespaces":                           `{"items":[{"metadata":{"name":"shop","uid":"1f0c","labels":{"kubernetes.io/metadata.name":"shop","team":"web"},"annotations":{"owner":"someone@example.com"}}},{"metadata":{"name":"kube-system","labels":{"kubernetes.io/metadata.name":"kube-system"}}}]}`,
 			"get secrets":                              "shop\tdb\tOpaque\tpassword,user,\n",
 			"logs web-1 web":                           "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
 		},
@@ -135,6 +136,10 @@ func TestCollect(t *testing.T) {
 	if len(s.Gaps) != 1 || s.Gaps[0].Resource != "nodes" || !strings.Contains(s.Gaps[0].Error, "forbidden") {
 		t.Errorf("gaps %+v", s.Gaps)
 	}
+	// Namespaces are kept as a name and labels, nothing else.
+	if len(s.NamespaceObjects) != 2 || s.NamespaceObjects[0].Metadata.Labels["team"] != "web" || s.NamespaceObjects[0].Metadata.UID != "" || len(s.NamespaceObjects[0].Metadata.Annotations) != 0 {
+		t.Errorf("namespaces %+v", s.NamespaceObjects)
+	}
 	if len(s.Logs) != 1 || !s.Logs[0].Previous || s.Logs[0].Lines[0] != "starting" || len(s.Logs[0].Lines) != 2 {
 		t.Errorf("logs %+v", s.Logs)
 	}
@@ -142,7 +147,7 @@ func TestCollect(t *testing.T) {
 		if c[0] == "get" && c[1] == "secrets" && !strings.HasPrefix(c[3], "go-template=") {
 			t.Errorf("secrets must be read as key names only: %v", c)
 		}
-		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" &&
+		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" && c[1] != "namespaces" &&
 			!(c[len(c)-2] == "-n" && c[len(c)-1] == "shop") {
 			t.Errorf("namespaced read not scoped to the namespace: %v", c)
 		}
