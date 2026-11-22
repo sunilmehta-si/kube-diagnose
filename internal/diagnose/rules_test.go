@@ -3681,6 +3681,13 @@ func TestNonRootContainerIsDeniedAPathInItsImage(t *testing.T) {
 	s.Logs[0].Lines = []string{`nginx: [emerg] open() "/run/nginx.pid" failed (13: Permission denied)`}
 	expect(t, only(t, Diagnose(s)), "KD224", "ReplicaSet shop/web-rs", "runs as a user other than root and is denied /run/nginx.pid")
 
+	// A file of the kernel's, not of the image.
+	s.Logs[0].Lines = []string{"sysctl: error setting key 'net.core.somaxconn': open /proc/sys/net/core/somaxconn: permission denied"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD224" {
+		t.Errorf("/proc: %s", f.Cause)
+	}
+	s.Logs[0].Lines = []string{`nginx: [emerg] open() "/run/nginx.pid" failed (13: Permission denied)`}
+
 	// The path is on a volume: that is KD137's, with fsGroup as the fix.
 	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "run", MountPath: "/run"}}
 	p.Spec.Volumes = []kube.Volume{{Name: "run", EmptyDir: &kube.EmptyDirVolumeSource{}}}
@@ -4265,6 +4272,15 @@ func TestCommandUsesAShellOperatorWithNoShell(t *testing.T) {
 	expect(t, f, "KD226", "ReplicaSet shop/worker-rs", "| is a shell operator (pipe the output into the next command)", "one more argument to /app/export")
 	if strings.Contains(f.Cause, "its log shows") {
 		t.Errorf("cause %q", f.Cause)
+	}
+
+	// The program's own syntax: the ";" that ends find's -exec, and the ">" that test compares with.
+	for _, cmd := range [][]string{{"find", "/data", "-name", "*.tmp", "-exec", "rm", "{}", ";"}, {"/usr/bin/test", "5", ">", "3"}} {
+		c.Command, c.Args = cmd, nil
+		s.Pods = []kube.Pod{p}
+		if f := only(t, Diagnose(s)); f.Rule == "KD226" {
+			t.Errorf("%v: %s", cmd, f.Cause)
+		}
 	}
 
 	// A shell does run the line: the operator works, and the crash has another cause.

@@ -131,7 +131,7 @@ func shellOperators(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Ev
 	words := append(append([]string{}, c.Command...), c.Args...)
 	for i, w := range words {
 		does, isOp := shellOperator[w]
-		if !isOp || i == 0 {
+		if !isOp || i == 0 || ownOperator(words, i) {
 			continue
 		}
 		whole := strings.Join(words, " ")
@@ -172,4 +172,26 @@ func flagAsCommand(p kube.Pod, cs kube.ContainerStatus, c kube.Container, ev []E
 			cs.Name, clip(list, 160), c.Command[0]),
 		"flagcommand|"+c.Command[0],
 		fmt.Sprintf("Move the flags to args and leave command out: args: %s. Then the image's entrypoint runs with them (args replaces the image's CMD, command its ENTRYPOINT). If the image has no entrypoint, put the program first in command.", clip(list, 160)), ev...)
+}
+
+// ownOperator reports whether the word at i, though it looks like a shell operator, is the program's own syntax:
+// the ";" that ends find's -exec, and the "<" and ">" that test, [ and expr compare with.
+func ownOperator(words []string, i int) bool {
+	switch words[i] {
+	case ";":
+		for _, w := range words[:i] {
+			switch w {
+			case "-exec", "-execdir", "-ok", "-okdir":
+				return true
+			}
+		}
+	case "<", ">":
+		for _, w := range words[:i] {
+			switch w[strings.LastIndex(w, "/")+1:] {
+			case "test", "[", "expr":
+				return true
+			}
+		}
+	}
+	return false
 }

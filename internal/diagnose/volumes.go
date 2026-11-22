@@ -416,6 +416,9 @@ func nonRootDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evi
 		if _, mounted := p.MountAt(cs.Name, path); mounted {
 			continue // a volume's path: KD137
 		}
+		if strings.HasPrefix(path, "/proc/") || strings.HasPrefix(path, "/sys/") || strings.HasPrefix(path, "/dev/") {
+			continue // the kernel's files, not the image's: who may touch them is not a matter of ownership
+		}
 		user, field := fmt.Sprintf("user %d", uid), "runAsUser"
 		if !set || uid == 0 {
 			user, field = "a user other than root", "runAsNonRoot"
