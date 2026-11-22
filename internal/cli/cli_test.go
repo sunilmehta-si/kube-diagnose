@@ -260,6 +260,7 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"refuse", "targets"}, "KD225"},
 		{[]string{"PersistentVolume", "fits"}, "KD250"},
 		{[]string{"Released"}, "KD251"},
+		{[]string{"ResourceQuota", "requires"}, "KD293"},
 		{[]string{"init", "own"}, "KD220"},
 		{[]string{"more", "PodDisruptionBudget"}, "KD289"},
 		{[]string{"switched", "off"}, "KD290"},

@@ -13,6 +13,7 @@ import (
 var (
 	reQuota         = regexp.MustCompile(`exceeded quota: ([^,]+), requested: ([^,]+(?:,[^,:]+)*), used: ([^,]+(?:,[^,:]+)*), limited: (.+)$`)
 	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
+	reQuotaMust     = regexp.MustCompile(`failed quota: ([^:]+): must specify (.+)$`)
 	reCreateClaim   = regexp.MustCompile(`^[Cc]reate Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
 	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
@@ -83,6 +84,8 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 			f.Cause = fmt.Sprintf("%s cannot create PersistentVolumeClaim %s from its volumeClaimTemplates, so the pod that mounts it is never created: ResourceQuota %s is used up (requested %s, used %s, limit %s)", owner, claim, m[1], m[2], m[3], m[4])
 			f.Fix = fmt.Sprintf("Raise ResourceQuota %s, lower the storage the volumeClaimTemplates ask for, or delete claims that hold the quota (a StatefulSet keeps its claims after its pods are gone).", m[1])
 		}
+	case reQuotaMust.MatchString(msg):
+		quotaRequires(&f, owner, reQuotaMust.FindStringSubmatch(msg))
 	case strings.Contains(msg, "forbidden: failed quota") || reQuotaM.MatchString(msg) && strings.Contains(msg, "quota"):
 		f.Rule, f.Title = "KD170", "ResourceQuota is exhausted"
 		f.Cause = fmt.Sprintf("%s cannot create pods: a ResourceQuota in %s rejects them (%s)", owner, ns, clip(msg, 200))
@@ -385,4 +388,41 @@ func tolerated(tols []kube.Toleration, taints []kube.Taint) bool {
 		}
 	}
 	return true
+}
+
+// quotaRequires explains pods rejected because a ResourceQuota limits a compute resource that their containers do
+// not set: a quota on limits.memory, say, can only be counted when every container has a memory limit, so the API
+// server refuses pods without one. The quota is not used up; m is reQuotaMust's match.
+func quotaRequires(f *Finding, owner kube.Ref, m []string) {
+	quota, ns := m[1], owner.Namespace
+	field := func(res string) string {
+		switch {
+		case strings.HasPrefix(res, "limits."), strings.HasPrefix(res, "requests."):
+			return "resources." + res
+		default:
+			return "resources.requests." + res // a quota on plain cpu or memory counts requests
+		}
+	}
+	var missing, set, names []string
+	for _, item := range strings.Split(m[2], "; ") {
+		res, containers, _ := strings.Cut(item, " for: ")
+		res = strings.TrimSpace(res)
+		who := "its containers set"
+		if cs := strings.Split(containers, ","); containers != "" && len(cs) == 1 {
+			who = "container " + cs[0] + " sets"
+		} else if containers != "" {
+			who = "containers " + strings.Join(cs, ", ") + " set"
+		}
+		missing = append(missing, fmt.Sprintf("%s no %s", who, field(res)))
+		names = append(names, res)
+		set = append(set, field(res))
+	}
+	f.Rule, f.Title = "KD293", "ResourceQuota requires a request or limit the pods do not set"
+	f.Cause = fmt.Sprintf("%s cannot create pods: ResourceQuota %s puts a quota on %s, which the API server can only count when every container sets it, and %s. The quota is not used up: the pods are refused for leaving the field out",
+		owner, quota, strings.Join(names, " and "), strings.Join(missing, "; "))
+	f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "ResourceQuota", Namespace: ns, Name: quota},
+		What: fmt.Sprintf("ResourceQuota %s's limits", quota), Command: cmdGet("resourcequota", ns, quota, "{.status.hard}")},
+		Evidence{Object: owner, What: "the containers' requests and limits",
+			Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{range .spec.template.spec.containers[*]}{.name}{" "}{.resources}{"\n"}{end}`)})
+	f.Fix = fmt.Sprintf("Set %s on the containers named, or add a LimitRange to the namespace with a default for it, so that containers which set none are given one.", strings.Join(set, " and "))
 }

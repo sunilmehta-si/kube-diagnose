@@ -3871,3 +3871,27 @@ func TestPersistentVolumeIsReleased(t *testing.T) {
 	s.PVs[0].Spec.Capacity["storage"] = "1Gi"
 	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "holds 1Gi, less than the 5Gi", "is Released")
 }
+
+func TestResourceQuotaRequiresALimitThePodsDoNotSet(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: pods "web-rs-x7k2p" is forbidden: failed quota: compute: must specify limits.memory for: web`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD293", "Deployment shop/web", "ResourceQuota compute puts a quota on limits.memory, which", "container web sets no resources.limits.memory", "The quota is not used up")
+	if !strings.HasPrefix(f.Fix, "Set resources.limits.memory on the containers named, or add a LimitRange") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Two resources, one of them missing from two containers; plain cpu counts requests.
+	s.Events[0].Message = `Error creating: pods "web-rs-x7k2p" is forbidden: failed quota: compute: must specify cpu for: proxy,web; limits.memory for: web`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD293", "Deployment shop/web", "puts a quota on cpu and limits.memory", "containers proxy, web set no resources.requests.cpu; container web sets no resources.limits.memory")
+
+	// A quota that is used up is still KD170.
+	s.Events[0].Message = `Error creating: pods "web-rs-x7k2p" is forbidden: exceeded quota: compute, requested: limits.memory=1Gi, used: limits.memory=4Gi, limited: limits.memory=4Gi`
+	expect(t, only(t, Diagnose(s)), "KD170", "Deployment shop/web", "is used up")
+}
