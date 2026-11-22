@@ -84,19 +84,22 @@ const pods = `{"items":[
 func TestCollect(t *testing.T) {
 	f := &fake{
 		answers: map[string]string{
-			"config current-context":                   "kind-faults\n",
-			"version -o":                               `{"serverVersion":{"gitVersion":"v1.37.0"}}`,
-			"get pods":                                 pods,
-			"get deployments.apps":                     `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"replicas":2}}]}`,
-			"get ingresses.networking.k8s.io":          `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"ingressClassName":"nginx","rules":[{"host":"shop.example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"web","port":{"number":80}}}}]}}]}}]}`,
-			"get ingressclasses.networking.k8s.io":     `{"items":[{"metadata":{"name":"nginx","annotations":{"ingressclass.kubernetes.io/is-default-class":"true"}},"spec":{"controller":"k8s.io/ingress-nginx"}}]}`,
-			"get poddisruptionbudgets.policy":          `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"minAvailable":"100%"},"status":{"disruptionsAllowed":0,"currentHealthy":2,"desiredHealthy":2,"expectedPods":2}}]}`,
-			"get horizontalpodautoscalers.autoscaling": `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"scaleTargetRef":{"kind":"Deployment","name":"web"},"maxReplicas":5},"status":{"conditions":[{"type":"ScalingActive","status":"False","reason":"FailedGetResourceMetric"}]}}]}`,
-			"get cronjobs.batch":                       `{"items":[{"metadata":{"name":"nightly","namespace":"shop"},"spec":{"schedule":"0 2 * * *","concurrencyPolicy":"Forbid","suspend":false},"status":{"active":[{"kind":"Job","name":"nightly-29001"}],"lastScheduleTime":"2026-11-13T02:00:00Z"}}]}`,
-			"get configmaps":                           "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
-			"get namespaces":                           `{"items":[{"metadata":{"name":"shop","uid":"1f0c","labels":{"kubernetes.io/metadata.name":"shop","team":"web"},"annotations":{"owner":"someone@example.com"}}},{"metadata":{"name":"kube-system","labels":{"kubernetes.io/metadata.name":"kube-system"}}}]}`,
-			"get secrets":                              "shop\tdb\tOpaque\tpassword,user,\n",
-			"logs web-1 web":                           "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
+			"config current-context":                     "kind-faults\n",
+			"version -o":                                 `{"serverVersion":{"gitVersion":"v1.37.0"}}`,
+			"get pods":                                   pods,
+			"get deployments.apps":                       `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"replicas":2}}]}`,
+			"get ingresses.networking.k8s.io":            `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"ingressClassName":"nginx","rules":[{"host":"shop.example.com","http":{"paths":[{"path":"/","pathType":"Prefix","backend":{"service":{"name":"web","port":{"number":80}}}}]}}]}}]}`,
+			"get ingressclasses.networking.k8s.io":       `{"items":[{"metadata":{"name":"nginx","annotations":{"ingressclass.kubernetes.io/is-default-class":"true"}},"spec":{"controller":"k8s.io/ingress-nginx"}}]}`,
+			"get poddisruptionbudgets.policy":            `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"minAvailable":"100%"},"status":{"disruptionsAllowed":0,"currentHealthy":2,"desiredHealthy":2,"expectedPods":2}}]}`,
+			"get horizontalpodautoscalers.autoscaling":   `{"items":[{"metadata":{"name":"web","namespace":"shop"},"spec":{"scaleTargetRef":{"kind":"Deployment","name":"web"},"maxReplicas":5},"status":{"conditions":[{"type":"ScalingActive","status":"False","reason":"FailedGetResourceMetric"}]}}]}`,
+			"get cronjobs.batch":                         `{"items":[{"metadata":{"name":"nightly","namespace":"shop"},"spec":{"schedule":"0 2 * * *","concurrencyPolicy":"Forbid","suspend":false},"status":{"active":[{"kind":"Job","name":"nightly-29001"}],"lastScheduleTime":"2026-11-13T02:00:00Z"}}]}`,
+			"get configmaps":                             "shop\tapp-config\t\tLOG_LEVEL,PORT,\nshop\tempty\t\t\n",
+			"get rolebindings.rbac.authorization.k8s.io": `{"items":[{"metadata":{"name":"read-config","namespace":"shop"},"subjects":[{"kind":"ServiceAccount","name":"app","namespace":"shop"}],"roleRef":{"apiGroup":"rbac.authorization.k8s.io","kind":"Role","name":"config-reader"}}]}`,
+			"get roles.rbac.authorization.k8s.io":        `{"items":[{"metadata":{"name":"config-reader","namespace":"shop"},"rules":[{"apiGroups":[""],"resources":["configmaps"],"verbs":["get","list"]}]}]}`,
+			"get clusterroles.rbac.authorization.k8s.io": "view\nedit\nadmin\n",
+			"get namespaces":                             `{"items":[{"metadata":{"name":"shop","uid":"1f0c","labels":{"kubernetes.io/metadata.name":"shop","team":"web"},"annotations":{"owner":"someone@example.com"}}},{"metadata":{"name":"kube-system","labels":{"kubernetes.io/metadata.name":"kube-system"}}}]}`,
+			"get secrets":                                "shop\tdb\tOpaque\tpassword,user,\n",
+			"logs web-1 web":                             "\x1b[31mstarting\x1b[0m\nerror: DATABASE_URL is not set\n",
 		},
 		errs: map[string]error{
 			"get nodes": &CommandError{Args: []string{"get", "nodes"}, Message: `Error from server (Forbidden): nodes is forbidden: User "dev" cannot list resource "nodes"`},
@@ -136,6 +139,10 @@ func TestCollect(t *testing.T) {
 	if len(s.Gaps) != 1 || s.Gaps[0].Resource != "nodes" || !strings.Contains(s.Gaps[0].Error, "forbidden") {
 		t.Errorf("gaps %+v", s.Gaps)
 	}
+	if len(s.Roles) != 1 || s.Roles[0].Rules[0].Verbs[1] != "list" || len(s.RoleBindings) != 1 || s.RoleBindings[0].Subjects[0].Name != "app" ||
+		s.RoleBindings[0].RoleRef.Kind != "Role" || s.RoleBindings[0].RoleRef.Name != "config-reader" || strings.Join(s.ClusterRoles, ",") != "admin,edit,view" {
+		t.Errorf("rbac: %+v %+v %v", s.Roles, s.RoleBindings, s.ClusterRoles)
+	}
 	// Namespaces are kept as a name and labels, nothing else.
 	if len(s.NamespaceObjects) != 2 || s.NamespaceObjects[0].Metadata.Labels["team"] != "web" || s.NamespaceObjects[0].Metadata.UID != "" || len(s.NamespaceObjects[0].Metadata.Annotations) != 0 {
 		t.Errorf("namespaces %+v", s.NamespaceObjects)
@@ -147,7 +154,7 @@ func TestCollect(t *testing.T) {
 		if c[0] == "get" && c[1] == "secrets" && !strings.HasPrefix(c[3], "go-template=") {
 			t.Errorf("secrets must be read as key names only: %v", c)
 		}
-		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" && c[1] != "namespaces" &&
+		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" && c[1] != "namespaces" && c[1] != "clusterroles.rbac.authorization.k8s.io" &&
 			!(c[len(c)-2] == "-n" && c[len(c)-1] == "shop") {
 			t.Errorf("namespaced read not scoped to the namespace: %v", c)
 		}

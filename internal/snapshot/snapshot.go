@@ -65,10 +65,15 @@ type Snapshot struct {
 	NetworkPolicies  []kube.NetworkPolicy  `json:"networkPolicies"`
 	ResourceQuotas   []kube.ResourceQuota  `json:"resourceQuotas"`
 	ServiceAccounts  []kube.ServiceAccount `json:"serviceAccounts"`
-	ConfigMaps       []kube.KeySet         `json:"configMaps"`
-	Secrets          []kube.KeySet         `json:"secrets"`
-	Logs             []Log                 `json:"logs"`
-	Gaps             []Gap                 `json:"gaps,omitempty"`
+	// Roles and RoleBindings of the namespaces read, and the names of the cluster's ClusterRoles (a RoleBinding may
+	// grant one); all empty in snapshots recorded before 0.12.0.
+	Roles        []kube.Role        `json:"roles,omitempty"`
+	RoleBindings []kube.RoleBinding `json:"roleBindings,omitempty"`
+	ClusterRoles []string           `json:"clusterRoles,omitempty"`
+	ConfigMaps   []kube.KeySet      `json:"configMaps"`
+	Secrets      []kube.KeySet      `json:"secrets"`
+	Logs         []Log              `json:"logs"`
+	Gaps         []Gap              `json:"gaps,omitempty"`
 }
 
 // Read loads a snapshot written by Write; a name ending in .gz is gunzipped.

@@ -289,6 +289,25 @@ func (r *redactor) collect(s *Snapshot) {
 	for _, x := range s.ServiceAccounts {
 		r.addName("sa", x.Metadata.Name)
 	}
+	for _, x := range s.Roles {
+		r.addName("role", x.Metadata.Name)
+	}
+	for _, x := range s.RoleBindings {
+		r.addName("ns", x.Metadata.Namespace)
+		r.addName("rolebinding", x.Metadata.Name)
+		if !builtinClusterRole(x.RoleRef.Name) {
+			r.addName("role", x.RoleRef.Name) // the role it grants may not exist, and is then named
+		}
+		for _, sub := range x.Subjects {
+			r.addName("ns", sub.Namespace)
+			r.addName("subject", sub.Name)
+		}
+	}
+	for _, x := range s.ClusterRoles {
+		if !builtinClusterRole(x) {
+			r.addName("role", x)
+		}
+	}
 	for _, x := range s.ConfigMaps {
 		r.addName("cm", x.Name)
 	}
@@ -436,4 +455,14 @@ func (r *redactor) labels(v any) any {
 		out[k] = r.walk(val)
 	}
 	return out
+}
+
+// builtinClusterRole reports whether a ClusterRole is one every cluster has. Their names say nothing about the
+// cluster, and several are everyday words (view, edit, admin) that must not be replaced wherever they occur.
+func builtinClusterRole(name string) bool {
+	switch name {
+	case "admin", "edit", "view", "cluster-admin":
+		return true
+	}
+	return strings.HasPrefix(name, "system:")
 }

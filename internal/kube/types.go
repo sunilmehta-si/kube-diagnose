@@ -1023,6 +1023,41 @@ type ServiceAccount struct {
 	AutomountServiceAccountToken *bool      `json:"automountServiceAccountToken,omitempty"`
 }
 
+// Role is a namespaced set of RBAC rules.
+type Role struct {
+	Metadata ObjectMeta   `json:"metadata"`
+	Rules    []PolicyRule `json:"rules,omitempty"`
+}
+
+// PolicyRule grants verbs on resources.
+type PolicyRule struct {
+	APIGroups     []string `json:"apiGroups,omitempty"`
+	Resources     []string `json:"resources,omitempty"`
+	ResourceNames []string `json:"resourceNames,omitempty"`
+	Verbs         []string `json:"verbs,omitempty"`
+}
+
+// RoleBinding grants a Role of its namespace, or a ClusterRole, to its subjects within its namespace.
+type RoleBinding struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Subjects []Subject  `json:"subjects,omitempty"`
+	RoleRef  struct {
+		Kind string `json:"kind"`
+		Name string `json:"name"`
+	} `json:"roleRef"`
+}
+
+func (b RoleBinding) Ref() Ref {
+	return Ref{Kind: "RoleBinding", Namespace: b.Metadata.Namespace, Name: b.Metadata.Name}
+}
+
+// Subject is who a binding grants to: a ServiceAccount (with its namespace), a User or a Group.
+type Subject struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
+}
+
 // KeySet is a ConfigMap or Secret reduced to its name and key names. kube-diagnose never reads values: the
 // collector asks kubectl for key names only, so Secret data never reaches this process.
 type KeySet struct {

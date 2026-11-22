@@ -96,6 +96,11 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		},
 		func() error { return list(ctx, r, s, "resourcequotas", ns, scope, &s.ResourceQuotas) },
 		func() error { return list(ctx, r, s, "serviceaccounts", ns, scope, &s.ServiceAccounts) },
+		func() error { return list(ctx, r, s, "roles.rbac.authorization.k8s.io", ns, scope, &s.Roles) },
+		func() error {
+			return list(ctx, r, s, "rolebindings.rbac.authorization.k8s.io", ns, scope, &s.RoleBindings)
+		},
+		func() error { return names(ctx, r, s, "clusterroles.rbac.authorization.k8s.io", &s.ClusterRoles) },
 		func() error { return keys(ctx, r, s, "configmaps", ns, scope, configMapKeys, &s.ConfigMaps) },
 		func() error { return keys(ctx, r, s, "secrets", ns, scope, secretKeys, &s.Secrets) },
 		func() error { return list(ctx, r, s, "nodes", "", nil, &s.Nodes) },
@@ -111,6 +116,23 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 	}
 	logs(ctx, r, s, o.LogLines, o.MaxLogs)
 	return s, nil
+}
+
+// names reads the names of a cluster-scoped resource, and nothing else of it.
+func names(ctx context.Context, r Runner, s *snapshot.Snapshot, resource string, out *[]string) error {
+	b, err := r.Run(ctx, "get", resource, "-o", `go-template={{range .items}}{{.metadata.name}}{{"\n"}}{{end}}`)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.Gaps = append(s.Gaps, snapshot.Gap{Resource: resource, Error: firstLine(err.Error())})
+		return nil
+	}
+	for _, n := range strings.Fields(string(b)) {
+		*out = append(*out, n)
+	}
+	sort.Strings(*out)
+	return nil
 }
 
 // namespaces reads every namespace of the cluster and keeps its name and labels only: a NetworkPolicy's
