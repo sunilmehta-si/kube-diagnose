@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-pv-released",
+  "description": "A PersistentVolume kept by reclaim policy Retain still carries the reference to its deleted claim, so it is Released and the new claim that fits it stays Pending.",
+  "rule": "KD251",
+  "object": "PersistentVolumeClaim/data",
+  "keywords": [
+    [
+      "Released"
+    ],
+    [
+      "old-data",
+      "claimRef",
+      "reference"
+    ]
+  ]
+}
