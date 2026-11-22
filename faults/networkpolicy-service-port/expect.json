@@ -1,0 +1,21 @@
+{
+  "namespace": "kd-networkpolicy-service-port",
+  "description": "An egress NetworkPolicy lets the client reach the web pods on port 80, the Service port; policies are checked against the pods own port 8080 after the Service forwards the connection, so it is dropped.",
+  "rule": "KD127",
+  "object": "Deployment/client",
+  "keywords": [
+    [
+      "client-egress",
+      "NetworkPolicy"
+    ],
+    [
+      "8080"
+    ],
+    [
+      "pods' port",
+      "pod port",
+      "targetPort",
+      "pods' own port"
+    ]
+  ]
+}
