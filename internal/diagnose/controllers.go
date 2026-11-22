@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -14,6 +15,7 @@ var (
 	reQuota         = regexp.MustCompile(`exceeded quota: ([^,]+), requested: ([^,]+(?:,[^,:]+)*), used: ([^,]+(?:,[^,:]+)*), limited: (.+)$`)
 	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
 	reQuotaMust     = regexp.MustCompile(`failed quota: ([^:]+): must specify (.+)$`)
+	reReqAboveLimit = regexp.MustCompile(`spec\.(initContainers|containers)\[(\d+)\]\.resources\.requests: Invalid value: "([^"]+)": must be less than or equal to (\S+) limit of (\S+)`)
 	reCreateClaim   = regexp.MustCompile(`^[Cc]reate Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
 	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
@@ -90,6 +92,8 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Rule, f.Title = "KD170", "ResourceQuota is exhausted"
 		f.Cause = fmt.Sprintf("%s cannot create pods: a ResourceQuota in %s rejects them (%s)", owner, ns, clip(msg, 200))
 		f.Fix = "A quota on cpu or memory requires every container to set that request or limit: set them, or add a LimitRange with defaults."
+	case reReqAboveLimit.MatchString(msg):
+		defaultBelowRequest(ix, &f, src, owner, reReqAboveLimit.FindStringSubmatch(msg))
 	case reLimitRange.MatchString(msg):
 		m := reLimitRange.FindAllString(msg, -1)
 		f.Rule, f.Title = "KD174", "LimitRange rejects the pods"
@@ -445,4 +449,38 @@ func pastDeadline(f *Finding, j kube.Job) {
 	f.Evidence = append(f.Evidence, Evidence{Object: j.Ref(), What: fmt.Sprintf("the Job's activeDeadlineSeconds is %d", limit),
 		Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.spec.activeDeadlineSeconds}{" "}{.status.startTime}{" "}{.status.succeeded}`)})
 	f.Fix = fmt.Sprintf("If the work needs longer than %ds, recreate the Job with a higher activeDeadlineSeconds, or none: the deadline covers the whole Job from its start, every retry included. If the work hangs, read its log while it runs (kubectl logs -f job/%s): once the deadline passes the pods are deleted.", limit, j.Metadata.Name)
+}
+
+// defaultBelowRequest explains pods the API server calls invalid because a container's request is above its limit,
+// when the pod template sets that request and no limit. The limit is the namespace's LimitRange default: the
+// LimitRanger admission plugin fills it in, and it is below what the container asks for. The error names neither the
+// LimitRange nor where the limit came from. m is reReqAboveLimit's match.
+func defaultBelowRequest(ix *index, f *Finding, src, owner kube.Ref, m []string) {
+	ns, request, res, limit := owner.Namespace, m[3], m[4], m[5]
+	idx, _ := strconv.Atoi(m[2])
+	container := fmt.Sprintf("container %d", idx)
+	ownLimit := ""
+	for _, ref := range []kube.Ref{owner, src} {
+		w, ok := ix.workloads[ref]
+		if !ok {
+			continue
+		}
+		cs := w.Spec.Template.Spec.Containers
+		if m[1] == "initContainers" {
+			cs = w.Spec.Template.Spec.InitContainers
+		}
+		if idx < len(cs) {
+			container, ownLimit = "container "+cs[idx].Name, cs[idx].Resources.Limits[res]
+		}
+		break
+	}
+	f.Rule, f.Title = "KD296", "LimitRange's default limit is below the container's request"
+	f.Cause = fmt.Sprintf("%s cannot create pods: %s requests %s of %s and sets no %s limit, so the namespace's LimitRange gave it its default limit, %s, and a request above the limit makes the pod invalid", owner, container, request, res, res, limit)
+	if ownLimit != "" {
+		f.Cause = fmt.Sprintf("%s cannot create pods: %s requests %s of %s, above its %s limit of %s, which makes the pod invalid", owner, container, request, res, res, limit)
+	}
+	f.Evidence = append(f.Evidence, Evidence{Object: owner, What: "the pod template's requests and limits",
+		Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{range .spec.template.spec.containers[*]}{.name}{" "}{.resources}{"\n"}{end}`)},
+		Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: ns, Name: "*"}, What: "the namespace's LimitRanges and their defaults", Command: "kubectl get limitranges -n " + ns + " -o yaml"})
+	f.Fix = fmt.Sprintf("Set the %s limit of %s in the pod template, at or above its request of %s, so that the LimitRange's default is not used; or lower the request to %s or less; or raise the default in the LimitRange.", res, container, request, limit)
 }

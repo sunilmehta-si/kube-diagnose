@@ -4194,3 +4194,19 @@ func TestClaimHasLostItsPersistentVolume(t *testing.T) {
 		t.Errorf("evidence %+v", f.Evidence)
 	}
 }
+
+func TestLimitRangeDefaultLimitIsBelowTheRequest(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+		s.Workloads[i].Spec.Template.Spec.Containers = []kube.Container{{Name: "web", Resources: kube.Resources{Requests: map[string]string{"memory": "256Mi"}}}}
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: Pod "web-rs-x7k2p" is invalid: spec.containers[0].resources.requests: Invalid value: "256Mi": must be less than or equal to memory limit of 128Mi`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD296", "Deployment shop/web", "container web requests 256Mi of memory and sets no memory limit", "the namespace's LimitRange gave it its default limit, 128Mi")
+	if !strings.HasPrefix(f.Fix, "Set the memory limit of container web in the pod template, at or above its request of 256Mi") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}
