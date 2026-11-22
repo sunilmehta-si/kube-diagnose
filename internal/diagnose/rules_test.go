@@ -4119,3 +4119,25 @@ func TestNetworkPolicyAllowsTheServicePortNotThePodsPort(t *testing.T) {
 	f = only(t, Diagnose(s))
 	expect(t, f, "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy web-ingress allows no ingress traffic between them on port 8080")
 }
+
+func TestProbeCommandIsOneString(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"cat /tmp/healthy"}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Unhealthy",
+		`Liveness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec "8f1c": OCI runtime exec failed: exec failed: unable to start container process: exec: "cat /tmp/healthy": stat cat /tmp/healthy: no such file or directory`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD129", "Pod shop/web", `liveness probe has the command line "cat /tmp/healthy" as one item`, "a program with that whole name, spaces included", "checks nothing")
+	if !strings.HasPrefix(f.Fix, `Write each word of the probe's command as its own item: command: ["cat", "/tmp/healthy"].`) || !strings.Contains(f.Fix, `["sh", "-c", "cat /tmp/healthy"]`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The same slip in a readiness probe keeps the container out of its Service.
+	p.Spec.Containers[0].LivenessProbe = nil
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"cat /tmp/healthy"}}}
+	notReady(&p)
+	s.Pods = []kube.Pod{p}
+	s.Events[0].Message = strings.Replace(s.Events[0].Message, "Liveness probe errored and resulted in unknown state", "Readiness probe errored and resulted in unknown state", 1)
+	expect(t, only(t, Diagnose(s)), "KD120", "Pod shop/web", `readiness probe has the command line "cat /tmp/healthy" as one item`, "gets no traffic")
+}

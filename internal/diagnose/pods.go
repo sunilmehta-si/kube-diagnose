@@ -198,7 +198,7 @@ func probeCannotRun(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's %s probe runs %s", cs.Name, kind, strings.Join(probe.Exec.Command, " ")),
 			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].%sProbe}`, cs.Name, kind))})
 		return newProblem(p, cs.Name, "KD129", "Probe command is not in the image", Warning,
-			fmt.Sprintf("container %s's %s probe runs %s, which is not in image %s; the kubelet counts that as an error, not a failure, so the probe never passes or fails and checks nothing", cs.Name, kind, exe, imageOf(p, cs)),
+			fmt.Sprintf("container %s's %s probe %s; the kubelet counts that as an error, not a failure, so the probe never passes or fails and checks nothing", cs.Name, kind, probeExecWhy(exe, imageOf(p, cs))),
 			"probecmd|"+kind+"|"+exe, probeExecFix(exe), ev...)
 	}
 	return nil
@@ -1533,7 +1533,7 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		fix = fmt.Sprintf("Raise the probe's timeoutSeconds above how long the check takes under load (it is %ds), keep the health endpoint cheap, or find why the app stops answering.", limit)
 	}
 	if exe := probeExecMissing(ix, p, cs.Name, kind); exe != "" {
-		cause = fmt.Sprintf("container %s's %s probe runs %s, which is not in image %s, so the probe can never pass and the kubelet restarts the container (%d restarts)", cs.Name, kind, exe, imageOf(p, cs), cs.RestartCount)
+		cause = fmt.Sprintf("container %s's %s probe %s, so the probe can never pass and the kubelet restarts the container (%d restarts)", cs.Name, kind, probeExecWhy(exe, imageOf(p, cs)), cs.RestartCount)
 		fix = probeExecFix(exe)
 	}
 	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe), fix, ev...)
@@ -1556,7 +1556,23 @@ func probeExecMissing(ix *index, p kube.Pod, container, kind string) string {
 	return ""
 }
 
+// probeExecWhy says why an exec probe's command cannot be run. A command with spaces in it is a whole command line
+// written as one item (command: ["cat /tmp/healthy"]): the kubelet runs it as one program name, and no shell splits it.
+func probeExecWhy(exe, image string) string {
+	if len(strings.Fields(exe)) > 1 {
+		return fmt.Sprintf("has the command line %q as one item, so the kubelet looks for a program with that whole name, spaces included, and there is none: an exec probe's command is a list of arguments, and no shell splits it", exe)
+	}
+	return fmt.Sprintf("runs %s, which is not in image %s", exe, image)
+}
+
 func probeExecFix(exe string) string {
+	if words := strings.Fields(exe); len(words) > 1 {
+		quoted := make([]string, len(words))
+		for i, w := range words {
+			quoted[i] = strconv.Quote(w)
+		}
+		return fmt.Sprintf("Write each word of the probe's command as its own item: command: [%s]. If it needs a pipe, && or a variable, run it through a shell: [\"sh\", \"-c\", %s].", strings.Join(quoted, ", "), strconv.Quote(exe))
+	}
 	return fmt.Sprintf("Use a command the image has (distroless images have no shell or curl, busybox has wget but no curl), or replace the exec probe with an httpGet or tcpSocket probe, which the kubelet runs itself and needs nothing in the image; %s is the command to replace.", exe)
 }
 
@@ -1635,7 +1651,7 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			fix = how
 		}
 		if exe := probeExecMissing(ix, p, cs.Name, "readiness"); exe != "" {
-			cause = fmt.Sprintf("container %s's readiness probe runs %s, which is not in image %s, so the probe can never pass and the container gets no traffic", cs.Name, exe, imageOf(p, cs))
+			cause = fmt.Sprintf("container %s's readiness probe %s, so the probe can never pass and the container gets no traffic", cs.Name, probeExecWhy(exe, imageOf(p, cs)))
 			fix = probeExecFix(exe)
 		}
 		return newProblem(p, cs.Name, "KD120", "Readiness probe failing", Critical, cause, "ready|"+describeProbe(c, c.ReadinessProbe), fix,
