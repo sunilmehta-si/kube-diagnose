@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-flag-value-one-arg",
+  "description": "A Deployment passes \"--port 8080\" as one item of args, so the server receives the flag and its value as a single argument, does not know a flag by that name, and exits.",
+  "rule": "KD221",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "--port 8080"
+    ],
+    [
+      "one item",
+      "one argument",
+      "single argument",
+      "two items",
+      "one string"
+    ]
+  ]
+}
