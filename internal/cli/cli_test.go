@@ -253,6 +253,7 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"localhost", "Service"}, "KD217"},
 		{[]string{"expose"}, "KD218"},
 		{[]string{"capability"}, "KD219"},
+		{[]string{"flag", "argument"}, "KD221"},
 		{[]string{"init", "own"}, "KD220"},
 		{[]string{"more", "PodDisruptionBudget"}, "KD289"},
 		{[]string{"switched", "off"}, "KD290"},

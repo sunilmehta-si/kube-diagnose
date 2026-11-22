@@ -3504,3 +3504,55 @@ func TestProbeFailureSaysWhatTheStatusMeans(t *testing.T) {
 		t.Errorf("fix %q", f.Fix)
 	}
 }
+
+func TestFlagAndItsValueAreOneArgument(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"/usr/local/bin/server"}
+	c.Args = []string{"--port 8080", "--verbose"}
+	crashed(&p, 2, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"Error: unknown flag: --port 8080", "Usage:", "  server [flags]"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD221", "ReplicaSet shop/web-rs", `its args holds "--port 8080" as one item`, "single argument", `unknown flag: --port 8080`)
+	if !strings.HasPrefix(f.Fix, `Write the flag and its value as two items: "--port", "8080" (or one item "--port=8080").`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Other ways of saying it: Go's flag package, glibc's getopt, musl's getopt (which leaves the dashes out) and
+	// Python's argparse.
+	for _, line := range []string{
+		"flag provided but not defined: -port 8080",
+		"server: unrecognized option '--port 8080'",
+		"server: unrecognized option: port 8080",
+		"server: error: unrecognized arguments: --port 8080",
+	} {
+		s.Logs[0].Lines = []string{line}
+		if f := only(t, Diagnose(s)); f.Rule != "KD221" {
+			t.Errorf("%q: %s %s", line, f.Rule, f.Cause)
+		}
+	}
+
+	// In the command itself, after the program's name, with a short flag: no "=" form to offer.
+	c.Command, c.Args = []string{"server", "-c /etc/app.conf"}, nil
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"server: invalid option -- 'c /etc/app.conf'"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD221", "ReplicaSet shop/web-rs", `its command holds "-c /etc/app.conf" as one item`)
+	if strings.Contains(f.Fix, "or one item") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The log does not quote the item, or the items are already split: another cause.
+	s.Logs[0].Lines = []string{"error: cannot open database"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD221" {
+		t.Errorf("unrelated log: %s", f.Cause)
+	}
+	c.Command, c.Args = []string{"server"}, []string{"--port", "8080"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"Error: unknown flag: --port 8080"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD221" {
+		t.Errorf("split items: %s", f.Cause)
+	}
+}
