@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-pvc-lost",
+  "description": "A claim copied from another cluster still carries its volumeName and bind annotation, and no such PersistentVolume exists here, so the claim is Lost and the database that mounts it is never scheduled.",
+  "rule": "KD252",
+  "object": "PersistentVolumeClaim/data",
+  "keywords": [
+    [
+      "Lost",
+      "lost"
+    ],
+    [
+      "pvc-4c1d9a7e",
+      "no such PersistentVolume",
+      "non-existent",
+      "does not exist"
+    ]
+  ]
+}
