@@ -365,6 +365,9 @@ type PodSpec struct {
 	RuntimeClassName string `json:"runtimeClassName,omitempty"`
 	// AutomountServiceAccountToken false leaves the ServiceAccount token out of the pod's containers.
 	AutomountServiceAccountToken *bool `json:"automountServiceAccountToken,omitempty"`
+	// EnableServiceLinks false keeps the kubelet from giving containers a set of variables for each Service of
+	// the namespace (FOO_SERVICE_HOST, FOO_PORT and so on); they are added when it is unset.
+	EnableServiceLinks *bool `json:"enableServiceLinks,omitempty"`
 	// ReadinessGates are extra conditions, set by a controller, that must be True for the pod to be Ready.
 	ReadinessGates []PodReadinessGate `json:"readinessGates,omitempty"`
 	// SchedulingGates hold the pod back from the scheduler until whatever set each gate removes it.
@@ -884,7 +887,11 @@ type PersistentVolumeClaim struct {
 		StorageClassName *string  `json:"storageClassName,omitempty"`
 		AccessModes      []string `json:"accessModes,omitempty"`
 		VolumeName       string   `json:"volumeName,omitempty"`
-		Resources        struct {
+		// VolumeMode is Filesystem (the default) or Block; a claim binds only to a volume of the same mode.
+		VolumeMode string `json:"volumeMode,omitempty"`
+		// Selector narrows the PersistentVolumes the claim may bind to by their labels.
+		Selector  *LabelSelector `json:"selector,omitempty"`
+		Resources struct {
 			Requests map[string]string `json:"requests,omitempty"`
 		} `json:"resources,omitempty"`
 	} `json:"spec"`
@@ -925,10 +932,20 @@ type PersistentVolume struct {
 		Capacity         map[string]string `json:"capacity,omitempty"`
 		AccessModes      []string          `json:"accessModes,omitempty"`
 		ClaimRef         *ClaimReference   `json:"claimRef,omitempty"`
+		VolumeMode       string            `json:"volumeMode,omitempty"`
+		// PersistentVolumeReclaimPolicy says what happens to the volume when its claim is deleted: Retain keeps it,
+		// Released, until someone clears its claimRef.
+		PersistentVolumeReclaimPolicy string `json:"persistentVolumeReclaimPolicy,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		Phase string `json:"phase,omitempty"`
 	} `json:"status"`
+}
+
+// Namespace is a namespace reduced to its name and labels: what a NetworkPolicy's namespaceSelector is matched
+// against. The collector keeps nothing else of it.
+type Namespace struct {
+	Metadata ObjectMeta `json:"metadata"`
 }
 
 // ---- Policy and quota ----
@@ -1004,6 +1021,41 @@ type ResourceQuota struct {
 type ServiceAccount struct {
 	Metadata                     ObjectMeta `json:"metadata"`
 	AutomountServiceAccountToken *bool      `json:"automountServiceAccountToken,omitempty"`
+}
+
+// Role is a namespaced set of RBAC rules.
+type Role struct {
+	Metadata ObjectMeta   `json:"metadata"`
+	Rules    []PolicyRule `json:"rules,omitempty"`
+}
+
+// PolicyRule grants verbs on resources.
+type PolicyRule struct {
+	APIGroups     []string `json:"apiGroups,omitempty"`
+	Resources     []string `json:"resources,omitempty"`
+	ResourceNames []string `json:"resourceNames,omitempty"`
+	Verbs         []string `json:"verbs,omitempty"`
+}
+
+// RoleBinding grants a Role of its namespace, or a ClusterRole, to its subjects within its namespace.
+type RoleBinding struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Subjects []Subject  `json:"subjects,omitempty"`
+	RoleRef  struct {
+		Kind string `json:"kind"`
+		Name string `json:"name"`
+	} `json:"roleRef"`
+}
+
+func (b RoleBinding) Ref() Ref {
+	return Ref{Kind: "RoleBinding", Namespace: b.Metadata.Namespace, Name: b.Metadata.Name}
+}
+
+// Subject is who a binding grants to: a ServiceAccount (with its namespace), a User or a Group.
+type Subject struct {
+	Kind      string `json:"kind"`
+	Name      string `json:"name"`
+	Namespace string `json:"namespace,omitempty"`
 }
 
 // KeySet is a ConfigMap or Secret reduced to its name and key names. kube-diagnose never reads values: the

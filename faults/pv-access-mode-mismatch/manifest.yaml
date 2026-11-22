@@ -1,0 +1,57 @@
+# A claim asks for ReadWriteMany from hand-made volumes of class nfs, and the only such PersistentVolume offers ReadWriteOnce, so the claim stays Pending and the pods that share it never start.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pv-access-mode-mismatch
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: kd-pv-access-mode-mismatch
+spec:
+  capacity:
+    storage: 1Gi
+  accessModes: [ReadWriteOnce]
+  storageClassName: nfs
+  hostPath:
+    path: /tmp/kd-pv-access-mode-mismatch
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: kd-pv-access-mode-mismatch
+spec:
+  accessModes: [ReadWriteMany]
+  storageClassName: nfs
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: kd-pv-access-mode-mismatch
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data

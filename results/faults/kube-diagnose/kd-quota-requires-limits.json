@@ -1,0 +1,58 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-quota-requires-limits"
+  ],
+  "collectedAt": "2026-11-22 07:20 UTC",
+  "findings": [
+    {
+      "rule": "KD275",
+      "title": "ResourceQuota requires a request or limit the pods do not set",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-quota-requires-limits",
+        "name": "web"
+      },
+      "cause": "Deployment kd-quota-requires-limits/web cannot create pods: ResourceQuota compute puts a quota on limits.memory, which the API server can only count when every container sets it, and container web sets no resources.limits.memory. The quota is not used up: the pods are refused for leaving the field out",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ReplicaSet",
+            "namespace": "kd-quota-requires-limits",
+            "name": "web-6d754df847"
+          },
+          "what": "event FailedCreate (8 times)",
+          "detail": "(combined from similar events): Error creating: pods \"web-6d754df847-6nht2\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "command": "kubectl get events -n kd-quota-requires-limits --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-6d754df847"
+        },
+        {
+          "object": {
+            "kind": "ResourceQuota",
+            "namespace": "kd-quota-requires-limits",
+            "name": "compute"
+          },
+          "what": "ResourceQuota compute's limits",
+          "command": "kubectl get resourcequota compute -n kd-quota-requires-limits -o jsonpath='{.status.hard}'"
+        },
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-quota-requires-limits",
+            "name": "web"
+          },
+          "what": "the containers' requests and limits",
+          "command": "kubectl get deployment web -n kd-quota-requires-limits -o jsonpath='{range .spec.template.spec.containers[*]}{.name}{\" \"}{.resources}{\"\\n\"}{end}'"
+        }
+      ],
+      "fix": "Set resources.limits.memory on the containers named, or add a LimitRange to the namespace with a default for it, so that containers which set none are given one."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

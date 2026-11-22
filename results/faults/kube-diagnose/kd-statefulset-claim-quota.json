@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-claim-quota"
   ],
-  "collectedAt": "2026-11-21 06:59 UTC",
+  "collectedAt": "2026-11-22 07:21 UTC",
   "findings": [
     {
       "rule": "KD170",

@@ -17,6 +17,9 @@ func storageFindings(ix *index) []Finding {
 		if f := resizeFailed(ix, pvc); f != nil {
 			out = append(out, *f)
 		}
+		if pvc.Status.Phase == "Lost" {
+			out = append(out, lostClaim(ix, pvc))
+		}
 		if pvc.Status.Phase != "Pending" {
 			continue
 		}
@@ -41,6 +44,9 @@ func pendingClaim(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
 		if f := namedVolume(ix, pvc, state); f != nil {
 			return f
 		}
+	}
+	if f, static := noVolumeFits(ix, pvc, state); static {
+		return f
 	}
 	switch {
 	case pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "":

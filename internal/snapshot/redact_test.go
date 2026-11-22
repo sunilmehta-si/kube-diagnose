@@ -171,3 +171,61 @@ func TestRedactLeavesLoopbackAddresses(t *testing.T) {
 		}
 	}
 }
+
+func TestRedactRenamesEveryNamespaceOfTheCluster(t *testing.T) {
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}}
+	s.NamespaceObjects = []kube.Namespace{
+		{Metadata: kube.ObjectMeta{Name: "shop", Labels: map[string]string{"kubernetes.io/metadata.name": "shop", "team": "storefront"}}},
+		{Metadata: kube.ObjectMeta{Name: "payments-prod", Labels: map[string]string{"kubernetes.io/metadata.name": "payments-prod"}}},
+	}
+	out, err := Redact(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(out)
+	for _, leaked := range []string{"shop", "payments-prod", "storefront"} {
+		if strings.Contains(string(b), leaked) {
+			t.Errorf("%q survives redaction: %s", leaked, b)
+		}
+	}
+	// A namespace's own name label still equals its name, so a selector on it matches as before.
+	for _, n := range out.NamespaceObjects {
+		if n.Metadata.Labels["kubernetes.io/metadata.name"] != n.Metadata.Name {
+			t.Errorf("name label %q differs from name %q", n.Metadata.Labels["kubernetes.io/metadata.name"], n.Metadata.Name)
+		}
+	}
+	if out.NamespaceObjects[0].Metadata.Name != out.Namespaces[0] {
+		t.Errorf("namespace renamed two ways: %q and %q", out.NamespaceObjects[0].Metadata.Name, out.Namespaces[0])
+	}
+}
+
+func TestRedactRenamesRolesAndKeepsBuiltInClusterRoles(t *testing.T) {
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}}
+	s.Roles = []kube.Role{{Metadata: kube.ObjectMeta{Name: "billing-reader", Namespace: "shop"}}}
+	var own, builtin kube.RoleBinding
+	own.Metadata = kube.ObjectMeta{Name: "billing-read", Namespace: "shop"}
+	own.RoleRef.Kind, own.RoleRef.Name = "Role", "ledger-reader" // a Role that does not exist is still a name
+	own.Subjects = []kube.Subject{{Kind: "ServiceAccount", Name: "invoicer", Namespace: "shop"}, {Kind: "User", Name: "priya@example.com"}}
+	builtin.Metadata = kube.ObjectMeta{Name: "viewers", Namespace: "shop"}
+	builtin.RoleRef.Kind, builtin.RoleRef.Name = "ClusterRole", "view"
+	s.RoleBindings = []kube.RoleBinding{own, builtin}
+	s.ClusterRoles = []string{"acme-operator", "system:node", "view"}
+	s.Events = []kube.Event{{Message: "the view of the ledger-reader role"}}
+	out, err := Redact(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(out)
+	for _, leaked := range []string{"billing-reader", "billing-read", "ledger-reader", "invoicer", "priya@example.com", "acme-operator", "shop"} {
+		if strings.Contains(string(b), leaked) {
+			t.Errorf("%q survives redaction: %s", leaked, b)
+		}
+	}
+	if out.RoleBindings[1].RoleRef.Name != "view" || out.ClusterRoles[1] != "system:node" || out.ClusterRoles[2] != "view" {
+		t.Errorf("built-in ClusterRoles should keep their names: %+v %v", out.RoleBindings[1].RoleRef, out.ClusterRoles)
+	}
+	// "view" is also a word, and stays one.
+	if !strings.HasPrefix(out.Events[0].Message, "the view of the ") {
+		t.Errorf("message %q", out.Events[0].Message)
+	}
+}

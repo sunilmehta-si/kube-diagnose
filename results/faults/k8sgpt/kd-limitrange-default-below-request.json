@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-limitrange-default-below-request/web",
+      "error": [
+        {
+          "Text": "Deployment kd-limitrange-default-below-request/web has 2 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-default-below-request",
+              "Masked": "YlQydTYoNm9aY15QZSVlP31XSDI4SyVkWTU4Ynd7Z3trVDQ="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "PmMp"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-limitrange-default-below-request/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-limitrange-default-below-request/web-6c8ddf67c6",
+      "error": [
+        {
+          "Text": "Pod \"web-6c8ddf67c6-46xtl\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

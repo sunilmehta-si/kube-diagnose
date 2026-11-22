@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-volume-hides-command",
-              "Masked": "dlIyQVcrXk4xVilqUz9Tb1BuJlV3NU4="
+              "Masked": "aCd3enhMWTpdTVF3VTUtVEF6J3NPTyo="
             },
             {
               "Unmasked": "api",
-              "Masked": "W3k7"
+              "Masked": "RC1e"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-volume-hides-command/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-544f5fbdf4\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-volume-hides-command",
+              "Masked": "MClLRj5XWD1XUSY3dHYyUmV8PEpkLHU="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "VCxF"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-volume-hides-command/api-544f5fbdf4-qxlmv",
+      "name": "kd-volume-hides-command/api-544f5fbdf4-grdl5",
       "error": [
         {
-          "Text": "the last termination reason is StartError container=api pod=api-544f5fbdf4-qxlmv",
+          "Text": "the last termination reason is StartError container=api pod=api-544f5fbdf4-grdl5",
           "KubernetesDoc": "",
           "Sensitive": []
         }

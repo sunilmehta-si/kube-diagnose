@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readiness-gate-unset"
   ],
-  "collectedAt": "2026-11-21 06:58 UTC",
+  "collectedAt": "2026-11-22 07:20 UTC",
   "findings": [
     {
       "rule": "KD128",
@@ -21,10 +21,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-gate-unset",
-            "name": "web-54495c8f84-86s82"
+            "name": "web-54495c8f84-ngm5s"
           },
           "what": "pod readiness gates and conditions",
-          "command": "kubectl get pod web-54495c8f84-86s82 -n kd-readiness-gate-unset -o jsonpath='{.spec.readinessGates}{\"\\n\"}{.status.conditions}'"
+          "command": "kubectl get pod web-54495c8f84-ngm5s -n kd-readiness-gate-unset -o jsonpath='{.spec.readinessGates}{\"\\n\"}{.status.conditions}'"
         }
       ],
       "fix": "Find the controller that sets the gate's condition (an AWS or GKE load balancer controller sets target-health conditions) and why it has not; the pod stays out of every Service until it does.",
@@ -32,7 +32,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-readiness-gate-unset",
-          "name": "web-54495c8f84-86s82"
+          "name": "web-54495c8f84-ngm5s"
         },
         {
           "kind": "Service",

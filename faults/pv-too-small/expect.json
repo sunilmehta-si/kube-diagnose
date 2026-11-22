@@ -1,0 +1,21 @@
+{
+  "namespace": "kd-pv-too-small",
+  "description": "A claim asks for 5Gi from hand-made volumes of class manual, and the only such PersistentVolume holds 1Gi, so the claim stays Pending and the database that mounts it never starts.",
+  "rule": "KD250",
+  "object": "PersistentVolumeClaim/data",
+  "keywords": [
+    [
+      "1Gi"
+    ],
+    [
+      "5Gi"
+    ],
+    [
+      "less than",
+      "too small",
+      "smaller",
+      "holds",
+      "capacity"
+    ]
+  ]
+}

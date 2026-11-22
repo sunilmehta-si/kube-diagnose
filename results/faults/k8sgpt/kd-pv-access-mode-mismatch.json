@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pv-access-mode-mismatch/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pv-access-mode-mismatch/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-access-mode-mismatch",
+              "Masked": "US9saltbJi5AOXo3SH1bPCNWbnZecyN0WlM="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "JyI="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "name": "kd-pv-access-mode-mismatch/data",
+      "error": [
+        {
+          "Text": "storageclass.storage.k8s.io \"nfs\" not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pv-access-mode-mismatch/db-56f8666648-p8bzw",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pv-access-mode-mismatch"
+  ],
+  "collectedAt": "2026-11-22 07:20 UTC",
+  "findings": [
+    {
+      "rule": "KD250",
+      "title": "No PersistentVolume fits the claim",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pv-access-mode-mismatch",
+        "name": "data"
+      },
+      "cause": "PersistentVolumeClaim data stays Pending: it asks for 1Gi; ReadWriteMany; storageClassName \"nfs\", a name no StorageClass has, so only an existing PersistentVolume can satisfy it, and none fits: the nearest, kd-pv-access-mode-mismatch, offers access mode ReadWriteOnce, not the ReadWriteMany the claim asks for",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-access-mode-mismatch",
+            "name": "data"
+          },
+          "what": "PersistentVolumeClaim is Pending",
+          "command": "kubectl get pvc data -n kd-pv-access-mode-mismatch -o jsonpath='{.status.phase}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-access-mode-mismatch",
+            "name": "data"
+          },
+          "what": "claim asks for 1Gi; ReadWriteMany; storageClassName \"nfs\", a name no StorageClass has",
+          "command": "kubectl get pvc data -n kd-pv-access-mode-mismatch -o jsonpath='{.spec.resources.requests.storage}{\" \"}{.spec.accessModes}{\" \"}{.spec.storageClassName}{\" \"}{.spec.volumeMode}{\" \"}{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolume",
+            "name": "kd-pv-access-mode-mismatch"
+          },
+          "what": "PersistentVolume kd-pv-access-mode-mismatch offers access mode ReadWriteOnce, not the ReadWriteMany the claim asks for",
+          "command": "kubectl get pv kd-pv-access-mode-mismatch -o jsonpath='{.status.phase}{\" \"}{.spec.capacity.storage}{\" \"}{.spec.accessModes}{\" \"}{.spec.volumeMode}{\" \"}{.spec.claimRef.namespace}{\"/\"}{.spec.claimRef.name}'"
+        }
+      ],
+      "fix": "Recreate the claim so that it fits an existing volume (a claim's size, access modes and class cannot be edited), or create a PersistentVolume that fits the claim: at least its size, every access mode it asks for, the same volumeMode and storageClassName, and not bound or reserved.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pv-access-mode-mismatch",
+          "name": "db-56f8666648-p8bzw"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

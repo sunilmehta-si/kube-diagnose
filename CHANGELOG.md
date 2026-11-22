@@ -2,6 +2,62 @@
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-22
+
+- The fault suite's committed run (44996999466): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 160 of 160 faults and raises no false alarm; k8sgpt v0.4.41 names 35, 10 of them first.
+
+### Added
+- 16 rules, 167 in all (`docs/rules.md`):
+  - commands: a flag and its value written as one argument, "--port 8080" (KD221); a command that is there and still
+    fails with "no such file or directory", because the interpreter on its first line, or its loader, is not in the
+    image (KD222); a shell operator such as && in a command that runs without a shell (KD226); and flags written
+    under command, which replaces the image's entrypoint, where args is meant (KD229);
+  - configuration: an app that reads REDIS_PORT as its own setting when the kubelet set it for Service redis, to
+    tcp://IP:PORT (KD223), and a container run as a user other than root that is denied a path of its image (KD224);
+  - connections: a Service whose ready pods refuse the port it targets, because nothing listens there and no
+    readiness probe checks it (KD225);
+  - storage: a claim that only a hand-made PersistentVolume can satisfy and that none fits, being too small, of
+    other access modes, labels or volume mode, or taken (KD250); one whose fitting volume is Released (KD251); and a
+    claim that is Lost, bound on paper to a volume that does not exist (KD252);
+  - NetworkPolicy: a rule that selects namespaces by a label no namespace has (KD274);
+  - RBAC: a RoleBinding that grants a Role which does not exist (KD227) or names a ServiceAccount which does not
+    exist (KD228), tied to the container the API server refuses when there is one;
+  - admission: a ResourceQuota on a request or limit that the pods do not set (KD275, which KD170 used to report as
+    a quota used up), a LimitRange whose default limit is below the container's request (KD276), and an admission
+    webhook the API server cannot reach, which refuses every pod though it rejected none (KD277).
+- 19 fault scenarios, 160 broken namespaces in all: one for each new rule but KD277, a second for KD250, and one
+  each for a NetworkPolicy that allows the Service's port, a probe command written as one string and a Job cut off
+  by its deadline. KD277 has unit tests and no scenario: its webhook configuration is a cluster-wide object, and
+  k8sgpt reported it in every namespace it scanned, the healthy one included, which would have counted against
+  k8sgpt 160 times for one fault.
+- The snapshot holds the names and labels of the cluster's namespaces, the Roles and RoleBindings of the namespaces
+  read, the names of the cluster's ClusterRoles, a pod's enableServiceLinks, and a claim's and a volume's volumeMode,
+  selector and reclaim policy. `--redact` renames all of them; the built-in ClusterRoles (view, edit, admin,
+  cluster-admin, system:*) keep their names.
+
+### Changed
+- The cluster is read with up to eight kubectl calls at once, not one by one. On the fault suite's cluster a
+  namespace took 1.4 to 2.3 seconds to read before, over this round's three runs, and 0.8 to 1.4 after, over its
+  four (the runners differ from run to run). The snapshot is the same either way.
+- NetworkPolicy rules that select by namespace are judged against the namespaces' labels when those were read;
+  before, any such rule counted as allowing the connection.
+- KD127 names a policy that allows the Service's port where the pods' port (the targetPort) is meant.
+- KD129, KD120 and KD112 name an exec probe whose whole command line is one item, such as "cat /tmp/healthy".
+- KD180 says when a Job was stopped by its own activeDeadlineSeconds: its pods were ended while running, and
+  nothing crashed.
+
+### Fixed
+- A container of a long-running workload whose process keeps ending with code 0 was not reported at all when the
+  snapshot caught it between an exit and the kubelet's back-off (state terminated, reason Completed). It is KD110
+  now, or the rule that explains the exit.
+- A pending claim's finding no longer changes once the fault is more than ten minutes old. At that point the
+  scheduler stops saying which claim a pod waits for ("binding volumes: context deadline exceeded") and the
+  Deployment passes its progress deadline; the first was reported as KD149 ahead of the claim, the second as a KD181
+  of its own. The fault suite showed both once it had grown past ten minutes a run.
+- The NetworkPolicy scenarios' clients made one request and then slept; one made it in the moment before its policy
+  took effect and never failed. They call every five seconds now.
+
 ## [0.11.0] - 2026-11-21
 
 - The fault suite's committed run (44877424146): kube-diagnose names the root cause in its first finding, with the

@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-pv-access-mode-mismatch",
+  "description": "A claim asks for ReadWriteMany from hand-made volumes of class nfs, and the only such PersistentVolume offers ReadWriteOnce, so the claim stays Pending and the pods that share it never start.",
+  "rule": "KD250",
+  "object": "PersistentVolumeClaim/data",
+  "keywords": [
+    [
+      "ReadWriteMany"
+    ],
+    [
+      "ReadWriteOnce"
+    ],
+    [
+      "access mode",
+      "accessMode"
+    ]
+  ]
+}

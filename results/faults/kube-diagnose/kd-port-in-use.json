@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-port-in-use"
   ],
-  "collectedAt": "2026-11-21 06:58 UTC",
+  "collectedAt": "2026-11-22 07:19 UTC",
   "findings": [
     {
       "rule": "KD122",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-port-in-use",
-            "name": "web-64496df69d-bh6j9"
+            "name": "web-64496df69d-mvck7"
           },
           "what": "container metrics exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod web-64496df69d-bh6j9 -n kd-port-in-use -o jsonpath='{.status.containerStatuses[?(@.name==\"metrics\")].state.terminated}'"
+          "command": "kubectl get pod web-64496df69d-mvck7 -n kd-port-in-use -o jsonpath='{.status.containerStatuses[?(@.name==\"metrics\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-port-in-use",
-            "name": "web-64496df69d-bh6j9"
+            "name": "web-64496df69d-mvck7"
           },
-          "what": "last lines of container metrics's log (current run)",
+          "what": "last lines of container metrics's log (run that exited)",
           "detail": "httpd: bind: Address already in use",
-          "command": "kubectl logs web-64496df69d-bh6j9 -n kd-port-in-use -c metrics --tail=20"
+          "command": "kubectl logs web-64496df69d-mvck7 -n kd-port-in-use -c metrics --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-port-in-use",
-            "name": "web-64496df69d-bh6j9"
+            "name": "web-64496df69d-mvck7"
           },
           "what": "containers metrics and web both declare port 8080",
-          "command": "kubectl get pod web-64496df69d-bh6j9 -n kd-port-in-use -o jsonpath='{range .spec.containers[*]}{.name}{\" \"}{.ports}{\"\\n\"}{end}'"
+          "command": "kubectl get pod web-64496df69d-mvck7 -n kd-port-in-use -o jsonpath='{range .spec.containers[*]}{.name}{\" \"}{.ports}{\"\\n\"}{end}'"
         }
       ],
       "fix": "Give metrics or web another port (and update the Service's targetPort to match).",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-port-in-use",
-          "name": "web-64496df69d-bh6j9"
+          "name": "web-64496df69d-mvck7"
         }
       ]
     }

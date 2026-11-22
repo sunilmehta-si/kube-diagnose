@@ -24,6 +24,7 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	groups := map[string]*group{}
 	var order []string
 	links := map[kube.Ref][]kube.Ref{} // PVC -> pods waiting for it
+	var linked []kube.Pod              // those pods: their owners are explained by the claim's finding
 	pods := append([]kube.Pod(nil), s.Pods...)
 	sort.Slice(pods, func(i, j int) bool { return pods[i].Ref().String() < pods[j].Ref().String() })
 	for _, p := range pods {
@@ -33,6 +34,7 @@ func Diagnose(s *snapshot.Snapshot) Report {
 		}
 		if pr.linkTo != nil {
 			links[*pr.linkTo] = append(links[*pr.linkTo], p.Ref())
+			linked = append(linked, p)
 			continue
 		}
 		owner := ix.owner(p)
@@ -57,6 +59,14 @@ func Diagnose(s *snapshot.Snapshot) Report {
 		}
 		explained[g.owner] = true
 		r.Findings = append(r.Findings, f)
+	}
+
+	// A workload whose pods wait for a claim is explained by the claim's finding: its stalled rollout is that, later.
+	for _, p := range linked {
+		explained[ix.owner(p)] = true
+		if o, ok := p.Metadata.Controller(); ok {
+			explained[kube.Ref{Kind: o.Kind, Namespace: p.Metadata.Namespace, Name: o.Name}] = true
+		}
 	}
 
 	// Storage: a pending claim is the root cause for the pods that wait for it.
@@ -99,7 +109,16 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	r.Findings = append(r.Findings, cronJobFindings(ix, explained)...)
 	r.Findings = append(r.Findings, hpaFindings(ix)...)
 	r.Findings = append(r.Findings, pdbFindings(ix)...)
-	r.Findings = append(r.Findings, networkPolicyFindings(ix)...)
+	for _, f := range rbacFindings(ix) {
+		if !reported(r.Findings, f) {
+			r.Findings = append(r.Findings, f)
+		}
+	}
+	for _, f := range networkPolicyFindings(ix) {
+		if !reported(r.Findings, f) {
+			r.Findings = append(r.Findings, f)
+		}
+	}
 	r.Findings = append(r.Findings, statefulSetFindings(ix)...)
 	r.Findings = append(r.Findings, nodeFindings(ix)...)
 	sort.SliceStable(r.Findings, func(i, j int) bool {
@@ -196,4 +215,20 @@ func uncreatedOrdinals(ix *index, sts kube.Ref, desired int32) []string {
 		}
 	}
 	return missing
+}
+
+// reported says whether a finding for a pod already rests on the object a finding of the same rule is about: the
+// pod's finding names that object as its cause, so saying it again would count one cause twice.
+func reported(findings []Finding, f Finding) bool {
+	for _, g := range findings {
+		if g.Rule != f.Rule {
+			continue
+		}
+		for _, e := range g.Evidence {
+			if e.Object == f.Object {
+				return true
+			}
+		}
+	}
+	return false
 }

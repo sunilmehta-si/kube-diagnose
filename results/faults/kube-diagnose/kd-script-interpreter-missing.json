@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-script-interpreter-missing"
+  ],
+  "collectedAt": "2026-11-22 07:21 UTC",
+  "findings": [
+    {
+      "rule": "KD222",
+      "title": "Command's interpreter is not in the image",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-script-interpreter-missing",
+        "name": "web"
+      },
+      "cause": "container web cannot run /scripts/run.sh, though the file is there (key run.sh of ConfigMap scripts): the kernel reports \"no such file or directory\" for the interpreter named on the script's first line (#!), which image docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec does not have; its log says: \"exec /scripts/run.sh: no such file or directory\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-script-interpreter-missing",
+            "name": "web-84b4ff95fc-nsnsz"
+          },
+          "what": "container web exited with code 255 (Error), restarted 6 times",
+          "command": "kubectl get pod web-84b4ff95fc-nsnsz -n kd-script-interpreter-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-script-interpreter-missing",
+            "name": "web-84b4ff95fc-nsnsz"
+          },
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "exec /scripts/run.sh: no such file or directory",
+          "command": "kubectl logs web-84b4ff95fc-nsnsz -n kd-script-interpreter-missing -c web --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-script-interpreter-missing",
+            "name": "web-84b4ff95fc-nsnsz"
+          },
+          "what": "container web mounts volume scripts (ConfigMap scripts) at /scripts",
+          "command": "kubectl get pod web-84b4ff95fc-nsnsz -n kd-script-interpreter-missing -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
+        },
+        {
+          "object": {
+            "kind": "ConfigMap",
+            "namespace": "kd-script-interpreter-missing",
+            "name": "scripts"
+          },
+          "what": "the first line of run.sh names the interpreter",
+          "command": "kubectl get configmap scripts -n kd-script-interpreter-missing -o jsonpath='{.data}'"
+        }
+      ],
+      "fix": "Read the first line of run.sh in ConfigMap scripts. Name an interpreter the image has (#!/bin/sh where there is no bash), or use an image that has it; and save the file with Unix line endings, since a Windows line ending makes the kernel look for an interpreter whose name ends in a carriage return.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-script-interpreter-missing",
+          "name": "web-84b4ff95fc-nsnsz"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

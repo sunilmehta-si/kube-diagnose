@@ -1,0 +1,58 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-limitrange-default-below-request"
+  ],
+  "collectedAt": "2026-11-22 07:18 UTC",
+  "findings": [
+    {
+      "rule": "KD276",
+      "title": "LimitRange's default limit is below the container's request",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-limitrange-default-below-request",
+        "name": "web"
+      },
+      "cause": "Deployment kd-limitrange-default-below-request/web cannot create pods: container web requests 256Mi of memory and sets no memory limit, so the namespace's LimitRange gave it its default limit, 128Mi, and a request above the limit makes the pod invalid",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ReplicaSet",
+            "namespace": "kd-limitrange-default-below-request",
+            "name": "web-6c8ddf67c6"
+          },
+          "what": "event FailedCreate (8 times)",
+          "detail": "(combined from similar events): Error creating: Pod \"web-6c8ddf67c6-4kznr\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
+          "command": "kubectl get events -n kd-limitrange-default-below-request --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-6c8ddf67c6"
+        },
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-limitrange-default-below-request",
+            "name": "web"
+          },
+          "what": "the pod template's requests and limits",
+          "command": "kubectl get deployment web -n kd-limitrange-default-below-request -o jsonpath='{range .spec.template.spec.containers[*]}{.name}{\" \"}{.resources}{\"\\n\"}{end}'"
+        },
+        {
+          "object": {
+            "kind": "LimitRange",
+            "namespace": "kd-limitrange-default-below-request",
+            "name": "*"
+          },
+          "what": "the namespace's LimitRanges and their defaults",
+          "command": "kubectl get limitranges -n kd-limitrange-default-below-request -o yaml"
+        }
+      ],
+      "fix": "Set the memory limit of container web in the pod template, at or above its request of 256Mi, so that the LimitRange's default is not used; or lower the request to 128Mi or less; or raise the default in the LimitRange."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

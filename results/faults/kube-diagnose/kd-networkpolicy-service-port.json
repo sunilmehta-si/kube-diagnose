@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-service-port"
+  ],
+  "collectedAt": "2026-11-22 07:19 UTC",
+  "findings": [
+    {
+      "rule": "KD127",
+      "title": "NetworkPolicy blocks the connection to a Service",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-networkpolicy-service-port",
+        "name": "client"
+      },
+      "cause": "container client exits because its connection to Service web times out: NetworkPolicy client-egress allows egress between them on port 80, the Service's port, but a policy is checked after the Service has forwarded the connection, against the pods' own port 8080 (the targetPort), which no rule allows; a blocked connection is dropped, not refused; its log says: \"wget: download timed out\"; Deployment client has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-service-port",
+            "name": "client-5858c98f74-58dmn"
+          },
+          "what": "container client exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod client-5858c98f74-58dmn -n kd-networkpolicy-service-port -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-service-port",
+            "name": "client-5858c98f74-58dmn"
+          },
+          "what": "last lines of container client's log (current run)",
+          "detail": "Connecting to web (10.96.8.225:80)\nwget: download timed out",
+          "command": "kubectl logs client-5858c98f74-58dmn -n kd-networkpolicy-service-port -c client --tail=20"
+        },
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-service-port",
+            "name": "client-egress"
+          },
+          "what": "NetworkPolicy client-egress allows egress on port 80, and no rule allows port 8080",
+          "command": "kubectl get networkpolicy client-egress -n kd-networkpolicy-service-port -o jsonpath='{.spec.egress}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-networkpolicy-service-port",
+            "name": "web"
+          },
+          "what": "Service web forwards port 80 to the pods' port 8080",
+          "command": "kubectl get service web -n kd-networkpolicy-service-port -o jsonpath='{range .spec.ports[*]}{.port}{\" -\u003e \"}{.targetPort}{\"\\n\"}{end}'"
+        }
+      ],
+      "fix": "In NetworkPolicy client-egress, allow port 8080, the pods' port, in place of 80: NetworkPolicy ports are the ports of pods, never of Services.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-networkpolicy-service-port",
+          "name": "client-5858c98f74-58dmn"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

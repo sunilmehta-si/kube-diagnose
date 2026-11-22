@@ -5,11 +5,33 @@
   "problems": 3,
   "results": [
     {
+      "kind": "Deployment",
+      "name": "kd-pod-security-restricted/web",
+      "error": [
+        {
+          "Text": "Deployment kd-pod-security-restricted/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pod-security-restricted",
+              "Masked": "IXd1WVA0MUEqT2pmTE54fEhXPDF0ayoxJmk="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "eDJW"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "ReplicaSet",
       "name": "kd-pod-security-restricted/web-54b9bbc47f",
       "error": [
         {
-          "Text": "pods \"web-54b9bbc47f-l4jkj\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
+          "Text": "pods \"web-54b9bbc47f-hn8t9\" is forbidden: violates PodSecurity \"restricted:latest\": allowPrivilegeEscalation != false (container \"web\" must set securityContext.allowPrivilegeEscalation=false), unrestricted capabilities (container \"web\" must set securityContext.capabilities.drop=[\"ALL\"]), runAsNonRoot != true (pod or container \"web\" must set securityContext.runAsNonRoot=true), seccompProfile (pod or container \"web\" must set securityContext.seccompProfile.type to \"RuntimeDefault\" or \"Localhost\")",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -25,28 +47,6 @@
           "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
           "KubernetesDoc": "",
           "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Deployment",
-      "name": "kd-pod-security-restricted/web",
-      "error": [
-        {
-          "Text": "Deployment kd-pod-security-restricted/web has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pod-security-restricted",
-              "Masked": "aG01NnlAZVJMZHpxe1d7c1pxLTk3N3A3Q04="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "dyFZ"
-            }
-          ]
         }
       ],
       "details": "",

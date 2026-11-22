@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "ConfigMap",
+      "name": "kd-quota-requires-limits/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Deployment",
+      "name": "kd-quota-requires-limits/web",
+      "error": [
+        {
+          "Text": "Deployment kd-quota-requires-limits/web has 2 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-quota-requires-limits",
+              "Masked": "elpPbFNSYSJNamxvTHs9aTxNS0kzXkJS"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Il81"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-quota-requires-limits/web-6d754df847",
+      "error": [
+        {
+          "Text": "pods \"web-6d754df847-bbshx\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

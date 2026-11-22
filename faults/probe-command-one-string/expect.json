@@ -1,0 +1,22 @@
+{
+  "namespace": "kd-probe-command-one-string",
+  "description": "A readiness probe has its command line as one item, \"cat /tmp/ready\", so the kubelet looks for a program with that whole name, every probe errors, and the pod never becomes ready.",
+  "rule": "KD120",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "readiness"
+    ],
+    [
+      "cat /tmp/ready"
+    ],
+    [
+      "one item",
+      "one string",
+      "single item",
+      "single string",
+      "whole name",
+      "as its own item"
+    ]
+  ]
+}

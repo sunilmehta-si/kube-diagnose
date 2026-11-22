@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pdb-overlap"
   ],
-  "collectedAt": "2026-11-21 06:57 UTC",
+  "collectedAt": "2026-11-22 07:19 UTC",
   "findings": [
     {
       "rule": "KD289",
@@ -15,7 +15,7 @@
         "namespace": "kd-pdb-overlap",
         "name": "frontend"
       },
-      "cause": "PodDisruptionBudgets frontend and web all select 2 pods (web-9fcd6d76c-g9wdf for one): the eviction API refuses a pod that more than one budget covers, so a node drain or cluster upgrade fails on these pods whatever the budgets allow",
+      "cause": "PodDisruptionBudgets frontend and web all select 2 pods (web-9fcd6d76c-4qv7b for one): the eviction API refuses a pod that more than one budget covers, so a node drain or cluster upgrade fails on these pods whatever the budgets allow",
       "evidence": [
         {
           "object": {
@@ -39,10 +39,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-pdb-overlap",
-            "name": "web-9fcd6d76c-g9wdf"
+            "name": "web-9fcd6d76c-4qv7b"
           },
-          "what": "pod web-9fcd6d76c-g9wdf has labels app=web,pod-template-hash=9fcd6d76c,tier=frontend, which every one of those selectors matches",
-          "command": "kubectl get pod web-9fcd6d76c-g9wdf -n kd-pdb-overlap -o jsonpath='{.metadata.labels}'"
+          "what": "pod web-9fcd6d76c-4qv7b has labels app=web,pod-template-hash=9fcd6d76c,tier=frontend, which every one of those selectors matches",
+          "command": "kubectl get pod web-9fcd6d76c-4qv7b -n kd-pdb-overlap -o jsonpath='{.metadata.labels}'"
         }
       ],
       "fix": "Leave each pod under one budget: delete the extra PodDisruptionBudget, or narrow the selectors so they no longer match the same pods.",

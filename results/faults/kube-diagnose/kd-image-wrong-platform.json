@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-image-wrong-platform"
   ],
-  "collectedAt": "2026-11-21 06:56 UTC",
+  "collectedAt": "2026-11-22 07:17 UTC",
   "findings": [
     {
       "rule": "KD109",
@@ -21,21 +21,21 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-image-wrong-platform",
-            "name": "web-56dcc9c758-s8v7g"
+            "name": "web-56dcc9c758-jqcxq"
           },
           "what": "container web is waiting: ImagePullBackOff",
           "detail": "Back-off pulling image \"docker.io/arm64v8/busybox:1.37.0@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/arm64v8/busybox@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": no match for platform in manifest: not found",
-          "command": "kubectl get pod web-56dcc9c758-s8v7g -n kd-image-wrong-platform -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "command": "kubectl get pod web-56dcc9c758-jqcxq -n kd-image-wrong-platform -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-image-wrong-platform",
-            "name": "web-56dcc9c758-s8v7g"
+            "name": "web-56dcc9c758-jqcxq"
           },
           "what": "event Failed (5 times)",
           "detail": "Failed to pull image \"docker.io/arm64v8/busybox:1.37.0@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/arm64v8/busybox@sha256:b3b1fa492bae35fe28c5ff48dddb493b9d8a429b3d8b0a92b2e3f0774968acd7\": no match for platform in manifest: not found",
-          "command": "kubectl get events -n kd-image-wrong-platform --field-selector involvedObject.kind=Pod,involvedObject.name=web-56dcc9c758-s8v7g"
+          "command": "kubectl get events -n kd-image-wrong-platform --field-selector involvedObject.kind=Pod,involvedObject.name=web-56dcc9c758-jqcxq"
         }
       ],
       "fix": "Use a multi-architecture image that includes the node's platform, or schedule the pod onto nodes it was built for (a nodeSelector on kubernetes.io/arch).",
@@ -43,7 +43,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-image-wrong-platform",
-          "name": "web-56dcc9c758-s8v7g"
+          "name": "web-56dcc9c758-jqcxq"
         }
       ]
     }

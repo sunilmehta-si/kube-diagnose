@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-flags-in-command"
+  ],
+  "collectedAt": "2026-11-22 07:16 UTC",
+  "findings": [
+    {
+      "rule": "KD229",
+      "title": "Flags are in command, which replaces the image's entrypoint",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-flags-in-command",
+        "name": "web"
+      },
+      "cause": "container web's command is [\"--port=8080\", \"--root=/www\"]: command replaces the image's ENTRYPOINT, so the runtime looks for a program named \"--port=8080\" and finds none. The flags were meant for the image's own program, which command has displaced; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-flags-in-command",
+            "name": "web-5cdb6c76fc-b9g8g"
+          },
+          "what": "container web did not start",
+          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"--port=8080\": executable file not found in $PATH",
+          "command": "kubectl get pod web-5cdb6c76fc-b9g8g -n kd-flags-in-command -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-flags-in-command",
+            "name": "web-5cdb6c76fc-b9g8g"
+          },
+          "what": "container web's command starts with the flag --port=8080",
+          "command": "kubectl get pod web-5cdb6c76fc-b9g8g -n kd-flags-in-command -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}'"
+        }
+      ],
+      "fix": "Move the flags to args and leave command out: args: [\"--port=8080\", \"--root=/www\"]. Then the image's entrypoint runs with them (args replaces the image's CMD, command its ENTRYPOINT). If the image has no entrypoint, put the program first in command.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-flags-in-command",
+          "name": "web-5cdb6c76fc-b9g8g"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,61 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-probe-command-one-string"
+  ],
+  "collectedAt": "2026-11-22 07:19 UTC",
+  "findings": [
+    {
+      "rule": "KD120",
+      "title": "Readiness probe failing",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-probe-command-one-string",
+        "name": "web"
+      },
+      "cause": "container web's readiness probe has the command line \"cat /tmp/ready\" as one item, so the kubelet looks for a program with that whole name, spaces included, and there is none: an exec probe's command is a list of arguments, and no shell splits it, so the probe can never pass and the container gets no traffic; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-command-one-string",
+            "name": "web-7ffb5945f5-8q866"
+          },
+          "what": "event Unhealthy (54 times)",
+          "detail": "(combined from similar events): Readiness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"2e2cc712e79d6b71353bb1e0f3530e65273c192936ee414e92167c85b123c58a\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"cat /tmp/ready\": stat cat /tmp/ready: no such file or directory",
+          "command": "kubectl get events -n kd-probe-command-one-string --field-selector involvedObject.kind=Pod,involvedObject.name=web-7ffb5945f5-8q866"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-probe-command-one-string",
+            "name": "web-7ffb5945f5-8q866"
+          },
+          "what": "container web is running but not ready",
+          "command": "kubectl get pod web-7ffb5945f5-8q866 -n kd-probe-command-one-string -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+        }
+      ],
+      "fix": "Write each word of the probe's command as its own item: command: [\"cat\", \"/tmp/ready\"]. If it needs a pipe, \u0026\u0026 or a variable, run it through a shell: [\"sh\", \"-c\", \"cat /tmp/ready\"].",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-probe-command-one-string",
+          "name": "web-7ffb5945f5-8q866"
+        },
+        {
+          "kind": "Service",
+          "namespace": "kd-probe-command-one-string",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

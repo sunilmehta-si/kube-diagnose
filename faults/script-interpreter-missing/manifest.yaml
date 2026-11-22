@@ -1,0 +1,51 @@
+# A start script from a ConfigMap begins with #!/bin/bash, and the image has only sh, so the kernel cannot run the script though the file is there.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-script-interpreter-missing
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scripts
+  namespace: kd-script-interpreter-missing
+data:
+  run.sh: |
+    #!/bin/bash
+    set -e
+    mkdir -p /www
+    echo ok > /www/index.html
+    exec httpd -f -p 8080 -h /www
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-script-interpreter-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["/scripts/run.sh"]
+          ports:
+            - name: http
+              containerPort: 8080
+          volumeMounts:
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: scripts
+          configMap:
+            name: scripts
+            defaultMode: 0755

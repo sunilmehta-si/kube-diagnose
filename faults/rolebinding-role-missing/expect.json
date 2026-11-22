@@ -1,0 +1,21 @@
+{
+  "namespace": "kd-rolebinding-role-missing",
+  "description": "A RoleBinding grants Role config-reader to the app ServiceAccount, but the Role in the namespace is named configmap-reader, so the binding grants nothing and the API server answers the worker with 403.",
+  "rule": "KD227",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "read-config",
+      "RoleBinding"
+    ],
+    [
+      "config-reader"
+    ],
+    [
+      "does not exist",
+      "no Role",
+      "not found",
+      "missing"
+    ]
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pv-too-small"
+  ],
+  "collectedAt": "2026-11-22 07:20 UTC",
+  "findings": [
+    {
+      "rule": "KD250",
+      "title": "No PersistentVolume fits the claim",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pv-too-small",
+        "name": "data"
+      },
+      "cause": "PersistentVolumeClaim data stays Pending: it asks for 5Gi; ReadWriteOnce; storageClassName \"manual\", a name no StorageClass has, so only an existing PersistentVolume can satisfy it, and none fits: the nearest, kd-pv-too-small, holds 1Gi, less than the 5Gi the claim asks for",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-too-small",
+            "name": "data"
+          },
+          "what": "PersistentVolumeClaim is Pending",
+          "command": "kubectl get pvc data -n kd-pv-too-small -o jsonpath='{.status.phase}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-too-small",
+            "name": "data"
+          },
+          "what": "claim asks for 5Gi; ReadWriteOnce; storageClassName \"manual\", a name no StorageClass has",
+          "command": "kubectl get pvc data -n kd-pv-too-small -o jsonpath='{.spec.resources.requests.storage}{\" \"}{.spec.accessModes}{\" \"}{.spec.storageClassName}{\" \"}{.spec.volumeMode}{\" \"}{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolume",
+            "name": "kd-pv-too-small"
+          },
+          "what": "PersistentVolume kd-pv-too-small holds 1Gi, less than the 5Gi the claim asks for",
+          "command": "kubectl get pv kd-pv-too-small -o jsonpath='{.status.phase}{\" \"}{.spec.capacity.storage}{\" \"}{.spec.accessModes}{\" \"}{.spec.volumeMode}{\" \"}{.spec.claimRef.namespace}{\"/\"}{.spec.claimRef.name}'"
+        }
+      ],
+      "fix": "Recreate the claim so that it fits an existing volume (a claim's size, access modes and class cannot be edited), or create a PersistentVolume that fits the claim: at least its size, every access mode it asks for, the same volumeMode and storageClassName, and not bound or reserved.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pv-too-small",
+          "name": "db-56f8666648-tgjc8"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -13,12 +14,16 @@ import (
 var (
 	reQuota         = regexp.MustCompile(`exceeded quota: ([^,]+), requested: ([^,]+(?:,[^,:]+)*), used: ([^,]+(?:,[^,:]+)*), limited: (.+)$`)
 	reQuotaM        = regexp.MustCompile(`must specify ([^ ]+)`)
+	reQuotaMust     = regexp.MustCompile(`failed quota: ([^:]+): must specify (.+)$`)
+	reReqAboveLimit = regexp.MustCompile(`spec\.(initContainers|containers)\[(\d+)\]\.resources\.requests: Invalid value: "([^"]+)": must be less than or equal to (\S+) limit of (\S+)`)
 	reCreateClaim   = regexp.MustCompile(`^[Cc]reate Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
 	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
 	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)
 	reSA            = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
 	reWebhk         = regexp.MustCompile(`admission webhook "([^"]+)" denied the request`)
+	reWebhkCall     = regexp.MustCompile(`failed calling webhook "([^"]+)": (?:failed to call webhook: )?(.*)$`)
+	reWebhkService  = regexp.MustCompile(`"https://([a-z0-9-]+)\.([a-z0-9-]+)\.svc(?::\d+)?[^"]*"`)
 	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
 )
 
@@ -83,10 +88,14 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 			f.Cause = fmt.Sprintf("%s cannot create PersistentVolumeClaim %s from its volumeClaimTemplates, so the pod that mounts it is never created: ResourceQuota %s is used up (requested %s, used %s, limit %s)", owner, claim, m[1], m[2], m[3], m[4])
 			f.Fix = fmt.Sprintf("Raise ResourceQuota %s, lower the storage the volumeClaimTemplates ask for, or delete claims that hold the quota (a StatefulSet keeps its claims after its pods are gone).", m[1])
 		}
+	case reQuotaMust.MatchString(msg):
+		quotaRequires(&f, owner, reQuotaMust.FindStringSubmatch(msg))
 	case strings.Contains(msg, "forbidden: failed quota") || reQuotaM.MatchString(msg) && strings.Contains(msg, "quota"):
 		f.Rule, f.Title = "KD170", "ResourceQuota is exhausted"
 		f.Cause = fmt.Sprintf("%s cannot create pods: a ResourceQuota in %s rejects them (%s)", owner, ns, clip(msg, 200))
 		f.Fix = "A quota on cpu or memory requires every container to set that request or limit: set them, or add a LimitRange with defaults."
+	case reReqAboveLimit.MatchString(msg):
+		defaultBelowRequest(ix, &f, src, owner, reReqAboveLimit.FindStringSubmatch(msg))
 	case reLimitRange.MatchString(msg):
 		m := reLimitRange.FindAllString(msg, -1)
 		f.Rule, f.Title = "KD174", "LimitRange rejects the pods"
@@ -124,6 +133,8 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Namespace", Name: ns}, What: "namespace PodSecurity labels",
 			Command: "kubectl get namespace " + ns + " --show-labels"})
 		f.Fix = "Change the pod spec to meet the level (the message lists each violation), or relax the namespace's pod-security.kubernetes.io/enforce label if that is intended."
+	case reWebhkCall.MatchString(msg):
+		webhookUnreachable(&f, owner, reWebhkCall.FindStringSubmatch(msg))
 	case reWebhk.MatchString(msg):
 		wh := reWebhk.FindStringSubmatch(msg)[1]
 		f.Rule, f.Title = "KD173", "Admission webhook rejects the pods"
@@ -148,11 +159,15 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		if !ok || c.Status != "True" || explained[j.Ref()] {
 			continue
 		}
-		out = append(out, Finding{Rule: "KD180", Title: "Job failed", Severity: Critical, Object: j.Ref(),
+		jf := Finding{Rule: "KD180", Title: "Job failed", Severity: Critical, Object: j.Ref(),
 			Cause: fmt.Sprintf("Job %s failed: %s (%s)", j.Metadata.Name, c.Reason, c.Message),
 			Evidence: []Evidence{{Object: j.Ref(), What: "Job condition Failed: " + c.Reason, Detail: c.Message,
 				Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.status.conditions[?(@.type=="Failed")]}`)}},
-			Fix: "Read the failed pods' logs if they still exist (kubectl logs job/" + j.Metadata.Name + "); raise backoffLimit or activeDeadlineSeconds only if the work is slow, not broken."})
+			Fix: "Read the failed pods' logs if they still exist (kubectl logs job/" + j.Metadata.Name + "); raise backoffLimit or activeDeadlineSeconds only if the work is slow, not broken."}
+		if c.Reason == "DeadlineExceeded" && j.Spec.ActiveDeadlineSeconds != nil {
+			pastDeadline(&jf, j)
+		}
+		out = append(out, jf)
 	}
 	for _, j := range ix.s.Jobs {
 		if f := suspendedJob(ix, j); f != nil && !explained[j.Ref()] {
@@ -385,4 +400,138 @@ func tolerated(tols []kube.Toleration, taints []kube.Taint) bool {
 		}
 	}
 	return true
+}
+
+// quotaRequires explains pods rejected because a ResourceQuota limits a compute resource that their containers do
+// not set: a quota on limits.memory, say, can only be counted when every container has a memory limit, so the API
+// server refuses pods without one. The quota is not used up; m is reQuotaMust's match.
+func quotaRequires(f *Finding, owner kube.Ref, m []string) {
+	quota, ns := m[1], owner.Namespace
+	field := func(res string) string {
+		switch {
+		case strings.HasPrefix(res, "limits."), strings.HasPrefix(res, "requests."):
+			return "resources." + res
+		default:
+			return "resources.requests." + res // a quota on plain cpu or memory counts requests
+		}
+	}
+	var missing, set, names []string
+	for _, item := range strings.Split(m[2], "; ") {
+		res, containers, _ := strings.Cut(item, " for: ")
+		res = strings.TrimSpace(res)
+		who := "its containers set"
+		if cs := strings.Split(containers, ","); containers != "" && len(cs) == 1 {
+			who = "container " + cs[0] + " sets"
+		} else if containers != "" {
+			who = "containers " + strings.Join(cs, ", ") + " set"
+		}
+		missing = append(missing, fmt.Sprintf("%s no %s", who, field(res)))
+		names = append(names, res)
+		set = append(set, field(res))
+	}
+	f.Rule, f.Title = "KD275", "ResourceQuota requires a request or limit the pods do not set"
+	f.Cause = fmt.Sprintf("%s cannot create pods: ResourceQuota %s puts a quota on %s, which the API server can only count when every container sets it, and %s. The quota is not used up: the pods are refused for leaving the field out",
+		owner, quota, strings.Join(names, " and "), strings.Join(missing, "; "))
+	f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "ResourceQuota", Namespace: ns, Name: quota},
+		What: fmt.Sprintf("ResourceQuota %s's limits", quota), Command: cmdGet("resourcequota", ns, quota, "{.status.hard}")},
+		Evidence{Object: owner, What: "the containers' requests and limits",
+			Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{range .spec.template.spec.containers[*]}{.name}{" "}{.resources}{"\n"}{end}`)})
+	f.Fix = fmt.Sprintf("Set %s on the containers named, or add a LimitRange to the namespace with a default for it, so that containers which set none are given one.", strings.Join(set, " and "))
+}
+
+// pastDeadline explains a Job that its own activeDeadlineSeconds stopped. The deadline counts from the Job's start
+// and covers every retry; when it passes, the Job controller ends the pods that are still running and fails the
+// Job, so nothing has crashed and there is no failed pod to read: the work was cut off.
+func pastDeadline(f *Finding, j kube.Job) {
+	limit := *j.Spec.ActiveDeadlineSeconds
+	done := fmt.Sprintf("%d of its pods had succeeded", j.Status.Succeeded)
+	if j.Spec.Completions != nil {
+		done = fmt.Sprintf("%d of %d completions had succeeded", j.Status.Succeeded, *j.Spec.Completions)
+	}
+	f.Cause = fmt.Sprintf("Job %s was stopped by its own activeDeadlineSeconds (%d): it was still running %ds after it started, so the Job controller ended its pods and failed the Job (%s). Nothing crashed: the work was cut off, and its pods are gone",
+		j.Metadata.Name, limit, limit, done)
+	f.Evidence = append(f.Evidence, Evidence{Object: j.Ref(), What: fmt.Sprintf("the Job's activeDeadlineSeconds is %d", limit),
+		Command: cmdGet("job", j.Metadata.Namespace, j.Metadata.Name, `{.spec.activeDeadlineSeconds}{" "}{.status.startTime}{" "}{.status.succeeded}`)})
+	f.Fix = fmt.Sprintf("If the work needs longer than %ds, recreate the Job with a higher activeDeadlineSeconds, or none: the deadline covers the whole Job from its start, every retry included. If the work hangs, read its log while it runs (kubectl logs -f job/%s): once the deadline passes the pods are deleted.", limit, j.Metadata.Name)
+}
+
+// defaultBelowRequest explains pods the API server calls invalid because a container's request is above its limit,
+// when the pod template sets that request and no limit. The limit is the namespace's LimitRange default: the
+// LimitRanger admission plugin fills it in, and it is below what the container asks for. The error names neither the
+// LimitRange nor where the limit came from. m is reReqAboveLimit's match.
+func defaultBelowRequest(ix *index, f *Finding, src, owner kube.Ref, m []string) {
+	ns, request, res, limit := owner.Namespace, m[3], m[4], m[5]
+	idx, _ := strconv.Atoi(m[2])
+	container := fmt.Sprintf("container %d", idx)
+	ownLimit := ""
+	for _, ref := range []kube.Ref{owner, src} {
+		w, ok := ix.workloads[ref]
+		if !ok {
+			continue
+		}
+		cs := w.Spec.Template.Spec.Containers
+		if m[1] == "initContainers" {
+			cs = w.Spec.Template.Spec.InitContainers
+		}
+		if idx < len(cs) {
+			container, ownLimit = "container "+cs[idx].Name, cs[idx].Resources.Limits[res]
+		}
+		break
+	}
+	f.Rule, f.Title = "KD276", "LimitRange's default limit is below the container's request"
+	f.Cause = fmt.Sprintf("%s cannot create pods: %s requests %s of %s and sets no %s limit, so the namespace's LimitRange gave it its default limit, %s, and a request above the limit makes the pod invalid", owner, container, request, res, res, limit)
+	if ownLimit != "" {
+		f.Cause = fmt.Sprintf("%s cannot create pods: %s requests %s of %s, above its %s limit of %s, which makes the pod invalid", owner, container, request, res, res, limit)
+	}
+	f.Evidence = append(f.Evidence, Evidence{Object: owner, What: "the pod template's requests and limits",
+		Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{range .spec.template.spec.containers[*]}{.name}{" "}{.resources}{"\n"}{end}`)},
+		Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: ns, Name: "*"}, What: "the namespace's LimitRanges and their defaults", Command: "kubectl get limitranges -n " + ns + " -o yaml"})
+	f.Fix = fmt.Sprintf("Set the %s limit of %s in the pod template, at or above its request of %s, so that the LimitRange's default is not used; or lower the request to %s or less; or raise the default in the LimitRange.", res, container, request, limit)
+}
+
+// webhookUnreachable explains pods refused because the API server could not call an admission webhook: its Service
+// is gone or has no pods, the connection fails or times out, or its certificate is not trusted. The webhook did not
+// reject anything; with failurePolicy Fail, not reaching it refuses every request it covers, here every new pod.
+// m is reWebhkCall's match.
+func webhookUnreachable(f *Finding, owner kube.Ref, m []string) {
+	hook, detail := m[1], m[2]
+	svc, svcNS := "", ""
+	if s := reWebhkService.FindStringSubmatch(detail); s != nil {
+		svc, svcNS = s[1], s[2]
+	}
+	where := "its endpoint"
+	if svc != "" {
+		where = fmt.Sprintf("Service %s in namespace %s", svc, svcNS)
+	}
+	// What went wrong follows the URL, which itself ends in "?timeout=...".
+	reason := detail
+	if i := strings.LastIndex(detail, `": `); i >= 0 {
+		reason = detail[i+3:]
+	}
+	var why string
+	switch {
+	case strings.Contains(reason, "x509"):
+		why = "the API server does not accept the certificate of " + where + " (the caBundle in the webhook's configuration does not match it, or it has expired)"
+	case strings.Contains(reason, "not found"):
+		why = where + " does not exist"
+	case strings.Contains(reason, "no endpoints available"):
+		why = where + " has no ready pods"
+	case strings.Contains(reason, "connection refused"):
+		why = where + " refuses the connection"
+	case strings.Contains(reason, "deadline exceeded") || strings.Contains(reason, "timeout") || strings.Contains(reason, "timed out"):
+		why = where + " does not answer in time"
+	default:
+		why = clip(detail, 200)
+	}
+	f.Rule, f.Title = "KD277", "Admission webhook cannot be reached"
+	f.Cause = fmt.Sprintf("%s cannot create pods: the API server must ask admission webhook %s before it admits a pod, and cannot: %s. The webhook rejected nothing; its failurePolicy is Fail, so every pod is refused for as long as it cannot be asked", owner, hook, why)
+	f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "ValidatingWebhookConfiguration", Name: "*"},
+		What: fmt.Sprintf("the configuration that lists webhook %s", hook), Command: "kubectl get validatingwebhookconfigurations,mutatingwebhookconfigurations"})
+	fix := "Bring the webhook back"
+	if svc != "" {
+		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc}, What: "the webhook's Service and the pods behind it",
+			Command: "kubectl get service,endpointslices,pods -n " + svcNS})
+		fix = fmt.Sprintf("Bring the webhook back: Service %s in namespace %s and the pods behind it", svc, svcNS)
+	}
+	f.Fix = fmt.Sprintf("%s. If the webhook is gone for good, delete the ValidatingWebhookConfiguration or MutatingWebhookConfiguration that lists %s. A webhook that should not stop the cluster when it is down can set failurePolicy: Ignore, or leave this namespace out with a namespaceSelector.", fix, hook)
 }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-grpc-on-http",
-              "Masked": "e19GMCNkTjhadFFROyFASzUsSnwp"
+              "Masked": "bjk6Sj0vZypwPHMpO2InKSlrLi1E"
             },
             {
               "Unmasked": "api",
-              "Masked": "NUYy"
+              "Masked": "IUch"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-grpc-on-http/api-7bbdd84c89-bscfm",
+      "name": "kd-probe-grpc-on-http/api-7bbdd84c89-dpct7",
       "error": [
         {
-          "Text": "Readiness probe failed: timeout: failed to connect service \"10.244.0.86:8080\" within 1s: context deadline exceeded",
+          "Text": "Readiness probe failed: timeout: failed to connect service \"10.244.0.94:8080\" within 1s: context deadline exceeded",
           "KubernetesDoc": "",
           "Sensitive": []
         }

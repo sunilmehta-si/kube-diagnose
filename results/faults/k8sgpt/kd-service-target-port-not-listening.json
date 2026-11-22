@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-service-target-port-not-listening/client",
+      "error": [
+        {
+          "Text": "Deployment kd-service-target-port-not-listening/client has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-service-target-port-not-listening",
+              "Masked": "MD5AeDA7LU9RSSRkX3NuNDBWTnVraU5DdHhCMUZCKEA9NEg8"
+            },
+            {
+              "Unmasked": "client",
+              "Masked": "QVBtSF90"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-service-target-port-not-listening/client-5fb6f4d88d-ppt7t",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=client pod=client-5fb6f4d88d-ppt7t",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/client"
+    }
+  ]
+}

@@ -1,0 +1,14 @@
+{
+  "namespace": "kd-command-shell-operator-no-shell",
+  "description": "A command is written as a list, echo starting && sleep 3600, with no shell: && is one more argument to echo, which prints it and exits, so sleep never runs and the container restarts forever.",
+  "rule": "KD226",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "&&"
+    ],
+    [
+      "shell"
+    ]
+  ]
+}

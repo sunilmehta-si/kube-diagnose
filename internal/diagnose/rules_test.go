@@ -1312,9 +1312,11 @@ func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
 	s.Logs[0].Lines = []string{`psql: error: connection to server at "db" (10.96.12.7), port 5432 failed: Connection refused`}
 	expect(t, Diagnose(s).Findings[0], "KD124", "Deployment shop/web", "Service db refuses its connection")
 
-	// A Service with a ready pod refuses for another reason: the crash rule quotes the log.
+	// A Service with a ready pod whose readiness probe reaches the port refuses for another reason: the crash rule
+	// quotes the log.
 	q := pod("db-1", "")
 	q.Metadata.Labels = map[string]string{"app": "db"}
+	q.Spec.Containers[0].ReadinessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: port(5432)}}
 	s.Pods = append(s.Pods, q)
 	if f := Diagnose(s).Findings[0]; f.Rule != "KD110" {
 		t.Errorf("with a ready db pod: %s %s", f.Rule, f.Cause)
@@ -1751,7 +1753,12 @@ func TestStaticVolumeClassNeedsNoStorageClassObject(t *testing.T) {
 	pv.Spec.StorageClassName = "manual"
 	pv.Status.Phase = "Bound"
 	s.PVs = []kube.PersistentVolume{pv}
-	// "manual" names no StorageClass, but static volumes carry it: KD150 would be a false alarm.
+	// "manual" names no StorageClass, but static volumes carry it: KD150 would be a false alarm. The claim waits
+	// because the one volume of that class is taken.
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "the nearest, data-pv, is bound to another claim")
+
+	// A free volume of the class: the claim is binding.
+	s.PVs[0].Status.Phase = "Available"
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("%+v", r.Findings)
 	}
@@ -3502,5 +3509,860 @@ func TestProbeFailureSaysWhatTheStatusMeans(t *testing.T) {
 	expect(t, f, "KD112", "ReplicaSet shop/api-rs", "restarts it (6 restarts): the app answers 503, so it serves the path and reports itself unhealthy")
 	if !strings.Contains(f.Fix, "out of a liveness probe") {
 		t.Errorf("fix %q", f.Fix)
+	}
+}
+
+func TestFlagAndItsValueAreOneArgument(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"/usr/local/bin/server"}
+	c.Args = []string{"--port 8080", "--verbose"}
+	crashed(&p, 2, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"Error: unknown flag: --port 8080", "Usage:", "  server [flags]"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD221", "ReplicaSet shop/web-rs", `its args holds "--port 8080" as one item`, "single argument", `unknown flag: --port 8080`)
+	if !strings.HasPrefix(f.Fix, `Write the flag and its value as two items: "--port", "8080" (or one item "--port=8080").`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Other ways of saying it: Go's flag package, glibc's getopt, musl's getopt (which leaves the dashes out) and
+	// Python's argparse.
+	for _, line := range []string{
+		"flag provided but not defined: -port 8080",
+		"server: unrecognized option '--port 8080'",
+		"server: unrecognized option: port 8080",
+		"server: error: unrecognized arguments: --port 8080",
+	} {
+		s.Logs[0].Lines = []string{line}
+		if f := only(t, Diagnose(s)); f.Rule != "KD221" {
+			t.Errorf("%q: %s %s", line, f.Rule, f.Cause)
+		}
+	}
+
+	// In the command itself, after the program's name, with a short flag: no "=" form to offer.
+	c.Command, c.Args = []string{"server", "-c /etc/app.conf"}, nil
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"server: invalid option -- 'c /etc/app.conf'"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD221", "ReplicaSet shop/web-rs", `its command holds "-c /etc/app.conf" as one item`)
+	if strings.Contains(f.Fix, "or one item") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The log does not quote the item, or the items are already split: another cause.
+	s.Logs[0].Lines = []string{"error: cannot open database"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD221" {
+		t.Errorf("unrelated log: %s", f.Cause)
+	}
+	c.Command, c.Args = []string{"server"}, []string{"--port", "8080"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"Error: unknown flag: --port 8080"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD221" {
+		t.Errorf("split items: %s", f.Cause)
+	}
+}
+
+func TestCommandsInterpreterIsNotInTheImage(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"/scripts/run.sh"}
+	c.VolumeMounts = []kube.VolumeMount{{Name: "scripts", MountPath: "/scripts"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "scripts", ConfigMap: &kube.ConfigMapVolumeSource{Name: "scripts"}}}
+	crashed(&p, 255, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "run.sh")}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"exec /scripts/run.sh: no such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD222", "ReplicaSet shop/web-rs", "cannot run /scripts/run.sh, though the file is there (key run.sh of ConfigMap scripts)", "interpreter named on the script's first line (#!)")
+	if !strings.Contains(f.Fix, "#!/bin/sh where there is no bash") || !strings.Contains(f.Fix, "Unix line endings") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The key is not in the ConfigMap: the file itself is missing, which is KD230's.
+	s.ConfigMaps = []kube.KeySet{keys("shop", "scripts", "start.sh")}
+	if f := only(t, Diagnose(s)); f.Rule == "KD222" {
+		t.Errorf("missing key: %s", f.Cause)
+	}
+
+	// A file of the image: a script, or a binary whose loader the image lacks.
+	c.Command, c.VolumeMounts = []string{"/usr/local/bin/server"}, nil
+	p.Spec.Volumes = nil
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"exec /usr/local/bin/server: no such file or directory"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD222", "ReplicaSet shop/web-rs", "cannot run /usr/local/bin/server, though the file is there", "dynamic loader of a binary built for another C library")
+	if !strings.Contains(f.Fix, "CGO_ENABLED=0") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A file the app opens and does not find is not the runtime's exec line.
+	s.Logs[0].Lines = []string{"open /etc/app/config.yaml: no such file or directory"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD222" {
+		t.Errorf("app's own error: %s", f.Cause)
+	}
+}
+
+func TestServiceLinkVariableReplacesTheAppsSetting(t *testing.T) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	p.Metadata.Labels = map[string]string{"app": "worker"}
+	crashed(&p, 1, "Error", 4)
+	cache := pod("cache-7d4f8-abcde", "cache")
+	cache.Metadata.Labels = map[string]string{"app": "cache"}
+	s.Pods = []kube.Pod{cache, p}
+	svc := service("cache", map[string]string{"app": "cache"}, port(8080))
+	svc.Spec.ClusterIP = "10.96.14.7"
+	svc.Spec.Ports[0].Port = 6379
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("cache", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"connecting to cache:tcp://10.96.14.7:6379", "nc: bad port 'tcp://10.96.14.7:6379'"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD223", "ReplicaSet shop/worker-rs", "reading CACHE_PORT as a setting of its own", "for Service cache that includes CACHE_PORT=tcp://10.96.14.7:6379", "expects a port number")
+	if !strings.HasPrefix(f.Fix, "Set enableServiceLinks: false in the pod spec") || !strings.Contains(f.Fix, "define CACHE_PORT in the container's env") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The container sets the variable itself, or the pod turns service links off: the value did not come from there.
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "CACHE_PORT", Value: "6379"}}
+	s.Pods = []kube.Pod{cache, p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD223" {
+		t.Errorf("own value: %s", f.Cause)
+	}
+	p.Spec.Containers[0].Env = nil
+	off := false
+	p.Spec.EnableServiceLinks = &off
+	s.Pods = []kube.Pod{cache, p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD223" {
+		t.Errorf("links off: %s", f.Cause)
+	}
+
+	// A Service created after the pod gave it no variables, and a headless Service gives none at all.
+	p.Spec.EnableServiceLinks = nil
+	p.Metadata.CreationTimestamp = t0.Add(-time.Hour)
+	s.Pods = []kube.Pod{cache, p}
+	s.Services[0].Metadata.CreationTimestamp = t0.Add(-time.Minute)
+	if f := only(t, Diagnose(s)); f.Rule == "KD223" {
+		t.Errorf("later Service: %s", f.Cause)
+	}
+	s.Services[0].Metadata.CreationTimestamp = t0.Add(-2 * time.Hour)
+	if f := only(t, Diagnose(s)); f.Rule != "KD223" {
+		t.Errorf("earlier Service: %s %s", f.Rule, f.Cause)
+	}
+	s.Services[0].Spec.ClusterIP = "None"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD223" {
+			t.Errorf("headless: %s", f.Cause)
+		}
+	}
+}
+
+func TestNonRootContainerIsDeniedAPathInItsImage(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	uid := int64(1000)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"mkdir: can't create directory '/www': Permission denied"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD224", "ReplicaSet shop/web-rs", "runs as user 1000 and is denied /www, a path of the image itself, not of a volume", "belong to root")
+	if !strings.HasPrefix(f.Fix, "Give the app a place it may write: mount an emptyDir at /www") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// nginx's way of saying it, in a container that only sets runAsNonRoot.
+	p.Spec.SecurityContext = nil
+	p.Spec.Containers[0].SecurityContext = &kube.SecurityContext{RunAsNonRoot: yes()}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{`nginx: [emerg] open() "/run/nginx.pid" failed (13: Permission denied)`}
+	expect(t, only(t, Diagnose(s)), "KD224", "ReplicaSet shop/web-rs", "runs as a user other than root and is denied /run/nginx.pid")
+
+	// A file of the kernel's, not of the image.
+	s.Logs[0].Lines = []string{"sysctl: error setting key 'net.core.somaxconn': open /proc/sys/net/core/somaxconn: permission denied"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD224" {
+		t.Errorf("/proc: %s", f.Cause)
+	}
+	s.Logs[0].Lines = []string{`nginx: [emerg] open() "/run/nginx.pid" failed (13: Permission denied)`}
+
+	// The path is on a volume: that is KD137's, with fsGroup as the fix.
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "run", MountPath: "/run"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "run", EmptyDir: &kube.EmptyDirVolumeSource{}}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD137", "ReplicaSet shop/web-rs")
+
+	// Nothing says the container is not root: the denial has another cause.
+	p.Spec.Containers[0].VolumeMounts, p.Spec.Volumes, p.Spec.Containers[0].SecurityContext = nil, nil, nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD224" {
+		t.Errorf("no user set: %s", f.Cause)
+	}
+	root := int64(0)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &root}
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD224" {
+		t.Errorf("root: %s", f.Cause)
+	}
+}
+
+func TestServicesPodsRefuseThePortItTargets(t *testing.T) {
+	s := snap()
+	web := pod("web-7d4f8-abcde", "web")
+	web.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "http", ContainerPort: 80}}
+	web.Spec.Containers[0].Command = []string{"sh", "-c", "exec httpd -f -p 8080 -h /www"}
+	client := pod("client-5c7d9-qwert", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	client.Spec.Containers[0].Ports = nil
+	crashed(&client, 1, "Error", 4)
+	s.Pods = []kube.Pod{client, web}
+	svc := service("web", map[string]string{"app": "web"}, port(80))
+	svc.Spec.ClusterIP = "10.96.20.5"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true,
+		Lines: []string{"Connecting to web (10.96.20.5:80)", "wget: can't connect to remote host (10.96.20.5): Connection refused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD225", "ReplicaSet shop/client-rs", "Service web refuses its connection on port 80, though the Service has ready pods",
+		"forwards port 80 to the pods' port 80", "nothing in pod web-7d4f8-abcde listens there", "no readiness probe checks that port", "names port 8080")
+	if !strings.HasPrefix(f.Fix, "Set Service web's targetPort to 8080, the port the app listens on by its command or env") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// No port in the command to point at.
+	web.Spec.Containers[0].Command = []string{"/server"}
+	s.Pods = []kube.Pod{client, web}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD225", "ReplicaSet shop/client-rs")
+	if strings.Contains(f.Cause, "likely where the app listens") || !strings.HasPrefix(f.Fix, "Set Service web's targetPort to the port the app listens on (") {
+		t.Errorf("cause %q fix %q", f.Cause, f.Fix)
+	}
+
+	// A readiness probe on the target port passes, so something does listen there: not this rule.
+	web.Spec.Containers[0].ReadinessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: port(80)}}
+	s.Pods = []kube.Pod{client, web}
+	if f := only(t, Diagnose(s)); f.Rule == "KD225" {
+		t.Errorf("probed port: %s", f.Cause)
+	}
+
+	// The client was refused seconds after the server's container started: it may only have been early.
+	web.Spec.Containers[0].ReadinessProbe = nil
+	client.Status.ContainerStatuses[0].LastTerminationState.Terminated.FinishedAt = t0.Add(5 * time.Second)
+	s.Pods = []kube.Pod{client, web}
+	if f := only(t, Diagnose(s)); f.Rule == "KD225" {
+		t.Errorf("early client: %s", f.Cause)
+	}
+	client.Status.ContainerStatuses[0].LastTerminationState.Terminated.FinishedAt = t0.Add(5 * time.Minute)
+	s.Pods = []kube.Pod{client, web}
+	expect(t, only(t, Diagnose(s)), "KD225", "ReplicaSet shop/client-rs")
+
+	// No ready pods: the Service refuses for that reason (KD124).
+	web.Spec.Containers[0].ReadinessProbe = nil
+	notReady(&web)
+	s.Pods = []kube.Pod{client, web}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 0)}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD225" {
+			t.Errorf("no ready pods: %s", f.Cause)
+		}
+	}
+}
+
+func TestNoPersistentVolumeFitsTheClaim(t *testing.T) {
+	build := func() *snapshot.Snapshot {
+		s := snap()
+		var pvc kube.PersistentVolumeClaim
+		pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", UID: "new-uid"}
+		pvc.Spec.StorageClassName = strp("manual")
+		pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+		pvc.Spec.Resources.Requests = map[string]string{"storage": "5Gi"}
+		pvc.Status.Phase = "Pending"
+		s.PVCs = []kube.PersistentVolumeClaim{pvc}
+		var pv kube.PersistentVolume
+		pv.Metadata.Name = "data-pv"
+		pv.Spec.StorageClassName = "manual"
+		pv.Spec.Capacity = map[string]string{"storage": "1Gi"}
+		pv.Spec.AccessModes = []string{"ReadWriteOnce"}
+		pv.Status.Phase = "Available"
+		s.PVs = []kube.PersistentVolume{pv}
+		s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "ProvisioningFailed", `storageclass.storage.k8s.io "manual" not found`, time.Minute)}
+		return s
+	}
+
+	// Too small. The controller's own event blames a StorageClass that static volumes do not need.
+	s := build()
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD250", "PersistentVolumeClaim shop/data", `it asks for 5Gi; ReadWriteOnce; storageClassName "manual", a name no StorageClass has`,
+		"only an existing PersistentVolume can satisfy it, and none fits", "the nearest, data-pv, holds 1Gi, less than the 5Gi the claim asks for")
+
+	// Other access modes, and a pod that waits for the claim is listed under it.
+	s = build()
+	s.PVs[0].Spec.Capacity["storage"] = "5Gi"
+	s.PVCs[0].Spec.AccessModes = []string{"ReadWriteMany"}
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "data-pv, offers access mode ReadWriteOnce, not the ReadWriteMany the claim asks for")
+
+	// Volume mode and selector.
+	s = build()
+	s.PVs[0].Spec.Capacity["storage"] = "5Gi"
+	s.PVs[0].Spec.VolumeMode = "Block"
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "has volumeMode Block, and the claim asks for Filesystem")
+	s = build()
+	s.PVs[0].Spec.Capacity["storage"] = "5Gi"
+	s.PVs[0].Metadata.Labels = map[string]string{"tier": "slow"}
+	s.PVCs[0].Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"tier": "fast"}}
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "has labels tier=slow, which the claim's selector (tier=fast) does not match")
+
+	// Two volumes, both wrong: the one with fewer reasons against it is named, the other counted.
+	s = build()
+	other := s.PVs[0]
+	other.Metadata.Name = "old-pv"
+	other.Spec.Capacity = map[string]string{"storage": "1Gi"}
+	other.Spec.AccessModes = []string{"ReadOnlyMany"}
+	s.PVs = append(s.PVs, other)
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "the nearest, data-pv, holds 1Gi", "the other volume of class manual, old-pv, does not fit either")
+
+	// No class at all: "" turns provisioning off, and there is no volume without a class.
+	s = build()
+	s.PVCs[0].Spec.StorageClassName = strp("")
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "FailedBinding", "no persistent volumes available for this claim and no storage class is set", time.Minute)}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD250", "PersistentVolumeClaim shop/data", `storageClassName "", which turns dynamic provisioning off`, "there is no PersistentVolume without a class")
+	if !strings.Contains(f.Fix, "leave storageClassName out to use the default class") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A class that a StorageClass does provision is not static: the provisioner's event is the finding.
+	s = build()
+	s.StorageClasses = []kube.StorageClass{{Metadata: kube.ObjectMeta{Name: "manual"}, Provisioner: "example.com/nfs"}}
+	if f := only(t, Diagnose(s)); f.Rule == "KD250" {
+		t.Errorf("dynamic class: %s", f.Cause)
+	}
+}
+
+func TestPersistentVolumeIsReleased(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", UID: "new-uid"}
+	pvc.Spec.StorageClassName = strp("")
+	pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pvc.Spec.Resources.Requests = map[string]string{"storage": "5Gi"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	var pv kube.PersistentVolume
+	pv.Metadata.Name = "data-pv"
+	pv.Spec.Capacity = map[string]string{"storage": "5Gi"}
+	pv.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pv.Spec.PersistentVolumeReclaimPolicy = "Retain"
+	pv.Spec.ClaimRef = &kube.ClaimReference{Namespace: "shop", Name: "old-data", UID: "old-uid"}
+	pv.Status.Phase = "Released"
+	s.PVs = []kube.PersistentVolume{pv}
+	p := pod("db", "")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable", Message: "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims."}}
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD251", "PersistentVolumeClaim shop/data", "PersistentVolume data-pv fits it, but is Released", "reference to claim shop/old-data, which was deleted", "reclaim policy Retain")
+	if !strings.Contains(f.Fix, `kubectl patch pv data-pv --type=json -p '[{"op":"remove","path":"/spec/claimRef"}]'`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+	if len(f.Affects) != 1 || f.Affects[0].Name != "db" {
+		t.Errorf("the waiting pod should be listed under the claim: %v", f.Affects)
+	}
+
+	// Released and too small as well: it does not fit, so clearing the reference would not help.
+	s.PVs[0].Spec.Capacity["storage"] = "1Gi"
+	expect(t, only(t, Diagnose(s)), "KD250", "PersistentVolumeClaim shop/data", "holds 1Gi, less than the 5Gi", "is Released")
+}
+
+func TestResourceQuotaRequiresALimitThePodsDoNotSet(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: pods "web-rs-x7k2p" is forbidden: failed quota: compute: must specify limits.memory for: web`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD275", "Deployment shop/web", "ResourceQuota compute puts a quota on limits.memory, which", "container web sets no resources.limits.memory", "The quota is not used up")
+	if !strings.HasPrefix(f.Fix, "Set resources.limits.memory on the containers named, or add a LimitRange") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Two resources, one of them missing from two containers; plain cpu counts requests.
+	s.Events[0].Message = `Error creating: pods "web-rs-x7k2p" is forbidden: failed quota: compute: must specify cpu for: proxy,web; limits.memory for: web`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD275", "Deployment shop/web", "puts a quota on cpu and limits.memory", "containers proxy, web set no resources.requests.cpu; container web sets no resources.limits.memory")
+
+	// A quota that is used up is still KD170.
+	s.Events[0].Message = `Error creating: pods "web-rs-x7k2p" is forbidden: exceeded quota: compute, requested: limits.memory=1Gi, used: limits.memory=4Gi, limited: limits.memory=4Gi`
+	expect(t, only(t, Diagnose(s)), "KD170", "Deployment shop/web", "is used up")
+}
+
+func TestNetworkPolicyNamespaceSelectorMatchesNoNamespace(t *testing.T) {
+	namespaces := func(names ...string) []kube.Namespace {
+		var out []kube.Namespace
+		for _, n := range names {
+			out = append(out, kube.Namespace{Metadata: kube.ObjectMeta{Name: n, Labels: map[string]string{"kubernetes.io/metadata.name": n}}})
+		}
+		return out
+	}
+	build := func() *snapshot.Snapshot {
+		s := snap()
+		web := pod("web-7d4f8-abcde", "web")
+		client := pod("client-5c7d9-qwert", "client")
+		client.Metadata.Labels = map[string]string{"app": "client"}
+		crashed(&client, 1, "Error", 3)
+		s.Pods = []kube.Pod{client, web}
+		svc := service("web", map[string]string{"app": "web"}, port(8080))
+		svc.Spec.ClusterIP = "10.96.40.12"
+		s.Services = []kube.Service{svc}
+		s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+		s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web (10.96.40.12:80)", "wget: download timed out"}}}
+		np := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "web-ingress", Namespace: "shop"}}
+		np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+		np.Spec.Ingress = []kube.NetworkPolicyRule{{From: []kube.NetworkPolicyPeer{{NamespaceSelector: &kube.LabelSelector{MatchLabels: map[string]string{"name": "shop"}}}}}}
+		s.NetworkPolicies = []kube.NetworkPolicy{np}
+		s.NamespaceObjects = namespaces("default", "kube-system", "shop")
+		return s
+	}
+
+	// The client's connection is dropped, and the selector that matches no namespace is why: one finding, on the
+	// client, naming the policy; the policy's own finding is not repeated.
+	s := build()
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD274", "ReplicaSet shop/client-rs", "connection to Service web times out", "NetworkPolicy web-ingress allows ingress on port 8080 only from namespaces labelled name=shop",
+		"no namespace of the cluster has those labels", "namespace shop exists, and its labels are kubernetes.io/metadata.name=shop")
+	if !strings.Contains(f.Fix, "namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: shop}}") || !strings.Contains(f.Fix, "kubectl label namespace shop name=shop") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Nothing is failing: the policy's finding stands alone, as a warning.
+	s = build()
+	s.Pods[0] = pod("client-5c7d9-qwert", "client")
+	s.Pods[0].Metadata.Labels = map[string]string{"app": "client"}
+	s.Logs = nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD274", "NetworkPolicy shop/web-ingress", "has an ingress rule that allows traffic from namespaces labelled name=shop", "so the rule allows nothing")
+	if f.Severity != Warning {
+		t.Errorf("severity %v", f.Severity)
+	}
+
+	// A label that names no namespace either: no namespace to point at.
+	s = build()
+	s.NetworkPolicies[0].Spec.Ingress[0].From[0].NamespaceSelector.MatchLabels = map[string]string{"team": "frontend"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD274", "ReplicaSet shop/client-rs", "namespaces labelled team=frontend")
+	if strings.Contains(f.Cause, "exists, and its labels") || !strings.Contains(f.Fix, "kubectl get namespaces --show-labels") {
+		t.Errorf("cause %q fix %q", f.Cause, f.Fix)
+	}
+
+	// The namespace has the label: the selector matches, and the connection has another cause.
+	s = build()
+	s.NamespaceObjects[2].Metadata.Labels["name"] = "shop"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD274" || f.Rule == "KD127" {
+			t.Errorf("labelled namespace: %s %s", f.Rule, f.Cause)
+		}
+	}
+
+	// The selector matches another namespace only: the rule is alive, and it does not admit this namespace's client.
+	s = build()
+	s.NamespaceObjects[0].Metadata.Labels["name"] = "shop"
+	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy web-ingress allows no ingress traffic")
+
+	// A snapshot without the cluster's namespaces (recorded before they were read, or not permitted): no claim.
+	s = build()
+	s.NamespaceObjects = nil
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD274" || f.Rule == "KD127" {
+			t.Errorf("namespaces unread: %s %s", f.Rule, f.Cause)
+		}
+	}
+}
+
+func rbacSnapshot() (*snapshot.Snapshot, *kube.Pod) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	p.Metadata.Labels = map[string]string{"app": "worker"}
+	p.Spec.ServiceAccountName = "app"
+	p.Spec.Containers[0].Command = []string{"sh", "-c", "wget -O - https://kubernetes.default.svc/api/v1/namespaces/shop/configmaps"}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ServiceAccounts = []kube.ServiceAccount{{Metadata: kube.ObjectMeta{Name: "app", Namespace: "shop"}}, {Metadata: kube.ObjectMeta{Name: "default", Namespace: "shop"}}}
+	s.Roles = []kube.Role{{Metadata: kube.ObjectMeta{Name: "configmap-reader", Namespace: "shop"}}}
+	var b kube.RoleBinding
+	b.Metadata = kube.ObjectMeta{Name: "read-config", Namespace: "shop"}
+	b.RoleRef.Kind, b.RoleRef.Name = "Role", "configmap-reader"
+	b.Subjects = []kube.Subject{{Kind: "ServiceAccount", Name: "app", Namespace: "shop"}}
+	s.RoleBindings = []kube.RoleBinding{b}
+	s.ClusterRoles = []string{"admin", "edit", "view"}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"Connecting to kubernetes.default.svc (10.96.0.1:443)", "wget: server returned error: HTTP/1.1 403 Forbidden"}}}
+	return s, &s.Pods[0]
+}
+
+func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
+	// The pod's ServiceAccount is refused, and its binding names a Role the namespace does not have.
+	s, _ := rbacSnapshot()
+	s.RoleBindings[0].RoleRef.Name = "config-reader"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD227", "ReplicaSet shop/worker-rs", "the API server refuses its ServiceAccount app", "RoleBinding read-config grants Role config-reader to ServiceAccount app",
+		"there is no Role config-reader in namespace shop, so the binding grants nothing", "the namespace's Roles are configmap-reader", "403 Forbidden")
+	if !strings.Contains(f.Fix, "a binding's roleRef cannot be changed, so delete RoleBinding read-config and create it again") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The API server's own sentence, as client-go prints it.
+	s.Logs[0].Lines = []string{`configmaps is forbidden: User "system:serviceaccount:shop:app" cannot list resource "configmaps" in API group "" in the namespace "shop"`}
+	expect(t, only(t, Diagnose(s)), "KD227", "ReplicaSet shop/worker-rs", "RoleBinding read-config grants Role config-reader")
+
+	// Nothing fails yet: the binding is reported on its own, as a warning.
+	s, p := rbacSnapshot()
+	s.RoleBindings[0].RoleRef.Name = "config-reader"
+	*p = pod("worker-5c7d9-qwert", "worker")
+	s.Logs = nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD227", "RoleBinding shop/read-config", "there is no Role config-reader in namespace shop")
+	if f.Severity != Warning {
+		t.Errorf("severity %v", f.Severity)
+	}
+
+	// A ClusterRole that does not exist, and one that does.
+	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "ClusterRole", "viewer"
+	expect(t, only(t, Diagnose(s)), "KD227", "RoleBinding shop/read-config", "there is no ClusterRole viewer in the cluster")
+	s.RoleBindings[0].RoleRef.Name = "view"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+
+	// The binding is sound: a refusal is then a missing permission, which KD126 names from the API server's sentence.
+	s, _ = rbacSnapshot()
+	s.Logs[0].Lines = []string{`secrets is forbidden: User "system:serviceaccount:shop:app" cannot list resource "secrets" in API group "" in the namespace "shop"`}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs", "it may not list secrets")
+
+	// Roles could not be read: no claim that one is missing.
+	s, _ = rbacSnapshot()
+	s.RoleBindings[0].RoleRef.Name = "config-reader"
+	s.Roles = nil
+	s.Gaps = []snapshot.Gap{{Resource: "roles.rbac.authorization.k8s.io", Namespace: "shop", Error: "forbidden"}}
+	if f := only(t, Diagnose(s)); f.Rule == "KD227" {
+		t.Errorf("roles unread: %s", f.Cause)
+	}
+}
+
+func TestRoleBindingNamesAServiceAccountThatDoesNotExist(t *testing.T) {
+	// The pod runs as app, the binding says apps, and the API server refuses app.
+	s, _ := rbacSnapshot()
+	s.RoleBindings[0].Subjects[0].Name = "apps"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD228", "ReplicaSet shop/worker-rs", "refuses its ServiceAccount app, which no RoleBinding of namespace shop names",
+		"RoleBinding read-config grants Role configmap-reader to ServiceAccount apps", "there is no ServiceAccount apps")
+	if !strings.HasPrefix(f.Fix, "Set the subject of RoleBinding read-config to ServiceAccount app (a binding's subjects can be edited)") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// Nothing fails yet: a warning on the binding, which says who it was most likely meant for.
+	s, p := rbacSnapshot()
+	s.RoleBindings[0].Subjects[0].Name = "apps"
+	*p = pod("worker-5c7d9-qwert", "worker")
+	p.Spec.ServiceAccountName = "app"
+	s.Logs = nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD228", "RoleBinding shop/read-config", "there is no ServiceAccount apps in namespace shop, so nothing receives the permission",
+		"pods here run as ServiceAccount app, which no RoleBinding of the namespace names")
+	if f.Severity != Warning {
+		t.Errorf("severity %v", f.Severity)
+	}
+
+	// A ServiceAccount of another namespace is not ours to judge, and users and groups are not objects at all.
+	s.RoleBindings[0].Subjects = []kube.Subject{{Kind: "ServiceAccount", Name: "ci", Namespace: "build"}, {Kind: "User", Name: "priya"}, {Kind: "Group", Name: "devs"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestNetworkPolicyAllowsTheServicePortNotThePodsPort(t *testing.T) {
+	s := snap()
+	web := pod("web-7d4f8-abcde", "web")
+	client := pod("client-5c7d9-qwert", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	crashed(&client, 1, "Error", 3)
+	s.Pods = []kube.Pod{client, web}
+	svc := service("web", map[string]string{"app": "web"}, port(8080))
+	svc.Spec.ClusterIP = "10.96.40.12"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web (10.96.40.12:80)", "wget: download timed out"}}}
+	eighty, dns := kube.IntOrString{Int: 80}, kube.IntOrString{Int: 53}
+	np := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "client-egress", Namespace: "shop"}}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "client"}}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	np.Spec.Egress = []kube.NetworkPolicyRule{
+		{Ports: []kube.NetworkPolicyPort{{Port: &dns}}},
+		{To: []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}}}, Ports: []kube.NetworkPolicyPort{{Port: &eighty}}},
+	}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy client-egress allows egress between them on port 80, the Service's port",
+		"checked after the Service has forwarded the connection, against the pods' own port 8080 (the targetPort), which no rule allows")
+	if !strings.HasPrefix(f.Fix, "In NetworkPolicy client-egress, allow port 8080, the pods' port, in place of 80") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The same mistake on the servers' side: ingress allowed on the Service's port.
+	in := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "web-ingress", Namespace: "shop"}}
+	in.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}
+	in.Spec.Ingress = []kube.NetworkPolicyRule{{From: []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "client"}}}}, Ports: []kube.NetworkPolicyPort{{Port: &eighty}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{in}
+	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy web-ingress allows ingress between them on port 80, the Service's port")
+
+	// The rule for port 80 is for other pods: the client is simply not allowed, as before.
+	s.NetworkPolicies[0].Spec.Ingress[0].From[0].PodSelector.MatchLabels["app"] = "api"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy web-ingress allows no ingress traffic between them on port 8080")
+}
+
+func TestProbeCommandIsOneString(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"cat /tmp/healthy"}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web", "Unhealthy",
+		`Liveness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec "8f1c": OCI runtime exec failed: exec failed: unable to start container process: exec: "cat /tmp/healthy": stat cat /tmp/healthy: no such file or directory`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD129", "Pod shop/web", `liveness probe has the command line "cat /tmp/healthy" as one item`, "a program with that whole name, spaces included", "checks nothing")
+	if !strings.HasPrefix(f.Fix, `Write each word of the probe's command as its own item: command: ["cat", "/tmp/healthy"].`) || !strings.Contains(f.Fix, `["sh", "-c", "cat /tmp/healthy"]`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// The same slip in a readiness probe keeps the container out of its Service.
+	p.Spec.Containers[0].LivenessProbe = nil
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"cat /tmp/healthy"}}}
+	notReady(&p)
+	s.Pods = []kube.Pod{p}
+	s.Events[0].Message = strings.Replace(s.Events[0].Message, "Liveness probe errored and resulted in unknown state", "Readiness probe errored and resulted in unknown state", 1)
+	expect(t, only(t, Diagnose(s)), "KD120", "Pod shop/web", `readiness probe has the command line "cat /tmp/healthy" as one item`, "gets no traffic")
+}
+
+func TestJobStoppedByItsActiveDeadline(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "export", Namespace: "shop"}
+	limit, completions := int64(30), int32(1)
+	j.Spec.ActiveDeadlineSeconds, j.Spec.Completions = &limit, &completions
+	j.Status.Conditions = []kube.Condition{{Type: "Failed", Status: "True", Reason: "DeadlineExceeded", Message: "Job was active longer than specified deadline"}}
+	s.Jobs = []kube.Job{j}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD180", "Job shop/export", "stopped by its own activeDeadlineSeconds (30)", "still running 30s after it started", "0 of 1 completions had succeeded", "Nothing crashed")
+	if !strings.Contains(f.Fix, "recreate the Job with a higher activeDeadlineSeconds") || !strings.Contains(f.Fix, "kubectl logs -f job/export") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}
+
+func TestClaimHasLostItsPersistentVolume(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", Annotations: map[string]string{"pv.kubernetes.io/bind-completed": "yes"}}
+	pvc.Spec.VolumeName = "pvc-7f3a"
+	pvc.Status.Phase = "Lost"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "ClaimLost", "Bound claim has lost its PersistentVolume. Data on the volume is lost!", time.Minute)}
+	p := pod("db", "")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: `0/1 nodes are available: persistentvolumeclaim "data" bound to non-existent persistentvolume "pvc-7f3a". preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.`}}
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD252", "PersistentVolumeClaim shop/data", "is Lost: it is marked as bound to PersistentVolume pvc-7f3a, and there is no such PersistentVolume",
+		"The volume was deleted under the claim, or the claim was created from a copy of a bound claim")
+	if !strings.HasPrefix(f.Fix, "A Lost claim never binds again.") || !strings.Contains(f.Fix, "without spec.volumeName and without the pv.kubernetes.io annotations") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	if len(f.Affects) != 1 || f.Affects[0].Name != "db" {
+		t.Errorf("the pod that mounts the claim should be listed under it: %v", f.Affects)
+	}
+
+	// The volume is there, and the controller still calls the binding broken (two claims on one volume).
+	var pv kube.PersistentVolume
+	pv.Metadata.Name = "pvc-7f3a"
+	s.PVs = []kube.PersistentVolume{pv}
+	s.Events[0].Reason, s.Events[0].Message = "ClaimMisbound", "Two claims are bound to the same volume, this one is bound incorrectly"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD252", "PersistentVolumeClaim shop/data", "the PersistentVolume controller found that binding broken")
+	if len(f.Evidence) < 2 || !strings.Contains(f.Evidence[1].Detail, "Two claims are bound to the same volume") {
+		t.Errorf("evidence %+v", f.Evidence)
+	}
+}
+
+func TestLimitRangeDefaultLimitIsBelowTheRequest(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+		s.Workloads[i].Spec.Template.Spec.Containers = []kube.Container{{Name: "web", Resources: kube.Resources{Requests: map[string]string{"memory": "256Mi"}}}}
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: Pod "web-rs-x7k2p" is invalid: spec.containers[0].resources.requests: Invalid value: "256Mi": must be less than or equal to memory limit of 128Mi`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD276", "Deployment shop/web", "container web requests 256Mi of memory and sets no memory limit", "the namespace's LimitRange gave it its default limit, 128Mi")
+	if !strings.HasPrefix(f.Fix, "Set the memory limit of container web in the pod template, at or above its request of 256Mi") {
+		t.Errorf("fix %q", f.Fix)
+	}
+}
+
+// TestClaimFindingOutlastsTheTenMinuteMarks holds a pending claim's finding steady once the cluster is more than ten
+// minutes into the fault, as the fault suite recorded it: the scheduler stops saying which claim it waits for, and
+// the Deployment passes its progress deadline. Neither is a second cause.
+func TestClaimFindingOutlastsTheTenMinuteMarks(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	s.Workloads[0].Status.Conditions = []kube.Condition{{Type: "Progressing", Status: "False", Reason: "ProgressDeadlineExceeded", Message: `ReplicaSet "web-rs" has timed out progressing.`}}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "shared", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteMany"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.StorageClasses = []kube.StorageClass{{Metadata: kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}},
+		Provisioner: "rancher.io/local-path", VolumeBindingMode: "WaitForFirstConsumer"}}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "shared", "ProvisioningFailed",
+		`failed to provision volume with StorageClass "standard": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes`, time.Minute)}
+	p := pod("web-rs-a", "web")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "SchedulerError",
+		Message: `running PreBind plugin "VolumeBinding": binding volumes: context deadline exceeded`}}
+	p.Spec.Volumes = []kube.Volume{{Name: "shared", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "shared"}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD156", "PersistentVolumeClaim shop/shared", "asks for access mode ReadWriteMany")
+	if len(f.Affects) != 1 || f.Affects[0].Name != "web-rs-a" {
+		t.Errorf("the waiting pod should be listed under the claim: %v", f.Affects)
+	}
+}
+
+func TestCommandUsesAShellOperatorWithNoShell(t *testing.T) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	c := &p.Spec.Containers[0]
+	c.Command = []string{"echo", "starting", "&&", "sleep", "3600"}
+	crashed(&p, 0, "Completed", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"starting && sleep 3600"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD226", "ReplicaSet shop/worker-rs", "runs echo starting && sleep 3600 with no shell", "&& is a shell operator (run the next command if the first succeeds)",
+		"one more argument to echo", `its log shows the operator as text: "starting && sleep 3600"`)
+	if !strings.HasPrefix(f.Fix, `Run the line through a shell: command: ["sh", "-c", "echo starting && sleep 3600"]`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A pipe in args, and a log that does not show it.
+	c.Command, c.Args = []string{"/app/export"}, []string{"--all", "|", "gzip"}
+	s.Pods = []kube.Pod{p}
+	s.Logs[0].Lines = []string{"export: unexpected argument"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD226", "ReplicaSet shop/worker-rs", "| is a shell operator (pipe the output into the next command)", "one more argument to /app/export")
+	if strings.Contains(f.Cause, "its log shows") {
+		t.Errorf("cause %q", f.Cause)
+	}
+
+	// The program's own syntax: the ";" that ends find's -exec, and the ">" that test compares with.
+	for _, cmd := range [][]string{{"find", "/data", "-name", "*.tmp", "-exec", "rm", "{}", ";"}, {"/usr/bin/test", "5", ">", "3"}} {
+		c.Command, c.Args = cmd, nil
+		s.Pods = []kube.Pod{p}
+		if f := only(t, Diagnose(s)); f.Rule == "KD226" {
+			t.Errorf("%v: %s", cmd, f.Cause)
+		}
+	}
+
+	// A shell does run the line: the operator works, and the crash has another cause.
+	c.Command, c.Args = []string{"sh", "-c", "echo starting && exit 3"}, nil
+	s.Pods = []kube.Pod{p}
+	if f := only(t, Diagnose(s)); f.Rule == "KD226" {
+		t.Errorf("with a shell: %s", f.Cause)
+	}
+}
+
+func TestFlagsAreInCommand(t *testing.T) {
+	s := snap()
+	p := pod("web-5c7d9-qwert", "web")
+	p.Spec.Containers[0].Command = []string{"--port=8080", "--verbose"}
+	waiting(&p, "RunContainerError", `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "--port=8080": executable file not found in $PATH`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD229", "ReplicaSet shop/web-rs", `command is ["--port=8080", "--verbose"]`, "command replaces the image's ENTRYPOINT", `a program named "--port=8080"`)
+	if !strings.HasPrefix(f.Fix, `Move the flags to args and leave command out: args: ["--port=8080", "--verbose"].`) {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	// A program that is simply not in the image is still KD114.
+	p.Spec.Containers[0].Command = []string{"webserver", "--port=8080"}
+	waiting(&p, "RunContainerError", `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: "webserver": executable file not found in $PATH`)
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD114", "ReplicaSet shop/web-rs")
+}
+
+func TestAdmissionWebhookCannotBeReached(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: Internal error occurred: failed calling webhook "pods.policy.example.com": failed to call webhook: Post "https://policy.shop.svc:443/validate?timeout=5s": service "policy" not found`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD277", "Deployment shop/web", "must ask admission webhook pods.policy.example.com", "cannot: Service policy in namespace shop does not exist", "The webhook rejected nothing")
+	if !strings.HasPrefix(f.Fix, "Bring the webhook back: Service policy in namespace shop and the pods behind it.") || !strings.Contains(f.Fix, "failurePolicy: Ignore") {
+		t.Errorf("fix %q", f.Fix)
+	}
+
+	for msg, want := range map[string]string{
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": no endpoints available for service "policy"`:                                      "Service policy in namespace shop has no ready pods",
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": dial tcp 10.96.4.7:443: connect: connection refused`:                              "Service policy in namespace shop refuses the connection",
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": context deadline exceeded`:                                                        "Service policy in namespace shop does not answer in time",
+		`Post "https://policy.shop.svc:443/validate?timeout=5s": tls: failed to verify certificate: x509: certificate signed by unknown authority`: "does not accept the certificate of Service policy in namespace shop",
+		`Post "https://hooks.example.com/validate?timeout=5s": EOF`:                                                                                `Post "https://hooks.example.com/validate?timeout=5s": EOF`,
+	} {
+		s.Events[0].Message = `Error creating: Internal error occurred: failed calling webhook "pods.policy.example.com": failed to call webhook: ` + msg
+		f := only(t, Diagnose(s))
+		if f.Rule != "KD277" || !strings.Contains(f.Cause, want) {
+			t.Errorf("%s:\n got %s %s", msg, f.Rule, f.Cause)
+		}
+	}
+
+	// A webhook that answers and says no is a policy, not an outage: KD173.
+	s.Events[0].Message = `Error creating: admission webhook "pods.policy.example.com" denied the request: images must come from registry.example.com`
+	expect(t, only(t, Diagnose(s)), "KD173", "Deployment shop/web")
+}
+
+// TestContainerCaughtJustAfterFinishing is a Deployment's container whose process ends with code 0 each time, as the
+// fault suite recorded it between an exit and the kubelet's back-off: state terminated, reason Completed, five
+// restarts. It used to yield no finding at all.
+func TestContainerCaughtJustAfterFinishing(t *testing.T) {
+	s := snap()
+	p := pod("worker-5c7d9-qwert", "worker")
+	p.Spec.Containers[0].Command = []string{"/app/migrate"}
+	notReady(&p)
+	done := &kube.ContainerStateTerminated{ExitCode: 0, Reason: "Completed"}
+	p.Status.ContainerStatuses[0].State = kube.ContainerState{Terminated: done}
+	p.Status.ContainerStatuses[0].LastTerminationState = kube.ContainerState{Terminated: done}
+	p.Status.ContainerStatuses[0].RestartCount = 5
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD110", "ReplicaSet shop/worker-rs", "process finishes with code 0", "a long-running container is expected")
+
+	// A Job's container that finished, and an init container, did what they were meant to.
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "migrate", Controller: yes()}}
+	s.Pods = []kube.Pod{p}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("job: %+v", r.Findings)
 	}
 }

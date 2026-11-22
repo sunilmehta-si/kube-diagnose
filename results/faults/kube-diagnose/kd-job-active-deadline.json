@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-job-active-deadline"
+  ],
+  "collectedAt": "2026-11-22 07:17 UTC",
+  "findings": [
+    {
+      "rule": "KD180",
+      "title": "Job failed",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-job-active-deadline",
+        "name": "export"
+      },
+      "cause": "Job export was stopped by its own activeDeadlineSeconds (30): it was still running 30s after it started, so the Job controller ended its pods and failed the Job (0 of 1 completions had succeeded). Nothing crashed: the work was cut off, and its pods are gone",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-job-active-deadline",
+            "name": "export"
+          },
+          "what": "Job condition Failed: DeadlineExceeded",
+          "detail": "Job was active longer than specified deadline",
+          "command": "kubectl get job export -n kd-job-active-deadline -o jsonpath='{.status.conditions[?(@.type==\"Failed\")]}'"
+        },
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-job-active-deadline",
+            "name": "export"
+          },
+          "what": "the Job's activeDeadlineSeconds is 30",
+          "command": "kubectl get job export -n kd-job-active-deadline -o jsonpath='{.spec.activeDeadlineSeconds}{\" \"}{.status.startTime}{\" \"}{.status.succeeded}'"
+        }
+      ],
+      "fix": "If the work needs longer than 30s, recreate the Job with a higher activeDeadlineSeconds, or none: the deadline covers the whole Job from its start, every retry included. If the work hangs, read its log while it runs (kubectl logs -f job/export): once the deadline passes the pods are deleted."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

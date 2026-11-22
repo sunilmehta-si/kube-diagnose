@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-https-on-http",
-              "Masked": "WT48Qm9NWTdIPXkzNXEwQiN9JDBDSw=="
+              "Masked": "J1ZqZHJdYTlsNUN9S1o+dyM9eyQpbA=="
             },
             {
               "Unmasked": "web",
-              "Masked": "eUF4"
+              "Masked": "U0h5"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-https-on-http/web-5d98948766-ql2x8",
+      "name": "kd-probe-https-on-http/web-5d98948766-982g8",
       "error": [
         {
-          "Text": "Readiness probe failed: Get \"https://10.244.0.88:8080/\": http: server gave HTTP response to HTTPS client",
+          "Text": "Readiness probe failed: Get \"https://10.244.0.96:8080/\": http: server gave HTTP response to HTTPS client",
           "KubernetesDoc": "",
           "Sensitive": []
         }

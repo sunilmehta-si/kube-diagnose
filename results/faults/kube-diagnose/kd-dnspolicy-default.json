@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dnspolicy-default"
   ],
-  "collectedAt": "2026-11-21 06:55 UTC",
+  "collectedAt": "2026-11-22 07:16 UTC",
   "findings": [
     {
       "rule": "KD261",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dnspolicy-default",
-            "name": "client-554dbd98f8-j7tbx"
+            "name": "client-554dbd98f8-5jdvl"
           },
           "what": "container client exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod client-554dbd98f8-j7tbx -n kd-dnspolicy-default -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
+          "command": "kubectl get pod client-554dbd98f8-5jdvl -n kd-dnspolicy-default -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dnspolicy-default",
-            "name": "client-554dbd98f8-j7tbx"
+            "name": "client-554dbd98f8-5jdvl"
           },
-          "what": "last lines of container client's log (current run)",
+          "what": "last lines of container client's log (run that exited)",
           "detail": "wget: bad address 'api.kd-dnspolicy-default.svc.cluster.local'",
-          "command": "kubectl logs client-554dbd98f8-j7tbx -n kd-dnspolicy-default -c client --tail=20"
+          "command": "kubectl logs client-554dbd98f8-5jdvl -n kd-dnspolicy-default -c client --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dnspolicy-default",
-            "name": "client-554dbd98f8-j7tbx"
+            "name": "client-554dbd98f8-5jdvl"
           },
           "what": "the pod sets dnsPolicy Default",
-          "command": "kubectl get pod client-554dbd98f8-j7tbx -n kd-dnspolicy-default -o jsonpath='{.spec.hostNetwork}{\" \"}{.spec.dnsPolicy}'"
+          "command": "kubectl get pod client-554dbd98f8-5jdvl -n kd-dnspolicy-default -o jsonpath='{.spec.hostNetwork}{\" \"}{.spec.dnsPolicy}'"
         }
       ],
       "fix": "Set dnsPolicy: ClusterFirst (or remove dnsPolicy), so the pod uses cluster DNS and falls back to the node's resolver for outside names.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dnspolicy-default",
-          "name": "client-554dbd98f8-j7tbx"
+          "name": "client-554dbd98f8-5jdvl"
         }
       ]
     }

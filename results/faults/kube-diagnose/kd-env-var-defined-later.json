@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-env-var-defined-later"
   ],
-  "collectedAt": "2026-11-21 06:55 UTC",
+  "collectedAt": "2026-11-22 07:16 UTC",
   "findings": [
     {
       "rule": "KD216",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-env-var-defined-later",
-            "name": "worker-86bfdfc864-w9jsr"
+            "name": "worker-86bfdfc864-cxlpb"
           },
           "what": "container worker exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod worker-86bfdfc864-w9jsr -n kd-env-var-defined-later -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
+          "command": "kubectl get pod worker-86bfdfc864-cxlpb -n kd-env-var-defined-later -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-env-var-defined-later",
-            "name": "worker-86bfdfc864-w9jsr"
+            "name": "worker-86bfdfc864-cxlpb"
           },
-          "what": "last lines of container worker's log (current run)",
+          "what": "last lines of container worker's log (run that exited)",
           "detail": "fetching http://$(API_HOST):8080/\nwget: bad address '$(API_HOST):8080'",
-          "command": "kubectl logs worker-86bfdfc864-w9jsr -n kd-env-var-defined-later -c worker --tail=20"
+          "command": "kubectl logs worker-86bfdfc864-cxlpb -n kd-env-var-defined-later -c worker --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-env-var-defined-later",
-            "name": "worker-86bfdfc864-w9jsr"
+            "name": "worker-86bfdfc864-cxlpb"
           },
           "what": "container worker's env, in order: API_URL is entry 1 and refers to $(API_HOST)",
-          "command": "kubectl get pod worker-86bfdfc864-w9jsr -n kd-env-var-defined-later -o jsonpath='{range .spec.containers[?(@.name==\"worker\")].env[*]}{.name}={.value}{\"\\n\"}{end}'"
+          "command": "kubectl get pod worker-86bfdfc864-cxlpb -n kd-env-var-defined-later -o jsonpath='{range .spec.containers[?(@.name==\"worker\")].env[*]}{.name}={.value}{\"\\n\"}{end}'"
         }
       ],
       "fix": "Move API_HOST above API_URL in the container's env list: a value can refer only to variables defined before it.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-env-var-defined-later",
-          "name": "worker-86bfdfc864-w9jsr"
+          "name": "worker-86bfdfc864-cxlpb"
         }
       ]
     }

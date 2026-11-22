@@ -1,0 +1,68 @@
+# A Deployment passes "--port 8080" as one item of args, so the server receives the flag and its value as a single argument, does not know a flag by that name, and exits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-flag-value-one-arg
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: server
+  namespace: kd-flag-value-one-arg
+data:
+  server.sh: |
+    #!/bin/sh
+    # A small server with its own flags, as most programs have: --port N and --root DIR.
+    port=8080
+    root=/www
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --port) port="$2"; shift 2 ;;
+        --port=*) port="${1#--port=}"; shift ;;
+        --root) root="$2"; shift 2 ;;
+        --root=*) root="${1#--root=}"; shift ;;
+        *) echo "Error: unknown flag: $1" >&2; echo "Usage: server [--port N] [--root DIR]" >&2; exit 2 ;;
+      esac
+    done
+    mkdir -p "$root" && echo ok > "$root/index.html"
+    echo "serving $root on port $port"
+    exec httpd -f -p "$port" -h "$root"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-flag-value-one-arg
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["/app/server.sh"]
+          args: ["--port 8080"]
+          ports:
+            - name: http
+              containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 5
+          volumeMounts:
+            - name: server
+              mountPath: /app
+      volumes:
+        - name: server
+          configMap:
+            name: server
+            defaultMode: 0755

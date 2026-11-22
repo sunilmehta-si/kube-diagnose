@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
@@ -33,6 +34,9 @@ const (
 	secretKeys = `{{range .items}}{{.metadata.namespace}}{{"\t"}}{{.metadata.name}}{{"\t"}}{{.type}}{{"\t"}}` +
 		`{{range $k, $v := .data}}{{$k}},{{end}}{{"\n"}}{{end}}`
 )
+
+// maxParallel is how many kubectl reads run at once.
+const maxParallel = 8
 
 // Collect reads everything the rules use. A resource the user may not read is recorded as a gap, not an error: a
 // diagnosis from the rest is still useful, and the report says what it could not see.
@@ -80,36 +84,112 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 	if err := list(ctx, r, s, "pods", ns, scope, &s.Pods); err != nil {
 		return nil, err
 	}
-	steps := []func() error{
-		func() error { return list(ctx, r, s, "events", ns, scope, &s.Events) },
-		func() error { return list(ctx, r, s, "services", ns, scope, &s.Services) },
-		func() error { return list(ctx, r, s, "endpointslices.discovery.k8s.io", ns, scope, &s.EndpointSlices) },
-		func() error { return list(ctx, r, s, "ingresses.networking.k8s.io", ns, scope, &s.Ingresses) },
-		func() error { return workloads(ctx, r, s, ns, scope) },
-		func() error { return list(ctx, r, s, "jobs.batch", ns, scope, &s.Jobs) },
-		func() error { return list(ctx, r, s, "cronjobs.batch", ns, scope, &s.CronJobs) },
-		func() error { return list(ctx, r, s, "horizontalpodautoscalers.autoscaling", ns, scope, &s.HPAs) },
-		func() error { return list(ctx, r, s, "poddisruptionbudgets.policy", ns, scope, &s.PDBs) },
-		func() error { return list(ctx, r, s, "persistentvolumeclaims", ns, scope, &s.PVCs) },
-		func() error {
-			return list(ctx, r, s, "networkpolicies.networking.k8s.io", ns, scope, &s.NetworkPolicies)
+	steps := []func(g *snapshot.Snapshot) error{
+		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "events", ns, scope, &s.Events) },
+		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "services", ns, scope, &s.Services) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "endpointslices.discovery.k8s.io", ns, scope, &s.EndpointSlices)
 		},
-		func() error { return list(ctx, r, s, "resourcequotas", ns, scope, &s.ResourceQuotas) },
-		func() error { return list(ctx, r, s, "serviceaccounts", ns, scope, &s.ServiceAccounts) },
-		func() error { return keys(ctx, r, s, "configmaps", ns, scope, configMapKeys, &s.ConfigMaps) },
-		func() error { return keys(ctx, r, s, "secrets", ns, scope, secretKeys, &s.Secrets) },
-		func() error { return list(ctx, r, s, "nodes", "", nil, &s.Nodes) },
-		func() error { return list(ctx, r, s, "storageclasses.storage.k8s.io", "", nil, &s.StorageClasses) },
-		func() error { return list(ctx, r, s, "ingressclasses.networking.k8s.io", "", nil, &s.IngressClasses) },
-		func() error { return list(ctx, r, s, "persistentvolumes", "", nil, &s.PVs) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "ingresses.networking.k8s.io", ns, scope, &s.Ingresses)
+		},
+		func(g *snapshot.Snapshot) error { return workloads(ctx, r, g, ns, scope, &s.Workloads) },
+		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "jobs.batch", ns, scope, &s.Jobs) },
+		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "cronjobs.batch", ns, scope, &s.CronJobs) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "horizontalpodautoscalers.autoscaling", ns, scope, &s.HPAs)
+		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "poddisruptionbudgets.policy", ns, scope, &s.PDBs)
+		},
+		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "persistentvolumeclaims", ns, scope, &s.PVCs) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "networkpolicies.networking.k8s.io", ns, scope, &s.NetworkPolicies)
+		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "resourcequotas", ns, scope, &s.ResourceQuotas)
+		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "serviceaccounts", ns, scope, &s.ServiceAccounts)
+		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "roles.rbac.authorization.k8s.io", ns, scope, &s.Roles)
+		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "rolebindings.rbac.authorization.k8s.io", ns, scope, &s.RoleBindings)
+		},
+		func(g *snapshot.Snapshot) error {
+			return names(ctx, r, g, "clusterroles.rbac.authorization.k8s.io", &s.ClusterRoles)
+		},
+		func(g *snapshot.Snapshot) error {
+			return keys(ctx, r, g, "configmaps", ns, scope, configMapKeys, &s.ConfigMaps)
+		},
+		func(g *snapshot.Snapshot) error { return keys(ctx, r, g, "secrets", ns, scope, secretKeys, &s.Secrets) },
+		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "nodes", "", nil, &s.Nodes) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "storageclasses.storage.k8s.io", "", nil, &s.StorageClasses)
+		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "ingressclasses.networking.k8s.io", "", nil, &s.IngressClasses)
+		},
+		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "persistentvolumes", "", nil, &s.PVs) },
+		func(g *snapshot.Snapshot) error { return namespaces(ctx, r, g, &s.NamespaceObjects) },
 	}
-	for _, step := range steps {
-		if err := step(); err != nil {
-			return nil, err
+	// The reads are independent, each a kubectl process and one API request, so a few run at once. Every step
+	// writes its own field of the snapshot and collects its gaps apart, which are then added in the steps' order: the
+	// snapshot comes out the same as if they had run one by one.
+	gaps := make([]snapshot.Snapshot, len(steps))
+	errs := make([]error, len(steps))
+	sem := make(chan struct{}, maxParallel)
+	var wg sync.WaitGroup
+	for i, step := range steps {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			errs[i] = step(&gaps[i])
+		}()
+	}
+	wg.Wait()
+	for i := range steps {
+		if errs[i] != nil {
+			return nil, errs[i]
 		}
+		s.Gaps = append(s.Gaps, gaps[i].Gaps...)
 	}
 	logs(ctx, r, s, o.LogLines, o.MaxLogs)
 	return s, nil
+}
+
+// names reads the names of a cluster-scoped resource, and nothing else of it.
+func names(ctx context.Context, r Runner, s *snapshot.Snapshot, resource string, out *[]string) error {
+	b, err := r.Run(ctx, "get", resource, "-o", `go-template={{range .items}}{{.metadata.name}}{{"\n"}}{{end}}`)
+	if err != nil {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
+		s.Gaps = append(s.Gaps, snapshot.Gap{Resource: resource, Error: firstLine(err.Error())})
+		return nil
+	}
+	for _, n := range strings.Fields(string(b)) {
+		*out = append(*out, n)
+	}
+	sort.Strings(*out)
+	return nil
+}
+
+// namespaces reads every namespace of the cluster and keeps its name and labels only: a NetworkPolicy's
+// namespaceSelector is judged against the labels, and nothing else of a namespace is needed or kept.
+func namespaces(ctx context.Context, r Runner, s *snapshot.Snapshot, out *[]kube.Namespace) error {
+	var all []kube.Namespace
+	if err := list(ctx, r, s, "namespaces", "", nil, &all); err != nil {
+		return err
+	}
+	for _, n := range all {
+		*out = append(*out, kube.Namespace{Metadata: kube.ObjectMeta{Name: n.Metadata.Name, Labels: n.Metadata.Labels}})
+	}
+	return nil
 }
 
 // list runs `kubectl get <resource> -o json` into out. Errors become gaps unless the context is cancelled.
@@ -134,7 +214,7 @@ func list[T any](ctx context.Context, r Runner, s *snapshot.Snapshot, resource, 
 	return nil
 }
 
-func workloads(ctx context.Context, r Runner, s *snapshot.Snapshot, ns string, scope []string) error {
+func workloads(ctx context.Context, r Runner, s *snapshot.Snapshot, ns string, scope []string, out *[]kube.Workload) error {
 	for _, k := range []struct{ resource, kind string }{
 		{"deployments.apps", "Deployment"}, {"replicasets.apps", "ReplicaSet"},
 		{"statefulsets.apps", "StatefulSet"}, {"daemonsets.apps", "DaemonSet"},
@@ -146,7 +226,7 @@ func workloads(ctx context.Context, r Runner, s *snapshot.Snapshot, ns string, s
 		for i := range ws {
 			ws[i].Kind = k.kind
 		}
-		s.Workloads = append(s.Workloads, ws...)
+		*out = append(*out, ws...)
 	}
 	return nil
 }
@@ -210,41 +290,59 @@ func logs(ctx context.Context, r Runner, s *snapshot.Snapshot, lines, max int) {
 			}
 		}
 	}
+	if len(wants) > max {
+		s.Gaps = append(s.Gaps, snapshot.Gap{Resource: "logs", Error: fmt.Sprintf("read the logs of %d of the %d containers that crashed or restarted; --max-logs reads more", max, len(wants))})
+		wants = wants[:max]
+	}
+	// Read a few at once, and keep the containers' order in the snapshot.
+	read := make([]*snapshot.Log, len(wants))
+	failed := make([]*snapshot.Gap, len(wants))
+	sem := make(chan struct{}, maxParallel)
+	var wg sync.WaitGroup
 	for i, w := range wants {
-		if i >= max {
-			s.Gaps = append(s.Gaps, snapshot.Gap{Resource: "logs", Error: fmt.Sprintf("read the logs of %d of the %d containers that crashed or restarted; --max-logs reads more", max, len(wants))})
-			return
-		}
-		args := []string{"logs", w.pod.Metadata.Name, "-n", w.pod.Metadata.Namespace, "-c", w.container, fmt.Sprintf("--tail=%d", lines)}
-		previous := w.previous
-		b, err := readLog(ctx, r, args, previous)
-		if err == nil && unretrievable(b) {
-			// The kubelet keeps one dead instance's log; when that is the other one, read it instead.
-			previous = !previous
-			b, err = readLog(ctx, r, args, previous)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			sem <- struct{}{}
+			defer func() { <-sem }()
+			args := []string{"logs", w.pod.Metadata.Name, "-n", w.pod.Metadata.Namespace, "-c", w.container, fmt.Sprintf("--tail=%d", lines)}
+			previous := w.previous
+			b, err := readLog(ctx, r, args, previous)
 			if err == nil && unretrievable(b) {
-				err = fmt.Errorf("kubectl logs %s -c %s: %s", w.pod.Metadata.Name, w.container, firstLine(string(b)))
+				// The kubelet keeps one dead instance's log; when that is the other one, read it instead.
+				previous = !previous
+				b, err = readLog(ctx, r, args, previous)
+				if err == nil && unretrievable(b) {
+					err = fmt.Errorf("kubectl logs %s -c %s: %s", w.pod.Metadata.Name, w.container, firstLine(string(b)))
+				}
 			}
-		}
-		if err != nil {
-			if ctx.Err() != nil {
+			if err != nil {
+				if ctx.Err() == nil {
+					failed[i] = &snapshot.Gap{Resource: "logs", Namespace: w.pod.Metadata.Namespace, Error: firstLine(err.Error())}
+				}
 				return
 			}
-			s.Gaps = append(s.Gaps, snapshot.Gap{Resource: "logs", Namespace: w.pod.Metadata.Namespace,
-				Error: firstLine(err.Error())})
-			continue
-		}
-		l := snapshot.Log{Pod: w.pod.Ref(), Container: w.container, Previous: previous, Lines: []string{}}
-		for _, line := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {
-			line = ansi.ReplaceAllString(strings.TrimRight(line, "\r"), "")
-			if len(line) > 400 {
-				line = line[:400] + "…"
+			l := &snapshot.Log{Pod: w.pod.Ref(), Container: w.container, Previous: previous, Lines: []string{}}
+			for _, line := range strings.Split(strings.TrimRight(string(b), "\n"), "\n") {
+				line = ansi.ReplaceAllString(strings.TrimRight(line, "\r"), "")
+				if len(line) > 400 {
+					line = line[:400] + "…"
+				}
+				if line != "" {
+					l.Lines = append(l.Lines, line)
+				}
 			}
-			if line != "" {
-				l.Lines = append(l.Lines, line)
-			}
+			read[i] = l
+		}()
+	}
+	wg.Wait()
+	for i := range wants {
+		if failed[i] != nil {
+			s.Gaps = append(s.Gaps, *failed[i])
 		}
-		s.Logs = append(s.Logs, l)
+		if read[i] != nil {
+			s.Logs = append(s.Logs, *read[i])
+		}
 	}
 }
 

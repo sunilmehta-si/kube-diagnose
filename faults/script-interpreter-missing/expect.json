@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-script-interpreter-missing",
+  "description": "A start script from a ConfigMap begins with #!/bin/bash, and the image has only sh, so the kernel cannot run the script though the file is there.",
+  "rule": "KD222",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "interpreter",
+      "bash",
+      "first line",
+      "#!"
+    ],
+    [
+      "run.sh"
+    ]
+  ]
+}

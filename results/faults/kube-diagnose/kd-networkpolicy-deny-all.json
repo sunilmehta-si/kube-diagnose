@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-deny-all"
   ],
-  "collectedAt": "2026-11-21 06:57 UTC",
+  "collectedAt": "2026-11-22 07:18 UTC",
   "findings": [
     {
       "rule": "KD163",

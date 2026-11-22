@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -19,12 +20,17 @@ import (
 type fakeKubectl struct {
 	context string
 	answers map[string]string
+	mu      *sync.Mutex // the collector runs several reads at once
 	calls   *[][]string
 }
 
 func (f fakeKubectl) Run(_ context.Context, args ...string) ([]byte, error) {
 	if err := collect.CheckReadOnly(args); err != nil {
 		return nil, err
+	}
+	if f.mu != nil {
+		f.mu.Lock()
+		defer f.mu.Unlock()
 	}
 	*f.calls = append(*f.calls, append([]string{"@" + f.context}, args...))
 	key := args[0]
@@ -51,9 +57,10 @@ const brokenEvents = `{"items":[{"metadata":{"name":"e1","namespace":"shop"},
 func testEnv(answers map[string]string) (Env, *bytes.Buffer, *bytes.Buffer, *[][]string) {
 	var out, errb bytes.Buffer
 	calls := &[][]string{}
+	mu := &sync.Mutex{}
 	return Env{Stdout: &out, Stderr: &errb, Getenv: func(string) string { return "" },
 		Now:     func() time.Time { return time.Date(2026, 11, 13, 10, 0, 0, 0, time.UTC) },
-		Kubectl: func(c string) collect.Runner { return fakeKubectl{context: c, answers: answers, calls: calls} }}, &out, &errb, calls
+		Kubectl: func(c string) collect.Runner { return fakeKubectl{context: c, answers: answers, mu: mu, calls: calls} }}, &out, &errb, calls
 }
 
 func broken() map[string]string {
@@ -253,6 +260,22 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"localhost", "Service"}, "KD217"},
 		{[]string{"expose"}, "KD218"},
 		{[]string{"capability"}, "KD219"},
+		{[]string{"flag", "argument"}, "KD221"},
+		{[]string{"interpreter"}, "KD222"},
+		{[]string{"service", "link"}, "KD223"},
+		{[]string{"non-root", "image"}, "KD224"},
+		{[]string{"refuse", "targets"}, "KD225"},
+		{[]string{"shell", "operator"}, "KD226"},
+		{[]string{"flags", "entrypoint"}, "KD229"},
+		{[]string{"PersistentVolume", "fits"}, "KD250"},
+		{[]string{"Released"}, "KD251"},
+		{[]string{"Lost", "claim"}, "KD252"},
+		{[]string{"ResourceQuota", "requires"}, "KD275"},
+		{[]string{"LimitRange", "default", "below"}, "KD276"},
+		{[]string{"webhook", "reached"}, "KD277"},
+		{[]string{"namespaceSelector"}, "KD274"},
+		{[]string{"RoleBinding", "Role", "exist"}, "KD227"},
+		{[]string{"RoleBinding", "ServiceAccount"}, "KD228"},
 		{[]string{"init", "own"}, "KD220"},
 		{[]string{"more", "PodDisruptionBudget"}, "KD289"},
 		{[]string{"switched", "off"}, "KD290"},

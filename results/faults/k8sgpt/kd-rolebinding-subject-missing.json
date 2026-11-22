@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rolebinding-subject-missing/worker",
+      "error": [
+        {
+          "Text": "Deployment kd-rolebinding-subject-missing/worker has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rolebinding-subject-missing",
+              "Masked": "MWE2OC5val9ifCclUWNfTnZ8SVJKeFd3THAjMzZO"
+            },
+            {
+              "Unmasked": "worker",
+              "Masked": "Y3QycTVi"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-rolebinding-subject-missing/settings",
+      "error": [
+        {
+          "Text": "ConfigMap settings is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rolebinding-subject-missing/worker-7ff79c9999-wfjfj",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=worker pod=worker-7ff79c9999-wfjfj",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/worker"
+    }
+  ]
+}

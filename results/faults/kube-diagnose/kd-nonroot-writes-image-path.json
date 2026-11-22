@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-nonroot-writes-image-path"
+  ],
+  "collectedAt": "2026-11-22 07:19 UTC",
+  "findings": [
+    {
+      "rule": "KD224",
+      "title": "Non-root container is denied a path in its image",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-nonroot-writes-image-path",
+        "name": "web"
+      },
+      "cause": "container web runs as user 1000 and is denied /www, a path of the image itself, not of a volume: the image's files belong to root, and another user may not create or change them; its log says: \"mkdir: can't create directory '/www': Permission denied\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nonroot-writes-image-path",
+            "name": "web-8cbd88466-sg9q9"
+          },
+          "what": "container web exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod web-8cbd88466-sg9q9 -n kd-nonroot-writes-image-path -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nonroot-writes-image-path",
+            "name": "web-8cbd88466-sg9q9"
+          },
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "mkdir: can't create directory '/www': Permission denied",
+          "command": "kubectl logs web-8cbd88466-sg9q9 -n kd-nonroot-writes-image-path -c web --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nonroot-writes-image-path",
+            "name": "web-8cbd88466-sg9q9"
+          },
+          "what": "container web runs as user 1000 (runAsUser), and /www is not under any of its volume mounts",
+          "command": "kubectl get pod web-8cbd88466-sg9q9 -n kd-nonroot-writes-image-path -o jsonpath='{.spec.securityContext}{\" \"}{.spec.containers[?(@.name==\"web\")].securityContext}{\" \"}{.spec.containers[?(@.name==\"web\")].volumeMounts[*].mountPath}'"
+        }
+      ],
+      "fix": "Give the app a place it may write: mount an emptyDir at /www (or its parent directory) and set the pod's fsGroup, or point the app at a writable directory such as /tmp. Or build the image so that /www belongs to the user it runs as.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-nonroot-writes-image-path",
+          "name": "web-8cbd88466-sg9q9"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-command-shell-operator-no-shell/worker",
+      "error": [
+        {
+          "Text": "Deployment kd-command-shell-operator-no-shell/worker has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-command-shell-operator-no-shell",
+              "Masked": "bG9wcksmdX0sZEtBdn11eGQleSVuQ21JRWVrVXNpVXxoQw=="
+            },
+            {
+              "Unmasked": "worker",
+              "Masked": "X3N2OHlx"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

@@ -1,0 +1,63 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pv-released"
+  ],
+  "collectedAt": "2026-11-22 07:20 UTC",
+  "findings": [
+    {
+      "rule": "KD251",
+      "title": "PersistentVolume is Released and does not bind again",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pv-released",
+        "name": "data"
+      },
+      "cause": "PersistentVolumeClaim data stays Pending: PersistentVolume kd-pv-released fits it, but is Released: it still carries the reference to claim kd-pv-released/old-data, which was deleted, and a Released volume is bound to no other claim until that reference is cleared (reclaim policy Retain keeps the volume and its data for that decision); the 3 other volumes without a class do not fit either",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-released",
+            "name": "data"
+          },
+          "what": "PersistentVolumeClaim is Pending",
+          "command": "kubectl get pvc data -n kd-pv-released -o jsonpath='{.status.phase}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pv-released",
+            "name": "data"
+          },
+          "what": "claim asks for 1Gi; ReadWriteOnce; storageClassName \"\", which turns dynamic provisioning off",
+          "command": "kubectl get pvc data -n kd-pv-released -o jsonpath='{.spec.resources.requests.storage}{\" \"}{.spec.accessModes}{\" \"}{.spec.storageClassName}{\" \"}{.spec.volumeMode}{\" \"}{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolume",
+            "name": "kd-pv-released"
+          },
+          "what": "PersistentVolume kd-pv-released is Released: it still carries the reference to its deleted claim kd-pv-released/old-data",
+          "command": "kubectl get pv kd-pv-released -o jsonpath='{.status.phase}{\" \"}{.spec.capacity.storage}{\" \"}{.spec.accessModes}{\" \"}{.spec.volumeMode}{\" \"}{.spec.claimRef.namespace}{\"/\"}{.spec.claimRef.name}'"
+        }
+      ],
+      "fix": "If the data on kd-pv-released may go to the new claim, or does not matter, clear the reference so that the volume is Available again: kubectl patch pv kd-pv-released --type=json -p '[{\"op\":\"remove\",\"path\":\"/spec/claimRef\"}]'. Otherwise create a new PersistentVolume for the claim.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pv-released",
+          "name": "db-56f8666648-n4zfh"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rolebinding-subject-missing"
+  ],
+  "collectedAt": "2026-11-22 07:20 UTC",
+  "findings": [
+    {
+      "rule": "KD228",
+      "title": "RoleBinding names a ServiceAccount that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rolebinding-subject-missing",
+        "name": "worker"
+      },
+      "cause": "container worker exits because the API server refuses its ServiceAccount app, which no RoleBinding of namespace kd-rolebinding-subject-missing names: RoleBinding read-config grants Role configmap-reader to ServiceAccount apps, and there is no ServiceAccount apps, so nothing receives the permission; its log says: \"wget: server returned error: HTTP/1.1 403 Forbidden\"; Deployment worker has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rolebinding-subject-missing",
+            "name": "worker-7ff79c9999-wfjfj"
+          },
+          "what": "container worker exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod worker-7ff79c9999-wfjfj -n kd-rolebinding-subject-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rolebinding-subject-missing",
+            "name": "worker-7ff79c9999-wfjfj"
+          },
+          "what": "last lines of container worker's log (run that exited)",
+          "detail": "Connecting to kubernetes.default.svc (10.96.0.1:443)\nwget: server returned error: HTTP/1.1 403 Forbidden",
+          "command": "kubectl logs worker-7ff79c9999-wfjfj -n kd-rolebinding-subject-missing -c worker --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rolebinding-subject-missing",
+            "name": "read-config"
+          },
+          "what": "RoleBinding read-config grants Role configmap-reader to ServiceAccount apps",
+          "command": "kubectl get rolebinding read-config -n kd-rolebinding-subject-missing -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rolebinding-subject-missing",
+            "name": "worker-7ff79c9999-wfjfj"
+          },
+          "what": "the pod runs as ServiceAccount app",
+          "command": "kubectl get pod worker-7ff79c9999-wfjfj -n kd-rolebinding-subject-missing -o jsonpath='{.spec.serviceAccountName}'"
+        }
+      ],
+      "fix": "Set the subject of RoleBinding read-config to ServiceAccount app (a binding's subjects can be edited), if that is who it was meant for; or run the pods as ServiceAccount apps after creating it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rolebinding-subject-missing",
+          "name": "worker-7ff79c9999-wfjfj"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

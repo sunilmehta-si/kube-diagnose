@@ -219,3 +219,54 @@ func containerEnv(ix *index, ns string, c kube.Container) (map[string]bool, bool
 	}
 	return out, true
 }
+
+// serviceLinkOverride finds a container that exits after reading, as a setting of its own, a variable the kubelet
+// set for a Service. For Service redis the kubelet gives every container of the namespace REDIS_PORT=tcp://IP:PORT
+// (and REDIS_SERVICE_HOST, REDIS_PORT_6379_TCP and more), unless the pod sets enableServiceLinks: false. An app or
+// image that keeps its own port in REDIS_PORT then gets a URL where it expects a number, and its log shows the
+// value.
+func serviceLinkOverride(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	if p.Spec.EnableServiceLinks != nil && !*p.Spec.EnableServiceLinks {
+		return nil
+	}
+	c, ok := containerSpec(p, cs.Name)
+	if !ok {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	defined, _ := containerEnv(ix, ns, c)
+	for _, svc := range ix.s.Services {
+		ip := svc.Spec.ClusterIP
+		if svc.Metadata.Namespace != ns || ip == "" || ip == "None" || len(svc.Spec.Ports) == 0 {
+			continue
+		}
+		if !svc.Metadata.CreationTimestamp.IsZero() && !p.Metadata.CreationTimestamp.IsZero() && svc.Metadata.CreationTimestamp.After(p.Metadata.CreationTimestamp) {
+			continue // created after the pod: its containers did not get the variables
+		}
+		name := strings.ToUpper(strings.ReplaceAll(svc.Metadata.Name, "-", "_")) + "_PORT"
+		if defined[name] {
+			continue // the container's own value wins
+		}
+		proto := strings.ToLower(svc.Spec.Ports[0].Protocol)
+		if proto == "" {
+			proto = "tcp"
+		}
+		value := fmt.Sprintf("%s://%s:%d", proto, ip, svc.Spec.Ports[0].Port)
+		for i := len(lines) - 1; i >= 0; i-- {
+			if !strings.Contains(lines[i], value) {
+				continue
+			}
+			ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s has cluster IP %s and port %d, so the kubelet sets %s=%s in the namespace's containers", svc.Metadata.Name, ip, svc.Spec.Ports[0].Port, name, value),
+				Command: cmdGet("service", ns, svc.Metadata.Name, `{.spec.clusterIP}{" "}{.spec.ports[0].port}`)},
+				Evidence{Object: p.Ref(), What: fmt.Sprintf("the pod does not set enableServiceLinks: false, and container %s defines no %s of its own", cs.Name, name),
+					Command: cmdGet("pod", ns, p.Metadata.Name, fmt.Sprintf(`{.spec.enableServiceLinks}{" "}{.spec.containers[?(@.name=="%s")].env[*].name}`, cs.Name))})
+			return newProblem(p, cs.Name, "KD223", "Service link variable replaces the app's own setting", Critical,
+				fmt.Sprintf("container %s exits after reading %s as a setting of its own, and Kubernetes set it: for every Service of the namespace the kubelet gives each container variables named after the Service (service links), and for Service %s that includes %s=%s, an address where the app expects a port number; its log says: %q",
+					cs.Name, name, svc.Metadata.Name, name, value, clip(lines[i], 200)),
+				"servicelink|"+name,
+				fmt.Sprintf("Set enableServiceLinks: false in the pod spec, so the kubelet adds no such variables (the Service's DNS name still works), or define %s in the container's env, which wins over the service link, or rename the app's variable or the Service.", name),
+				ev...)
+		}
+	}
+	return nil
+}

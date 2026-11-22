@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-missing-scheduler"
   ],
-  "collectedAt": "2026-11-21 06:57 UTC",
+  "collectedAt": "2026-11-22 07:18 UTC",
   "findings": [
     {
       "rule": "KD148",
@@ -15,16 +15,16 @@
         "namespace": "kd-missing-scheduler",
         "name": "web"
       },
-      "cause": "the pod asks for scheduler volcano and no scheduler has looked at it in 6m0s; volcano is not running, or does not handle this namespace; Deployment web has 0 of 1 replicas ready",
+      "cause": "the pod asks for scheduler volcano and no scheduler has looked at it in 7m0s; volcano is not running, or does not handle this namespace; Deployment web has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-scheduler",
-            "name": "web-86c86bf68-9jw5w"
+            "name": "web-86c86bf68-kng9r"
           },
           "what": "pod asks for scheduler volcano and has no PodScheduled condition",
-          "command": "kubectl get pod web-86c86bf68-9jw5w -n kd-missing-scheduler -o jsonpath='{.spec.schedulerName}{\"\\n\"}{.status.conditions}'"
+          "command": "kubectl get pod web-86c86bf68-kng9r -n kd-missing-scheduler -o jsonpath='{.spec.schedulerName}{\"\\n\"}{.status.conditions}'"
         },
         {
           "object": {
@@ -40,7 +40,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-missing-scheduler",
-          "name": "web-86c86bf68-9jw5w"
+          "name": "web-86c86bf68-kng9r"
         }
       ]
     }

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-flags-in-command/web",
+      "error": [
+        {
+          "Text": "Deployment kd-flags-in-command/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-flags-in-command",
+              "Masked": "LlFRI2QzVFhqJitMcU4rSUVmLA=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "aT5l"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-flags-in-command/web-5cdb6c76fc-b9g8g",
+      "error": [
+        {
+          "Text": "the last termination reason is StartError container=web pod=web-5cdb6c76fc-b9g8g",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-networkpolicy-namespace-label",
+  "description": "A NetworkPolicy admits traffic to the web pods only from namespaces labelled name=<namespace>, a label no namespace has (namespaces carry kubernetes.io/metadata.name), so the client in the same namespace is dropped.",
+  "rule": "KD274",
+  "object": "Deployment/client",
+  "keywords": [
+    [
+      "web-ingress",
+      "NetworkPolicy"
+    ],
+    [
+      "namespaceSelector",
+      "namespace selector",
+      "no namespace",
+      "namespaces labelled",
+      "kubernetes.io/metadata.name"
+    ]
+  ]
+}

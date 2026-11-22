@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pv-too-small/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pv-too-small/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-too-small",
+              "Masked": "NU5BLDgvIS1DbDdrRDl6"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "O3c="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "PersistentVolumeClaim",
+      "name": "kd-pv-too-small/data",
+      "error": [
+        {
+          "Text": "storageclass.storage.k8s.io \"manual\" not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pv-too-small/db-56f8666648-tgjc8",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
+    }
+  ]
+}

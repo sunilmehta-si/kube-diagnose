@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-init-waits-for-own-service",
-              "Masked": "QDg5dFlubHhLR0BlcVl5b2lYUiVQLjtIN2wtWSc="
+              "Masked": "VjYiUFR3IUJLRWpVWEZQPG01MksoNFVVJVlOeUw="
             },
             {
               "Unmasked": "web",
-              "Masked": "JUB4"
+              "Masked": "JENi"
             }
           ]
         }
@@ -31,7 +31,7 @@
       "name": "kd-init-waits-for-own-service/web",
       "error": [
         {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-df8d558d8-vwxm9], expected 1",
+          "Text": "Service has not ready endpoints, pods: [Pod/web-df8d558d8-gcghz], expected 1",
           "KubernetesDoc": "",
           "Sensitive": []
         }

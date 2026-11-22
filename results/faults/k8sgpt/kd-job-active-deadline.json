@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "ConfigMap",
+      "name": "kd-job-active-deadline/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-job-active-deadline/export",
+      "error": [
+        {
+          "Text": "Job was active longer than specified deadline",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-job-active-deadline",
+              "Masked": "Rno9Z3hVMjglVHNhanhjcXNjJD5ANA=="
+            },
+            {
+              "Unmasked": "export",
+              "Masked": "YzVfJjVS"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

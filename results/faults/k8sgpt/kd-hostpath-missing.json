@@ -5,19 +5,6 @@
   "problems": 2,
   "results": [
     {
-      "kind": "Pod",
-      "name": "kd-hostpath-missing/agent-t6r7x",
-      "error": [
-        {
-          "Text": "MountVolume.SetUp failed for volume \"state\" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path \"/var/lib/agent-state\" does not exist",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "DaemonSet/agent"
-    },
-    {
       "kind": "DaemonSet",
       "name": "kd-hostpath-missing/agent",
       "error": [
@@ -27,17 +14,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-hostpath-missing",
-              "Masked": "Ul53d2w3Mi1BRGROaCg4M3Qpcw=="
+              "Masked": "eEA8WDJBNCw0Kj9WW2Vicl1BTw=="
             },
             {
               "Unmasked": "agent",
-              "Masked": "bWlJIWc="
+              "Masked": "Omc1YlM="
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-hostpath-missing/agent-tn2dv",
+      "error": [
+        {
+          "Text": "MountVolume.SetUp failed for volume \"state\" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path \"/var/lib/agent-state\" does not exist",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "DaemonSet/agent"
     }
   ]
 }

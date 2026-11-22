@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-flag-value-one-arg"
+  ],
+  "collectedAt": "2026-11-22 07:16 UTC",
+  "findings": [
+    {
+      "rule": "KD221",
+      "title": "Flag and its value are one argument",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-flag-value-one-arg",
+        "name": "web"
+      },
+      "cause": "container web exits because its args holds \"--port 8080\" as one item: the program receives the flag and its value as a single argument, space included, and does not know a flag by that name; its log says: \"Error: unknown flag: --port 8080\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-flag-value-one-arg",
+            "name": "web-5769d4bf87-mnfq7"
+          },
+          "what": "container web exited with code 2 (Error), restarted 5 times",
+          "command": "kubectl get pod web-5769d4bf87-mnfq7 -n kd-flag-value-one-arg -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-flag-value-one-arg",
+            "name": "web-5769d4bf87-mnfq7"
+          },
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "Error: unknown flag: --port 8080\nUsage: server [--port N] [--root DIR]",
+          "command": "kubectl logs web-5769d4bf87-mnfq7 -n kd-flag-value-one-arg -c web --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-flag-value-one-arg",
+            "name": "web-5769d4bf87-mnfq7"
+          },
+          "what": "container web's args holds \"--port 8080\" as one item",
+          "command": "kubectl get pod web-5769d4bf87-mnfq7 -n kd-flag-value-one-arg -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}'"
+        }
+      ],
+      "fix": "Write the flag and its value as two items: \"--port\", \"8080\" (or one item \"--port=8080\"). Each item of command and args is passed to the program as one argument, and no shell splits it at spaces.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-flag-value-one-arg",
+          "name": "web-5769d4bf87-mnfq7"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

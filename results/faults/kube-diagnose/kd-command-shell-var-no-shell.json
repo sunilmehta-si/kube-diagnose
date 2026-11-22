@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-command-shell-var-no-shell"
   ],
-  "collectedAt": "2026-11-21 06:54 UTC",
+  "collectedAt": "2026-11-22 07:15 UTC",
   "findings": [
     {
       "rule": "KD213",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-shell-var-no-shell",
-            "name": "worker-64998f8757-zjjkk"
+            "name": "worker-64998f8757-cnw8d"
           },
           "what": "container worker exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod worker-64998f8757-zjjkk -n kd-command-shell-var-no-shell -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
+          "command": "kubectl get pod worker-64998f8757-cnw8d -n kd-command-shell-var-no-shell -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-shell-var-no-shell",
-            "name": "worker-64998f8757-zjjkk"
+            "name": "worker-64998f8757-cnw8d"
           },
           "what": "last lines of container worker's log (current run)",
           "detail": "sleep: invalid number '$SLEEP_SECONDS'",
-          "command": "kubectl logs worker-64998f8757-zjjkk -n kd-command-shell-var-no-shell -c worker --tail=20"
+          "command": "kubectl logs worker-64998f8757-cnw8d -n kd-command-shell-var-no-shell -c worker --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-shell-var-no-shell",
-            "name": "worker-64998f8757-zjjkk"
+            "name": "worker-64998f8757-cnw8d"
           },
           "what": "container worker's command has $SLEEP_SECONDS and runs no shell",
-          "command": "kubectl get pod worker-64998f8757-zjjkk -n kd-command-shell-var-no-shell -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}'"
+          "command": "kubectl get pod worker-64998f8757-cnw8d -n kd-command-shell-var-no-shell -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}'"
         }
       ],
       "fix": "Write it as $(SLEEP_SECONDS), which Kubernetes expands from the container's env, or run the command through a shell: [\"sh\", \"-c\", \"...\"].",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-command-shell-var-no-shell",
-          "name": "worker-64998f8757-zjjkk"
+          "name": "worker-64998f8757-cnw8d"
         }
       ]
     }
