@@ -169,3 +169,43 @@ func noVolumeFits(ix *index, pvc kube.PersistentVolumeClaim, state Evidence) (f 
 	f.Fix = "Recreate the claim so that it fits an existing volume (a claim's size, access modes and class cannot be edited), or create a PersistentVolume that fits the claim: at least its size, every access mode it asks for, the same volumeMode and storageClassName, and not bound or reserved."
 	return f, true
 }
+
+// lostClaim explains a claim in phase Lost: it is recorded as bound (the pv.kubernetes.io/bind-completed annotation)
+// to a PersistentVolume that does not exist. The volume was deleted under the claim, or the claim was created from
+// a copy of a bound claim, volumeName and annotations included, in a cluster that never had the volume: a backup
+// restored, or manifests exported with kubectl get -o yaml and applied elsewhere. A Lost claim never binds again,
+// and the scheduler refuses every pod that mounts it.
+func lostClaim(ix *index, pvc kube.PersistentVolumeClaim) Finding {
+	ns, name, vol := pvc.Metadata.Namespace, pvc.Metadata.Name, pvc.Spec.VolumeName
+	ref := pvc.Ref()
+	f := Finding{Rule: "KD252", Title: "Claim has lost its PersistentVolume", Severity: Critical, Object: ref,
+		Evidence: []Evidence{{Object: ref, What: "PersistentVolumeClaim is Lost", Command: cmdGet("pvc", ns, name, `{.status.phase}{" "}{.spec.volumeName}{" "}{.metadata.annotations}`)}}}
+	for _, e := range ix.eventsFor(ref, "ClaimLost", "ClaimMisbound") {
+		f.Evidence = append(f.Evidence, eventEvidence(ref, e))
+		break
+	}
+	exists := false
+	for _, pv := range ix.s.PVs {
+		exists = exists || pv.Metadata.Name == vol
+	}
+	copied := ""
+	if pvc.Metadata.Annotations["pv.kubernetes.io/bind-completed"] != "" {
+		copied = ", or the claim was created from a copy of a bound claim, with its volumeName and pv.kubernetes.io/bind-completed annotation, in a cluster that does not have that volume"
+	}
+	switch {
+	case vol == "":
+		f.Cause = fmt.Sprintf("PersistentVolumeClaim %s is Lost: it is marked as bound and names no PersistentVolume, so it can never be used, and pods that mount it are not scheduled", name)
+	case exists || !ix.read("persistentvolumes"):
+		f.Cause = fmt.Sprintf("PersistentVolumeClaim %s is Lost: it is marked as bound to PersistentVolume %s, and the PersistentVolume controller found that binding broken, so pods that mount it are not scheduled", name, vol)
+	default:
+		f.Cause = fmt.Sprintf("PersistentVolumeClaim %s is Lost: it is marked as bound to PersistentVolume %s, and there is no such PersistentVolume, so pods that mount it are not scheduled. The volume was deleted under the claim%s",
+			name, vol, copied)
+		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "PersistentVolume", Name: vol}, What: "there is no PersistentVolume " + vol, Command: "kubectl get pv"})
+	}
+	volume := "the PersistentVolume"
+	if vol != "" {
+		volume = "PersistentVolume " + vol
+	}
+	f.Fix = fmt.Sprintf("A Lost claim never binds again. If the data still exists in the storage backend, create %s again for it, with a claimRef to this claim. Otherwise delete the claim and create it without spec.volumeName and without the pv.kubernetes.io annotations, so that a new volume is provisioned; when copying claims from another cluster or a backup, leave those fields out.", volume)
+	return f
+}

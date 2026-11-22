@@ -4156,3 +4156,41 @@ func TestJobStoppedByItsActiveDeadline(t *testing.T) {
 		t.Errorf("fix %q", f.Fix)
 	}
 }
+
+func TestClaimHasLostItsPersistentVolume(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", Annotations: map[string]string{"pv.kubernetes.io/bind-completed": "yes"}}
+	pvc.Spec.VolumeName = "pvc-7f3a"
+	pvc.Status.Phase = "Lost"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "ClaimLost", "Bound claim has lost its PersistentVolume. Data on the volume is lost!", time.Minute)}
+	p := pod("db", "")
+	p.Spec.NodeName = ""
+	p.Status.Phase = "Pending"
+	p.Status.ContainerStatuses = nil
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: `0/1 nodes are available: persistentvolumeclaim "data" bound to non-existent persistentvolume "pvc-7f3a". preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.`}}
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD252", "PersistentVolumeClaim shop/data", "is Lost: it is marked as bound to PersistentVolume pvc-7f3a, and there is no such PersistentVolume",
+		"The volume was deleted under the claim, or the claim was created from a copy of a bound claim")
+	if !strings.HasPrefix(f.Fix, "A Lost claim never binds again.") || !strings.Contains(f.Fix, "without spec.volumeName and without the pv.kubernetes.io annotations") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	if len(f.Affects) != 1 || f.Affects[0].Name != "db" {
+		t.Errorf("the pod that mounts the claim should be listed under it: %v", f.Affects)
+	}
+
+	// The volume is there, and the controller still calls the binding broken (two claims on one volume).
+	var pv kube.PersistentVolume
+	pv.Metadata.Name = "pvc-7f3a"
+	s.PVs = []kube.PersistentVolume{pv}
+	s.Events[0].Reason, s.Events[0].Message = "ClaimMisbound", "Two claims are bound to the same volume, this one is bound incorrectly"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD252", "PersistentVolumeClaim shop/data", "the PersistentVolume controller found that binding broken")
+	if len(f.Evidence) < 2 || !strings.Contains(f.Evidence[1].Detail, "Two claims are bound to the same volume") {
+		t.Errorf("evidence %+v", f.Evidence)
+	}
+}

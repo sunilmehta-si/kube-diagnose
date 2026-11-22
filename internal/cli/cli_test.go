@@ -260,6 +260,7 @@ func TestVersionAndRules(t *testing.T) {
 		{[]string{"refuse", "targets"}, "KD225"},
 		{[]string{"PersistentVolume", "fits"}, "KD250"},
 		{[]string{"Released"}, "KD251"},
+		{[]string{"Lost", "claim"}, "KD252"},
 		{[]string{"ResourceQuota", "requires"}, "KD293"},
 		{[]string{"namespaceSelector"}, "KD274"},
 		{[]string{"RoleBinding", "Role", "exist"}, "KD294"},
