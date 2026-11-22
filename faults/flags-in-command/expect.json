@@ -1,0 +1,16 @@
+{
+  "namespace": "kd-flags-in-command",
+  "description": "A Deployment puts its server flags under command, not args: command replaces the image entrypoint, so the runtime looks for a program named --port=8080 and the container never starts.",
+  "rule": "KD229",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "--port=8080"
+    ],
+    [
+      "args",
+      "entrypoint",
+      "ENTRYPOINT"
+    ]
+  ]
+}
