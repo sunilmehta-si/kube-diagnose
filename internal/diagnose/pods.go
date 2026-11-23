@@ -807,11 +807,14 @@ func mountProblem(ix *index, p kube.Pod) *problem {
 			fix := fmt.Sprintf("Create %s on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.", m[2])
 			ev = append(ev, Evidence{Object: p.Ref(), What: "volume " + m[1],
 				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, m[1]))})
-			if rt := nodeRuntime(ix, p.Spec.NodeName); dockerSocket(m[2]) && rt != "" && !strings.HasPrefix(rt, "docker") {
-				cause = fmt.Sprintf("volume %s mounts the Docker socket %s, and %s runs %s, not Docker, so there is no such socket and the pod cannot start", m[1], m[2], node, rt)
-				fix = "Talk to the node's runtime through its own socket (/run/containerd/containerd.sock for containerd, with a client such as crictl or nerdctl), or, to build images, use a builder that needs no daemon (BuildKit rootless, kaniko, buildah); Kubernetes has not run on Docker Engine since 1.24 unless cri-dockerd was installed."
+			// The node's runtime is evidence whenever it is known: sockets and devices on a node depend on it.
+			if rt := nodeRuntime(ix, p.Spec.NodeName); rt != "" {
 				ev = append(ev, Evidence{Object: kube.Ref{Kind: "Node", Name: p.Spec.NodeName}, What: "container runtime " + rt,
 					Command: cmdGet("node", "", p.Spec.NodeName, "{.status.nodeInfo.containerRuntimeVersion}")})
+				if dockerSocket(m[2]) && !strings.HasPrefix(rt, "docker") {
+					cause = fmt.Sprintf("volume %s mounts the Docker socket %s, and %s runs %s, not Docker, so there is no such socket and the pod cannot start", m[1], m[2], node, rt)
+					fix = "Talk to the node's runtime through its own socket (/run/containerd/containerd.sock for containerd, with a client such as crictl or nerdctl), or, to build images, use a builder that needs no daemon (BuildKit rootless, kaniko, buildah); Kubernetes has not run on Docker Engine since 1.24 unless cri-dockerd was installed."
+				}
 			}
 			return newProblem(p, "", "KD135", "hostPath does not exist on the node", Critical, cause, "hostpath|"+m[2], fix, ev...)
 		}
