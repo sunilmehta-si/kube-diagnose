@@ -119,7 +119,7 @@ func groupName(g string) string {
 
 // grantNearMiss finds a container that the API server refuses while a Role bound to its ServiceAccount nearly grants
 // the request: the rule limits a list or watch by resourceNames, leaves out the verb, names the resource in another API group, or names it with a slip
-// (configmap for configmaps). Nil when a Role grants the request in full (the
+// (configmap for configmaps); or a Role grants it in full, but in another namespace than the request's. Nil when a Role grants the request in full (the
 // refusal is then something else) or nothing comes near it (KD126 names what to grant).
 func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
 	d, ok := lastDenial(lines)
@@ -186,6 +186,21 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 			return newProblem(p, cs.Name, "KD301", "Role names a resource that does not exist", Critical, cause,
 				"rbacname|"+g.role.Metadata.Name+"|"+name, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
 		}
+	}
+	if d.ns == "" {
+		return nil
+	}
+	for _, g := range gs {
+		r := g.rule
+		if g.ns() == d.ns || !allows(r.APIGroups, d.group) || !allows(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
+			continue
+		}
+		cause := fmt.Sprintf("%s. RoleBinding %s grants it, through Role %s, in namespace %s only: a RoleBinding grants in its own namespace, and the request is for namespace %s; its log says: %q",
+			prefix, g.binding.Metadata.Name, g.role.Metadata.Name, g.ns(), d.ns, clip(d.line, 200))
+		fix := fmt.Sprintf("If the app should read namespace %s, create a Role and a RoleBinding there for ServiceAccount %s/%s; if it should read its own, correct the namespace it is configured with (it asks for %s).",
+			d.ns, d.saNS, d.sa, d.ns)
+		return newProblem(p, cs.Name, "KD304", "Permission is granted in another namespace", Critical, cause,
+			"rbacns|"+g.binding.Metadata.Name+"|"+d.ns, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
 	}
 	return nil
 }
