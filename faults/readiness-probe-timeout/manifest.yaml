@@ -1,4 +1,4 @@
-# The app answers its health check after about three seconds, and the readiness probe gives up after its default timeoutSeconds of 1, so the pod never becomes ready.
+# The readiness probe runs a health check that takes about three seconds, and it gives up after its default timeoutSeconds of 1, so the pod never becomes ready.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -23,12 +23,11 @@ spec:
       containers:
         - name: web
           image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
-          # Answers each request after about three seconds, as an app whose health check queries its database does.
-          command: ["sh", "-c", "while true; do (sleep 3; printf 'HTTP/1.0 200 OK\\r\\nContent-Length: 2\\r\\n\\r\\nok') | nc -l -p 8080 >/dev/null 2>&1; done"]
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
           ports:
             - containerPort: 8080
           readinessProbe:
-            httpGet:
-              path: /healthz
-              port: 8080
+            # The health check also checks the database, which takes about three seconds to answer.
+            exec:
+              command: ["sh", "-c", "sleep 3; wget -q -O /dev/null http://127.0.0.1:8080/"]
             periodSeconds: 5
