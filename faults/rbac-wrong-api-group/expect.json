@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-rbac-wrong-api-group",
+  "description": "Role deployment-reader grants get, list and watch on deployments in the core group \"\", but Deployments are in API group apps, so the rule never matches and the API server refuses the watcher.",
+  "rule": "KD300",
+  "object": "Deployment/rollout-watcher",
+  "keywords": [
+    [
+      "deployment-reader"
+    ],
+    [
+      "apps"
+    ],
+    [
+      "apiGroups",
+      "API group"
+    ]
+  ]
+}
