@@ -4639,3 +4639,53 @@ func TestHPATargetKindNotServed(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestLivenessProbeKillsBeforeTheAppStarts(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].LivenessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: port(8080)}, InitialDelaySeconds: 5, PeriodSeconds: 5, FailureThreshold: 3}
+	crashed(&p, 137, "Error", 4)
+	lt := p.Status.ContainerStatuses[0].LastTerminationState.Terminated
+	lt.StartedAt, lt.FinishedAt = t0.Add(-3*time.Minute), t0.Add(-3*time.Minute+52*time.Second)
+	s.Pods = []kube.Pod{p}
+	e1 := event("Pod", "web-rs-a", "Unhealthy", "Liveness probe failed: dial tcp 10.244.0.7:8080: connect: connection refused", time.Minute)
+	e1.InvolvedObject.FieldPath = "spec.containers{web}"
+	e2 := event("Pod", "web-rs-a", "Killing", "Container web failed liveness probe, will be restarted", 2*time.Minute)
+	e2.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e1, e2}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"loading model weights (4 GiB)", "warming the cache"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD306", "Deployment shop/web", "killed by its liveness probe before it has started: every probe finds nothing listening on port 8080",
+		"gives up after about 20s (initialDelaySeconds 5, then periodSeconds 5 x failureThreshold 3), there is no startupProbe, and each run ends after 52s",
+		`the last line still about starting: "warming the cache"`)
+	if !strings.Contains(f.Fix, "Add a startupProbe") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// The probe checks a port the container does not declare: more likely the wrong port than a slow start.
+	p.Spec.Containers[0].LivenessProbe.TCPSocket.Port = port(9090)
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web", "9090")
+	p.Spec.Containers[0].LivenessProbe.TCPSocket.Port = port(8080)
+	s.Pods = []kube.Pod{p}
+
+	// The app said it was listening: it started, and the probe fails for another reason.
+	s.Logs[0].Lines = append(s.Logs[0].Lines, "listening on :8081")
+	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web")
+
+	// An error in the log: the app failed, it was not slow.
+	s.Logs[0].Lines = []string{"error: cannot open /data/model.bin"}
+	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web")
+
+	// A run far longer than the probe allows: it started and stopped answering later.
+	s.Logs[0].Lines = []string{"warming the cache"}
+	lt.FinishedAt = lt.StartedAt.Add(20 * time.Minute)
+	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web")
+
+	// A startupProbe covers the start: not this.
+	lt.FinishedAt = lt.StartedAt.Add(52 * time.Second)
+	p.Spec.Containers[0].StartupProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: port(8080)}}
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web")
+}

@@ -1562,6 +1562,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		cause = fmt.Sprintf("container %s's %s probe %s, so the probe can never pass and the kubelet restarts the container (%d restarts)", cs.Name, kind, probeExecWhy(exe, imageOf(p, cs)), cs.RestartCount)
 		fix = probeExecFix(exe)
 	}
+	if pr := killedWhileStarting(ix, p, cs, c, ev); pr != nil {
+		return pr
+	}
 	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe), fix, ev...)
 }
 

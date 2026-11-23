@@ -322,3 +322,77 @@ func probeStatus(ix *index, p kube.Pod, container, kind string) (what, fix strin
 	}
 	return fmt.Sprintf("the app answers %d", code), "Point the probe at a path the app answers with a 2xx or 3xx status."
 }
+
+// reAnnounced matches a log line in which an app says it has started serving.
+var reAnnounced = regexp.MustCompile(`(?i)\blisten|\bserving\b|\bstarted\b|\bready\b|up and running`)
+
+// killedWhileStarting finds a container its liveness probe kills before the app has started: every probe finds
+// nothing listening (connection refused), each run lasts about as long as the probe allows before it gives up, and
+// the run's log shows no error and no sign the app was serving, and the probe checks a port the container declares. With no startupProbe, the liveness probe begins
+// after initialDelaySeconds, and an app that takes longer than that plus periodSeconds x failureThreshold to start
+// is killed every time, before it ever listens.
+func killedWhileStarting(ix *index, p kube.Pod, cs kube.ContainerStatus, c kube.Container, ev []Evidence) *problem {
+	pr := c.LivenessProbe
+	t := cs.LastTerminationState.Terminated
+	if pr == nil || c.StartupProbe != nil || pr.Exec != nil || t == nil || t.StartedAt.IsZero() || t.FinishedAt.IsZero() {
+		return nil
+	}
+	// The probe must check a port the container declares: one it does not is more likely the wrong port than a slow
+	// start, and the app need not say where it listens.
+	var target kube.IntOrString
+	switch {
+	case pr.HTTPGet != nil:
+		target = pr.HTTPGet.Port
+	case pr.TCPSocket != nil:
+		target = pr.TCPSocket.Port
+	case pr.GRPC != nil:
+		target = kube.IntOrString{Int: pr.GRPC.Port}
+	}
+	if !declaresPort(c, target) {
+		return nil
+	}
+	port := "port " + target.String()
+	e, ok := probeEvent(ix, p, cs.Name, "liveness", reProbeRefused)
+	if !ok {
+		return nil
+	}
+	period, threshold := pr.PeriodSeconds, pr.FailureThreshold
+	if period == 0 {
+		period = 10
+	}
+	if threshold == 0 {
+		threshold = 3
+	}
+	budget := pr.InitialDelaySeconds + period*threshold
+	grace := int64(30)
+	if p.Spec.TerminationGracePeriodSeconds != nil {
+		grace = *p.Spec.TerminationGracePeriodSeconds
+	}
+	ran := t.FinishedAt.Sub(t.StartedAt).Seconds()
+	if ran < float64(pr.InitialDelaySeconds) || ran > float64(int64(budget)+grace+10) {
+		return nil // it ran well past the probe's allowance: it started, and stopped answering later
+	}
+	log := ix.logs[logKey{p.Metadata.Namespace, p.Metadata.Name, cs.Name}]
+	if !log.Previous {
+		return nil
+	}
+	last := ""
+	for _, l := range log.Lines {
+		if reErrorLine.MatchString(l) || reAnnounced.MatchString(l) {
+			return nil
+		}
+		if strings.TrimSpace(l) != "" {
+			last = l
+		}
+	}
+	cause := fmt.Sprintf("container %s is killed by its liveness probe before it has started: every probe finds nothing listening on %s (connection refused), the probe gives up after about %ds (initialDelaySeconds %d, then periodSeconds %d x failureThreshold %d), there is no startupProbe, and each run ends after %.0fs with no error in its log",
+		cs.Name, port, budget, pr.InitialDelaySeconds, period, threshold, ran)
+	if last != "" {
+		cause += fmt.Sprintf(", the last line still about starting: %q", clip(last, 160))
+	}
+	cause += fmt.Sprintf(" (%d restarts)", cs.RestartCount)
+	fix := fmt.Sprintf("Add a startupProbe that checks %s like the liveness probe, with failureThreshold x periodSeconds longer than the app takes to start (the liveness probe begins only once it passes), or make the app start faster. A longer initialDelaySeconds also works, but delays the first check of every start.", port)
+	return newProblem(p, cs.Name, "KD306", "Liveness probe kills the container before it has started", Critical, cause, "startkill|"+port, fix,
+		append(ev, eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, "liveness"),
+			Evidence{Object: p.Ref(), What: fmt.Sprintf("the last run lasted %.0fs", ran), Command: cmdContainerState(p, cs.Name, "lastState.terminated")})...)
+}
