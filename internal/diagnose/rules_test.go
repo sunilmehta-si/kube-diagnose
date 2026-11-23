@@ -4903,3 +4903,17 @@ func TestOptionalEnvFromMissingLeavesVariablesUnset(t *testing.T) {
 		t.Errorf("%+v", f)
 	}
 }
+
+func TestNodeSelectorPinsAPodToANodeThatIsGone(t *testing.T) {
+	s := snap()
+	p := unschedulablePod("0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")
+	p.Spec.NodeSelector = map[string]string{"kubernetes.io/hostname": "worker-7"}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD141", "Pod shop/web", "pins it to node worker-7 by kubernetes.io/hostname, and there is no node worker-7 (the nodes are node-1)")
+	// A node of that name exists but is excluded for another label: the plain account.
+	p.Spec.NodeSelector["disktype"] = "ssd"
+	p.Spec.NodeSelector["kubernetes.io/hostname"] = "node-1"
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD141", "Pod shop/web", "no node has the labels")
+}

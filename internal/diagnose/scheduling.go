@@ -137,6 +137,18 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 				ev = append(ev, Evidence{Object: kube.Ref{Kind: "Node", Name: "*"},
 					What:    fmt.Sprintf("none of the %d nodes has %s", len(ix.s.Nodes), sel),
 					Command: "kubectl get nodes -l " + sel})
+				if host, ok := p.Spec.NodeSelector["kubernetes.io/hostname"]; ok && len(ix.s.Nodes) > 0 && !nodeExists(ix, host) {
+					var names []string
+					for _, n := range ix.s.Nodes {
+						names = append(names, n.Metadata.Name)
+					}
+					sort.Strings(names)
+					if len(names) > 5 {
+						names = append(names[:5], "…")
+					}
+					cause = fmt.Sprintf("the pod's nodeSelector pins it to node %s by kubernetes.io/hostname, and there is no node %s (the nodes are %s): a node that was replaced or renamed keeps no pods pinned to it", host, host, strings.Join(names, ", "))
+					phrase = "no node is named " + host
+				}
 			}
 		} else if unmet := nodeAffinityUnmet(ix, p); unmet != "" {
 			cause = "the pod's required node affinity asks for " + unmet + ", which no node meets"
@@ -516,4 +528,14 @@ func limitRangerSetKind(p kube.Pod, res, kind string) string {
 		}
 	}
 	return ""
+}
+
+// nodeExists reports whether a node of that name, or with that kubernetes.io/hostname label, was read.
+func nodeExists(ix *index, name string) bool {
+	for _, n := range ix.s.Nodes {
+		if n.Metadata.Name == name || n.Metadata.Labels["kubernetes.io/hostname"] == name {
+			return true
+		}
+	}
+	return false
 }
