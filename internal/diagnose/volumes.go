@@ -461,7 +461,7 @@ func mountedAsDirectory(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []
 					held = " (it has none)"
 				}
 			}
-			cause := fmt.Sprintf("container %s exits because it reads %s as a file, and %s is where volume %s (%s) is mounted, so the path is a directory holding the volume's files%s; its log says: %q",
+			cause := fmt.Sprintf("container %s exits because it reads %s as a file, and %s is where volume %s (%s) is mounted whole, without subPath, so the path is a directory holding the volume's files%s; its log says: %q",
 				cs.Name, file, file, m.Name, m.Volume.Source(), held, clip(lines[i], 200))
 			fix := fmt.Sprintf("Mount the volume at %s, so that %s is the file of key %s in it (other files of the image in %s are then hidden), or mount only that key at %s with subPath: %s (a subPath mount does not follow later changes to the %s).",
 				dir, file, base, dir, file, base, strings.SplitN(m.Volume.Source(), " ", 2)[0])

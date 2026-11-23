@@ -4590,7 +4590,7 @@ func TestVolumeMountedAsADirectoryWhereAFileIsRead(t *testing.T) {
 	s.ConfigMaps = []kube.KeySet{{Name: "app-config", Namespace: "shop", Keys: []string{"config.yaml"}}}
 	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"loading settings", "error: read /etc/app/config.yaml: is a directory"}}}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD233", "Deployment shop/web", "it reads /etc/app/config.yaml as a file, and /etc/app/config.yaml is where volume config (ConfigMap app-config) is mounted",
+	expect(t, f, "KD233", "Deployment shop/web", "it reads /etc/app/config.yaml as a file, and /etc/app/config.yaml is where volume config (ConfigMap app-config) is mounted whole, without subPath",
 		"a directory holding the volume's files (config.yaml)")
 	if !strings.Contains(f.Fix, "Mount the volume at /etc/app, so that /etc/app/config.yaml is the file of key config.yaml in it") ||
 		!strings.Contains(f.Fix, "subPath: config.yaml (a subPath mount does not follow later changes to the ConfigMap)") {
