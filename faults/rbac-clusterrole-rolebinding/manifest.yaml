@@ -1,0 +1,57 @@
+# ClusterRole node-reader, which allows reading nodes, is bound with a RoleBinding, which grants its rules only within the namespace; nodes belong to no namespace, so the API server refuses the tool.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rbac-clusterrole-rolebinding
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: inventory
+  namespace: kd-rbac-clusterrole-rolebinding
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kd-rbac-clusterrole-rolebinding-node-reader
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: inventory-reads-nodes
+  namespace: kd-rbac-clusterrole-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kd-rbac-clusterrole-rolebinding-node-reader
+subjects:
+  - kind: ServiceAccount
+    name: inventory
+    namespace: kd-rbac-clusterrole-rolebinding
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: node-inventory
+  namespace: kd-rbac-clusterrole-rolebinding
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: node-inventory
+  template:
+    metadata:
+      labels:
+        app: node-inventory
+    spec:
+      serviceAccountName: inventory
+      containers:
+        - name: inventory
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          # Follows the cluster's nodes, as an inventory or cost tool does.
+          args: ["get", "nodes", "--watch"]
