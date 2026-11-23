@@ -324,7 +324,60 @@ func optionalEnvMissing(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []
 				Evidence{Object: p.Ref(), What: fmt.Sprintf("%s comes from %s %s key %s, optional", e.Name, kindName, ref.Name, ref.Key),
 					Command: cmdGet("pod", ns, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].env}`, cs.Name))})...)
 	}
+	return optionalEnvFromMissing(ix, p, cs, c, lines, ev)
+}
+
+// reUnsetName captures an upper-case variable name in a line that says it has no value.
+var reUnsetName = regexp.MustCompile(`\b([A-Z][A-Z0-9_]{2,})\b`)
+
+// optionalEnvFromMissing finds a container that exits because a variable is unset which none of its env entries
+// sets, while an envFrom it has, marked optional, names a ConfigMap or Secret that does not exist: none of that
+// object's variables are set, and the kubelet starts the container regardless.
+func optionalEnvFromMissing(ix *index, p kube.Pod, cs kube.ContainerStatus, c kube.Container, lines []string, ev []Evidence) *problem {
+	ns := p.Metadata.Namespace
+	for _, src := range c.EnvFrom {
+		kind, ref := "configmap", src.ConfigMapRef
+		if ref == nil {
+			kind, ref = "secret", src.SecretRef
+		}
+		if ref == nil || ref.Optional == nil || !*ref.Optional {
+			continue
+		}
+		if _, exists, known := ix.keySet(kind, ns, ref.Name); !known || exists {
+			continue
+		}
+		for i := len(lines) - 1; i >= 0; i-- {
+			if !reVarUnset.MatchString(lines[i]) {
+				continue
+			}
+			for _, m := range reUnsetName.FindAllStringSubmatch(lines[i], -1) {
+				name := m[1]
+				if definesVar(c, name) || src.Prefix != "" && !strings.HasPrefix(name, src.Prefix) {
+					continue
+				}
+				kindName := map[string]string{"configmap": "ConfigMap", "secret": "Secret"}[kind]
+				cause := fmt.Sprintf("container %s exits because %s is unset: no env entry sets it, and the container takes its variables from %s %s with envFrom, marked optional, and there is no %s %s in namespace %s, so none of its variables are set and the kubelet starts the container anyway; its log says: %q",
+					cs.Name, name, kindName, ref.Name, kindName, ref.Name, ns, clip(lines[i], 200))
+				fix := fmt.Sprintf("Create %s %s with the variables the app needs (%s among them), or point envFrom at the one that holds them; drop optional: true if the app cannot run without it.", kindName, ref.Name, name)
+				return newProblem(p, cs.Name, "KD235", "Optional key is missing, so a variable the app needs is unset", Critical, cause,
+					"optenvfrom|"+ref.Name, fix, append(ev, Evidence{Object: kube.Ref{Kind: kindName, Namespace: ns, Name: ref.Name},
+						What: fmt.Sprintf("there is no %s %s", kindName, ref.Name), Command: "kubectl get " + kind + "s -n " + ns},
+						Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s takes envFrom %s %s, optional", cs.Name, kindName, ref.Name),
+							Command: cmdGet("pod", ns, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].envFrom}`, cs.Name))})...)
+			}
+		}
+	}
 	return nil
+}
+
+// definesVar reports whether a container's env sets the variable itself.
+func definesVar(c kube.Container, name string) bool {
+	for _, e := range c.Env {
+		if e.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // wordIn reports whether name occurs in line as a whole word.

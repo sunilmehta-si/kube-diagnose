@@ -4877,3 +4877,29 @@ func TestOptionalKeyMissingLeavesAVariableUnset(t *testing.T) {
 		t.Errorf("%+v", f)
 	}
 }
+
+func TestOptionalEnvFromMissingLeavesVariablesUnset(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	yes := true
+	p.Spec.Containers[0].EnvFrom = []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "api-env", Optional: &yes}}}
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "LOG_LEVEL", Value: "info"}}
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{{Name: "app-env", Namespace: "shop", Keys: []string{"API_URL"}}}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"fatal: API_URL is not set"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD235", "Deployment shop/api", "API_URL is unset: no env entry sets it, and the container takes its variables from ConfigMap api-env with envFrom, marked optional, and there is no ConfigMap api-env")
+	// The variable named is one env sets itself: not this.
+	s.Logs[0].Lines = []string{"fatal: LOG_LEVEL is not set"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD235" {
+		t.Errorf("%+v", f)
+	}
+	// The ConfigMap exists: not this.
+	s.Logs[0].Lines = []string{"fatal: API_URL is not set"}
+	s.ConfigMaps[0].Name = "api-env"
+	if f := only(t, Diagnose(s)); f.Rule == "KD235" {
+		t.Errorf("%+v", f)
+	}
+}
