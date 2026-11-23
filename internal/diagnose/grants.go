@@ -118,7 +118,7 @@ func groupName(g string) string {
 }
 
 // grantNearMiss finds a container that the API server refuses while a Role bound to its ServiceAccount nearly grants
-// the request: the rule names the resource in another API group. Nil when a Role grants the request in full (the
+// the request: the rule names the resource in another API group, or names it with a slip (configmap for configmaps). Nil when a Role grants the request in full (the
 // refusal is then something else) or nothing comes near it (KD126 names what to grant).
 func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
 	d, ok := lastDenial(lines)
@@ -149,5 +149,68 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 				"rbacgroup|"+g.role.Metadata.Name+"|"+d.res(), fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
 		}
 	}
+	for _, g := range here {
+		r := g.rule
+		if !allows(r.APIGroups, d.group) || !allows(r.Verbs, d.verb) {
+			continue
+		}
+		for _, name := range r.Resources {
+			if !resourceLike(name, d.resource) {
+				continue
+			}
+			cause := fmt.Sprintf("%s. Role %s grants %s on resource %q, and the API has no resource by that name: it is %q (resource names are lower case and plural), so the rule never matches; its log says: %q",
+				prefix, g.role.Metadata.Name, strings.Join(r.Verbs, ", "), name, d.resource, clip(d.line, 200))
+			fix := fmt.Sprintf("Write %q for %q in the resources of Role %s (kubectl api-resources lists the names).", d.resource, name, g.role.Metadata.Name)
+			return newProblem(p, cs.Name, "KD301", "Role names a resource that does not exist", Critical, cause,
+				"rbacname|"+g.role.Metadata.Name+"|"+name, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
+		}
+	}
 	return nil
+}
+
+// resourceLike reports whether a Role's resource name is a slip for the one the API uses: another case, the singular,
+// the kind ("ConfigMap"), one letter off, or two letters swapped.
+func resourceLike(have, want string) bool {
+	if have == want || have == "*" {
+		return false
+	}
+	lw, lh := strings.ToLower(want), strings.ToLower(have)
+	if lh == lw || lh+"s" == lw || lh+"es" == lw || strings.TrimSuffix(lw, "ies")+"y" == lh {
+		return true
+	}
+	return len(want) >= 5 && (editDistance(lh, lw) == 1 || swapped(lh, lw))
+}
+
+// swapped reports whether b is a with two neighbouring letters exchanged.
+func swapped(a, b string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := 0; i+1 < len(a); i++ {
+		if a[i] != b[i] {
+			return a[i] == b[i+1] && a[i+1] == b[i] && a[i+2:] == b[i+2:]
+		}
+	}
+	return false
+}
+
+// editDistance counts the letters to insert, delete or change to turn a into b.
+func editDistance(a, b string) int {
+	prev := make([]int, len(b)+1)
+	for j := range prev {
+		prev[j] = j
+	}
+	for i := 1; i <= len(a); i++ {
+		cur := make([]int, len(b)+1)
+		cur[0] = i
+		for j := 1; j <= len(b); j++ {
+			cost := 1
+			if a[i-1] == b[j-1] {
+				cost = 0
+			}
+			cur[j] = min(prev[j]+1, cur[j-1]+1, prev[j-1]+cost)
+		}
+		prev = cur
+	}
+	return prev[len(b)]
 }

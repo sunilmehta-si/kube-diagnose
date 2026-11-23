@@ -4393,3 +4393,27 @@ func TestRoleGrantsTheResourceInAnotherGroup(t *testing.T) {
 	s.Gaps = []snapshot.Gap{{Resource: "roles.rbac.authorization.k8s.io"}}
 	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }
+
+func TestRoleNamesAResourceThatDoesNotExist(t *testing.T) {
+	s, _ := rbacSnapshot()
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"configmap"}, Verbs: []string{"get", "list"}}}
+	kubectlDenied(s, "list", "configmaps", "", `in the namespace "shop"`)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD301", "ReplicaSet shop/worker-rs", "it may not list configmaps in namespace shop",
+		`Role configmap-reader grants get, list on resource "configmap", and the API has no resource by that name: it is "configmaps"`)
+	if !strings.Contains(f.Fix, `Write "configmaps" for "configmap" in the resources of Role configmap-reader`) {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	for _, slip := range []string{"ConfigMaps", "ConfigMap", "configmpas", "confgmaps"} {
+		s.Roles[0].Rules[0].Resources = []string{slip}
+		expect(t, only(t, Diagnose(s)), "KD301", "ReplicaSet shop/worker-rs", slip)
+	}
+	kubectlDenied(s, "list", "networkpolicies", "networking.k8s.io", `in the namespace "shop"`)
+	s.Roles[0].Rules[0].APIGroups, s.Roles[0].Rules[0].Resources = []string{"networking.k8s.io"}, []string{"networkpolicy"}
+	expect(t, only(t, Diagnose(s)), "KD301", "ReplicaSet shop/worker-rs", `"networkpolicy"`)
+
+	// Another resource altogether is no slip: KD126 says what to grant.
+	kubectlDenied(s, "list", "secrets", "", `in the namespace "shop"`)
+	s.Roles[0].Rules[0].APIGroups, s.Roles[0].Rules[0].Resources = []string{""}, []string{"configmaps"}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}
