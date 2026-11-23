@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-configmap-mounted-as-directory",
+  "description": "ConfigMap app-config is mounted whole at /etc/app/config.yaml, the file the app reads, without subPath, so the path is a directory holding config.yaml and the app exits.",
+  "rule": "KD233",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "/etc/app/config.yaml"
+    ],
+    [
+      "directory"
+    ],
+    [
+      "subPath",
+      "mount the volume at /etc/app",
+      "Mount the volume at /etc/app"
+    ]
+  ]
+}
