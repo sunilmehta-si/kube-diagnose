@@ -188,7 +188,7 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 		}
 	}
 	if d.ns == "" {
-		return nil
+		return clusterScope(ix, p, cs, d, gs, prefix, ev)
 	}
 	for _, g := range gs {
 		r := g.rule
@@ -266,4 +266,35 @@ func editDistance(a, b string) int {
 		prev = cur
 	}
 	return prev[len(b)]
+}
+
+// clusterScope finds a request at the cluster scope that the account is granted only within a namespace: a Role
+// that grants it in full, or a RoleBinding to a ClusterRole, whose rules a RoleBinding grants in its own namespace
+// only. A ClusterRole's rules are not read, so that binding is named as the likely meaning, not proof.
+func clusterScope(ix *index, p kube.Pod, cs kube.ContainerStatus, d denial, gs []grant, prefix string, ev []Evidence) *problem {
+	scope := "across all namespaces (or of a resource that belongs to no namespace), which only a ClusterRoleBinding grants"
+	for _, g := range gs {
+		r := g.rule
+		if !allows(r.APIGroups, d.group) || !allows(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
+			continue
+		}
+		cause := fmt.Sprintf("%s. RoleBinding %s grants it, through Role %s, in namespace %s only, and the request is %s; its log says: %q",
+			prefix, g.binding.Metadata.Name, g.role.Metadata.Name, g.ns(), scope, clip(d.line, 200))
+		fix := fmt.Sprintf("If the app needs only namespace %s, have it read that namespace (kubectl -n %s instead of -A, or an informer for one namespace); if it needs every namespace, create a ClusterRole with the rule and bind it with a ClusterRoleBinding to ServiceAccount %s/%s.",
+			g.ns(), g.ns(), d.saNS, d.sa)
+		return newProblem(p, cs.Name, "KD305", "A RoleBinding cannot grant a cluster-wide request", Critical, cause,
+			"rbacscope|"+g.binding.Metadata.Name, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
+	}
+	for _, b := range ix.s.RoleBindings {
+		if b.RoleRef.Kind != "ClusterRole" || !namesAccount(b, d.saNS, d.sa) {
+			continue
+		}
+		cause := fmt.Sprintf("%s. RoleBinding %s binds ClusterRole %s to it, and a RoleBinding grants a ClusterRole's rules in its own namespace, %s, only; the request is %s; its log says: %q",
+			prefix, b.Metadata.Name, b.RoleRef.Name, b.Metadata.Namespace, scope, clip(d.line, 200))
+		fix := fmt.Sprintf("Bind ClusterRole %s with a ClusterRoleBinding instead: kubectl create clusterrolebinding %s-%s --clusterrole=%s --serviceaccount=%s:%s.",
+			b.RoleRef.Name, d.sa, b.RoleRef.Name, b.RoleRef.Name, d.saNS, d.sa)
+		return newProblem(p, cs.Name, "KD305", "A RoleBinding cannot grant a cluster-wide request", Critical, cause,
+			"rbacscope|"+b.Metadata.Name, fix, append(ev, bindingEvidence(b))...)
+	}
+	return nil
 }

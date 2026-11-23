@@ -4464,3 +4464,29 @@ func TestPermissionIsGrantedInAnotherNamespace(t *testing.T) {
 	s.Roles[0].Rules[0].Verbs = []string{"get"}
 	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }
+
+func TestARoleBindingCannotGrantAClusterWideRequest(t *testing.T) {
+	s, _ := rbacSnapshot()
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get", "list", "watch"}}}
+	kubectlDenied(s, "list", "pods", "", "at the cluster scope")
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD305", "ReplicaSet shop/worker-rs", "it may not list pods across the cluster",
+		"RoleBinding read-config grants it, through Role configmap-reader, in namespace shop only, and the request is across all namespaces")
+	if !strings.Contains(f.Fix, "kubectl -n shop instead of -A") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// A ClusterRole bound by a RoleBinding.
+	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "ClusterRole", "node-reader"
+	s.ClusterRoles = append(s.ClusterRoles, "node-reader")
+	kubectlDenied(s, "list", "nodes", "", "at the cluster scope")
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD305", "ReplicaSet shop/worker-rs", "RoleBinding read-config binds ClusterRole node-reader to it, and a RoleBinding grants a ClusterRole's rules in its own namespace, shop, only")
+	if !strings.Contains(f.Fix, "kubectl create clusterrolebinding app-node-reader --clusterrole=node-reader --serviceaccount=shop:app") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// The binding is for another ServiceAccount: nothing grants the app anything, and KD126 says what to grant.
+	s.RoleBindings[0].Subjects[0].Name = "default"
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}
