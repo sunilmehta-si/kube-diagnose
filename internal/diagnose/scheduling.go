@@ -166,6 +166,9 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 		return pr, pr.cause
 	case strings.Contains(r.text, "PersistentVolumeClaim") || strings.Contains(r.text, "persistentvolumeclaim"):
 		return pvcBlocked(ix, p, r.text), "it waits for a PersistentVolumeClaim"
+	case strings.Contains(r.text, "topology spread constraints") && strings.Contains(r.text, "missing required label") && spreadKeyMissing(ix, p) != nil:
+		pr := spreadKeyMissing(ix, p)
+		return pr, pr.cause
 	case strings.Contains(r.text, "topology spread constraints") || strings.Contains(r.text, "pod affinity rules") ||
 		strings.Contains(r.text, "pod anti-affinity rules"):
 		what := "its pod anti-affinity rules"

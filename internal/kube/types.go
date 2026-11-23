@@ -354,6 +354,9 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// TopologySpreadConstraints spread the pods a selector picks over the domains a node label names: nodes,
+	// zones, racks.
+	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	// OS says which operating system the pod's containers are built for; the kubelet refuses a pod for another OS.
 	OS *struct {
 		Name string `json:"name"`
@@ -940,6 +943,15 @@ type PersistentVolume struct {
 	Status struct {
 		Phase string `json:"phase,omitempty"`
 	} `json:"status"`
+}
+
+// TopologySpreadConstraint keeps the pods its selector picks within maxSkew of each other across the values of a
+// node label. With whenUnsatisfiable DoNotSchedule, a node without the label cannot run the pod.
+type TopologySpreadConstraint struct {
+	MaxSkew           int32          `json:"maxSkew"`
+	TopologyKey       string         `json:"topologyKey"`
+	WhenUnsatisfiable string         `json:"whenUnsatisfiable"`
+	LabelSelector     *LabelSelector `json:"labelSelector,omitempty"`
 }
 
 // Namespace is a namespace reduced to its name and labels: what a NetworkPolicy's namespaceSelector is matched

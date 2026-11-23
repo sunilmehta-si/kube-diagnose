@@ -4490,3 +4490,26 @@ func TestARoleBindingCannotGrantAClusterWideRequest(t *testing.T) {
 	s.RoleBindings[0].Subjects[0].Name = "default"
 	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }
+
+func TestSpreadConstraintKeyIsOnNoNode(t *testing.T) {
+	s := snap()
+	s.Nodes = append(s.Nodes, node("node-2", "8", "32Gi"))
+	p := unschedulablePod("0/2 nodes are available: 2 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/2 nodes are available: 2 Preemption is not helpful for scheduling.")
+	p.Spec.TopologySpreadConstraints = []kube.TopologySpreadConstraint{{MaxSkew: 1, TopologyKey: "topology.kubernetes.io/zone", WhenUnsatisfiable: "DoNotSchedule",
+		LabelSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD245", "Pod shop/web", "spread it over topology.kubernetes.io/zone (whenUnsatisfiable: DoNotSchedule), and none of the 2 nodes has that label")
+	if !strings.Contains(f.Fix, "kubernetes.io/hostname") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// A node has the label: the constraint is unmet for another reason, and KD144 says so.
+	s.Nodes[1].Metadata.Labels["topology.kubernetes.io/zone"] = "a"
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web")
+
+	// Nodes were not read: no claim about their labels.
+	delete(s.Nodes[1].Metadata.Labels, "topology.kubernetes.io/zone")
+	s.Gaps = []snapshot.Gap{{Resource: "nodes"}}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web")
+}
