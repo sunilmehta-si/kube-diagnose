@@ -118,7 +118,7 @@ func groupName(g string) string {
 }
 
 // grantNearMiss finds a container that the API server refuses while a Role bound to its ServiceAccount nearly grants
-// the request: the rule leaves out the verb, names the resource in another API group, or names it with a slip
+// the request: the rule limits a list or watch by resourceNames, leaves out the verb, names the resource in another API group, or names it with a slip
 // (configmap for configmaps). Nil when a Role grants the request in full (the
 // refusal is then something else) or nothing comes near it (KD126 names what to grant).
 func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
@@ -140,6 +140,17 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 	}
 	sort.SliceStable(here, func(i, j int) bool { return here[i].role.Metadata.Name < here[j].role.Metadata.Name })
 	prefix := fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: it may not %s %s %s", cs.Name, d.sa, d.verb, d.res(), d.scope())
+	for _, g := range here {
+		r := g.rule
+		if len(r.ResourceNames) > 0 && unnamedVerb[d.verb] && allows(r.APIGroups, d.group) && allows(r.Resources, d.resource) && allows(r.Verbs, d.verb) {
+			cause := fmt.Sprintf("%s. Role %s grants %s on %s only for resourceNames %s, and a %s request names no object, so a rule with resourceNames never allows it; its log says: %q",
+				prefix, g.role.Metadata.Name, strings.Join(r.Verbs, ", "), d.resource, quoted(r.ResourceNames), d.verb, clip(d.line, 200))
+			fix := fmt.Sprintf("Grant %s on %s in a rule of Role %s without resourceNames (it then covers every %s of the namespace), or have the app get %s by name, which the rule allows.",
+				d.verb, d.resource, g.role.Metadata.Name, strings.TrimSuffix(d.resource, "s"), strings.Join(r.ResourceNames, ", "))
+			return newProblem(p, cs.Name, "KD303", "Role limits a list or watch by resourceNames", Critical, cause,
+				"rbacnames|"+g.role.Metadata.Name+"|"+d.res()+"|"+d.verb, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
+		}
+	}
 	for _, g := range here {
 		r := g.rule
 		if allows(r.APIGroups, d.group) && allows(r.Resources, d.resource) && !allows(r.Verbs, d.verb) {
@@ -178,6 +189,11 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 	}
 	return nil
 }
+
+// unnamedVerb holds the verbs whose requests name no object, which a rule's resourceNames therefore never allow.
+// (A list or watch whose field selector picks one object, metadata.name=settings, is allowed; clients seldom send one,
+// and a refused one did not.)
+var unnamedVerb = map[string]bool{"list": true, "watch": true, "create": true, "deletecollection": true}
 
 // verbNote explains a verb that is easy to leave out.
 func verbNote(verb string, have []string) string {

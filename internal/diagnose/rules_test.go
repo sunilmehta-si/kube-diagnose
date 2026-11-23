@@ -4434,3 +4434,18 @@ func TestRoleGrantsTheResourceButNotTheVerb(t *testing.T) {
 	s.Roles[0].Rules[0].Verbs = []string{"*"}
 	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }
+
+func TestRoleLimitsAListByResourceNames(t *testing.T) {
+	s, _ := rbacSnapshot()
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"configmaps"}, ResourceNames: []string{"settings"}, Verbs: []string{"get", "list", "watch"}}}
+	kubectlDenied(s, "list", "configmaps", "", `in the namespace "shop"`)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD303", "ReplicaSet shop/worker-rs", "it may not list configmaps in namespace shop",
+		`Role configmap-reader grants get, list, watch on configmaps only for resourceNames ["settings"], and a list request names no object`)
+	if !strings.Contains(f.Fix, "Grant list on configmaps in a rule of Role configmap-reader without resourceNames (it then covers every configmap of the namespace), or have the app get settings by name") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A get names its object: a refused get is something else.
+	kubectlDenied(s, "get", "configmaps", "", `in the namespace "shop"`)
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}
