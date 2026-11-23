@@ -1,0 +1,58 @@
+# The web pods require podAffinity to pods labelled app=cache, and the cache pods are labelled app=redis, so no node qualifies and the web pods stay Pending.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pod-affinity-no-match
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: kd-pod-affinity-no-match
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+    spec:
+      containers:
+        - name: redis
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 6379 -h /www"]
+          ports:
+            - containerPort: 6379
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-pod-affinity-no-match
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      # Runs each web pod on the node of a cache pod, to keep the cache close.
+      affinity:
+        podAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            - labelSelector:
+                matchLabels:
+                  app: cache
+              topologyKey: kubernetes.io/hostname
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - containerPort: 8080

@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-pod-affinity-no-match",
+  "description": "The web pods require podAffinity to pods labelled app=cache, and the cache pods are labelled app=redis, so no node qualifies and the web pods stay Pending.",
+  "rule": "KD246",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "app=cache"
+    ],
+    [
+      "no such pod",
+      "do not exist",
+      "no pod"
+    ],
+    [
+      "affinity"
+    ]
+  ]
+}
