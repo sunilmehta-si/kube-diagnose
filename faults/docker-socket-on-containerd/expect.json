@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-docker-socket-on-containerd",
+  "description": "The pod mounts /var/run/docker.sock as a hostPath of type Socket, and kind's node runs containerd, not Docker, so the socket does not exist and the pod stays in ContainerCreating.",
+  "rule": "KD135",
+  "object": "Deployment/image-builder",
+  "keywords": [
+    [
+      "docker.sock"
+    ],
+    [
+      "containerd",
+      "not Docker"
+    ],
+    [
+      "socket"
+    ]
+  ]
+}
