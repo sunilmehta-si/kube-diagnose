@@ -4917,3 +4917,30 @@ func TestNodeSelectorPinsAPodToANodeThatIsGone(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD141", "Pod shop/web", "no node has the labels")
 }
+
+func TestServiceOfPodsWaitingForAClaimIsTheClaims(t *testing.T) {
+	s := snap()
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.StorageClassName = strp("manual")
+	pvc.Spec.Resources.Requests = map[string]string{"storage": "5Gi"}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	var pv kube.PersistentVolume
+	pv.Metadata.Name = "data-pv"
+	pv.Spec.StorageClassName = "manual"
+	pv.Spec.Capacity = map[string]string{"storage": "1Gi"}
+	pv.Status.Phase = "Available"
+	s.PVs = []kube.PersistentVolume{pv}
+	p := unschedulablePod("0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("db", map[string]string{"app": "web"}, port(8080))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db", 0)}
+	// One finding, the claim's; the Service it leaves without endpoints is listed under it, not reported first.
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD250", "PersistentVolumeClaim shop/data")
+	if !containsRef(f.Affects, kube.Ref{Kind: "Service", Namespace: "shop", Name: "db"}) {
+		t.Errorf("affects %v", f.Affects)
+	}
+}
