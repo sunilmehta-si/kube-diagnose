@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-pvc-empty-storageclass",
+  "description": "The StatefulSet's claim template sets storageClassName \"\", which turns dynamic provisioning off, and the cluster has no PersistentVolume without a class, so claim data-db-0 stays Pending and the database never starts.",
+  "rule": "KD250",
+  "object": "PersistentVolumeClaim/data-db-0",
+  "keywords": [
+    [
+      "storageClassName"
+    ],
+    [
+      "dynamic provisioning",
+      "provisioning off"
+    ],
+    [
+      "no PersistentVolume"
+    ]
+  ]
+}

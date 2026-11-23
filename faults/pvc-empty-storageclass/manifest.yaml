@@ -1,0 +1,52 @@
+# The StatefulSet's claim template sets storageClassName "", which turns dynamic provisioning off, and the cluster has no PersistentVolume without a class, so claim data-db-0 stays Pending and the database never starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pvc-empty-storageclass
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: kd-pvc-empty-storageclass
+spec:
+  clusterIP: None
+  selector:
+    app: db
+  ports:
+    - port: 5432
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: kd-pvc-empty-storageclass
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /var/lib/db/data && exec sleep 3600"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/db
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        # Copied from an example written for hand-made volumes: "" turns dynamic provisioning off.
+        storageClassName: ""
+        accessModes: ["ReadWriteOnce"]
+        resources:
+          requests:
+            storage: 1Gi
