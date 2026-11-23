@@ -4513,3 +4513,32 @@ func TestSpreadConstraintKeyIsOnNoNode(t *testing.T) {
 	s.Gaps = []snapshot.Gap{{Resource: "nodes"}}
 	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web")
 }
+
+func TestPodAffinityRequiresPodsThatDoNotExist(t *testing.T) {
+	s := snap()
+	p := unschedulablePod("0/1 nodes are available: 1 node(s) didn't match pod affinity rules. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")
+	p.Spec.Affinity = []byte(`{"podAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchLabels":{"app":"cache"}},"topologyKey":"kubernetes.io/hostname"}]}}`)
+	cache := pod("redis-0", "")
+	cache.Metadata.Labels = map[string]string{"app": "redis"}
+	s.Pods = []kube.Pod{p, cache}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD246", "Pod shop/web", "only beside pods labelled app=cache (topologyKey kubernetes.io/hostname), and namespace shop has no such pod",
+		"the other pods there are labelled app=redis")
+
+	// The pod matches its own term: the scheduler would let it start, so the rule is unmet for another reason.
+	p.Metadata.Labels["app"] = "cache"
+	s.Pods = []kube.Pod{p, cache}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web")
+
+	// A pod with the labels exists: the rule is unmet for another reason.
+	p.Metadata.Labels["app"] = "web"
+	cache.Metadata.Labels["app"] = "cache"
+	s.Pods = []kube.Pod{p, cache}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web")
+
+	// A term over another namespace, not read: nothing is claimed about it.
+	cache.Metadata.Labels["app"] = "redis"
+	p.Spec.Affinity = []byte(`{"podAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":[{"labelSelector":{"matchLabels":{"app":"cache"}},"namespaces":["data"],"topologyKey":"kubernetes.io/hostname"}]}}`)
+	s.Pods = []kube.Pod{p, cache}
+	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web")
+}
