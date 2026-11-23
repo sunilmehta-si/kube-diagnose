@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-optional-envfrom-missing",
+  "description": "The api takes its variables with envFrom from ConfigMap api-env, marked optional, and the ConfigMap is named app-env, so no variable is set and the api exits saying API_URL is not set.",
+  "rule": "KD235",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "api-env"
+    ],
+    [
+      "API_URL"
+    ],
+    [
+      "optional"
+    ]
+  ]
+}
