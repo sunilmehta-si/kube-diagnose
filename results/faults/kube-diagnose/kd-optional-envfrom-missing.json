@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-optional-envfrom-missing"
+  ],
+  "collectedAt": "2026-11-23 11:46 UTC",
+  "findings": [
+    {
+      "rule": "KD235",
+      "title": "Optional key is missing, so a variable the app needs is unset",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-optional-envfrom-missing",
+        "name": "api"
+      },
+      "cause": "container api exits because API_URL is unset: no env entry sets it, and the container takes its variables from ConfigMap api-env with envFrom, marked optional, and there is no ConfigMap api-env in namespace kd-optional-envfrom-missing, so none of its variables are set and the kubelet starts the container anyway; its log says: \"fatal: API_URL is not set\"; Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-optional-envfrom-missing",
+            "name": "api-7dc995dd89-jbfjw"
+          },
+          "what": "container api exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod api-7dc995dd89-jbfjw -n kd-optional-envfrom-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-optional-envfrom-missing",
+            "name": "api-7dc995dd89-jbfjw"
+          },
+          "what": "last lines of container api's log (run that exited)",
+          "detail": "fatal: API_URL is not set",
+          "command": "kubectl logs api-7dc995dd89-jbfjw -n kd-optional-envfrom-missing -c api --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "ConfigMap",
+            "namespace": "kd-optional-envfrom-missing",
+            "name": "api-env"
+          },
+          "what": "there is no ConfigMap api-env",
+          "command": "kubectl get configmaps -n kd-optional-envfrom-missing"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-optional-envfrom-missing",
+            "name": "api-7dc995dd89-jbfjw"
+          },
+          "what": "container api takes envFrom ConfigMap api-env, optional",
+          "command": "kubectl get pod api-7dc995dd89-jbfjw -n kd-optional-envfrom-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].envFrom}'"
+        }
+      ],
+      "fix": "Create ConfigMap api-env with the variables the app needs (API_URL among them), or point envFrom at the one that holds them; drop optional: true if the app cannot run without it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-optional-envfrom-missing",
+          "name": "api-7dc995dd89-jbfjw"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

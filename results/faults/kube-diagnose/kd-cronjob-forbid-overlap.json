@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-forbid-overlap"
   ],
-  "collectedAt": "2026-11-22 07:15 UTC",
+  "collectedAt": "2026-11-23 11:44 UTC",
   "findings": [
     {
       "rule": "KD188",
@@ -15,7 +15,7 @@
         "namespace": "kd-cronjob-forbid-overlap",
         "name": "report"
       },
-      "cause": "CronJob report skipped 3 runs: Job report-29922192 is still running (for 3m30s), and concurrencyPolicy Forbid starts no new Job until it ends",
+      "cause": "CronJob report skipped 3 runs: Job report-29923901 is still running (for 3m10s), and concurrencyPolicy Forbid starts no new Job until it ends",
       "evidence": [
         {
           "object": {
@@ -33,20 +33,20 @@
             "namespace": "kd-cronjob-forbid-overlap",
             "name": "report"
           },
-          "what": "CronJob report has concurrencyPolicy Forbid and schedule \"* * * * *\", and Job report-29922192 is active",
+          "what": "CronJob report has concurrencyPolicy Forbid and schedule \"* * * * *\", and Job report-29923901 is active",
           "command": "kubectl get cronjob report -n kd-cronjob-forbid-overlap -o jsonpath='{.spec.schedule}{\" \"}{.spec.concurrencyPolicy}{\" \"}{.status.active}'"
         },
         {
           "object": {
             "kind": "Job",
             "namespace": "kd-cronjob-forbid-overlap",
-            "name": "report-29922192"
+            "name": "report-29923901"
           },
           "what": "the run that is still going",
-          "command": "kubectl get job report-29922192 -n kd-cronjob-forbid-overlap -o jsonpath='{.status}'"
+          "command": "kubectl get job report-29923901 -n kd-cronjob-forbid-overlap -o jsonpath='{.status}'"
         }
       ],
-      "fix": "Find why Job report-29922192 runs longer than the schedule allows (its pods' logs); set activeDeadlineSeconds in the jobTemplate so a stuck run ends, or use concurrencyPolicy Replace if a new run should take over from it."
+      "fix": "Find why Job report-29923901 runs longer than the schedule allows (its pods' logs); set activeDeadlineSeconds in the jobTemplate so a stuck run ends, or use concurrencyPolicy Replace if a new run should take over from it."
     }
   ],
   "checked": {

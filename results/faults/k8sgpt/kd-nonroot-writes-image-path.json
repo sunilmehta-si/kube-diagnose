@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-nonroot-writes-image-path",
-              "Masked": "blRUT08pOTFlQzV2dzhLSlEzdFotOEZCSyEqaw=="
+              "Masked": "Sl5ibV5fMHwyZl5vVl9kQV0qUUV0aHEuYlFQKQ=="
             },
             {
               "Unmasked": "web",
-              "Masked": "ayoy"
+              "Masked": "aEQ5"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-nonroot-writes-image-path/web-8cbd88466-sg9q9",
+      "name": "kd-nonroot-writes-image-path/web-8cbd88466-rh6sp",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-8cbd88466-sg9q9",
+          "Text": "the last termination reason is Error container=web pod=web-8cbd88466-rh6sp",
           "KubernetesDoc": "",
           "Sensitive": []
         }

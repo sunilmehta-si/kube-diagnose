@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rbac-other-namespace"
+  ],
+  "collectedAt": "2026-11-23 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD304",
+      "title": "Permission is granted in another namespace",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rbac-other-namespace",
+        "name": "config-watcher"
+      },
+      "cause": "container watcher exits because the API server refuses its ServiceAccount app: it may not list configmaps in namespace default. RoleBinding app-settings-reader grants it, through Role settings-reader, in namespace kd-rbac-other-namespace only: a RoleBinding grants in its own namespace, and the request is for namespace default; its log says: \"Error from server (Forbidden): configmaps is forbidden: User \\\"system:serviceaccount:kd-rbac-other-namespace:app\\\" cannot list resource \\\"configmaps\\\" in API group \\\"\\\" in the namespace \\\"default\\\"\"; Deployment config-watcher has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-other-namespace",
+            "name": "config-watcher-697bc4cb57-7fdtk"
+          },
+          "what": "container watcher exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod config-watcher-697bc4cb57-7fdtk -n kd-rbac-other-namespace -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-other-namespace",
+            "name": "config-watcher-697bc4cb57-7fdtk"
+          },
+          "what": "last lines of container watcher's log (current run)",
+          "detail": "Error from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-other-namespace:app\" cannot list resource \"configmaps\" in API group \"\" in the namespace \"default\"",
+          "command": "kubectl logs config-watcher-697bc4cb57-7fdtk -n kd-rbac-other-namespace -c watcher --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Role",
+            "namespace": "kd-rbac-other-namespace",
+            "name": "settings-reader"
+          },
+          "what": "Role settings-reader, bound by RoleBinding app-settings-reader: apiGroups [\"\"], resources [\"configmaps\"], verbs [\"get\", \"list\", \"watch\"]",
+          "command": "kubectl get role settings-reader -n kd-rbac-other-namespace -o jsonpath='{.rules}'"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rbac-other-namespace",
+            "name": "app-settings-reader"
+          },
+          "what": "RoleBinding app-settings-reader grants Role settings-reader to ServiceAccount app",
+          "command": "kubectl get rolebinding app-settings-reader -n kd-rbac-other-namespace -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        }
+      ],
+      "fix": "If the app should read namespace default, create a Role and a RoleBinding there for ServiceAccount kd-rbac-other-namespace/app; if it should read its own, correct the namespace it is configured with (it asks for default).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rbac-other-namespace",
+          "name": "config-watcher-697bc4cb57-7fdtk"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

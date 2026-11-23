@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -89,6 +90,11 @@ func newIndex(s *snapshot.Snapshot) *index {
 // read reports whether the collector could read the resource; a rule that relies on the absence of an object must
 // not fire when the list was never read.
 func (ix *index) read(resource string) bool { return !ix.gaps[resource] }
+
+// nsRead reports whether the namespace's objects were read: it was asked for, or every namespace was.
+func (ix *index) nsRead(ns string) bool {
+	return len(ix.s.Namespaces) == 0 || slices.Contains(ix.s.Namespaces, ns)
+}
 
 // eventsFor returns the events about an object, newest first, optionally only those with one of the reasons.
 func (ix *index) eventsFor(r kube.Ref, reasons ...string) []kube.Event {

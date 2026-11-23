@@ -72,10 +72,16 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	// Storage: a pending claim is the root cause for the pods that wait for it.
 	for _, f := range storageFindings(ix) {
 		f.Affects = append(f.Affects, links[f.Object]...)
+		for _, pod := range links[f.Object] {
+			podsTo[pod] = len(r.Findings) // a Service left without endpoints by these pods is the claim's, too
+		}
 		delete(links, f.Object)
 		r.Findings = append(r.Findings, f)
 	}
 	for claim, ps := range links { // a claim that is pending with nothing we can explain
+		for _, pod := range ps {
+			podsTo[pod] = len(r.Findings)
+		}
 		r.Findings = append(r.Findings, Finding{Rule: "KD143", Title: "Pod waits for a PersistentVolumeClaim", Severity: Critical,
 			Object: claim, Cause: fmt.Sprintf("pods wait for PersistentVolumeClaim %s, which is not bound", claim.Name),
 			Evidence: []Evidence{{Object: claim, What: "PersistentVolumeClaim is not bound", Command: cmdGet("pvc", claim.Namespace, claim.Name, "{.status}")},

@@ -1,0 +1,51 @@
+# The HPA's scaleTargetRef names Deployment web in apiVersion extensions/v1beta1, which the API has not served since Kubernetes 1.16, so the HPA cannot get the Deployment's scale and scales nothing.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-hpa-target-old-apiversion
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-hpa-target-old-apiversion
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          resources:
+            requests:
+              cpu: 10m
+
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: web
+  namespace: kd-hpa-target-old-apiversion
+spec:
+  # Copied from a manifest written before Kubernetes 1.16, when Deployments were served from extensions/v1beta1.
+  scaleTargetRef:
+    apiVersion: extensions/v1beta1
+    kind: Deployment
+    name: web
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 50

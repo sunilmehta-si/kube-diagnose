@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-readiness-probe-timeout/web",
+      "error": [
+        {
+          "Text": "Deployment kd-readiness-probe-timeout/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readiness-probe-timeout",
+              "Masked": "eWtIN0J5e1ZpNVhQciZUeHMoVHZjbHtANTI="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Q3Yv"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-readiness-probe-timeout/web-84466c7679-6d2wl",
+      "error": [
+        {
+          "Text": "Readiness probe failed: command timed out: \"sh -c sleep 3; wget -q -O /dev/null http://127.0.0.1:8080/\" timed out after 1s",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

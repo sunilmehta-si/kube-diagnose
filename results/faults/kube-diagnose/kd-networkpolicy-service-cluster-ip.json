@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-service-cluster-ip"
+  ],
+  "collectedAt": "2026-11-23 11:46 UTC",
+  "findings": [
+    {
+      "rule": "KD360",
+      "title": "NetworkPolicy allows a Service's cluster IP, which policies never see",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-networkpolicy-service-cluster-ip",
+        "name": "client"
+      },
+      "cause": "container client exits because its connection to Service web times out: NetworkPolicy client-egress allows egress to ipBlock 10.96.0.200/32, which holds the Service's cluster IP 10.96.0.200, but a policy is checked after the Service has forwarded the connection, against the pods' IPs, such as 10.244.0.86, which no rule allows; a blocked connection is dropped, not refused; its log says: \"wget: download timed out\"; Deployment client has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-service-cluster-ip",
+            "name": "client-5858c98f74-9nzx7"
+          },
+          "what": "container client exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod client-5858c98f74-9nzx7 -n kd-networkpolicy-service-cluster-ip -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-service-cluster-ip",
+            "name": "client-5858c98f74-9nzx7"
+          },
+          "what": "last lines of container client's log (run that exited)",
+          "detail": "Connecting to web (10.96.0.200:80)\nwget: download timed out",
+          "command": "kubectl logs client-5858c98f74-9nzx7 -n kd-networkpolicy-service-cluster-ip -c client --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-service-cluster-ip",
+            "name": "client-egress"
+          },
+          "what": "NetworkPolicy client-egress allows egress to ipBlock 10.96.0.200/32",
+          "command": "kubectl get networkpolicy client-egress -n kd-networkpolicy-service-cluster-ip -o jsonpath='{.spec.egress}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-networkpolicy-service-cluster-ip",
+            "name": "web"
+          },
+          "what": "Service web has cluster IP 10.96.0.200",
+          "command": "kubectl get service web -n kd-networkpolicy-service-cluster-ip -o jsonpath='{.spec.clusterIP}'"
+        }
+      ],
+      "fix": "In NetworkPolicy client-egress, replace the ipBlock with a podSelector for the Service's pods (app=web) on port 8080, the pods' port: an ipBlock is for addresses outside the cluster, and a policy never sees a Service's cluster IP.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-networkpolicy-service-cluster-ip",
+          "name": "client-5858c98f74-9nzx7"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

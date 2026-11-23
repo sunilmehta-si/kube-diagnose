@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rbac-all-namespaces/pod-dashboard",
+      "error": [
+        {
+          "Text": "Deployment kd-rbac-all-namespaces/pod-dashboard has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rbac-all-namespaces",
+              "Masked": "Si54OksxJDZiSS5uNzk+ejtmVDZ7Vw=="
+            },
+            {
+              "Unmasked": "pod-dashboard",
+              "Masked": "alAlXV5CTj99JkB9Ww=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rbac-all-namespaces/pod-dashboard-746cf4d754-9pzf6",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=dashboard pod=pod-dashboard-746cf4d754-9pzf6",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/pod-dashboard"
+    }
+  ]
+}

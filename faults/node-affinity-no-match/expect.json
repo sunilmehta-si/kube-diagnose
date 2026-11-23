@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-node-affinity-no-match",
+  "description": "The pods require node affinity kubernetes.io/arch In arm64, and kind's node is amd64, so the scheduler places them on no node.",
+  "rule": "KD141",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "kubernetes.io/arch"
+    ],
+    [
+      "arm64"
+    ],
+    [
+      "amd64",
+      "no node"
+    ]
+  ]
+}

@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-hpa-target-old-apiversion",
+  "description": "The HPA's scaleTargetRef names Deployment web in apiVersion extensions/v1beta1, which the API has not served since Kubernetes 1.16, so the HPA cannot get the Deployment's scale and scales nothing.",
+  "rule": "KD293",
+  "object": "HorizontalPodAutoscaler/web",
+  "keywords": [
+    [
+      "extensions"
+    ],
+    [
+      "apps/v1"
+    ],
+    [
+      "apiVersion",
+      "scaleTargetRef"
+    ]
+  ]
+}

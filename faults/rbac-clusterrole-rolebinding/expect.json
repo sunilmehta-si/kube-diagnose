@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-rbac-clusterrole-rolebinding",
+  "description": "ClusterRole node-reader, which allows reading nodes, is bound with a RoleBinding, which grants its rules only within the namespace; nodes belong to no namespace, so the API server refuses the tool.",
+  "rule": "KD305",
+  "object": "Deployment/node-inventory",
+  "keywords": [
+    [
+      "inventory-reads-nodes",
+      "RoleBinding"
+    ],
+    [
+      "ClusterRoleBinding",
+      "cluster"
+    ],
+    [
+      "nodes"
+    ]
+  ]
+}

@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rbac-clusterrole-rolebinding"
+  ],
+  "collectedAt": "2026-11-23 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD305",
+      "title": "A RoleBinding cannot grant a cluster-wide request",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rbac-clusterrole-rolebinding",
+        "name": "node-inventory"
+      },
+      "cause": "container inventory exits because the API server refuses its ServiceAccount inventory: it may not list nodes across the cluster. RoleBinding inventory-reads-nodes binds ClusterRole kd-rbac-clusterrole-rolebinding-node-reader to it, and a RoleBinding grants a ClusterRole's rules in its own namespace, kd-rbac-clusterrole-rolebinding, only; the request is across all namespaces (or of a resource that belongs to no namespace), which only a ClusterRoleBinding grants; its log says: \"Error from server (Forbidden): nodes is forbidden: User \\\"system:serviceaccount:kd-rbac-clusterrole-rolebinding:inventory\\\" cannot list resource \\\"nodes\\\" in API group \\\"\\\" at the cluster scope\"; Deployment node-inventory has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-clusterrole-rolebinding",
+            "name": "node-inventory-8797b59d-j4z77"
+          },
+          "what": "container inventory exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod node-inventory-8797b59d-j4z77 -n kd-rbac-clusterrole-rolebinding -o jsonpath='{.status.containerStatuses[?(@.name==\"inventory\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-clusterrole-rolebinding",
+            "name": "node-inventory-8797b59d-j4z77"
+          },
+          "what": "last lines of container inventory's log (current run)",
+          "detail": "Error from server (Forbidden): nodes is forbidden: User \"system:serviceaccount:kd-rbac-clusterrole-rolebinding:inventory\" cannot list resource \"nodes\" in API group \"\" at the cluster scope",
+          "command": "kubectl logs node-inventory-8797b59d-j4z77 -n kd-rbac-clusterrole-rolebinding -c inventory --tail=20"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rbac-clusterrole-rolebinding",
+            "name": "inventory-reads-nodes"
+          },
+          "what": "RoleBinding inventory-reads-nodes grants ClusterRole kd-rbac-clusterrole-rolebinding-node-reader to ServiceAccount inventory",
+          "command": "kubectl get rolebinding inventory-reads-nodes -n kd-rbac-clusterrole-rolebinding -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        }
+      ],
+      "fix": "Bind ClusterRole kd-rbac-clusterrole-rolebinding-node-reader with a ClusterRoleBinding instead: kubectl create clusterrolebinding inventory-kd-rbac-clusterrole-rolebinding-node-reader --clusterrole=kd-rbac-clusterrole-rolebinding-node-reader --serviceaccount=kd-rbac-clusterrole-rolebinding:inventory.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rbac-clusterrole-rolebinding",
+          "name": "node-inventory-8797b59d-j4z77"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

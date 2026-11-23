@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-liveness-kills-slow-start/model-server",
+      "error": [
+        {
+          "Text": "Deployment kd-liveness-kills-slow-start/model-server has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-liveness-kills-slow-start",
+              "Masked": "TWshLk1oUlhkJWoobEduQWhTOkBoKU9wVD1FSA=="
+            },
+            {
+              "Unmasked": "model-server",
+              "Masked": "b1Q5NjZlNnFXPGJG"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-liveness-kills-slow-start/model-server-76677bfd58-ll6w6",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=server pod=model-server-76677bfd58-ll6w6",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/model-server"
+    }
+  ]
+}

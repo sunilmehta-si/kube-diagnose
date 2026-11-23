@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-dns-missing-service",
-              "Masked": "eD9wTWlUbWhHeVsjSmM8JGV9elMnIw=="
+              "Masked": "SEM3V28kNT1Hd1AySnk1UDNPQnYkQw=="
             },
             {
               "Unmasked": "web",
-              "Masked": "d3ZN"
+              "Masked": "cnZX"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-dns-missing-service/web-9969d4d5c-sd6v6",
+      "name": "kd-dns-missing-service/web-9969d4d5c-24n6r",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-9969d4d5c-sd6v6",
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-9969d4d5c-24n6r",
           "KubernetesDoc": "",
           "Sensitive": []
         }

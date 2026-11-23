@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-quota-requires-limits"
   ],
-  "collectedAt": "2026-11-22 07:20 UTC",
+  "collectedAt": "2026-11-23 11:47 UTC",
   "findings": [
     {
       "rule": "KD275",
@@ -24,7 +24,7 @@
             "name": "web-6d754df847"
           },
           "what": "event FailedCreate (8 times)",
-          "detail": "(combined from similar events): Error creating: pods \"web-6d754df847-6nht2\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "detail": "(combined from similar events): Error creating: pods \"web-6d754df847-bfmdz\" is forbidden: failed quota: compute: must specify limits.memory for: web",
           "command": "kubectl get events -n kd-quota-requires-limits --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-6d754df847"
         },
         {

@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-liveness-kills-slow-start",
+  "description": "The server needs about a minute to load before it listens on 8080, and its liveness probe, with no startupProbe, gives up after 20 seconds, so the kubelet kills it every time before it starts.",
+  "rule": "KD306",
+  "object": "Deployment/model-server",
+  "keywords": [
+    [
+      "startupProbe"
+    ],
+    [
+      "before it has started",
+      "starting"
+    ],
+    [
+      "8080"
+    ]
+  ]
+}

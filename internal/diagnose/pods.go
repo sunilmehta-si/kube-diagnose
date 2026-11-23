@@ -422,6 +422,13 @@ func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			}
 		case "CrashLoopBackOff":
 			return crash(ix, p, cs)
+		case "PostStartHookError":
+			// Caught between a failed postStart hook and the kubelet's back-off, before the state reads
+			// CrashLoopBackOff.
+			if pr := hookFailed(ix, p, cs); pr != nil {
+				return pr
+			}
+			return crash(ix, p, cs)
 		}
 	}
 	if t := cs.State.Terminated; t != nil && t.Reason == "StartError" {
@@ -803,11 +810,20 @@ func mountProblem(ix *index, p kube.Pod) *problem {
 		}
 		if m := reHostPath.FindStringSubmatch(e.Message); m != nil {
 			node := orNode(p.Spec.NodeName)
-			return newProblem(p, "", "KD135", "hostPath does not exist on the node", Critical,
-				fmt.Sprintf("volume %s mounts hostPath %s, which is not a %s on %s, and the volume's type requires one, so the pod cannot start", m[1], m[2], m[3], node),
-				"hostpath|"+m[2], fmt.Sprintf("Create %s on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.", m[2]),
-				append(ev, Evidence{Object: p.Ref(), What: "volume " + m[1],
-					Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, m[1]))})...)
+			cause := fmt.Sprintf("volume %s mounts hostPath %s, which is not a %s on %s, and the volume's type requires one, so the pod cannot start", m[1], m[2], m[3], node)
+			fix := fmt.Sprintf("Create %s on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.", m[2])
+			ev = append(ev, Evidence{Object: p.Ref(), What: "volume " + m[1],
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, m[1]))})
+			// The node's runtime is evidence whenever it is known: sockets and devices on a node depend on it.
+			if rt := nodeRuntime(ix, p.Spec.NodeName); rt != "" {
+				ev = append(ev, Evidence{Object: kube.Ref{Kind: "Node", Name: p.Spec.NodeName}, What: "container runtime " + rt,
+					Command: cmdGet("node", "", p.Spec.NodeName, "{.status.nodeInfo.containerRuntimeVersion}")})
+				if dockerSocket(m[2]) && !strings.HasPrefix(rt, "docker") {
+					cause = fmt.Sprintf("volume %s mounts the Docker socket %s, and %s runs %s, not Docker, so there is no such socket and the pod cannot start", m[1], m[2], node, rt)
+					fix = "Talk to the node's runtime through its own socket (/run/containerd/containerd.sock for containerd, with a client such as crictl or nerdctl), or, to build images, use a builder that needs no daemon (BuildKit rootless, kaniko, buildah); Kubernetes has not run on Docker Engine since 1.24 unless cri-dockerd was installed."
+				}
+			}
+			return newProblem(p, "", "KD135", "hostPath does not exist on the node", Critical, cause, "hostpath|"+m[2], fix, ev...)
 		}
 		if m := reMountKey.FindStringSubmatch(e.Message); m != nil {
 			kind, name := volumeSourceFor(p, m[1], m[2])
@@ -1085,8 +1101,10 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		// runtime sometimes reports such a kill as Error rather than OOMKilled, when it lands as the container starts.
 		pr := oomKilled(ix, p, cs)
 		if pr.rule == "KD111" {
+			// Keep what oomKilled adds after its first clause: a limit the LimitRange set, the app's own setting.
+			first := fmt.Sprintf("container %s uses more than its %s memory limit and is killed (OOMKilled)", cs.Name, c.Resources.Limits["memory"])
 			pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
-				cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+				cs.Name, c.Resources.Limits["memory"], orReason(t.Reason)) + strings.TrimPrefix(pr.cause, first)
 		}
 		return pr
 	}
@@ -1121,6 +1139,12 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := subPathIsADirectory(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := optionalEnvMissing(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := mountedAsDirectory(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := fileNotInVolume(ix, p, cs, log.Lines, ev); pr != nil {
@@ -1165,6 +1189,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := refusedByReadyPods(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := fixedServiceIP(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := apiServerBlocked(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -1175,6 +1202,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := rbacBroken(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := grantNearMiss(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := rbacDenied(p, cs, log.Lines, ev); pr != nil {
@@ -1441,6 +1471,14 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	fix := "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use."
+	if lim, err := kube.ParseQuantity(limit); err == nil && lim > 0 {
+		if where, setting, size, ok := memorySetting(c); ok && size >= lim {
+			cause += fmt.Sprintf("; the app is told to use more than that: %s, %s, in %s", setting, kube.FormatQuantity("memory", size), where)
+			fix = fmt.Sprintf("Set %s below the %s limit, leaving room for the rest of the process (for a JVM heap, about three quarters of the limit), or raise the limit above it.", setting, limit)
+			ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s sets %s in %s", cs.Name, setting, where),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")]['command','args','env']}`, cs.Name))})
+		}
+	}
 	if limit != "" && limitRangerSetKind(p, "memory", "limit") == cs.Name {
 		cause += fmt.Sprintf("; the pod template sets no memory limit for %s: the namespace's LimitRange gave it its default", cs.Name)
 		fix = fmt.Sprintf("Set container %s's own memory limit in the pod template to what it needs at peak, or raise the default for memory in the namespace's LimitRange.", cs.Name)
@@ -1549,6 +1587,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if exe := probeExecMissing(ix, p, cs.Name, kind); exe != "" {
 		cause = fmt.Sprintf("container %s's %s probe %s, so the probe can never pass and the kubelet restarts the container (%d restarts)", cs.Name, kind, probeExecWhy(exe, imageOf(p, cs)), cs.RestartCount)
 		fix = probeExecFix(exe)
+	}
+	if pr := killedWhileStarting(ix, p, cs, c, ev); pr != nil {
+		return pr
 	}
 	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe), fix, ev...)
 }
@@ -1663,6 +1704,14 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if what, how := probeStatus(ix, p, cs.Name, "readiness"); what != "" {
 			cause += ": " + what
 			fix = how
+		}
+		if probeTimedOut(ix, p, cs.Name, "readiness") && c.ReadinessProbe != nil {
+			limit := c.ReadinessProbe.TimeoutSeconds
+			if limit == 0 {
+				limit = 1 // the API's default
+			}
+			cause = fmt.Sprintf("container %s runs but its readiness probe times out: the app does not answer within the probe's %ds timeoutSeconds, so it gets no traffic", cs.Name, limit)
+			fix = fmt.Sprintf("Raise the readiness probe's timeoutSeconds above how long the check takes (it is %ds), or make the health check cheaper: one that waits on a database or another service is slow whenever they are.", limit)
 		}
 		if exe := probeExecMissing(ix, p, cs.Name, "readiness"); exe != "" {
 			cause = fmt.Sprintf("container %s's readiness probe %s, so the probe can never pass and the container gets no traffic", cs.Name, probeExecWhy(exe, imageOf(p, cs)))
@@ -1781,7 +1830,7 @@ func csiMissing(p kube.Pod, driver string, e kube.Event) *problem {
 }
 
 // reProbeTimeout matches the kubelet's report that an HTTP, TCP or exec probe ran out of time.
-var reProbeTimeout = regexp.MustCompile(`Client\.Timeout exceeded|context deadline exceeded|command timed out|i/o timeout`)
+var reProbeTimeout = regexp.MustCompile(`Client\.Timeout exceeded|context deadline exceeded|command timed out|command ".*" timed out|i/o timeout`)
 
 // probeTimedOut reports whether the newest failure of the probe of the given kind was a timeout.
 func probeTimedOut(ix *index, p kube.Pod, container, kind string) bool {
@@ -1798,4 +1847,64 @@ func orReason(r string) string {
 		return "a plain exit"
 	}
 	return r
+}
+
+// nodeRuntime returns the container runtime a node reports, such as containerd://2.1.4; empty when not known.
+func nodeRuntime(ix *index, name string) string {
+	for _, n := range ix.s.Nodes {
+		if n.Metadata.Name == name {
+			return n.Status.NodeInfo.ContainerRuntimeVersion
+		}
+	}
+	return ""
+}
+
+// dockerSocket reports whether a path is Docker Engine's socket.
+func dockerSocket(path string) bool {
+	return path == "/var/run/docker.sock" || path == "/run/docker.sock"
+}
+
+var (
+	reXmx         = regexp.MustCompile(`-Xmx(\d+)([kKmMgGtT]?)\b`)
+	reNodeHeap    = regexp.MustCompile(`--max-old-space-size=(\d+)`)
+	reMemEnvName  = regexp.MustCompile(`(?i)(MEMORY|HEAP|CACHE|BUFFER)\w*_(MB|MIB)$`)
+	reGoMemLimit  = regexp.MustCompile(`^(\d+)(B|KiB|MiB|GiB|TiB)$`)
+	memUnitFactor = map[string]float64{"": 1, "k": 1 << 10, "m": 1 << 20, "g": 1 << 30, "t": 1 << 40, "B": 1, "KiB": 1 << 10, "MiB": 1 << 20, "GiB": 1 << 30, "TiB": 1 << 40}
+)
+
+// memorySetting finds the memory an app is told it may use, in its command, arguments or environment: a JVM's -Xmx
+// (also in JAVA_OPTS and the like), Node's --max-old-space-size, Go's GOMEMLIMIT, or a variable such as
+// CACHE_SIZE_MB. It returns where the setting is, the setting as written, and its size in bytes.
+func memorySetting(c kube.Container) (where, setting string, size float64, ok bool) {
+	for _, a := range append(append([]string{}, c.Command...), c.Args...) {
+		if w, s, n, ok := memoryIn(a); ok {
+			return w, s, n, true
+		}
+	}
+	for _, e := range c.Env {
+		if w, s, n, ok := memoryIn(e.Value); ok && w != "" {
+			return "variable " + e.Name, s, n, true
+		}
+		if m := reGoMemLimit.FindStringSubmatch(e.Value); m != nil && e.Name == "GOMEMLIMIT" {
+			n, _ := strconv.ParseFloat(m[1], 64)
+			return "the environment", e.Name + "=" + e.Value, n * memUnitFactor[m[2]], true
+		}
+		if v, err := strconv.ParseFloat(e.Value, 64); err == nil && reMemEnvName.MatchString(e.Name) {
+			return "the environment", e.Name + "=" + e.Value, v * (1 << 20), true
+		}
+	}
+	return "", "", 0, false
+}
+
+// memoryIn reads a JVM or Node heap flag out of one argument or variable value.
+func memoryIn(s string) (where, setting string, size float64, ok bool) {
+	if m := reXmx.FindStringSubmatch(s); m != nil {
+		n, _ := strconv.ParseFloat(m[1], 64)
+		return "the command line", m[0], n * memUnitFactor[strings.ToLower(m[2])], true
+	}
+	if m := reNodeHeap.FindStringSubmatch(s); m != nil {
+		n, _ := strconv.ParseFloat(m[1], 64)
+		return "the command line", m[0], n * (1 << 20), true
+	}
+	return "", "", 0, false
 }

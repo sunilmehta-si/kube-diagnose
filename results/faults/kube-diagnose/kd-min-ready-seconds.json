@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-min-ready-seconds"
   ],
-  "collectedAt": "2026-11-22 07:18 UTC",
+  "collectedAt": "2026-11-23 11:45 UTC",
   "findings": [
     {
       "rule": "KD288",

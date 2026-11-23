@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cpu-request-no-millicores"
   ],
-  "collectedAt": "2026-11-22 07:15 UTC",
+  "collectedAt": "2026-11-23 11:44 UTC",
   "findings": [
     {
       "rule": "KD140",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-cpu-request-no-millicores",
-            "name": "api-99c956787-7gr72"
+            "name": "api-99c956787-7bwhx"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod api-99c956787-7gr72 -n kd-cpu-request-no-millicores -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod api-99c956787-7bwhx -n kd-cpu-request-no-millicores -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-cpu-request-no-millicores",
-            "name": "api-99c956787-7gr72"
+            "name": "api-99c956787-7bwhx"
           },
           "what": "pod requests 500 cpu",
-          "command": "kubectl get pod api-99c956787-7gr72 -n kd-cpu-request-no-millicores -o jsonpath='{.spec.containers[*].resources.requests}'"
+          "command": "kubectl get pod api-99c956787-7bwhx -n kd-cpu-request-no-millicores -o jsonpath='{.spec.containers[*].resources.requests}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-cpu-request-no-millicores",
-          "name": "api-99c956787-7gr72"
+          "name": "api-99c956787-7bwhx"
         }
       ]
     }

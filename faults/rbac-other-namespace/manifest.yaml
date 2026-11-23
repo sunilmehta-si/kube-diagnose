@@ -1,0 +1,59 @@
+# RoleBinding app-settings-reader grants the app list and watch on ConfigMaps in its own namespace, and the app is configured to watch namespace default, where nothing grants it, so the API server refuses it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rbac-other-namespace
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  namespace: kd-rbac-other-namespace
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: settings-reader
+  namespace: kd-rbac-other-namespace
+rules:
+  # Meant to let the app read its settings from ConfigMaps.
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-settings-reader
+  namespace: kd-rbac-other-namespace
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: settings-reader
+subjects:
+  - kind: ServiceAccount
+    name: app
+    namespace: kd-rbac-other-namespace
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: config-watcher
+  namespace: kd-rbac-other-namespace
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: config-watcher
+  template:
+    metadata:
+      labels:
+        app: config-watcher
+    spec:
+      serviceAccountName: app
+      containers:
+        - name: watcher
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          # Watches the ConfigMaps of the namespace it is configured with, as an app that reloads its settings does.
+          args: ["get", "configmaps", "--namespace=default", "--watch"]

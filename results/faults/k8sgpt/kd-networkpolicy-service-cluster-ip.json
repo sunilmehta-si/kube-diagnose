@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-networkpolicy-service-cluster-ip/client",
+      "error": [
+        {
+          "Text": "Deployment kd-networkpolicy-service-cluster-ip/client has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-networkpolicy-service-cluster-ip",
+              "Masked": "bCJETEFWOjtYNjhQOSdqVyYyM0U9bTMvQHJzcEJyUnVBNjQ="
+            },
+            {
+              "Unmasked": "client",
+              "Masked": "KmUvbVE1"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-networkpolicy-service-cluster-ip/client-5858c98f74-9nzx7",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=client pod=client-5858c98f74-9nzx7",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/client"
+    }
+  ]
+}

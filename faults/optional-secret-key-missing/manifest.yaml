@@ -1,0 +1,42 @@
+# DATABASE_URL comes from key url of Secret db-credentials, marked optional, and the Secret holds the value under uri, so the variable is left unset and the api exits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-optional-secret-key-missing
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db-credentials
+  namespace: kd-optional-secret-key-missing
+stringData:
+  uri: postgres://app@db:5432/app
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kd-optional-secret-key-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          env:
+            # Marked optional so the pod starts in environments without a database.
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: db-credentials
+                  key: url
+                  optional: true
+          command: ["sh", "-c", "[ -n \"$DATABASE_URL\" ] || { echo 'fatal: DATABASE_URL is not set'; exit 1; }; sleep 3600"]

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-service-ip-hardcoded/api",
+      "error": [
+        {
+          "Text": "Deployment kd-service-ip-hardcoded/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-service-ip-hardcoded",
+              "Masked": "J2ZOKDxESTU1VjxNP05vMGwpZ1tSaCM="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "UCtS"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-service-ip-hardcoded/api-55c5f8dc65-nn9n7",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=api pod=api-55c5f8dc65-nn9n7",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

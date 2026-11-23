@@ -1,0 +1,35 @@
+# The pod mounts /var/run/docker.sock as a hostPath of type Socket, and kind's node runs containerd, not Docker, so the socket does not exist and the pod stays in ContainerCreating.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-docker-socket-on-containerd
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: image-builder
+  namespace: kd-docker-socket-on-containerd
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: image-builder
+  template:
+    metadata:
+      labels:
+        app: image-builder
+    spec:
+      containers:
+        - name: builder
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Builds images through the node's Docker daemon, as CI runners set up for Docker hosts do.
+          command: ["sh", "-c", "test -S /var/run/docker.sock && echo 'docker daemon found'; sleep 3600"]
+          volumeMounts:
+            - name: docker
+              mountPath: /var/run/docker.sock
+      volumes:
+        - name: docker
+          hostPath:
+            path: /var/run/docker.sock
+            type: Socket

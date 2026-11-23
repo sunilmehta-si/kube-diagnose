@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-rbac-resourcenames-list",
+  "description": "Role settings-reader grants get, list and watch on the ConfigMap named settings only (resourceNames), and the app lists and watches the namespace's ConfigMaps, which names no object, so the API server refuses it.",
+  "rule": "KD303",
+  "object": "Deployment/config-watcher",
+  "keywords": [
+    [
+      "settings-reader"
+    ],
+    [
+      "resourceNames"
+    ],
+    [
+      "list",
+      "names no object"
+    ]
+  ]
+}

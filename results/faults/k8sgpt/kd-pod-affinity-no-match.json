@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pod-affinity-no-match/web",
+      "error": [
+        {
+          "Text": "Deployment kd-pod-affinity-no-match/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pod-affinity-no-match",
+              "Masked": "eHIuKEJaTiRuLjpCQnNITEk9MyhaP1pV"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "RiUj"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pod-affinity-no-match/web-9ff68f68b-cqm9r",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 node(s) didn't match pod affinity rules. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

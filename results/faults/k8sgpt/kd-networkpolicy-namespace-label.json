@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-namespace-label",
-              "Masked": "LlckQjF2PDl1QW0+YjUmazs4eE14d043QzEpOUJfdHg="
+              "Masked": "PlA8eGxQRSFXLkV1TSFTQyl5dGlzRkpsPUM0JHVEMnU="
             },
             {
               "Unmasked": "client",
-              "Masked": "UCVlUEF1"
+              "Masked": "NiQ0JSV1"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-networkpolicy-namespace-label/client-5858c98f74-gg5pp",
+      "name": "kd-networkpolicy-namespace-label/client-5858c98f74-ssh57",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=client pod=client-5858c98f74-gg5pp",
+          "Text": "the last termination reason is Error container=client pod=client-5858c98f74-ssh57",
           "KubernetesDoc": "",
           "Sensitive": []
         }

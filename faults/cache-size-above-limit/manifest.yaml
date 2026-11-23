@@ -1,0 +1,33 @@
+# The cache is configured with CACHE_SIZE_MB=128 and fills it at start, and its memory limit is 64Mi, so it is OOMKilled every time.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-cache-size-above-limit
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cache
+  namespace: kd-cache-size-above-limit
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: cache
+  template:
+    metadata:
+      labels:
+        app: cache
+    spec:
+      containers:
+        - name: cache
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          env:
+            - name: CACHE_SIZE_MB
+              value: "128"
+          # Fills an in-memory cache of CACHE_SIZE_MB at start, as a cache server does.
+          command: ["sh", "-c", "echo \"allocating a $CACHE_SIZE_MB MiB cache\"; head -c $((CACHE_SIZE_MB * 1048576)) /dev/zero | tail; sleep 3600"]
+          resources:
+            limits:
+              memory: 64Mi

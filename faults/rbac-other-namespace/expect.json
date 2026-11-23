@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-rbac-other-namespace",
+  "description": "RoleBinding app-settings-reader grants the app list and watch on ConfigMaps in its own namespace, and the app is configured to watch namespace default, where nothing grants it, so the API server refuses it.",
+  "rule": "KD304",
+  "object": "Deployment/config-watcher",
+  "keywords": [
+    [
+      "settings-reader"
+    ],
+    [
+      "default"
+    ],
+    [
+      "own namespace",
+      "only"
+    ]
+  ]
+}

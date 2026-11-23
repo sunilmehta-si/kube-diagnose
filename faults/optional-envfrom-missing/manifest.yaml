@@ -1,0 +1,40 @@
+# The api takes its variables with envFrom from ConfigMap api-env, marked optional, and the ConfigMap is named app-env, so no variable is set and the api exits saying API_URL is not set.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-optional-envfrom-missing
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: app-env
+  namespace: kd-optional-envfrom-missing
+data:
+  API_URL: http://payments:8080
+  LOG_LEVEL: info
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kd-optional-envfrom-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Takes its settings from a ConfigMap, optional so that local runs without one still start.
+          envFrom:
+            - configMapRef:
+                name: api-env
+                optional: true
+          command: ["sh", "-c", "[ -n \"$API_URL\" ] || { echo 'fatal: API_URL is not set'; exit 1; }; sleep 3600"]

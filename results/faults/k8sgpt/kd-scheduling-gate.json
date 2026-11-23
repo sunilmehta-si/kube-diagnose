@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-scheduling-gate",
-              "Masked": "OChLM2E6anQ7N0A1b0tnSCQz"
+              "Masked": "Nn1vcCRSVXBMYSVya1ZUdnJA"
             },
             {
               "Unmasked": "web",
-              "Masked": "cmky"
+              "Masked": "M2xS"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-scheduling-gate/web-65f8ddb774-x2gnq",
+      "name": "kd-scheduling-gate/web-65f8ddb774-xw8km",
       "error": [
         {
           "Text": "Scheduling is blocked due to non-empty scheduling gates",

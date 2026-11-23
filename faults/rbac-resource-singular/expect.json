@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-rbac-resource-singular",
+  "description": "Role settings-reader grants get, list and watch on \"configmap\", but the resource is named configmaps (lower case and plural), so the rule never matches and the API server refuses the watcher.",
+  "rule": "KD301",
+  "object": "Deployment/config-watcher",
+  "keywords": [
+    [
+      "settings-reader"
+    ],
+    [
+      "configmap"
+    ],
+    [
+      "no resource",
+      "does not exist",
+      "plural"
+    ]
+  ]
+}

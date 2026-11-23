@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-limitrange-default-request"
   ],
-  "collectedAt": "2026-11-22 07:18 UTC",
+  "collectedAt": "2026-11-23 11:45 UTC",
   "findings": [
     {
       "rule": "KD140",
@@ -21,30 +21,30 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-limitrange-default-request",
-            "name": "web-54b9bbc47f-ptlsk"
+            "name": "web-54b9bbc47f-j8rdd"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod web-54b9bbc47f-ptlsk -n kd-limitrange-default-request -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-54b9bbc47f-j8rdd -n kd-limitrange-default-request -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-limitrange-default-request",
-            "name": "web-54b9bbc47f-ptlsk"
+            "name": "web-54b9bbc47f-j8rdd"
           },
           "what": "pod requests 64 cpu",
-          "command": "kubectl get pod web-54b9bbc47f-ptlsk -n kd-limitrange-default-request -o jsonpath='{.spec.containers[*].resources.requests}'"
+          "command": "kubectl get pod web-54b9bbc47f-j8rdd -n kd-limitrange-default-request -o jsonpath='{.spec.containers[*].resources.requests}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-limitrange-default-request",
-            "name": "web-54b9bbc47f-ptlsk"
+            "name": "web-54b9bbc47f-j8rdd"
           },
           "what": "the LimitRanger admission plugin set container web's cpu request",
           "detail": "LimitRanger plugin set: cpu request for container web",
-          "command": "kubectl get pod web-54b9bbc47f-ptlsk -n kd-limitrange-default-request -o jsonpath='{.metadata.annotations.kubernetes\\.io/limit-ranger}'"
+          "command": "kubectl get pod web-54b9bbc47f-j8rdd -n kd-limitrange-default-request -o jsonpath='{.metadata.annotations.kubernetes\\.io/limit-ranger}'"
         },
         {
           "object": {
@@ -69,7 +69,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-limitrange-default-request",
-          "name": "web-54b9bbc47f-ptlsk"
+          "name": "web-54b9bbc47f-j8rdd"
         }
       ]
     }

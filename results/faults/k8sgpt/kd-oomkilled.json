@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-oomkilled",
-              "Masked": "VHU6RywyWz1OQWp2"
+              "Masked": "ZSZ9TW5DaXNyJT9q"
             },
             {
               "Unmasked": "web",
-              "Masked": "OW4m"
+              "Masked": "cEpA"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-oomkilled/web-6f499f987f-wjzjd",
+      "name": "kd-oomkilled/web-6f499f987f-2tfl8",
       "error": [
         {
-          "Text": "the last termination reason is OOMKilled container=web pod=web-6f499f987f-wjzjd",
+          "Text": "the last termination reason is OOMKilled container=web pod=web-6f499f987f-2tfl8",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rbac-all-namespaces"
+  ],
+  "collectedAt": "2026-11-23 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD305",
+      "title": "A RoleBinding cannot grant a cluster-wide request",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rbac-all-namespaces",
+        "name": "pod-dashboard"
+      },
+      "cause": "container dashboard exits because the API server refuses its ServiceAccount app: it may not list pods across the cluster. RoleBinding app-reads-pods grants it, through Role pod-reader, in namespace kd-rbac-all-namespaces only, and the request is across all namespaces (or of a resource that belongs to no namespace), which only a ClusterRoleBinding grants; its log says: \"Error from server (Forbidden): pods is forbidden: User \\\"system:serviceaccount:kd-rbac-all-namespaces:app\\\" cannot list resource \\\"pods\\\" in API group \\\"\\\" at the cluster scope\"; Deployment pod-dashboard has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-all-namespaces",
+            "name": "pod-dashboard-746cf4d754-9pzf6"
+          },
+          "what": "container dashboard exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod pod-dashboard-746cf4d754-9pzf6 -n kd-rbac-all-namespaces -o jsonpath='{.status.containerStatuses[?(@.name==\"dashboard\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-all-namespaces",
+            "name": "pod-dashboard-746cf4d754-9pzf6"
+          },
+          "what": "last lines of container dashboard's log (current run)",
+          "detail": "Error from server (Forbidden): pods is forbidden: User \"system:serviceaccount:kd-rbac-all-namespaces:app\" cannot list resource \"pods\" in API group \"\" at the cluster scope",
+          "command": "kubectl logs pod-dashboard-746cf4d754-9pzf6 -n kd-rbac-all-namespaces -c dashboard --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Role",
+            "namespace": "kd-rbac-all-namespaces",
+            "name": "pod-reader"
+          },
+          "what": "Role pod-reader, bound by RoleBinding app-reads-pods: apiGroups [\"\"], resources [\"pods\"], verbs [\"get\", \"list\", \"watch\"]",
+          "command": "kubectl get role pod-reader -n kd-rbac-all-namespaces -o jsonpath='{.rules}'"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rbac-all-namespaces",
+            "name": "app-reads-pods"
+          },
+          "what": "RoleBinding app-reads-pods grants Role pod-reader to ServiceAccount app",
+          "command": "kubectl get rolebinding app-reads-pods -n kd-rbac-all-namespaces -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        }
+      ],
+      "fix": "If the app needs only namespace kd-rbac-all-namespaces, have it read that namespace (kubectl -n kd-rbac-all-namespaces instead of -A, or an informer for one namespace); if it needs every namespace, create a ClusterRole with the rule and bind it with a ClusterRoleBinding to ServiceAccount kd-rbac-all-namespaces/app.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rbac-all-namespaces",
+          "name": "pod-dashboard-746cf4d754-9pzf6"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

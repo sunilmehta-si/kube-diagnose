@@ -137,7 +137,25 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 				ev = append(ev, Evidence{Object: kube.Ref{Kind: "Node", Name: "*"},
 					What:    fmt.Sprintf("none of the %d nodes has %s", len(ix.s.Nodes), sel),
 					Command: "kubectl get nodes -l " + sel})
+				if host, ok := p.Spec.NodeSelector["kubernetes.io/hostname"]; ok && len(ix.s.Nodes) > 0 && !nodeExists(ix, host) {
+					var names []string
+					for _, n := range ix.s.Nodes {
+						names = append(names, n.Metadata.Name)
+					}
+					sort.Strings(names)
+					if len(names) > 5 {
+						names = append(names[:5], "…")
+					}
+					cause = fmt.Sprintf("the pod's nodeSelector pins it to node %s by kubernetes.io/hostname, and there is no node %s (the nodes are %s): a node that was replaced or renamed keeps no pods pinned to it", host, host, strings.Join(names, ", "))
+					phrase = "no node is named " + host
+				}
 			}
+		} else if unmet := nodeAffinityUnmet(ix, p); unmet != "" {
+			cause = "the pod's required node affinity asks for " + unmet + ", which no node meets"
+			phrase = nodesVerb(r.nodes, "does not meet", "do not meet") + " its node affinity (" + unmet + ")"
+			ev = append(ev, Evidence{Object: p.Ref(), What: "required node affinity: " + unmet,
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.affinity.nodeAffinity}")},
+				Evidence{Object: kube.Ref{Kind: "Node", Name: "*"}, What: "the nodes' labels", Command: "kubectl get nodes --show-labels"})
 		}
 		return newProblem(p, "", "KD141", "No node matches the pod's node selector", Critical, cause,
 			"selector|"+kube.FormatMap(p.Spec.NodeSelector),
@@ -166,6 +184,12 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 		return pr, pr.cause
 	case strings.Contains(r.text, "PersistentVolumeClaim") || strings.Contains(r.text, "persistentvolumeclaim"):
 		return pvcBlocked(ix, p, r.text), "it waits for a PersistentVolumeClaim"
+	case strings.Contains(r.text, "topology spread constraints") && strings.Contains(r.text, "missing required label") && spreadKeyMissing(ix, p) != nil:
+		pr := spreadKeyMissing(ix, p)
+		return pr, pr.cause
+	case strings.Contains(r.text, "didn't match pod affinity rules") && affinityPodsMissing(ix, p) != nil:
+		pr := affinityPodsMissing(ix, p)
+		return pr, pr.cause
 	case strings.Contains(r.text, "topology spread constraints") || strings.Contains(r.text, "pod affinity rules") ||
 		strings.Contains(r.text, "pod anti-affinity rules"):
 		what := "its pod anti-affinity rules"
@@ -504,4 +528,14 @@ func limitRangerSetKind(p kube.Pod, res, kind string) string {
 		}
 	}
 	return ""
+}
+
+// nodeExists reports whether a node of that name, or with that kubernetes.io/hostname label, was read.
+func nodeExists(ix *index, name string) bool {
+	for _, n := range ix.s.Nodes {
+		if n.Metadata.Name == name || n.Metadata.Labels["kubernetes.io/hostname"] == name {
+			return true
+		}
+	}
+	return false
 }

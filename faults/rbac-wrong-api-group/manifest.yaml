@@ -1,0 +1,59 @@
+# Role deployment-reader grants get, list and watch on deployments in the core group "", but Deployments are in API group apps, so the rule never matches and the API server refuses the watcher.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rbac-wrong-api-group
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: deployer
+  namespace: kd-rbac-wrong-api-group
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: deployment-reader
+  namespace: kd-rbac-wrong-api-group
+rules:
+  # Deployments are in API group apps; "" is the core group, which has no deployments.
+  - apiGroups: [""]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: deployer-reads-deployments
+  namespace: kd-rbac-wrong-api-group
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: deployment-reader
+subjects:
+  - kind: ServiceAccount
+    name: deployer
+    namespace: kd-rbac-wrong-api-group
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rollout-watcher
+  namespace: kd-rbac-wrong-api-group
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rollout-watcher
+  template:
+    metadata:
+      labels:
+        app: rollout-watcher
+    spec:
+      serviceAccountName: deployer
+      containers:
+        - name: watcher
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          # Watches the namespace's Deployments, as a tool that reports rollouts does.
+          args: ["get", "deployments", "--watch"]

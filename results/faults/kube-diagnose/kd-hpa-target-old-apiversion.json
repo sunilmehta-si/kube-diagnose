@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hpa-target-old-apiversion"
+  ],
+  "collectedAt": "2026-11-23 11:45 UTC",
+  "findings": [
+    {
+      "rule": "KD293",
+      "title": "HPA names its target with a kind or apiVersion the cluster does not serve",
+      "severity": "warning",
+      "object": {
+        "kind": "HorizontalPodAutoscaler",
+        "namespace": "kd-hpa-target-old-apiversion",
+        "name": "web"
+      },
+      "cause": "HPA web names its target as kind Deployment in apiVersion extensions/v1beta1, and the cluster serves no Deployment in API group \"extensions\", so the HPA cannot read or set the replicas of web and scales nothing (Deployments are served from apps/v1)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-target-old-apiversion",
+            "name": "web"
+          },
+          "what": "AbleToScale is False, reason FailedGetScale",
+          "detail": "the HPA controller was unable to get the target's current scale: no matches for kind \"Deployment\" in group \"extensions\"",
+          "command": "kubectl get hpa web -n kd-hpa-target-old-apiversion -o jsonpath='{.status.conditions[?(@.type==\"AbleToScale\")]}'"
+        },
+        {
+          "object": {
+            "kind": "HorizontalPodAutoscaler",
+            "namespace": "kd-hpa-target-old-apiversion",
+            "name": "web"
+          },
+          "what": "scaleTargetRef: apiVersion extensions/v1beta1, kind Deployment, name web",
+          "command": "kubectl get hpa web -n kd-hpa-target-old-apiversion -o jsonpath='{.spec.scaleTargetRef}'"
+        }
+      ],
+      "fix": "Set scaleTargetRef.apiVersion to apps/v1: Deployments are served from apps/v1, and extensions/v1beta1 is an old version the API no longer serves.",
+      "affects": [
+        {
+          "kind": "Deployment",
+          "namespace": "kd-hpa-target-old-apiversion",
+          "name": "web"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

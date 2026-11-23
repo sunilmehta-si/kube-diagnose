@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-nodeselector-node-gone"
+  ],
+  "collectedAt": "2026-11-23 11:46 UTC",
+  "findings": [
+    {
+      "rule": "KD141",
+      "title": "No node matches the pod's node selector",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-nodeselector-node-gone",
+        "name": "web"
+      },
+      "cause": "the pod's nodeSelector pins it to node kd-faults-worker-old by kubernetes.io/hostname, and there is no node kd-faults-worker-old (the nodes are kd-faults-control-plane): a node that was replaced or renamed keeps no pods pinned to it; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodeselector-node-gone",
+            "name": "web-9755df678-sp9pm"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod web-9755df678-sp9pm -n kd-nodeselector-node-gone -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-nodeselector-node-gone",
+            "name": "web-9755df678-sp9pm"
+          },
+          "what": "pod requires node labels kubernetes.io/hostname=kd-faults-worker-old",
+          "command": "kubectl get pod web-9755df678-sp9pm -n kd-nodeselector-node-gone -o jsonpath='{.spec.nodeSelector}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "*"
+          },
+          "what": "none of the 1 nodes has kubernetes.io/hostname=kd-faults-worker-old",
+          "command": "kubectl get nodes -l kubernetes.io/hostname=kd-faults-worker-old"
+        }
+      ],
+      "fix": "Label a node to match (kubectl label node), or correct the pod's nodeSelector or affinity.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-nodeselector-node-gone",
+          "name": "web-9755df678-sp9pm"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

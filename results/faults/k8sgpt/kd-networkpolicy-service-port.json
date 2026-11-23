@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-service-port",
-              "Masked": "J3IiKC16TUt4Jip7PVpoPSRMSXhaY1ZOMj94IjU="
+              "Masked": "S1NRY29KSk1sRC5KcloiY0Q9JidWP1V0XnZ3RHg="
             },
             {
               "Unmasked": "client",
-              "Masked": "dS9CZnRs"
+              "Masked": "XVEjLGJS"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-networkpolicy-service-port/client-5858c98f74-58dmn",
+      "name": "kd-networkpolicy-service-port/client-5858c98f74-wwqdp",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=client pod=client-5858c98f74-58dmn",
+          "Text": "the last termination reason is Error container=client pod=client-5858c98f74-wwqdp",
           "KubernetesDoc": "",
           "Sensitive": []
         }

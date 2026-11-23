@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rbac-resourcenames-list"
+  ],
+  "collectedAt": "2026-11-23 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD303",
+      "title": "Role limits a list or watch by resourceNames",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rbac-resourcenames-list",
+        "name": "config-watcher"
+      },
+      "cause": "container watcher exits because the API server refuses its ServiceAccount app: it may not list configmaps in namespace kd-rbac-resourcenames-list. Role settings-reader grants get, list, watch on configmaps only for resourceNames [\"settings\"], and a list request names no object, so a rule with resourceNames never allows it; its log says: \"Error from server (Forbidden): configmaps is forbidden: User \\\"system:serviceaccount:kd-rbac-resourcenames-list:app\\\" cannot list resource \\\"configmaps\\\" in API group \\\"\\\" in the namespace \\\"kd-rbac-resource…\"; Deployment config-watcher has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-resourcenames-list",
+            "name": "config-watcher-64cf7557b8-lxrgm"
+          },
+          "what": "container watcher exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod config-watcher-64cf7557b8-lxrgm -n kd-rbac-resourcenames-list -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-resourcenames-list",
+            "name": "config-watcher-64cf7557b8-lxrgm"
+          },
+          "what": "last lines of container watcher's log (current run)",
+          "detail": "Error from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-resourcenames-list:app\" cannot list resource \"configmaps\" in API group \"\" in the namespace \"kd-rbac-resourcenames-list\"",
+          "command": "kubectl logs config-watcher-64cf7557b8-lxrgm -n kd-rbac-resourcenames-list -c watcher --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Role",
+            "namespace": "kd-rbac-resourcenames-list",
+            "name": "settings-reader"
+          },
+          "what": "Role settings-reader, bound by RoleBinding app-settings-reader: apiGroups [\"\"], resources [\"configmaps\"], verbs [\"get\", \"list\", \"watch\"]",
+          "command": "kubectl get role settings-reader -n kd-rbac-resourcenames-list -o jsonpath='{.rules}'"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rbac-resourcenames-list",
+            "name": "app-settings-reader"
+          },
+          "what": "RoleBinding app-settings-reader grants Role settings-reader to ServiceAccount app",
+          "command": "kubectl get rolebinding app-settings-reader -n kd-rbac-resourcenames-list -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        }
+      ],
+      "fix": "Grant list on configmaps in a rule of Role settings-reader without resourceNames (it then covers every configmap of the namespace), or have the app get settings by name, which the rule allows.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rbac-resourcenames-list",
+          "name": "config-watcher-64cf7557b8-lxrgm"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

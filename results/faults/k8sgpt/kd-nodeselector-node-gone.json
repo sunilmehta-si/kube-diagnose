@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-nodeselector-node-gone/web",
+      "error": [
+        {
+          "Text": "Deployment kd-nodeselector-node-gone/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodeselector-node-gone",
+              "Masked": "eFBKJWZ6PnJsTy9LNjxTYyYjcCtoWnRYSw=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "NXFK"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-nodeselector-node-gone/web-9755df678-sp9pm",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

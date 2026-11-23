@@ -354,6 +354,9 @@ type PodSpec struct {
 	ImagePullSecrets   []LocalObjectReference `json:"imagePullSecrets,omitempty"`
 	Affinity           json.RawMessage        `json:"affinity,omitempty"`
 	PriorityClassName  string                 `json:"priorityClassName,omitempty"`
+	// TopologySpreadConstraints spread the pods a selector picks over the domains a node label names: nodes,
+	// zones, racks.
+	TopologySpreadConstraints []TopologySpreadConstraint `json:"topologySpreadConstraints,omitempty"`
 	// OS says which operating system the pod's containers are built for; the kubelet refuses a pod for another OS.
 	OS *struct {
 		Name string `json:"name"`
@@ -604,6 +607,10 @@ type Node struct {
 		Conditions  []Condition       `json:"conditions,omitempty"`
 		Allocatable map[string]string `json:"allocatable,omitempty"`
 		Capacity    map[string]string `json:"capacity,omitempty"`
+		// NodeInfo.ContainerRuntimeVersion names the runtime the kubelet uses, such as containerd://2.1.4.
+		NodeInfo struct {
+			ContainerRuntimeVersion string `json:"containerRuntimeVersion,omitempty"`
+		} `json:"nodeInfo"`
 	} `json:"status"`
 }
 
@@ -843,8 +850,9 @@ type HorizontalPodAutoscaler struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
 		ScaleTargetRef struct {
-			Kind string `json:"kind"`
-			Name string `json:"name"`
+			APIVersion string `json:"apiVersion,omitempty"`
+			Kind       string `json:"kind"`
+			Name       string `json:"name"`
 		} `json:"scaleTargetRef"`
 		MinReplicas *int32 `json:"minReplicas,omitempty"`
 		MaxReplicas int32  `json:"maxReplicas"`
@@ -942,6 +950,15 @@ type PersistentVolume struct {
 	} `json:"status"`
 }
 
+// TopologySpreadConstraint keeps the pods its selector picks within maxSkew of each other across the values of a
+// node label. With whenUnsatisfiable DoNotSchedule, a node without the label cannot run the pod.
+type TopologySpreadConstraint struct {
+	MaxSkew           int32          `json:"maxSkew"`
+	TopologyKey       string         `json:"topologyKey"`
+	WhenUnsatisfiable string         `json:"whenUnsatisfiable"`
+	LabelSelector     *LabelSelector `json:"labelSelector,omitempty"`
+}
+
 // Namespace is a namespace reduced to its name and labels: what a NetworkPolicy's namespaceSelector is matched
 // against. The collector keeps nothing else of it.
 type Namespace struct {
@@ -953,9 +970,13 @@ type Namespace struct {
 type NetworkPolicyPeer struct {
 	PodSelector       *LabelSelector `json:"podSelector,omitempty"`
 	NamespaceSelector *LabelSelector `json:"namespaceSelector,omitempty"`
-	IPBlock           *struct {
-		CIDR string `json:"cidr"`
-	} `json:"ipBlock,omitempty"`
+	IPBlock           *IPBlock       `json:"ipBlock,omitempty"`
+}
+
+// IPBlock admits the addresses of a CIDR block, less the blocks in except.
+type IPBlock struct {
+	CIDR   string   `json:"cidr"`
+	Except []string `json:"except,omitempty"`
 }
 
 type NetworkPolicyPort struct {
