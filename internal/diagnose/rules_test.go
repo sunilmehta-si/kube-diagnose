@@ -4785,3 +4785,37 @@ func TestContainerConnectsToAFixedIPNotTheService(t *testing.T) {
 		t.Errorf("%+v", f)
 	}
 }
+
+func TestOOMKilledByTheAppsOwnMemorySetting(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	p.Spec.Containers[0].Resources.Limits = map[string]string{"memory": "1Gi"}
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "JAVA_OPTS", Value: "-XX:+UseG1GC -Xmx2g"}}
+	crashed(&p, 137, "OOMKilled", 4)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD111", "Deployment shop/api", "uses more than its 1Gi memory limit", "the app is told to use more than that: -Xmx2g, 2Gi, in variable JAVA_OPTS")
+	if !strings.HasPrefix(f.Fix, "Set -Xmx2g below the 1Gi limit") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	for _, c := range []struct {
+		env  kube.EnvVar
+		args []string
+		want string
+	}{
+		{kube.EnvVar{Name: "CACHE_SIZE_MB", Value: "2048"}, nil, "CACHE_SIZE_MB=2048, 2Gi, in the environment"},
+		{kube.EnvVar{Name: "GOMEMLIMIT", Value: "1536MiB"}, nil, "GOMEMLIMIT=1536MiB"},
+		{kube.EnvVar{Name: "X", Value: "y"}, []string{"node", "--max-old-space-size=4096", "server.js"}, "--max-old-space-size=4096, 4Gi, in the command line"},
+	} {
+		s.Pods[0].Spec.Containers[0].Env = []kube.EnvVar{c.env}
+		s.Pods[0].Spec.Containers[0].Args = c.args
+		expect(t, only(t, Diagnose(s)), "KD111", "Deployment shop/api", c.want)
+	}
+	// Below the limit: the setting is not the cause, and is not named.
+	s.Pods[0].Spec.Containers[0].Env = []kube.EnvVar{{Name: "JAVA_OPTS", Value: "-Xmx512m"}}
+	s.Pods[0].Spec.Containers[0].Args = nil
+	if f := only(t, Diagnose(s)); strings.Contains(f.Cause, "told to use") {
+		t.Errorf("named a setting below the limit: %s", f.Cause)
+	}
+}

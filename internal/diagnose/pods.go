@@ -1456,6 +1456,14 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	fix := "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use."
+	if lim, err := kube.ParseQuantity(limit); err == nil && lim > 0 {
+		if where, setting, size, ok := memorySetting(c); ok && size >= lim {
+			cause += fmt.Sprintf("; the app is told to use more than that: %s, %s, in %s", setting, kube.FormatQuantity("memory", size), where)
+			fix = fmt.Sprintf("Set %s below the %s limit, leaving room for the rest of the process (for a JVM heap, about three quarters of the limit), or raise the limit above it.", setting, limit)
+			ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s sets %s in %s", cs.Name, setting, where),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")]['command','args','env']}`, cs.Name))})
+		}
+	}
 	if limit != "" && limitRangerSetKind(p, "memory", "limit") == cs.Name {
 		cause += fmt.Sprintf("; the pod template sets no memory limit for %s: the namespace's LimitRange gave it its default", cs.Name)
 		fix = fmt.Sprintf("Set container %s's own memory limit in the pod template to what it needs at peak, or raise the default for memory in the namespace's LimitRange.", cs.Name)
@@ -1831,4 +1839,49 @@ func nodeRuntime(ix *index, name string) string {
 // dockerSocket reports whether a path is Docker Engine's socket.
 func dockerSocket(path string) bool {
 	return path == "/var/run/docker.sock" || path == "/run/docker.sock"
+}
+
+var (
+	reXmx         = regexp.MustCompile(`-Xmx(\d+)([kKmMgGtT]?)\b`)
+	reNodeHeap    = regexp.MustCompile(`--max-old-space-size=(\d+)`)
+	reMemEnvName  = regexp.MustCompile(`(?i)(MEMORY|HEAP|CACHE|BUFFER)\w*_(MB|MIB)$`)
+	reGoMemLimit  = regexp.MustCompile(`^(\d+)(B|KiB|MiB|GiB|TiB)$`)
+	memUnitFactor = map[string]float64{"": 1, "k": 1 << 10, "m": 1 << 20, "g": 1 << 30, "t": 1 << 40, "B": 1, "KiB": 1 << 10, "MiB": 1 << 20, "GiB": 1 << 30, "TiB": 1 << 40}
+)
+
+// memorySetting finds the memory an app is told it may use, in its command, arguments or environment: a JVM's -Xmx
+// (also in JAVA_OPTS and the like), Node's --max-old-space-size, Go's GOMEMLIMIT, or a variable such as
+// CACHE_SIZE_MB. It returns where the setting is, the setting as written, and its size in bytes.
+func memorySetting(c kube.Container) (where, setting string, size float64, ok bool) {
+	for _, a := range append(append([]string{}, c.Command...), c.Args...) {
+		if w, s, n, ok := memoryIn(a); ok {
+			return w, s, n, true
+		}
+	}
+	for _, e := range c.Env {
+		if w, s, n, ok := memoryIn(e.Value); ok && w != "" {
+			return "variable " + e.Name, s, n, true
+		}
+		if m := reGoMemLimit.FindStringSubmatch(e.Value); m != nil && e.Name == "GOMEMLIMIT" {
+			n, _ := strconv.ParseFloat(m[1], 64)
+			return "the environment", e.Name + "=" + e.Value, n * memUnitFactor[m[2]], true
+		}
+		if v, err := strconv.ParseFloat(e.Value, 64); err == nil && reMemEnvName.MatchString(e.Name) {
+			return "the environment", e.Name + "=" + e.Value, v * (1 << 20), true
+		}
+	}
+	return "", "", 0, false
+}
+
+// memoryIn reads a JVM or Node heap flag out of one argument or variable value.
+func memoryIn(s string) (where, setting string, size float64, ok bool) {
+	if m := reXmx.FindStringSubmatch(s); m != nil {
+		n, _ := strconv.ParseFloat(m[1], 64)
+		return "the command line", m[0], n * memUnitFactor[strings.ToLower(m[2])], true
+	}
+	if m := reNodeHeap.FindStringSubmatch(s); m != nil {
+		n, _ := strconv.ParseFloat(m[1], 64)
+		return "the command line", m[0], n * (1 << 20), true
+	}
+	return "", "", 0, false
 }
