@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-rbac-verb-missing",
+  "description": "Role settings-reader grants get and list on configmaps but not watch, and the app follows its ConfigMaps with a watch, so the API server refuses it after the first list.",
+  "rule": "KD302",
+  "object": "Deployment/config-watcher",
+  "keywords": [
+    [
+      "settings-reader"
+    ],
+    [
+      "watch"
+    ],
+    [
+      "verb",
+      "not watch"
+    ]
+  ]
+}
