@@ -18,6 +18,8 @@ func hpaFindings(ix *index) []Finding {
 	for _, h := range ix.s.HPAs {
 		if f := hpaTarget(ix, h); f != nil {
 			out = append(out, *f)
+		} else if f := hpaTargetKind(h); f != nil {
+			out = append(out, *f)
 		} else if f, shared := hpaShared(ix, h); shared {
 			if f != nil {
 				out = append(out, *f)
@@ -101,6 +103,61 @@ func hpaTarget(ix *index, h kube.HorizontalPodAutoscaler) *Finding {
 	return &Finding{Rule: "KD178", Title: "HPA targets a workload that does not exist", Severity: Warning, Object: h.Ref(),
 		Cause:    fmt.Sprintf("HPA %s scales %s %s, which does not exist in namespace %s, so it scales nothing", h.Metadata.Name, ref.Kind, ref.Name, h.Metadata.Namespace),
 		Evidence: evs, Fix: "Correct scaleTargetRef to the workload's kind and name, or delete the HPA if the workload is gone."}
+}
+
+var reNoKind = regexp.MustCompile(`no matches for kind "([^"]+)" in group "([^"]*)"`)
+
+// workloadGroups holds the API group each scalable workload kind is served in.
+var workloadGroups = map[string]string{"Deployment": "apps", "StatefulSet": "apps", "ReplicaSet": "apps", "ReplicationController": ""}
+
+// hpaTargetKind finds an HPA whose scaleTargetRef names a kind the cluster does not serve, in the group its
+// apiVersion gives: a Deployment in extensions/v1beta1 or apps/v1beta2, removed in Kubernetes 1.16, or a kind
+// written in lower case. The HPA cannot read or set the target's replicas, so it scales nothing.
+func hpaTargetKind(h kube.HorizontalPodAutoscaler) *Finding {
+	c, ok := kube.FindCondition(h.Status.Conditions, "AbleToScale")
+	if !ok || c.Status != "False" || c.Reason != "FailedGetScale" {
+		return nil
+	}
+	m := reNoKind.FindStringSubmatch(c.Message)
+	if m == nil {
+		return nil
+	}
+	ref := h.Spec.ScaleTargetRef
+	kind, group := m[1], m[2]
+	api := ref.APIVersion
+	if api == "" {
+		api = group
+	}
+	cause := fmt.Sprintf("HPA %s names its target as kind %s in apiVersion %s, and the cluster serves no %s in API group %q, so the HPA cannot read or set the replicas of %s and scales nothing", h.Metadata.Name, kind, api, kind, group, ref.Name)
+	fix := fmt.Sprintf("Correct scaleTargetRef to the kind and apiVersion the workload is served as (kubectl api-resources lists them), and keep name %s.", ref.Name)
+	for k, g := range workloadGroups {
+		switch {
+		case k == kind && g != group:
+			want := "v1"
+			if g != "" {
+				want = g + "/v1"
+			}
+			fix = fmt.Sprintf("Set scaleTargetRef.apiVersion to %s: %ss are served from %s, and %s is an old version the API no longer serves.", want, kind, want, api)
+		case k != kind && strings.EqualFold(k, kind):
+			fix = fmt.Sprintf("Write the kind as %s, with its capital letters: kinds are case-sensitive.", k)
+		}
+	}
+	ev := hpaCondition(h, "AbleToScale")
+	ev.What, ev.Detail = "AbleToScale is False, reason FailedGetScale", c.Message
+	return &Finding{Rule: "KD293", Title: "HPA names its target with a kind or apiVersion the cluster does not serve", Severity: Warning, Object: h.Ref(),
+		Cause: cause, Evidence: []Evidence{ev, {Object: h.Ref(), What: fmt.Sprintf("scaleTargetRef: apiVersion %s, kind %s, name %s", ref.APIVersion, ref.Kind, ref.Name),
+			Command: cmdGet("hpa", h.Metadata.Namespace, h.Metadata.Name, "{.spec.scaleTargetRef}")}},
+		Fix: fix, Affects: []kube.Ref{{Kind: workloadKind(kind), Namespace: h.Metadata.Namespace, Name: ref.Name}}}
+}
+
+// workloadKind returns the kind as the API writes it, for a kind written in another case.
+func workloadKind(kind string) string {
+	for k := range workloadGroups {
+		if strings.EqualFold(k, kind) {
+			return k
+		}
+	}
+	return kind
 }
 
 // hpaDisabled finds an HPA that has stopped scaling because its target has 0 replicas. The HPA controller leaves a

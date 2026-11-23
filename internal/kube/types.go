@@ -850,8 +850,9 @@ type HorizontalPodAutoscaler struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
 		ScaleTargetRef struct {
-			Kind string `json:"kind"`
-			Name string `json:"name"`
+			APIVersion string `json:"apiVersion,omitempty"`
+			Kind       string `json:"kind"`
+			Name       string `json:"name"`
 		} `json:"scaleTargetRef"`
 		MinReplicas *int32 `json:"minReplicas,omitempty"`
 		MaxReplicas int32  `json:"maxReplicas"`

@@ -4614,3 +4614,28 @@ func TestVolumeMountedAsADirectoryWhereAFileIsRead(t *testing.T) {
 		t.Errorf("%+v", f)
 	}
 }
+
+func TestHPATargetKindNotServed(t *testing.T) {
+	s := snap()
+	h := hpa("web", kube.Condition{Type: "AbleToScale", Status: "False", Reason: "FailedGetScale",
+		Message: `the HPA controller was unable to get the target's current scale: no matches for kind "Deployment" in group "extensions"`})
+	h.Spec.ScaleTargetRef.APIVersion = "extensions/v1beta1"
+	s.HPAs = []kube.HorizontalPodAutoscaler{h}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD293", "HorizontalPodAutoscaler shop/web", `names its target as kind Deployment in apiVersion extensions/v1beta1, and the cluster serves no Deployment in API group "extensions"`)
+	if f.Fix != "Set scaleTargetRef.apiVersion to apps/v1: Deployments are served from apps/v1, and extensions/v1beta1 is an old version the API no longer serves." {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	if f.Severity != Warning || len(f.Affects) != 1 || f.Affects[0].Name != "web" {
+		t.Errorf("%+v", f)
+	}
+
+	h.Spec.ScaleTargetRef.APIVersion, h.Spec.ScaleTargetRef.Kind = "apps/v1", "deployment"
+	h.Status.Conditions[0].Message = `the HPA controller was unable to get the target's current scale: no matches for kind "deployment" in group "apps"`
+	s.HPAs = []kube.HorizontalPodAutoscaler{h}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD293", "HorizontalPodAutoscaler shop/web", "kind deployment in apiVersion apps/v1")
+	if !strings.Contains(f.Fix, "Write the kind as Deployment") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
