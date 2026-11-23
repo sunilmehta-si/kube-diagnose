@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"net"
 	"regexp"
 	"strconv"
 	"strings"
@@ -83,7 +84,7 @@ func backendPort(svc kube.Service, port int32, backend kube.Pod) (int32, string)
 // a pod allow its traffic with a peer pod of the same namespace on a port. A peer chosen by IP block counts as allowed,
 // since the snapshot holds no pod IP ranges, and so does one chosen by namespace selector when the namespaces'
 // labels were not read: the rule only reports a block it can prove.
-func policyVerdict(ix *index, ns, dir string, subject, peer map[string]string, port int32, portName string) (selected bool, blocker string) {
+func policyVerdict(ix *index, ns, dir string, subject, peer map[string]string, peerIP string, port int32, portName string) (selected bool, blocker string) {
 	for _, np := range ix.s.NetworkPolicies {
 		applies := np.AppliesToIngress()
 		rules := np.Spec.Ingress
@@ -101,7 +102,7 @@ func policyVerdict(ix *index, ns, dir string, subject, peer map[string]string, p
 			if dir == "Egress" {
 				peers = r.To
 			}
-			peerOK := peerAllowed(ix, ns, peers, peer)
+			peerOK := peerAllowed(ix, ns, peers, peer, peerIP)
 			portOK := len(r.Ports) == 0
 			for _, pp := range r.Ports {
 				if pp.Port == nil || (!pp.Port.IsName && pp.Port.Int == port) || (pp.Port.IsName && pp.Port.Str == portName && portName != "") {
@@ -118,14 +119,17 @@ func policyVerdict(ix *index, ns, dir string, subject, peer map[string]string, p
 
 // peerAllowed says whether a rule's peers admit a pod of the policy's own namespace with the given labels. No peers
 // means every peer.
-func peerAllowed(ix *index, ns string, peers []kube.NetworkPolicyPeer, peer map[string]string) bool {
+func peerAllowed(ix *index, ns string, peers []kube.NetworkPolicyPeer, peer map[string]string, peerIP string) bool {
 	if len(peers) == 0 {
 		return true
 	}
 	for _, pe := range peers {
 		switch {
 		case pe.IPBlock != nil:
-			return true
+			// An ipBlock admits the pod when its IP is in the block and not excepted; with the IP unknown, assume so.
+			if peerIP == "" || inBlock(pe.IPBlock.CIDR, pe.IPBlock.Except, peerIP) {
+				return true
+			}
 		case pe.NamespaceSelector != nil:
 			// The selector must match the namespace's labels, when they were read, and the pod selector beside
 			// it, if any, the pod.
@@ -139,10 +143,25 @@ func peerAllowed(ix *index, ns string, peers []kube.NetworkPolicyPeer, peer map[
 	return false
 }
 
+// inBlock reports whether ip is in cidr and in none of the excepted blocks.
+func inBlock(cidr string, except []string, ip string) bool {
+	addr := net.ParseIP(ip)
+	_, block, err := net.ParseCIDR(cidr)
+	if addr == nil || err != nil || !block.Contains(addr) {
+		return false
+	}
+	for _, e := range except {
+		if _, x, err := net.ParseCIDR(e); err == nil && x.Contains(addr) {
+			return false
+		}
+	}
+	return true
+}
+
 // allowsServicePort finds a rule that would let the connection through if policies were checked against the
 // Service's port: its peers admit the other pod, and its ports name the Service's port and not the pods'. Policies
 // see a connection after the Service has forwarded it, so such a rule allows nothing that goes through the Service.
-func allowsServicePort(ix *index, ns, dir string, subject, peer map[string]string, servicePort int32) (string, bool) {
+func allowsServicePort(ix *index, ns, dir string, subject, peer map[string]string, peerIP string, servicePort int32) (string, bool) {
 	for _, np := range ix.s.NetworkPolicies {
 		applies, rules := np.AppliesToIngress(), np.Spec.Ingress
 		if dir == "egress" {
@@ -156,7 +175,7 @@ func allowsServicePort(ix *index, ns, dir string, subject, peer map[string]strin
 			if dir == "egress" {
 				peers = r.To
 			}
-			if !peerAllowed(ix, ns, peers, peer) {
+			if !peerAllowed(ix, ns, peers, peer, peerIP) {
 				continue
 			}
 			for _, pp := range r.Ports {
@@ -261,9 +280,9 @@ func policyBlocksService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines [
 	}
 	bport, bname := backendPort(svc, port, *backend)
 	dir, np := "", ""
-	if sel, blk := policyVerdict(ix, ns, "Egress", p.Metadata.Labels, backend.Metadata.Labels, bport, bname); sel && blk != "" {
+	if sel, blk := policyVerdict(ix, ns, "Egress", p.Metadata.Labels, backend.Metadata.Labels, backend.Status.PodIP, bport, bname); sel && blk != "" {
 		dir, np = "egress", blk
-	} else if sel, blk := policyVerdict(ix, ns, "Ingress", backend.Metadata.Labels, p.Metadata.Labels, bport, bname); sel && blk != "" {
+	} else if sel, blk := policyVerdict(ix, ns, "Ingress", backend.Metadata.Labels, p.Metadata.Labels, p.Status.PodIP, bport, bname); sel && blk != "" {
 		dir, np = "ingress", blk
 	}
 	if np == "" {
@@ -282,11 +301,11 @@ func policyBlocksService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines [
 		sport = svc.Spec.Ports[0].Port
 	}
 	if sport != 0 && sport != bport {
-		subject, peer := p.Metadata.Labels, backend.Metadata.Labels
+		subject, peer, peerIP := p.Metadata.Labels, backend.Metadata.Labels, backend.Status.PodIP
 		if dir == "ingress" {
-			subject, peer = backend.Metadata.Labels, p.Metadata.Labels
+			subject, peer, peerIP = backend.Metadata.Labels, p.Metadata.Labels, p.Status.PodIP
 		}
-		if by, ok := allowsServicePort(ix, ns, dir, subject, peer, sport); ok {
+		if by, ok := allowsServicePort(ix, ns, dir, subject, peer, peerIP, sport); ok {
 			ev[len(ev)-1] = Evidence{Object: kube.Ref{Kind: "NetworkPolicy", Namespace: ns, Name: by},
 				What:    fmt.Sprintf("NetworkPolicy %s allows %s on port %d, and no rule allows port %d", by, dir, sport, bport),
 				Command: cmdGet("networkpolicy", ns, by, "{.spec."+dir+"}")}

@@ -970,9 +970,13 @@ type Namespace struct {
 type NetworkPolicyPeer struct {
 	PodSelector       *LabelSelector `json:"podSelector,omitempty"`
 	NamespaceSelector *LabelSelector `json:"namespaceSelector,omitempty"`
-	IPBlock           *struct {
-		CIDR string `json:"cidr"`
-	} `json:"ipBlock,omitempty"`
+	IPBlock           *IPBlock       `json:"ipBlock,omitempty"`
+}
+
+// IPBlock admits the addresses of a CIDR block, less the blocks in except.
+type IPBlock struct {
+	CIDR   string   `json:"cidr"`
+	Except []string `json:"except,omitempty"`
 }
 
 type NetworkPolicyPort struct {

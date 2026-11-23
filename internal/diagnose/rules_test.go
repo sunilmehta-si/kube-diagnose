@@ -2563,9 +2563,7 @@ func TestNetworkPolicyBlocksTheAPIServer(t *testing.T) {
 
 	// A rule with an ipBlock on 6443 might allow it: no claim.
 	api := port(6443)
-	np.Spec.Egress = append(np.Spec.Egress, kube.NetworkPolicyRule{To: []kube.NetworkPolicyPeer{{IPBlock: &struct {
-		CIDR string `json:"cidr"`
-	}{CIDR: "172.18.0.2/32"}}}, Ports: []kube.NetworkPolicyPort{{Port: &api}}})
+	np.Spec.Egress = append(np.Spec.Egress, kube.NetworkPolicyRule{To: []kube.NetworkPolicyPeer{{IPBlock: &kube.IPBlock{CIDR: "172.18.0.2/32"}}}, Ports: []kube.NetworkPolicyPort{{Port: &api}}})
 	s.NetworkPolicies = []kube.NetworkPolicy{np}
 	if f := only(t, Diagnose(s)); f.Rule == "KD267" {
 		t.Errorf("claimed a block with an ipBlock rule on 6443: %s", f.Cause)
@@ -4688,4 +4686,39 @@ func TestLivenessProbeKillsBeforeTheAppStarts(t *testing.T) {
 	p.Spec.Containers[0].StartupProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: port(8080)}}
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web")
+}
+
+func TestNetworkPolicyIPBlockIsJudgedByThePodIP(t *testing.T) {
+	s := snap()
+	web := pod("web-7d4f8-abcde", "web")
+	web.Status.PodIP = "10.244.0.17"
+	client := pod("client-5c7d9-qwert", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	crashed(&client, 1, "Error", 3)
+	s.Pods = []kube.Pod{client, web}
+	svc := service("web", map[string]string{"app": "web"}, port(8080))
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web (10.96.40.12:80)", "wget: download timed out"}}}
+	np := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "client-egress", Namespace: "shop"}}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "client"}}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	np.Spec.Egress = []kube.NetworkPolicyRule{{To: []kube.NetworkPolicyPeer{{IPBlock: &kube.IPBlock{CIDR: "192.168.0.0/16"}}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	// The block does not hold the pod's IP: the policy allows nothing the connection needs.
+	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs", "NetworkPolicy client-egress allows no egress traffic between them on port 8080")
+
+	// It holds it: allowed, so the timeout is something else.
+	s.NetworkPolicies[0].Spec.Egress[0].To[0].IPBlock.CIDR = "10.244.0.0/16"
+	if f := only(t, Diagnose(s)); f.Rule == "KD127" {
+		t.Errorf("blocked though the ipBlock holds the pod: %s", f.Cause)
+	}
+	// Excepted from it: blocked.
+	s.NetworkPolicies[0].Spec.Egress[0].To[0].IPBlock.Except = []string{"10.244.0.0/24"}
+	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs")
+	// The pod's IP is not known: assume the block may hold it.
+	s.Pods[1].Status.PodIP = ""
+	if f := only(t, Diagnose(s)); f.Rule == "KD127" {
+		t.Errorf("blocked though the pod's IP is unknown: %s", f.Cause)
+	}
 }
