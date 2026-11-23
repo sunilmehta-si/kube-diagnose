@@ -1,0 +1,59 @@
+# Role pod-reader, bound by a RoleBinding, lets the app list and watch pods in its own namespace, and the app watches the pods of all namespaces, a request at the cluster scope that only a ClusterRoleBinding grants.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rbac-all-namespaces
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: app
+  namespace: kd-rbac-all-namespaces
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: kd-rbac-all-namespaces
+rules:
+  # Lets the dashboard read the pods it shows.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: app-reads-pods
+  namespace: kd-rbac-all-namespaces
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-reader
+subjects:
+  - kind: ServiceAccount
+    name: app
+    namespace: kd-rbac-all-namespaces
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod-dashboard
+  namespace: kd-rbac-all-namespaces
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pod-dashboard
+  template:
+    metadata:
+      labels:
+        app: pod-dashboard
+    spec:
+      serviceAccountName: app
+      containers:
+        - name: dashboard
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          # Follows the pods of every namespace, as a dashboard does.
+          args: ["get", "pods", "--all-namespaces", "--watch"]

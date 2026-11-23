@@ -1,0 +1,20 @@
+{
+  "namespace": "kd-rbac-all-namespaces",
+  "description": "Role pod-reader, bound by a RoleBinding, lets the app list and watch pods in its own namespace, and the app watches the pods of all namespaces, a request at the cluster scope that only a ClusterRoleBinding grants.",
+  "rule": "KD305",
+  "object": "Deployment/pod-dashboard",
+  "keywords": [
+    [
+      "pod-reader",
+      "app-reads-pods"
+    ],
+    [
+      "all namespaces",
+      "cluster"
+    ],
+    [
+      "ClusterRoleBinding",
+      "-A"
+    ]
+  ]
+}
