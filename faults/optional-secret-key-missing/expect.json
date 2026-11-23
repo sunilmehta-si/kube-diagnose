@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-optional-secret-key-missing",
+  "description": "DATABASE_URL comes from key url of Secret db-credentials, marked optional, and the Secret holds the value under uri, so the variable is left unset and the api exits.",
+  "rule": "KD235",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "DATABASE_URL"
+    ],
+    [
+      "url"
+    ],
+    [
+      "optional"
+    ]
+  ]
+}
