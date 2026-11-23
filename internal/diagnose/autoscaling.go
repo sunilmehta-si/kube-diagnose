@@ -138,6 +138,7 @@ func hpaTargetKind(h kube.HorizontalPodAutoscaler) *Finding {
 				want = g + "/v1"
 			}
 			fix = fmt.Sprintf("Set scaleTargetRef.apiVersion to %s: %ss are served from %s, and %s is an old version the API no longer serves.", want, kind, want, api)
+			cause += fmt.Sprintf(" (%ss are served from %s)", kind, want)
 		case k != kind && strings.EqualFold(k, kind):
 			fix = fmt.Sprintf("Write the kind as %s, with its capital letters: kinds are case-sensitive.", k)
 		}

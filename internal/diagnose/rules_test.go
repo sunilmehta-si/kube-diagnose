@@ -4620,7 +4620,7 @@ func TestHPATargetKindNotServed(t *testing.T) {
 	h.Spec.ScaleTargetRef.APIVersion = "extensions/v1beta1"
 	s.HPAs = []kube.HorizontalPodAutoscaler{h}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD293", "HorizontalPodAutoscaler shop/web", `names its target as kind Deployment in apiVersion extensions/v1beta1, and the cluster serves no Deployment in API group "extensions"`)
+	expect(t, f, "KD293", "HorizontalPodAutoscaler shop/web", `names its target as kind Deployment in apiVersion extensions/v1beta1, and the cluster serves no Deployment in API group "extensions"`, "(Deployments are served from apps/v1)")
 	if f.Fix != "Set scaleTargetRef.apiVersion to apps/v1: Deployments are served from apps/v1, and extensions/v1beta1 is an old version the API no longer serves." {
 		t.Errorf("fix: %s", f.Fix)
 	}
