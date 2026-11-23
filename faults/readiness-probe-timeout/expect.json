@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-readiness-probe-timeout",
+  "description": "The app answers its health check after about three seconds, and the readiness probe gives up after its default timeoutSeconds of 1, so the pod never becomes ready.",
+  "rule": "KD120",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "timeoutSeconds",
+      "times out",
+      "timed out"
+    ],
+    [
+      "readiness"
+    ],
+    [
+      "1s"
+    ]
+  ]
+}

@@ -1,0 +1,34 @@
+# The app answers its health check after about three seconds, and the readiness probe gives up after its default timeoutSeconds of 1, so the pod never becomes ready.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-readiness-probe-timeout
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-readiness-probe-timeout
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Answers each request after about three seconds, as an app whose health check queries its database does.
+          command: ["sh", "-c", "while true; do (sleep 3; printf 'HTTP/1.0 200 OK\\r\\nContent-Length: 2\\r\\n\\r\\nok') | nc -l -p 8080 >/dev/null 2>&1; done"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 5
