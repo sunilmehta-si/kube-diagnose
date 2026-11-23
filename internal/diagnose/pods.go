@@ -1690,6 +1690,14 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			cause += ": " + what
 			fix = how
 		}
+		if probeTimedOut(ix, p, cs.Name, "readiness") && c.ReadinessProbe != nil {
+			limit := c.ReadinessProbe.TimeoutSeconds
+			if limit == 0 {
+				limit = 1 // the API's default
+			}
+			cause = fmt.Sprintf("container %s runs but its readiness probe times out: the app does not answer within the probe's %ds timeoutSeconds, so it gets no traffic", cs.Name, limit)
+			fix = fmt.Sprintf("Raise the readiness probe's timeoutSeconds above how long the check takes (it is %ds), or make the health check cheaper: one that waits on a database or another service is slow whenever they are.", limit)
+		}
 		if exe := probeExecMissing(ix, p, cs.Name, "readiness"); exe != "" {
 			cause = fmt.Sprintf("container %s's readiness probe %s, so the probe can never pass and the container gets no traffic", cs.Name, probeExecWhy(exe, imageOf(p, cs)))
 			fix = probeExecFix(exe)
@@ -1807,7 +1815,7 @@ func csiMissing(p kube.Pod, driver string, e kube.Event) *problem {
 }
 
 // reProbeTimeout matches the kubelet's report that an HTTP, TCP or exec probe ran out of time.
-var reProbeTimeout = regexp.MustCompile(`Client\.Timeout exceeded|context deadline exceeded|command timed out|i/o timeout`)
+var reProbeTimeout = regexp.MustCompile(`Client\.Timeout exceeded|context deadline exceeded|command timed out|command ".*" timed out|i/o timeout`)
 
 // probeTimedOut reports whether the newest failure of the probe of the given kind was a timeout.
 func probeTimedOut(ix *index, p kube.Pod, container, kind string) bool {

@@ -4819,3 +4819,23 @@ func TestOOMKilledByTheAppsOwnMemorySetting(t *testing.T) {
 		t.Errorf("named a setting below the limit: %s", f.Cause)
 	}
 }
+
+func TestReadinessProbeTimesOut(t *testing.T) {
+	s := snap()
+	p := pod("web", "")
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/healthz", Port: port(8080)}, PeriodSeconds: 5}
+	p.Status.ContainerStatuses[0].Ready = false
+	s.Pods = []kube.Pod{p}
+	e := event("Pod", "web", "Unhealthy", `Readiness probe failed: Get "http://10.244.0.7:8080/healthz": context deadline exceeded (Client.Timeout exceeded while awaiting headers)`, time.Minute)
+	e.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD120", "Pod shop/web", "its readiness probe times out: the app does not answer within the probe's 1s timeoutSeconds")
+	if !strings.HasPrefix(f.Fix, "Raise the readiness probe's timeoutSeconds") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// An exec probe's timeout, as the kubelet reports it.
+	s.Pods[0].Spec.Containers[0].ReadinessProbe = &kube.Probe{Exec: &kube.ExecAction{Command: []string{"sh", "-c", "check-db"}}, TimeoutSeconds: 2}
+	s.Events[0].Message = `Readiness probe failed: command "sh -c check-db" timed out`
+	expect(t, only(t, Diagnose(s)), "KD120", "Pod shop/web", "within the probe's 2s timeoutSeconds")
+}
