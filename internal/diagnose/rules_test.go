@@ -4839,3 +4839,35 @@ func TestReadinessProbeTimesOut(t *testing.T) {
 	s.Events[0].Message = `Readiness probe failed: command "sh -c check-db" timed out`
 	expect(t, only(t, Diagnose(s)), "KD120", "Pod shop/web", "within the probe's 2s timeoutSeconds")
 }
+
+func TestOptionalKeyMissingLeavesAVariableUnset(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	yes := true
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "DATABASE_URL", ValueFrom: &kube.EnvVarSource{SecretKeyRef: &kube.KeyRef{Name: "db", Key: "url", Optional: &yes}}}}
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Secrets = []kube.KeySet{{Name: "db", Namespace: "shop", Type: "Opaque", Keys: []string{"uri"}}}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"starting api", "fatal: DATABASE_URL is not set"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD235", "Deployment shop/api", "DATABASE_URL is unset: it comes from key url of Secret db, marked optional, and Secret db has no key url (it has uri)")
+	if !strings.HasPrefix(f.Fix, "Add key url to Secret db, or point DATABASE_URL at the key it has") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The Secret does not exist at all.
+	s.Secrets = nil
+	expect(t, only(t, Diagnose(s)), "KD235", "Deployment shop/api", "there is no Secret db in namespace shop")
+
+	// Not optional: the kubelet refuses to start the container, which is KD131's to report, not this.
+	s.Pods[0].Spec.Containers[0].Env[0].ValueFrom.SecretKeyRef.Optional = nil
+	if f := only(t, Diagnose(s)); f.Rule == "KD235" {
+		t.Errorf("%+v", f)
+	}
+	// The log names another variable: no claim.
+	s.Pods[0].Spec.Containers[0].Env[0].ValueFrom.SecretKeyRef.Optional = &yes
+	s.Logs[0].Lines = []string{"fatal: DATABASE_URL_RO is not set"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD235" {
+		t.Errorf("%+v", f)
+	}
+}

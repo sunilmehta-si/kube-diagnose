@@ -3,6 +3,7 @@ package diagnose
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
@@ -269,4 +270,81 @@ func serviceLinkOverride(ix *index, p kube.Pod, cs kube.ContainerStatus, lines [
 		}
 	}
 	return nil
+}
+
+// reVarUnset matches a log line that says a variable has no value.
+var reVarUnset = regexp.MustCompile(`(?i)not set|missing|required|is empty|undefined|unset|no value`)
+
+// optionalEnvMissing finds a container that exits because a variable it needs is unset, where the variable comes
+// from a ConfigMap or Secret key marked optional and that key, or the whole object, does not exist. For an optional
+// reference the kubelet leaves the variable out rather than refuse to start the container, so the mistake shows only
+// as the app's own complaint.
+func optionalEnvMissing(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	ns := p.Metadata.Namespace
+	for _, e := range c.Env {
+		if e.ValueFrom == nil {
+			continue
+		}
+		kind, ref := "configmap", e.ValueFrom.ConfigMapKeyRef
+		if ref == nil {
+			kind, ref = "secret", e.ValueFrom.SecretKeyRef
+		}
+		if ref == nil || ref.Optional == nil || !*ref.Optional {
+			continue
+		}
+		ks, exists, known := ix.keySet(kind, ns, ref.Name)
+		if !known || exists && slices.Contains(ks.Keys, ref.Key) {
+			continue
+		}
+		line := ""
+		for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+			if wordIn(lines[i], e.Name) && reVarUnset.MatchString(lines[i]) {
+				line = lines[i]
+			}
+		}
+		if line == "" {
+			continue
+		}
+		kindName := map[string]string{"configmap": "ConfigMap", "secret": "Secret"}[kind]
+		why := fmt.Sprintf("there is no %s %s in namespace %s", kindName, ref.Name, ns)
+		if exists {
+			have := "no keys"
+			if len(ks.Keys) > 0 {
+				have = strings.Join(ks.Keys, ", ")
+			}
+			why = fmt.Sprintf("%s %s has no key %s (it has %s)", kindName, ref.Name, ref.Key, have)
+		}
+		cause := fmt.Sprintf("container %s exits because %s is unset: it comes from key %s of %s %s, marked optional, and %s, so the kubelet left the variable out instead of refusing to start the container; its log says: %q",
+			cs.Name, e.Name, ref.Key, kindName, ref.Name, why, clip(line, 200))
+		fix := fmt.Sprintf("Add key %s to %s %s, or point %s at the key it has; and drop optional: true if the app cannot run without it, so that a missing key stops the container with a clear error instead.", ref.Key, kindName, ref.Name, e.Name)
+		return newProblem(p, cs.Name, "KD235", "Optional key is missing, so a variable the app needs is unset", Critical, cause,
+			"optenv|"+e.Name, fix, append(ev, Evidence{Object: kube.Ref{Kind: kindName, Namespace: ns, Name: ref.Name}, What: why,
+				Command: cmdGet(kind, ns, ref.Name, "{.data}")},
+				Evidence{Object: p.Ref(), What: fmt.Sprintf("%s comes from %s %s key %s, optional", e.Name, kindName, ref.Name, ref.Key),
+					Command: cmdGet("pod", ns, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].env}`, cs.Name))})...)
+	}
+	return nil
+}
+
+// wordIn reports whether name occurs in line as a whole word.
+func wordIn(line, name string) bool {
+	for i := strings.Index(line, name); i >= 0; {
+		end := i + len(name)
+		before := i == 0 || !isIdent(line[i-1])
+		after := end == len(line) || !isIdent(line[end])
+		if before && after {
+			return true
+		}
+		j := strings.Index(line[i+1:], name)
+		if j < 0 {
+			break
+		}
+		i += 1 + j
+	}
+	return false
+}
+
+func isIdent(b byte) bool {
+	return b == '_' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
