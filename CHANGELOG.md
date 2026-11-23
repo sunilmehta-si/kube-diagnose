@@ -2,6 +2,53 @@
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-23
+
+- The fault suite's committed run (45167155607): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 181 of 181 faults and raises no false alarm; k8sgpt v0.4.41 names 36, 10 of them first.
+
+### Added
+- 14 rules, 181 in all (`docs/rules.md`). KD3xx continues an area whose KD2xx numbers are used up: KD300 and on are
+  running the container, KD360 and on Services and networking.
+  - RBAC, each read from the API server's refusal and the Roles bound to the ServiceAccount: a Role that grants the
+    resource in another API group, deployments in "" instead of apps (KD300); one that names a resource the API does
+    not have, configmap for configmaps (KD301); one that grants the resource but not the verb, get and list where the
+    app also watches (KD302); one that limits a list or watch by resourceNames, which those requests never match
+    (KD303); a permission granted in another namespace than the one the app reads (KD304); and a RoleBinding asked
+    for a cluster-wide request, across all namespaces or of nodes, which only a ClusterRoleBinding grants (KD305);
+  - scheduling: a topology spread constraint over a node label no node has, topology.kubernetes.io/zone on kind or
+    bare metal (KD245), and a required pod affinity to pods that do not exist (KD246);
+  - volumes and configuration: a ConfigMap or Secret mounted whole where the app reads a file, without subPath
+    (KD233), and a variable left unset because the optional key or envFrom object it comes from does not exist
+    (KD235);
+  - probes: a liveness probe that kills the app before it has started, with no startupProbe (KD306);
+  - networking: a NetworkPolicy that allows a Service's cluster IP by ipBlock, which a policy never sees (KD360), and
+    an app given a Service's old cluster IP in place of its name (KD361);
+  - autoscaling: an HPA that names its target with a kind or apiVersion the cluster does not serve, a Deployment in
+    extensions/v1beta1 (KD293).
+- 21 fault scenarios, 181 broken namespaces in all: one for each new rule, a second for KD305 and KD235, and one each
+  for the existing rules' new causes below. The RBAC ones run kubectl (registry.k8s.io/kubectl v1.37.2, pinned by
+  digest in `faults/versions.env`), which prints the API server's refusal as client-go apps do.
+- The snapshot holds a pod's topologySpreadConstraints, a node's container runtime, an HPA target's apiVersion and a
+  NetworkPolicy ipBlock's except list.
+
+### Changed
+- KD141 names the expressions of a required node affinity that no node meets, with the values the nodes have, and
+  says when a nodeSelector pins pods by hostname to a node that does not exist.
+- KD135 says when the Docker socket is mounted on a node that runs containerd, and shows the node's container runtime
+  whenever it is known.
+- KD111 names the app's own memory setting when it is above the limit: -Xmx, --max-old-space-size, GOMEMLIMIT, or a
+  variable such as CACHE_SIZE_MB.
+- KD120 says when a readiness probe times out, as KD112 did for liveness probes.
+- A NetworkPolicy ipBlock is judged against the other pod's IP; before, any ipBlock counted as allowing every pod.
+
+### Fixed
+- An out-of-memory kill that the runtime reported as Error lost the LimitRange that had set the limit from its cause.
+- A Service whose pods wait for a claim was reported as a finding of its own, ahead of the claim; it is listed under
+  the claim's finding now.
+- A container caught between a failed postStart hook and the kubelet's back-off (waiting in PostStartHookError) gave
+  no finding; it is KD116.
+
 ## [0.12.0] - 2026-11-22
 
 - The fault suite's committed run (44996999466): kube-diagnose names the root cause in its first finding, with the

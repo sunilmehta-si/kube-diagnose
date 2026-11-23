@@ -408,6 +408,17 @@ the policy scenarios now call every five seconds. A twentieth scenario, an admis
 exist, was taken out again: a webhook configuration belongs to no namespace, and k8sgpt reported it in every namespace
 it scanned, the healthy one included, so one fault would have counted against it 160 times. KD277 has unit tests
 instead.
+The 21 added for 0.13.0 were named first, with the exact rule and object, on their first run, but for three. Two had the
+right rule and object without the words of the root cause: the ConfigMap mounted as a directory was not said to be
+mounted without subPath, and the HPA on extensions/v1beta1 was not told that Deployments are served from apps/v1; both
+causes say so now. The third missed through its own fault: its server answered three seconds after it began listening,
+not after each request, so later probes were answered at once; its health check is a slow command now. An older scenario
+missed once, when the runtime reported its out-of-memory kill as Error and the cause written for that case dropped the
+LimitRange that had set the limit. A twenty-second scenario, a claim with storageClassName "" and no volume to bind, was
+taken out again: on the suite's one cluster, other scenarios' volumes have no class either, and kube-diagnose named the
+nearest of them, a Released volume, which is what the cluster held. It showed a gap all the same: the Service of the
+waiting pod was reported ahead of the claim, and is listed under it now. Replaying the committed run showed one more: a
+container caught in PostStartHookError, between its hook's failure and the back-off, which gave no finding.
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and
 `make test` replays all of them through the current code.
 
