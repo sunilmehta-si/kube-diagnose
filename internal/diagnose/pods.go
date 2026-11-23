@@ -1091,8 +1091,10 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		// runtime sometimes reports such a kill as Error rather than OOMKilled, when it lands as the container starts.
 		pr := oomKilled(ix, p, cs)
 		if pr.rule == "KD111" {
+			// Keep what oomKilled adds after its first clause: a limit the LimitRange set, the app's own setting.
+			first := fmt.Sprintf("container %s uses more than its %s memory limit and is killed (OOMKilled)", cs.Name, c.Resources.Limits["memory"])
 			pr.cause = fmt.Sprintf("container %s is killed by SIGKILL (exit 137) with no probe or hook behind it, and it has a %s memory limit: it runs out of memory, though the runtime reported the kill as %s, not OOMKilled",
-				cs.Name, c.Resources.Limits["memory"], orReason(t.Reason))
+				cs.Name, c.Resources.Limits["memory"], orReason(t.Reason)) + strings.TrimPrefix(pr.cause, first)
 		}
 		return pr
 	}

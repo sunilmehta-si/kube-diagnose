@@ -2907,6 +2907,12 @@ func TestOOMKilledAtALimitRangeDefault(t *testing.T) {
 		t.Errorf("fix %q, %d evidence", f.Fix, len(f.Evidence))
 	}
 
+	// The runtime reports the kill as Error, as it did once in the fault suite: the LimitRange is still named.
+	crashed(&p, 137, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD111", "ReplicaSet shop/worker-rs", "reported the kill as Error, not OOMKilled", "LimitRange gave it its default")
+	crashed(&p, 137, "OOMKilled", 4)
+
 	// A limit the pod template set itself: the LimitRange is not blamed, even if it defaulted the request.
 	p.Metadata.Annotations["kubernetes.io/limit-ranger"] = "LimitRanger plugin set: memory request for container web"
 	s.Pods = []kube.Pod{p}
