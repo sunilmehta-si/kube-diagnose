@@ -4417,3 +4417,20 @@ func TestRoleNamesAResourceThatDoesNotExist(t *testing.T) {
 	s.Roles[0].Rules[0].APIGroups, s.Roles[0].Rules[0].Resources = []string{""}, []string{"configmaps"}
 	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }
+
+func TestRoleGrantsTheResourceButNotTheVerb(t *testing.T) {
+	s, _ := rbacSnapshot()
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"configmaps"}, Verbs: []string{"get", "list"}}}
+	kubectlDenied(s, "watch", "configmaps", "", `in the namespace "shop"`)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD302", "ReplicaSet shop/worker-rs", "it may not watch configmaps in namespace shop",
+		"Role configmap-reader grants get, list on configmaps, and not watch (a client that follows changes")
+	if !strings.Contains(f.Fix, `Add "watch" to the verbs of the rule of Role configmap-reader that names configmaps`) {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Roles[0].Rules[0].Verbs = []string{"get"}
+	kubectlDenied(s, "list", "configmaps", "", `in the namespace "shop"`)
+	expect(t, only(t, Diagnose(s)), "KD302", "ReplicaSet shop/worker-rs", "grants get on configmaps, and not list (get reads one object by name")
+	s.Roles[0].Rules[0].Verbs = []string{"*"}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}

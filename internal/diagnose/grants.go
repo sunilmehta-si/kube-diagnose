@@ -118,7 +118,8 @@ func groupName(g string) string {
 }
 
 // grantNearMiss finds a container that the API server refuses while a Role bound to its ServiceAccount nearly grants
-// the request: the rule names the resource in another API group, or names it with a slip (configmap for configmaps). Nil when a Role grants the request in full (the
+// the request: the rule leaves out the verb, names the resource in another API group, or names it with a slip
+// (configmap for configmaps). Nil when a Role grants the request in full (the
 // refusal is then something else) or nothing comes near it (KD126 names what to grant).
 func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
 	d, ok := lastDenial(lines)
@@ -139,6 +140,16 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 	}
 	sort.SliceStable(here, func(i, j int) bool { return here[i].role.Metadata.Name < here[j].role.Metadata.Name })
 	prefix := fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: it may not %s %s %s", cs.Name, d.sa, d.verb, d.res(), d.scope())
+	for _, g := range here {
+		r := g.rule
+		if allows(r.APIGroups, d.group) && allows(r.Resources, d.resource) && !allows(r.Verbs, d.verb) {
+			cause := fmt.Sprintf("%s. Role %s grants %s on %s, and not %s%s; its log says: %q",
+				prefix, g.role.Metadata.Name, strings.Join(r.Verbs, ", "), d.resource, d.verb, verbNote(d.verb, r.Verbs), clip(d.line, 200))
+			fix := fmt.Sprintf("Add %q to the verbs of the rule of Role %s that names %s.", d.verb, g.role.Metadata.Name, d.resource)
+			return newProblem(p, cs.Name, "KD302", "Role grants the resource but not the verb", Critical, cause,
+				"rbacverb|"+g.role.Metadata.Name+"|"+d.res()+"|"+d.verb, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
+		}
+	}
 	for _, g := range here {
 		r := g.rule
 		if allows(r.Resources, d.resource) && allows(r.Verbs, d.verb) && !allows(r.APIGroups, d.group) {
@@ -166,6 +177,17 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 		}
 	}
 	return nil
+}
+
+// verbNote explains a verb that is easy to leave out.
+func verbNote(verb string, have []string) string {
+	switch {
+	case verb == "list" && allows(have, "get"):
+		return " (get reads one object by name; reading them all is list)"
+	case verb == "watch":
+		return " (a client that follows changes, as an informer or kubectl get --watch does, lists and then watches)"
+	}
+	return ""
 }
 
 // resourceLike reports whether a Role's resource name is a slip for the one the API uses: another case, the singular,
