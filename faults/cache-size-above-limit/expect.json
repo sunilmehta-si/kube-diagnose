@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-cache-size-above-limit",
+  "description": "The cache is configured with CACHE_SIZE_MB=128 and fills it at start, and its memory limit is 64Mi, so it is OOMKilled every time.",
+  "rule": "KD111",
+  "object": "Deployment/cache",
+  "keywords": [
+    [
+      "CACHE_SIZE_MB"
+    ],
+    [
+      "64Mi",
+      "limit"
+    ],
+    [
+      "OOMKilled",
+      "memory"
+    ]
+  ]
+}
