@@ -291,6 +291,11 @@ func policyBlocksService(ix *index, p kube.Pod, cs kube.ContainerStatus, lines [
 	if pr := blockedByNamespaceSelector(ix, p, cs, svc, dir, p.Metadata.Labels, backend.Metadata.Labels, bport, bname, line, ev); pr != nil {
 		return pr
 	}
+	if dir == "egress" {
+		if pr := clusterIPBlock(ix, p, cs, svc, *backend, bport, line, ev); pr != nil {
+			return pr
+		}
+	}
 	ref := kube.Ref{Kind: "NetworkPolicy", Namespace: ns, Name: np}
 	ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("NetworkPolicy %s restricts %s and no %s rule in the namespace allows %s pods to port %d of %s pods",
 		np, map[string]string{"egress": "the client's egress", "ingress": "the backends' ingress"}[dir], dir, kube.FormatMap(p.Metadata.Labels), bport, kube.FormatMap(backend.Metadata.Labels)),
@@ -581,6 +586,45 @@ func blockedByNamespaceSelector(ix *index, p kube.Pod, cs kube.ContainerStatus, 
 				Evidence{Object: kube.Ref{Kind: "Namespace", Name: "*"}, What: fmt.Sprintf("none of the %d namespaces has labels %s", len(ix.s.NamespaceObjects), selectorString(d.sel)), Command: "kubectl get namespaces --show-labels"})
 			return newProblem(p, cs.Name, "KD274", "NetworkPolicy's namespaceSelector matches no namespace", Critical, cause,
 				"npns|"+svc.Metadata.Name+"|"+np.Metadata.Name, namespaceSelectorFix(np, d, meant), ev...)
+		}
+	}
+	return nil
+}
+
+// clusterIPBlock finds an egress rule that allows a Service's cluster IP by ipBlock. A policy is checked after the
+// Service has forwarded the connection, against the IP of the pod it went to, so a block holding only the cluster IP
+// allows nothing: the connection is dropped and the client times out.
+func clusterIPBlock(ix *index, p kube.Pod, cs kube.ContainerStatus, svc kube.Service, backend kube.Pod, bport int32, line string, ev []Evidence) *problem {
+	ip := svc.Spec.ClusterIP
+	if ip == "" || ip == "None" {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	for _, np := range ix.s.NetworkPolicies {
+		if np.Metadata.Namespace != ns || !np.AppliesToEgress() || !np.Spec.PodSelector.Matches(p.Metadata.Labels) {
+			continue
+		}
+		for _, r := range np.Spec.Egress {
+			for _, pe := range r.To {
+				if pe.IPBlock == nil || !inBlock(pe.IPBlock.CIDR, pe.IPBlock.Except, ip) {
+					continue
+				}
+				podIP := "the pods' IPs"
+				if backend.Status.PodIP != "" {
+					podIP = fmt.Sprintf("the pods' IPs, such as %s", backend.Status.PodIP)
+				}
+				cause := fmt.Sprintf("container %s exits because its connection to Service %s times out: NetworkPolicy %s allows egress to ipBlock %s, which holds the Service's cluster IP %s, but a policy is checked after the Service has forwarded the connection, against %s, which no rule allows; a blocked connection is dropped, not refused; its log says: %q",
+					cs.Name, svc.Metadata.Name, np.Metadata.Name, pe.IPBlock.CIDR, ip, podIP, clip(line, 200))
+				fix := fmt.Sprintf("In NetworkPolicy %s, replace the ipBlock with a podSelector for the Service's pods (%s) on port %d, the pods' port: an ipBlock is for addresses outside the cluster, and a policy never sees a Service's cluster IP.",
+					np.Metadata.Name, kube.FormatMap(svc.Spec.Selector), bport)
+				return newProblem(p, cs.Name, "KD360", "NetworkPolicy allows a Service's cluster IP, which policies never see", Critical, cause,
+					"npclusterip|"+np.Metadata.Name+"|"+svc.Metadata.Name, fix,
+					append(ev, Evidence{Object: kube.Ref{Kind: "NetworkPolicy", Namespace: ns, Name: np.Metadata.Name},
+						What:    fmt.Sprintf("NetworkPolicy %s allows egress to ipBlock %s", np.Metadata.Name, pe.IPBlock.CIDR),
+						Command: cmdGet("networkpolicy", ns, np.Metadata.Name, "{.spec.egress}")},
+						Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s has cluster IP %s", svc.Metadata.Name, ip),
+							Command: cmdGet("service", ns, svc.Metadata.Name, "{.spec.clusterIP}")})...)
+			}
 		}
 	}
 	return nil

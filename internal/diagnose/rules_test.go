@@ -4722,3 +4722,33 @@ func TestNetworkPolicyIPBlockIsJudgedByThePodIP(t *testing.T) {
 		t.Errorf("blocked though the pod's IP is unknown: %s", f.Cause)
 	}
 }
+
+func TestNetworkPolicyAllowsTheServiceClusterIP(t *testing.T) {
+	s := snap()
+	web := pod("web-7d4f8-abcde", "web")
+	web.Status.PodIP = "10.244.0.17"
+	client := pod("client-5c7d9-qwert", "client")
+	client.Metadata.Labels = map[string]string{"app": "client"}
+	crashed(&client, 1, "Error", 3)
+	s.Pods = []kube.Pod{client, web}
+	svc := service("web", map[string]string{"app": "web"}, port(8080))
+	svc.Spec.ClusterIP = "10.96.0.200"
+	s.Services = []kube.Service{svc}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.Logs = []snapshot.Log{{Pod: client.Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to web (10.96.0.200:80)", "wget: download timed out"}}}
+	eighty := kube.IntOrString{Int: 80}
+	np := kube.NetworkPolicy{Metadata: kube.ObjectMeta{Name: "client-egress", Namespace: "shop"}}
+	np.Spec.PodSelector = kube.LabelSelector{MatchLabels: map[string]string{"app": "client"}}
+	np.Spec.PolicyTypes = []string{"Egress"}
+	np.Spec.Egress = []kube.NetworkPolicyRule{{To: []kube.NetworkPolicyPeer{{IPBlock: &kube.IPBlock{CIDR: "10.96.0.200/32"}}}, Ports: []kube.NetworkPolicyPort{{Port: &eighty}}}}
+	s.NetworkPolicies = []kube.NetworkPolicy{np}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD360", "ReplicaSet shop/client-rs", "NetworkPolicy client-egress allows egress to ipBlock 10.96.0.200/32, which holds the Service's cluster IP 10.96.0.200",
+		"against the pods' IPs, such as 10.244.0.17, which no rule allows")
+	if !strings.Contains(f.Fix, "replace the ipBlock with a podSelector for the Service's pods (app=web) on port 8080") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A block that holds neither: the plain KD127.
+	s.NetworkPolicies[0].Spec.Egress[0].To[0].IPBlock.CIDR = "192.168.0.0/16"
+	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs")
+}
