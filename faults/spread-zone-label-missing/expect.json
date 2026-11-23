@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-spread-zone-label-missing",
+  "description": "The Deployment spreads its pods over topology.kubernetes.io/zone with whenUnsatisfiable DoNotSchedule, and kind's node has no zone label, so the scheduler rejects it and the pods stay Pending.",
+  "rule": "KD245",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "topology.kubernetes.io/zone"
+    ],
+    [
+      "no node",
+      "none of"
+    ],
+    [
+      "label"
+    ]
+  ]
+}
