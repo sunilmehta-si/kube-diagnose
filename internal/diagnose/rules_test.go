@@ -4580,3 +4580,37 @@ func TestDockerSocketOnAContainerdNode(t *testing.T) {
 	s.Nodes[0].Status.NodeInfo.ContainerRuntimeVersion = ""
 	expect(t, only(t, Diagnose(s)), "KD135", "Pod shop/builder", "which is not a socket file on node node-1")
 }
+
+func TestVolumeMountedAsADirectoryWhereAFileIsRead(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	crashed(&p, 1, "Error", 3)
+	p.Spec.Volumes = []kube.Volume{{Name: "config", ConfigMap: &kube.ConfigMapVolumeSource{Name: "app-config"}}}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "config", MountPath: "/etc/app/config.yaml"}}
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{{Name: "app-config", Namespace: "shop", Keys: []string{"config.yaml"}}}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"loading settings", "error: read /etc/app/config.yaml: is a directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD233", "Deployment shop/web", "it reads /etc/app/config.yaml as a file, and /etc/app/config.yaml is where volume config (ConfigMap app-config) is mounted",
+		"a directory holding the volume's files (config.yaml)")
+	if !strings.Contains(f.Fix, "Mount the volume at /etc/app, so that /etc/app/config.yaml is the file of key config.yaml in it") ||
+		!strings.Contains(f.Fix, "subPath: config.yaml (a subPath mount does not follow later changes to the ConfigMap)") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// Python's wording, and a key named otherwise.
+	s.ConfigMaps[0].Keys = []string{"settings.yaml"}
+	s.Logs[0].Lines = []string{`IsADirectoryError: [Errno 21] Is a directory: '/etc/app/config.yaml'`}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD233", "Deployment shop/web", "(settings.yaml)")
+	if !strings.Contains(f.Fix, "The volume has no key config.yaml") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// The path is inside the mount: not this.
+	s.Logs[0].Lines = []string{"error: read /etc/app/config.yaml/x: is a directory"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD233" {
+		t.Errorf("%+v", f)
+	}
+}

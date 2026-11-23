@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	pathpkg "path"
 	"regexp"
 	"slices"
 	"strings"
@@ -431,6 +432,45 @@ func nonRootDenied(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evi
 			"nonroot|"+path,
 			fmt.Sprintf("Give the app a place it may write: mount an emptyDir at %s (or its parent directory) and set the pod's fsGroup, or point the app at a writable directory such as /tmp. Or build the image so that %s belongs to the user it runs as.", path, path),
 			ev...)
+	}
+	return nil
+}
+
+var reIsDir = regexp.MustCompile(`(?i)is a directory`)
+
+// mountedAsDirectory finds a container that exits because a path it reads as a file is where a ConfigMap or Secret
+// volume is mounted whole. The kubelet makes the mount point a directory holding the volume's keys, so the app finds
+// a directory where it expects its file: a mountPath written for the file, without subPath.
+func mountedAsDirectory(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !reIsDir.MatchString(lines[i]) {
+			continue
+		}
+		for _, pm := range rePath.FindAllStringSubmatch(lines[i], -1) {
+			file := strings.TrimRight(pm[1], "/")
+			m, ok := p.MountAt(cs.Name, file)
+			if !ok || m.Rel != "" || m.SubPath != "" || !m.Volume.AlwaysReadOnly() || m.Volume.DownwardAPI != nil {
+				continue
+			}
+			_, _, files, known := ix.volumeFiles(p.Metadata.Namespace, m.Volume)
+			base, dir := pathpkg.Base(file), pathpkg.Dir(file)
+			held := ""
+			if known {
+				held = " (" + strings.Join(files, ", ") + ")"
+				if len(files) == 0 {
+					held = " (it has none)"
+				}
+			}
+			cause := fmt.Sprintf("container %s exits because it reads %s as a file, and %s is where volume %s (%s) is mounted, so the path is a directory holding the volume's files%s; its log says: %q",
+				cs.Name, file, file, m.Name, m.Volume.Source(), held, clip(lines[i], 200))
+			fix := fmt.Sprintf("Mount the volume at %s, so that %s is the file of key %s in it (other files of the image in %s are then hidden), or mount only that key at %s with subPath: %s (a subPath mount does not follow later changes to the %s).",
+				dir, file, base, dir, file, base, strings.SplitN(m.Volume.Source(), " ", 2)[0])
+			if known && !slices.Contains(files, base) {
+				fix = fmt.Sprintf("Mount the volume at a directory, %s for example, and point the app at the file in it; or mount one key at %s with subPath set to that key. The volume has no key %s, so one of them must be renamed too.", dir, file, base)
+			}
+			return newProblem(p, cs.Name, "KD233", "Volume is mounted as a directory where the app reads a file", Critical, cause,
+				"mountdir|"+m.Name+"|"+file, fix, append(ev, mountEvidence(p, cs.Name, m))...)
+		}
 	}
 	return nil
 }
