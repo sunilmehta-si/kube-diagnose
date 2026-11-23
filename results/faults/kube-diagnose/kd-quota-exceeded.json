@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-quota-exceeded"
   ],
-  "collectedAt": "2026-11-22 07:20 UTC",
+  "collectedAt": "2026-11-23 11:47 UTC",
   "findings": [
     {
       "rule": "KD170",
@@ -23,8 +23,8 @@
             "namespace": "kd-quota-exceeded",
             "name": "web-54b9bbc47f"
           },
-          "what": "event FailedCreate (8 times)",
-          "detail": "(combined from similar events): Error creating: pods \"web-54b9bbc47f-k7md7\" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=1, limited: pods=1",
+          "what": "event FailedCreate (9 times)",
+          "detail": "(combined from similar events): Error creating: pods \"web-54b9bbc47f-949mh\" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=1, limited: pods=1",
           "command": "kubectl get events -n kd-quota-exceeded --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-54b9bbc47f"
         },
         {

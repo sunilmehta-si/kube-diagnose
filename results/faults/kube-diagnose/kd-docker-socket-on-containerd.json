@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-docker-socket-on-containerd"
+  ],
+  "collectedAt": "2026-11-23 11:44 UTC",
+  "findings": [
+    {
+      "rule": "KD135",
+      "title": "hostPath does not exist on the node",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-docker-socket-on-containerd",
+        "name": "image-builder"
+      },
+      "cause": "volume docker mounts the Docker socket /var/run/docker.sock, and node kd-faults-control-plane runs containerd://2.3.4, not Docker, so there is no such socket and the pod cannot start; Deployment image-builder has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-docker-socket-on-containerd",
+            "name": "image-builder-86979f57d7-gx7ls"
+          },
+          "what": "event FailedMount (9 times)",
+          "detail": "MountVolume.SetUp failed for volume \"docker\" : hostPath type check failed, /var/run/docker.sock is not a socket file, unable to determine its type: path \"/var/run/docker.sock\" does not exist",
+          "command": "kubectl get events -n kd-docker-socket-on-containerd --field-selector involvedObject.kind=Pod,involvedObject.name=image-builder-86979f57d7-gx7ls"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-docker-socket-on-containerd",
+            "name": "image-builder-86979f57d7-gx7ls"
+          },
+          "what": "volume docker",
+          "command": "kubectl get pod image-builder-86979f57d7-gx7ls -n kd-docker-socket-on-containerd -o jsonpath='{.spec.volumes[?(@.name==\"docker\")]}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "kd-faults-control-plane"
+          },
+          "what": "container runtime containerd://2.3.4",
+          "command": "kubectl get node kd-faults-control-plane -o jsonpath='{.status.nodeInfo.containerRuntimeVersion}'"
+        }
+      ],
+      "fix": "Talk to the node's runtime through its own socket (/run/containerd/containerd.sock for containerd, with a client such as crictl or nerdctl), or, to build images, use a builder that needs no daemon (BuildKit rootless, kaniko, buildah); Kubernetes has not run on Docker Engine since 1.24 unless cri-dockerd was installed.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-docker-socket-on-containerd",
+          "name": "image-builder-86979f57d7-gx7ls"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

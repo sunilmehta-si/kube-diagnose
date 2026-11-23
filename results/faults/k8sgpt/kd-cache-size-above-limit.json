@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-cache-size-above-limit/cache",
+      "error": [
+        {
+          "Text": "Deployment kd-cache-size-above-limit/cache has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-cache-size-above-limit",
+              "Masked": "RTRqemQsbkRMemlnXkxWImhKdV1OLjJRWw=="
+            },
+            {
+              "Unmasked": "cache",
+              "Masked": "TGZ3a2k="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-cache-size-above-limit/cache-7cfcf9d74d-c9hz5",
+      "error": [
+        {
+          "Text": "the termination reason is OOMKilled exitCode=137 container=cache pod=cache-7cfcf9d74d-c9hz5",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/cache"
+    }
+  ]
+}

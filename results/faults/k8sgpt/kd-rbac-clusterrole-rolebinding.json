@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rbac-clusterrole-rolebinding/node-inventory",
+      "error": [
+        {
+          "Text": "Deployment kd-rbac-clusterrole-rolebinding/node-inventory has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rbac-clusterrole-rolebinding",
+              "Masked": "QCNNcmpGRkRpZVNLTnlLNCdqeWM8aDtTVkFAM285QA=="
+            },
+            {
+              "Unmasked": "node-inventory",
+              "Masked": "dD9NMGJ1VE9TM1s/QTQ="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rbac-clusterrole-rolebinding/node-inventory-8797b59d-j4z77",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=inventory pod=node-inventory-8797b59d-j4z77",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/node-inventory"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-https-on-http"
   ],
-  "collectedAt": "2026-11-22 07:20 UTC",
+  "collectedAt": "2026-11-23 11:47 UTC",
   "findings": [
     {
       "rule": "KD202",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-https-on-http",
-            "name": "web-5d98948766-982g8"
+            "name": "web-5d98948766-f29hd"
           },
-          "what": "event Unhealthy (64 times)",
-          "detail": "Readiness probe failed: Get \"https://10.244.0.96:8080/\": http: server gave HTTP response to HTTPS client",
-          "command": "kubectl get events -n kd-probe-https-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=web-5d98948766-982g8"
+          "what": "event Unhealthy (63 times)",
+          "detail": "Readiness probe failed: Get \"https://10.244.0.112:8080/\": http: server gave HTTP response to HTTPS client",
+          "command": "kubectl get events -n kd-probe-https-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=web-5d98948766-f29hd"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-https-on-http",
-            "name": "web-5d98948766-982g8"
+            "name": "web-5d98948766-f29hd"
           },
           "what": "container web's readiness probe",
-          "command": "kubectl get pod web-5d98948766-982g8 -n kd-probe-https-on-http -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
+          "command": "kubectl get pod web-5d98948766-f29hd -n kd-probe-https-on-http -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
         }
       ],
       "fix": "Set the probe's httpGet.scheme to HTTP, the default, or serve TLS on that port if the probe should use HTTPS.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-https-on-http",
-          "name": "web-5d98948766-982g8"
+          "name": "web-5d98948766-f29hd"
         }
       ]
     }

@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rbac-resourcenames-list/config-watcher",
+      "error": [
+        {
+          "Text": "Deployment kd-rbac-resourcenames-list/config-watcher has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rbac-resourcenames-list",
+              "Masked": "TixWWFkxbnVqNm91XXc6aCNseV4pdShSUD0="
+            },
+            {
+              "Unmasked": "config-watcher",
+              "Masked": "UkRQYn1oVVNUdF5mRFE="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-rbac-resourcenames-list/settings",
+      "error": [
+        {
+          "Text": "ConfigMap settings is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rbac-resourcenames-list/config-watcher-64cf7557b8-lxrgm",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=watcher pod=config-watcher-64cf7557b8-lxrgm",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/config-watcher"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-nodename-missing"
   ],
-  "collectedAt": "2026-11-22 07:19 UTC",
+  "collectedAt": "2026-11-23 11:46 UTC",
   "findings": [
     {
       "rule": "KD240",
@@ -21,10 +21,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-missing",
-            "name": "web-78cccf7c5c-g6fss"
+            "name": "web-78cccf7c5c-4mbh2"
           },
           "what": "pod sets spec.nodeName kd-worker-9",
-          "command": "kubectl get pod web-78cccf7c5c-g6fss -n kd-nodename-missing -o jsonpath='{.spec.nodeName}'"
+          "command": "kubectl get pod web-78cccf7c5c-4mbh2 -n kd-nodename-missing -o jsonpath='{.spec.nodeName}'"
         },
         {
           "object": {
@@ -40,7 +40,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-nodename-missing",
-          "name": "web-78cccf7c5c-g6fss"
+          "name": "web-78cccf7c5c-4mbh2"
         }
       ]
     }

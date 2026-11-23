@@ -5,28 +5,6 @@
   "problems": 3,
   "results": [
     {
-      "kind": "Deployment",
-      "name": "kd-priorityclass-missing/web",
-      "error": [
-        {
-          "Text": "Deployment kd-priorityclass-missing/web has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-priorityclass-missing",
-              "Masked": "Vnt1LDE0Vl9UZG9tfGUlUksxMjtMUzAq"
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "eyNy"
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "ReplicaSet",
       "name": "kd-priorityclass-missing/web-55fb7dbd6f",
       "error": [
@@ -38,6 +16,28 @@
       ],
       "details": "",
       "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "Deployment",
+      "name": "kd-priorityclass-missing/web",
+      "error": [
+        {
+          "Text": "Deployment kd-priorityclass-missing/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-priorityclass-missing",
+              "Masked": "bzVyMF8tX3dTZl4jTVJla1BTc1JiX2Zd"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "OENL"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
     },
     {
       "kind": "ConfigMap",

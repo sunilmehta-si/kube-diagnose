@@ -5,19 +5,6 @@
   "problems": 3,
   "results": [
     {
-      "kind": "ConfigMap",
-      "name": "kd-quota-requires-limits/kube-root-ca.crt",
-      "error": [
-        {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "Deployment",
       "name": "kd-quota-requires-limits/web",
       "error": [
@@ -27,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-requires-limits",
-              "Masked": "elpPbFNSYSJNamxvTHs9aTxNS0kzXkJS"
+              "Masked": "KV5faGE9akVyezN5Y0wvWW9Pe1RfQ2RZ"
             },
             {
               "Unmasked": "web",
-              "Masked": "Il81"
+              "Masked": "cllO"
             }
           ]
         }
@@ -44,13 +31,26 @@
       "name": "kd-quota-requires-limits/web-6d754df847",
       "error": [
         {
-          "Text": "pods \"web-6d754df847-bbshx\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "Text": "pods \"web-6d754df847-7p2hk\" is forbidden: failed quota: compute: must specify limits.memory for: web",
           "KubernetesDoc": "",
           "Sensitive": []
         }
       ],
       "details": "",
       "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-quota-requires-limits/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
     }
   ]
 }

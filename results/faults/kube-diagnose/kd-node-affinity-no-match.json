@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-node-affinity-no-match"
+  ],
+  "collectedAt": "2026-11-23 11:46 UTC",
+  "findings": [
+    {
+      "rule": "KD141",
+      "title": "No node matches the pod's node selector",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-node-affinity-no-match",
+        "name": "web"
+      },
+      "cause": "the pod's required node affinity asks for kubernetes.io/arch in (arm64), and the nodes have amd64, which no node meets; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-node-affinity-no-match",
+            "name": "web-d6f4d45d-vchcz"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod web-d6f4d45d-vchcz -n kd-node-affinity-no-match -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-node-affinity-no-match",
+            "name": "web-d6f4d45d-vchcz"
+          },
+          "what": "required node affinity: kubernetes.io/arch in (arm64), and the nodes have amd64",
+          "command": "kubectl get pod web-d6f4d45d-vchcz -n kd-node-affinity-no-match -o jsonpath='{.spec.affinity.nodeAffinity}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "*"
+          },
+          "what": "the nodes' labels",
+          "command": "kubectl get nodes --show-labels"
+        }
+      ],
+      "fix": "Label a node to match (kubectl label node), or correct the pod's nodeSelector or affinity.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-node-affinity-no-match",
+          "name": "web-d6f4d45d-vchcz"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

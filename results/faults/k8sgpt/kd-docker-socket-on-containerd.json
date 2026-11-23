@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-docker-socket-on-containerd/image-builder",
+      "error": [
+        {
+          "Text": "Deployment kd-docker-socket-on-containerd/image-builder has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-docker-socket-on-containerd",
+              "Masked": "b0l5cU5fNzYzNjxjZUhJQkR4TkFaO1o+TGUvVUBx"
+            },
+            {
+              "Unmasked": "image-builder",
+              "Masked": "N3hfPE1YOEU6aExmQQ=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-docker-socket-on-containerd/image-builder-86979f57d7-gx7ls",
+      "error": [
+        {
+          "Text": "MountVolume.SetUp failed for volume \"docker\" : hostPath type check failed, /var/run/docker.sock is not a socket file, unable to determine its type: path \"/var/run/docker.sock\" does not exist",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/image-builder"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-command-shell-operator-no-shell"
   ],
-  "collectedAt": "2026-11-22 07:15 UTC",
+  "collectedAt": "2026-11-23 11:43 UTC",
   "findings": [
     {
       "rule": "KD226",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-shell-operator-no-shell",
-            "name": "worker-f5859c76d-csw5j"
+            "name": "worker-f5859c76d-fmr7r"
           },
           "what": "container worker exited with code 0 (Completed), restarted 5 times",
-          "command": "kubectl get pod worker-f5859c76d-csw5j -n kd-command-shell-operator-no-shell -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
+          "command": "kubectl get pod worker-f5859c76d-fmr7r -n kd-command-shell-operator-no-shell -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-shell-operator-no-shell",
-            "name": "worker-f5859c76d-csw5j"
+            "name": "worker-f5859c76d-fmr7r"
           },
           "what": "last lines of container worker's log (current run)",
           "detail": "starting \u0026\u0026 sleep 3600",
-          "command": "kubectl logs worker-f5859c76d-csw5j -n kd-command-shell-operator-no-shell -c worker --tail=20"
+          "command": "kubectl logs worker-f5859c76d-fmr7r -n kd-command-shell-operator-no-shell -c worker --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-shell-operator-no-shell",
-            "name": "worker-f5859c76d-csw5j"
+            "name": "worker-f5859c76d-fmr7r"
           },
           "what": "container worker's command and args are a list with \"\u0026\u0026\" as one item, and no shell",
-          "command": "kubectl get pod worker-f5859c76d-csw5j -n kd-command-shell-operator-no-shell -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}{\" \"}{.spec.containers[?(@.name==\"worker\")].args}'"
+          "command": "kubectl get pod worker-f5859c76d-fmr7r -n kd-command-shell-operator-no-shell -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}{\" \"}{.spec.containers[?(@.name==\"worker\")].args}'"
         }
       ],
       "fix": "Run the line through a shell: command: [\"sh\", \"-c\", \"echo starting \u0026\u0026 sleep 3600\"] (if the image has a shell), or run one program only and move the other step into an init container or the image.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-command-shell-operator-no-shell",
-          "name": "worker-f5859c76d-csw5j"
+          "name": "worker-f5859c76d-fmr7r"
         }
       ]
     }

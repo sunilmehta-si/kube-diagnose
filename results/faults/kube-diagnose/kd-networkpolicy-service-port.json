@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-service-port"
   ],
-  "collectedAt": "2026-11-22 07:19 UTC",
+  "collectedAt": "2026-11-23 11:46 UTC",
   "findings": [
     {
       "rule": "KD127",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-service-port",
-            "name": "client-5858c98f74-58dmn"
+            "name": "client-5858c98f74-wwqdp"
           },
-          "what": "container client exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod client-5858c98f74-58dmn -n kd-networkpolicy-service-port -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
+          "what": "container client exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod client-5858c98f74-wwqdp -n kd-networkpolicy-service-port -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-service-port",
-            "name": "client-5858c98f74-58dmn"
+            "name": "client-5858c98f74-wwqdp"
           },
-          "what": "last lines of container client's log (current run)",
-          "detail": "Connecting to web (10.96.8.225:80)\nwget: download timed out",
-          "command": "kubectl logs client-5858c98f74-58dmn -n kd-networkpolicy-service-port -c client --tail=20"
+          "what": "last lines of container client's log (run that exited)",
+          "detail": "Connecting to web (10.96.67.99:80)\nwget: download timed out",
+          "command": "kubectl logs client-5858c98f74-wwqdp -n kd-networkpolicy-service-port -c client --tail=20 --previous"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-service-port",
-          "name": "client-5858c98f74-58dmn"
+          "name": "client-5858c98f74-wwqdp"
         }
       ]
     }

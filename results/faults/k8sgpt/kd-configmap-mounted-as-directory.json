@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-configmap-mounted-as-directory/web",
+      "error": [
+        {
+          "Text": "Deployment kd-configmap-mounted-as-directory/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-configmap-mounted-as-directory",
+              "Masked": "aGcmUjgxcCt3cHl2NEo5bngpeF5GIz9saz47P1UlJUIy"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "bHw/"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-configmap-mounted-as-directory/web-6b84bbfc9-6bwgx",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-6b84bbfc9-6bwgx",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

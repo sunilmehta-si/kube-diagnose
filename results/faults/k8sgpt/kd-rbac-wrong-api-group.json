@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rbac-wrong-api-group/rollout-watcher",
+      "error": [
+        {
+          "Text": "Deployment kd-rbac-wrong-api-group/rollout-watcher has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rbac-wrong-api-group",
+              "Masked": "LVBvK3hAM2ElbE1YbXNAN0ZoYm1HPE4="
+            },
+            {
+              "Unmasked": "rollout-watcher",
+              "Masked": "YWtUR2QwWT1DbHhqX3dG"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rbac-wrong-api-group/rollout-watcher-868db6486d-l87vb",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=watcher pod=rollout-watcher-868db6486d-l87vb",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/rollout-watcher"
+    }
+  ]
+}

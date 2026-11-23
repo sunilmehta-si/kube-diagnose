@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-loadbalancer-pending"
   ],
-  "collectedAt": "2026-11-22 07:18 UTC",
+  "collectedAt": "2026-11-23 11:45 UTC",
   "findings": [
     {
       "rule": "KD168",
@@ -15,7 +15,7 @@
         "namespace": "kd-loadbalancer-pending",
         "name": "web"
       },
-      "cause": "LoadBalancer Service web has had no external address for 7m0s: nothing in the cluster provisions load balancers (a cloud controller manager, MetalLB, cloud-provider-kind), or the one there ignores this Service",
+      "cause": "LoadBalancer Service web has had no external address for 5m0s: nothing in the cluster provisions load balancers (a cloud controller manager, MetalLB, cloud-provider-kind), or the one there ignores this Service",
       "evidence": [
         {
           "object": {
@@ -23,7 +23,7 @@
             "namespace": "kd-loadbalancer-pending",
             "name": "web"
           },
-          "what": "Service web has type LoadBalancer and no external address after 7m0s",
+          "what": "Service web has type LoadBalancer and no external address after 5m0s",
           "command": "kubectl get service web -n kd-loadbalancer-pending -o jsonpath='{.spec.type}{\" \"}{.status.loadBalancer}'"
         }
       ],

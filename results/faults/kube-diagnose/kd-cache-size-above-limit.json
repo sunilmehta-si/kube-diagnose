@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cache-size-above-limit"
+  ],
+  "collectedAt": "2026-11-23 11:43 UTC",
+  "findings": [
+    {
+      "rule": "KD111",
+      "title": "Container runs out of memory",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-cache-size-above-limit",
+        "name": "cache"
+      },
+      "cause": "container cache uses more than its 64Mi memory limit and is killed (OOMKilled); the app is told to use more than that: CACHE_SIZE_MB=128, 128Mi, in the environment; Deployment cache has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-cache-size-above-limit",
+            "name": "cache-7cfcf9d74d-c9hz5"
+          },
+          "what": "container cache exited with code 137 (OOMKilled), restarted 5 times",
+          "command": "kubectl get pod cache-7cfcf9d74d-c9hz5 -n kd-cache-size-above-limit -o jsonpath='{.status.containerStatuses[?(@.name==\"cache\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-cache-size-above-limit",
+            "name": "cache-7cfcf9d74d-c9hz5"
+          },
+          "what": "container cache has memory limit 64Mi",
+          "command": "kubectl get pod cache-7cfcf9d74d-c9hz5 -n kd-cache-size-above-limit -o jsonpath='{.spec.containers[?(@.name==\"cache\")].resources.limits.memory}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-cache-size-above-limit",
+            "name": "cache-7cfcf9d74d-c9hz5"
+          },
+          "what": "container cache sets CACHE_SIZE_MB=128 in the environment",
+          "command": "kubectl get pod cache-7cfcf9d74d-c9hz5 -n kd-cache-size-above-limit -o jsonpath='{.spec.containers[?(@.name==\"cache\")]['\\''command'\\'','\\''args'\\'','\\''env'\\'']}'"
+        }
+      ],
+      "fix": "Set CACHE_SIZE_MB=128 below the 64Mi limit, leaving room for the rest of the process (for a JVM heap, about three quarters of the limit), or raise the limit above it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-cache-size-above-limit",
+          "name": "cache-7cfcf9d74d-c9hz5"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

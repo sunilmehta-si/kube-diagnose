@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-emptydir-memory-oom"
   ],
-  "collectedAt": "2026-11-22 07:16 UTC",
+  "collectedAt": "2026-11-23 11:44 UTC",
   "findings": [
     {
       "rule": "KD204",
@@ -21,28 +21,28 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-emptydir-memory-oom",
-            "name": "cache-888b88f6f-9hpzs"
+            "name": "cache-888b88f6f-kd5g2"
           },
           "what": "container warm exited with code 137 (OOMKilled), restarted 5 times",
-          "command": "kubectl get pod cache-888b88f6f-9hpzs -n kd-emptydir-memory-oom -o jsonpath='{.status.containerStatuses[?(@.name==\"warm\")].lastState.terminated}'"
+          "command": "kubectl get pod cache-888b88f6f-kd5g2 -n kd-emptydir-memory-oom -o jsonpath='{.status.containerStatuses[?(@.name==\"warm\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-emptydir-memory-oom",
-            "name": "cache-888b88f6f-9hpzs"
+            "name": "cache-888b88f6f-kd5g2"
           },
           "what": "container warm has memory limit 32Mi",
-          "command": "kubectl get pod cache-888b88f6f-9hpzs -n kd-emptydir-memory-oom -o jsonpath='{.spec.containers[?(@.name==\"warm\")].resources.limits.memory}'"
+          "command": "kubectl get pod cache-888b88f6f-kd5g2 -n kd-emptydir-memory-oom -o jsonpath='{.spec.containers[?(@.name==\"warm\")].resources.limits.memory}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-emptydir-memory-oom",
-            "name": "cache-888b88f6f-9hpzs"
+            "name": "cache-888b88f6f-kd5g2"
           },
           "what": "volume cache is an emptyDir with medium Memory (no sizeLimit), mounted by container warm at /cache",
-          "command": "kubectl get pod cache-888b88f6f-9hpzs -n kd-emptydir-memory-oom -o jsonpath='{.spec.volumes[?(@.name==\"cache\")]}'"
+          "command": "kubectl get pod cache-888b88f6f-kd5g2 -n kd-emptydir-memory-oom -o jsonpath='{.spec.volumes[?(@.name==\"cache\")]}'"
         }
       ],
       "fix": "Raise warm's memory limit above what it keeps in cache plus its own use, set a sizeLimit on the volume so writes fail with no space instead, or drop medium: Memory to keep the files on the node's disk.",
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-emptydir-memory-oom",
-          "name": "cache-888b88f6f-9hpzs"
+          "name": "cache-888b88f6f-kd5g2"
         }
       ]
     }

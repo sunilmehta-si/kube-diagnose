@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-readiness-probe-timeout"
+  ],
+  "collectedAt": "2026-11-23 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD120",
+      "title": "Readiness probe failing",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-readiness-probe-timeout",
+        "name": "web"
+      },
+      "cause": "container web runs but its readiness probe times out: the app does not answer within the probe's 1s timeoutSeconds, so it gets no traffic; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readiness-probe-timeout",
+            "name": "web-84466c7679-6d2wl"
+          },
+          "what": "event Unhealthy (63 times)",
+          "detail": "Readiness probe failed: command timed out: \"sh -c sleep 3; wget -q -O /dev/null http://127.0.0.1:8080/\" timed out after 1s",
+          "command": "kubectl get events -n kd-readiness-probe-timeout --field-selector involvedObject.kind=Pod,involvedObject.name=web-84466c7679-6d2wl"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-readiness-probe-timeout",
+            "name": "web-84466c7679-6d2wl"
+          },
+          "what": "container web is running but not ready",
+          "command": "kubectl get pod web-84466c7679-6d2wl -n kd-readiness-probe-timeout -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+        }
+      ],
+      "fix": "Raise the readiness probe's timeoutSeconds above how long the check takes (it is 1s), or make the health check cheaper: one that waits on a database or another service is slow whenever they are.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-readiness-probe-timeout",
+          "name": "web-84466c7679-6d2wl"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

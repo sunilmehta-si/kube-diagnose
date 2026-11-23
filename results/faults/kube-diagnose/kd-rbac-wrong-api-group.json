@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rbac-wrong-api-group"
+  ],
+  "collectedAt": "2026-11-23 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD300",
+      "title": "Role grants the resource in another API group",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rbac-wrong-api-group",
+        "name": "rollout-watcher"
+      },
+      "cause": "container watcher exits because the API server refuses its ServiceAccount deployer: it may not list deployments.apps in namespace kd-rbac-wrong-api-group. Role deployment-reader grants get, list, watch on deployments, but in apiGroups [\"\"], and deployments are in API group \"apps\", so the rule never matches; its log says: \"Error from server (Forbidden): deployments.apps is forbidden: User \\\"system:serviceaccount:kd-rbac-wrong-api-group:deployer\\\" cannot list resource \\\"deployments\\\" in API group \\\"apps\\\" in the namespace \\\"kd-…\"; Deployment rollout-watcher has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-wrong-api-group",
+            "name": "rollout-watcher-868db6486d-l87vb"
+          },
+          "what": "container watcher exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod rollout-watcher-868db6486d-l87vb -n kd-rbac-wrong-api-group -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-wrong-api-group",
+            "name": "rollout-watcher-868db6486d-l87vb"
+          },
+          "what": "last lines of container watcher's log (current run)",
+          "detail": "Error from server (Forbidden): deployments.apps is forbidden: User \"system:serviceaccount:kd-rbac-wrong-api-group:deployer\" cannot list resource \"deployments\" in API group \"apps\" in the namespace \"kd-rbac-wrong-api-group\"",
+          "command": "kubectl logs rollout-watcher-868db6486d-l87vb -n kd-rbac-wrong-api-group -c watcher --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Role",
+            "namespace": "kd-rbac-wrong-api-group",
+            "name": "deployment-reader"
+          },
+          "what": "Role deployment-reader, bound by RoleBinding deployer-reads-deployments: apiGroups [\"\"], resources [\"deployments\"], verbs [\"get\", \"list\", \"watch\"]",
+          "command": "kubectl get role deployment-reader -n kd-rbac-wrong-api-group -o jsonpath='{.rules}'"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rbac-wrong-api-group",
+            "name": "deployer-reads-deployments"
+          },
+          "what": "RoleBinding deployer-reads-deployments grants Role deployment-reader to ServiceAccount deployer",
+          "command": "kubectl get rolebinding deployer-reads-deployments -n kd-rbac-wrong-api-group -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        }
+      ],
+      "fix": "Set apiGroups to [\"apps\"] in the rule of Role deployment-reader that names deployments (kubectl api-resources shows each resource's group).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rbac-wrong-api-group",
+          "name": "rollout-watcher-868db6486d-l87vb"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

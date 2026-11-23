@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rbac-resource-singular"
+  ],
+  "collectedAt": "2026-11-23 11:47 UTC",
+  "findings": [
+    {
+      "rule": "KD301",
+      "title": "Role names a resource that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rbac-resource-singular",
+        "name": "config-watcher"
+      },
+      "cause": "container watcher exits because the API server refuses its ServiceAccount app: it may not list configmaps in namespace kd-rbac-resource-singular. Role settings-reader grants get, list, watch on resource \"configmap\", and the API has no resource by that name: it is \"configmaps\" (resource names are lower case and plural), so the rule never matches; its log says: \"Error from server (Forbidden): configmaps is forbidden: User \\\"system:serviceaccount:kd-rbac-resource-singular:app\\\" cannot list resource \\\"configmaps\\\" in API group \\\"\\\" in the namespace \\\"kd-rbac-resource-…\"; Deployment config-watcher has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-resource-singular",
+            "name": "config-watcher-64cf7557b8-knlxb"
+          },
+          "what": "container watcher exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod config-watcher-64cf7557b8-knlxb -n kd-rbac-resource-singular -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-resource-singular",
+            "name": "config-watcher-64cf7557b8-knlxb"
+          },
+          "what": "last lines of container watcher's log (current run)",
+          "detail": "Error from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-resource-singular:app\" cannot list resource \"configmaps\" in API group \"\" in the namespace \"kd-rbac-resource-singular\"",
+          "command": "kubectl logs config-watcher-64cf7557b8-knlxb -n kd-rbac-resource-singular -c watcher --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Role",
+            "namespace": "kd-rbac-resource-singular",
+            "name": "settings-reader"
+          },
+          "what": "Role settings-reader, bound by RoleBinding app-settings-reader: apiGroups [\"\"], resources [\"configmap\"], verbs [\"get\", \"list\", \"watch\"]",
+          "command": "kubectl get role settings-reader -n kd-rbac-resource-singular -o jsonpath='{.rules}'"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rbac-resource-singular",
+            "name": "app-settings-reader"
+          },
+          "what": "RoleBinding app-settings-reader grants Role settings-reader to ServiceAccount app",
+          "command": "kubectl get rolebinding app-settings-reader -n kd-rbac-resource-singular -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        }
+      ],
+      "fix": "Write \"configmaps\" for \"configmap\" in the resources of Role settings-reader (kubectl api-resources lists the names).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rbac-resource-singular",
+          "name": "config-watcher-64cf7557b8-knlxb"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-configmap-mounted-as-directory"
+  ],
+  "collectedAt": "2026-11-23 11:44 UTC",
+  "findings": [
+    {
+      "rule": "KD233",
+      "title": "Volume is mounted as a directory where the app reads a file",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-configmap-mounted-as-directory",
+        "name": "web"
+      },
+      "cause": "container web exits because it reads /etc/app/config.yaml as a file, and /etc/app/config.yaml is where volume config (ConfigMap app-config) is mounted whole, without subPath, so the path is a directory holding the volume's files (config.yaml); its log says: \"error: read /etc/app/config.yaml: is a directory\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-configmap-mounted-as-directory",
+            "name": "web-6b84bbfc9-6bwgx"
+          },
+          "what": "container web exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod web-6b84bbfc9-6bwgx -n kd-configmap-mounted-as-directory -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-configmap-mounted-as-directory",
+            "name": "web-6b84bbfc9-6bwgx"
+          },
+          "what": "last lines of container web's log (current run)",
+          "detail": "error: read /etc/app/config.yaml: is a directory",
+          "command": "kubectl logs web-6b84bbfc9-6bwgx -n kd-configmap-mounted-as-directory -c web --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-configmap-mounted-as-directory",
+            "name": "web-6b84bbfc9-6bwgx"
+          },
+          "what": "container web mounts volume config (ConfigMap app-config) at /etc/app/config.yaml",
+          "command": "kubectl get pod web-6b84bbfc9-6bwgx -n kd-configmap-mounted-as-directory -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
+        }
+      ],
+      "fix": "Mount the volume at /etc/app, so that /etc/app/config.yaml is the file of key config.yaml in it (other files of the image in /etc/app are then hidden), or mount only that key at /etc/app/config.yaml with subPath: config.yaml (a subPath mount does not follow later changes to the ConfigMap).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-configmap-mounted-as-directory",
+          "name": "web-6b84bbfc9-6bwgx"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

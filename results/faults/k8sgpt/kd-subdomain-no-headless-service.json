@@ -5,6 +5,58 @@
   "problems": 5,
   "results": [
     {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-0-b5grp",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-b5grp",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-0-wwlm8",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-wwlm8",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-1-6xrp7",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-6xrp7",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-subdomain-no-headless-service/train-1-x5vgl",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-x5vgl",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Job",
       "name": "kd-subdomain-no-headless-service/train",
       "error": [
@@ -14,65 +66,13 @@
           "Sensitive": [
             {
               "Unmasked": "kd-subdomain-no-headless-service",
-              "Masked": "KkRVL0pJLUdhIy1wSUQmSnskQ1MjVHtnSTs3U1tKQUQ="
+              "Masked": "d2RYTk56e0BbW2xKYmx3TShfQ1deJ0hWLlFtY0cqdzQ="
             },
             {
               "Unmasked": "train",
-              "Masked": "MTckTVc="
+              "Masked": "e3dqIyg="
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-0-gjf2n",
-      "error": [
-        {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-gjf2n",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-0-nkssk",
-      "error": [
-        {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-0-nkssk",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-1-57qvt",
-      "error": [
-        {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-57qvt",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-subdomain-no-headless-service/train-1-65t77",
-      "error": [
-        {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=train-1-65t77",
-          "KubernetesDoc": "",
-          "Sensitive": []
         }
       ],
       "details": "",

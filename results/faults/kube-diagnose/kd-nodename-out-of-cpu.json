@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-nodename-out-of-cpu"
   ],
-  "collectedAt": "2026-11-22 07:19 UTC",
+  "collectedAt": "2026-11-23 11:46 UTC",
   "findings": [
     {
       "rule": "KD241",
@@ -15,17 +15,17 @@
         "namespace": "kd-nodename-out-of-cpu",
         "name": "batch"
       },
-      "cause": "node kd-faults-control-plane does not have enough cpu left for the pod (it asks for 1000000, 980 of the node's 4000 are in use), so the kubelet rejects it (OutOfcpu); the pod sets spec.nodeName, so it skipped the scheduler, which would have kept it Pending and said why",
+      "cause": "node kd-faults-control-plane does not have enough cpu left for the pod (it asks for 1000000, 990 of the node's 4000 are in use), so the kubelet rejects it (OutOfcpu); the pod sets spec.nodeName, so it skipped the scheduler, which would have kept it Pending and said why",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-out-of-cpu",
-            "name": "batch-9dxhs"
+            "name": "batch-8mljr"
           },
           "what": "pod status is Failed, reason OutOfcpu",
-          "detail": "Pod was rejected: Node didn't have enough resource: cpu, requested: 1000000, used: 980, capacity: 4000",
-          "command": "kubectl get pod batch-9dxhs -n kd-nodename-out-of-cpu -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+          "detail": "Pod was rejected: Node didn't have enough resource: cpu, requested: 1000000, used: 990, capacity: 4000",
+          "command": "kubectl get pod batch-8mljr -n kd-nodename-out-of-cpu -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
         }
       ],
       "fix": "Lower the pod's cpu request to what a node has free, or free that much on the node; leave spec.nodeName unset (use a nodeSelector) so the scheduler places the pod where it fits.",
@@ -33,22 +33,22 @@
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-9dxhs"
+          "name": "batch-8mljr"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-nmnzt"
+          "name": "batch-c6dhz"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-t82j4"
+          "name": "batch-kdx7f"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-out-of-cpu",
-          "name": "batch-w52rc"
+          "name": "batch-kx4dz"
         }
       ]
     }

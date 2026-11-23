@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-app-listens-on-localhost"
   ],
-  "collectedAt": "2026-11-22 07:14 UTC",
+  "collectedAt": "2026-11-23 11:43 UTC",
   "findings": [
     {
       "rule": "KD215",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-app-listens-on-localhost",
-            "name": "web-966bc545f-k5j59"
+            "name": "web-966bc545f-qf2pk"
           },
           "what": "event Unhealthy (25 times)",
           "detail": "Readiness probe failed: Get \"http://10.244.0.5:8080/\": dial tcp 10.244.0.5:8080: connect: connection refused",
-          "command": "kubectl get events -n kd-app-listens-on-localhost --field-selector involvedObject.kind=Pod,involvedObject.name=web-966bc545f-k5j59"
+          "command": "kubectl get events -n kd-app-listens-on-localhost --field-selector involvedObject.kind=Pod,involvedObject.name=web-966bc545f-qf2pk"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-app-listens-on-localhost",
-            "name": "web-966bc545f-k5j59"
+            "name": "web-966bc545f-qf2pk"
           },
           "what": "container web's readiness probe",
-          "command": "kubectl get pod web-966bc545f-k5j59 -n kd-app-listens-on-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
+          "command": "kubectl get pod web-966bc545f-qf2pk -n kd-app-listens-on-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-app-listens-on-localhost",
-            "name": "web-966bc545f-k5j59"
+            "name": "web-966bc545f-qf2pk"
           },
           "what": "container web's command and env",
-          "command": "kubectl get pod web-966bc545f-k5j59 -n kd-app-listens-on-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}{\"\\n\"}{.spec.containers[?(@.name==\"web\")].env}'"
+          "command": "kubectl get pod web-966bc545f-qf2pk -n kd-app-listens-on-localhost -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}{\"\\n\"}{.spec.containers[?(@.name==\"web\")].env}'"
         }
       ],
       "fix": "Have the app listen on 0.0.0.0 (or [::]) instead of 127.0.0.1 or localhost: its bind flag or variable, such as --host 0.0.0.0.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-app-listens-on-localhost",
-          "name": "web-966bc545f-k5j59"
+          "name": "web-966bc545f-qf2pk"
         }
       ]
     }

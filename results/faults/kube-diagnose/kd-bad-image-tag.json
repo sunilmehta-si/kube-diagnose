@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-bad-image-tag"
   ],
-  "collectedAt": "2026-11-22 07:14 UTC",
+  "collectedAt": "2026-11-23 11:43 UTC",
   "findings": [
     {
       "rule": "KD101",
@@ -21,21 +21,21 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-bad-image-tag",
-            "name": "web-6847787ffb-mdcnh"
+            "name": "web-6847787ffb-nr4zp"
           },
-          "what": "container web is waiting: ErrImagePull",
-          "detail": "rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
-          "command": "kubectl get pod web-6847787ffb-mdcnh -n kd-bad-image-tag -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "what": "container web is waiting: ImagePullBackOff",
+          "detail": "Back-off pulling image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": ErrImagePull: rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
+          "command": "kubectl get pod web-6847787ffb-nr4zp -n kd-bad-image-tag -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-bad-image-tag",
-            "name": "web-6847787ffb-mdcnh"
+            "name": "web-6847787ffb-nr4zp"
           },
-          "what": "event Failed (5 times)",
+          "what": "event Failed (4 times)",
           "detail": "Failed to pull image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": rpc error: code = NotFound desc = failed to pull and unpack image \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": failed to resolve reference \"docker.io/library/busybox:0.0.0-kube-diagnose-missing\": docker.io/library/busybox:0.0.0-kube-diagnose-missing: not found",
-          "command": "kubectl get events -n kd-bad-image-tag --field-selector involvedObject.kind=Pod,involvedObject.name=web-6847787ffb-mdcnh"
+          "command": "kubectl get events -n kd-bad-image-tag --field-selector involvedObject.kind=Pod,involvedObject.name=web-6847787ffb-nr4zp"
         }
       ],
       "fix": "Correct the image tag or digest, or push that tag to the registry.",
@@ -43,12 +43,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-bad-image-tag",
-          "name": "web-6847787ffb-mdcnh"
+          "name": "web-6847787ffb-nr4zp"
         },
         {
           "kind": "Pod",
           "namespace": "kd-bad-image-tag",
-          "name": "web-6847787ffb-s4sct"
+          "name": "web-6847787ffb-pdppz"
         }
       ]
     }

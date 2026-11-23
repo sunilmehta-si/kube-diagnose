@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-parallelism-zero"
   ],
-  "collectedAt": "2026-11-22 07:17 UTC",
+  "collectedAt": "2026-11-23 11:45 UTC",
   "findings": [
     {
       "rule": "KD283",
@@ -15,7 +15,7 @@
         "namespace": "kd-job-parallelism-zero",
         "name": "migrate"
       },
-      "cause": "Job migrate has parallelism 0, so it starts no pods: it has run none in 6m0s and will never complete (0 succeeded, 0 failed)",
+      "cause": "Job migrate has parallelism 0, so it starts no pods: it has run none in 5m0s and will never complete (0 succeeded, 0 failed)",
       "evidence": [
         {
           "object": {

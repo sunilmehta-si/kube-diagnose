@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-access-mode"
   ],
-  "collectedAt": "2026-11-22 07:20 UTC",
+  "collectedAt": "2026-11-23 11:47 UTC",
   "findings": [
     {
       "rule": "KD156",
@@ -41,7 +41,7 @@
             "namespace": "kd-pvc-access-mode",
             "name": "shared"
           },
-          "what": "event ProvisioningFailed (6 times)",
+          "what": "event ProvisioningFailed (5 times)",
           "detail": "failed to provision volume with StorageClass \"standard\": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes",
           "command": "kubectl get events -n kd-pvc-access-mode --field-selector involvedObject.kind=PersistentVolumeClaim,involvedObject.name=shared"
         }

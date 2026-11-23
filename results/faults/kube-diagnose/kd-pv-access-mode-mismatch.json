@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pv-access-mode-mismatch"
   ],
-  "collectedAt": "2026-11-22 07:20 UTC",
+  "collectedAt": "2026-11-23 11:47 UTC",
   "findings": [
     {
       "rule": "KD250",
@@ -49,7 +49,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pv-access-mode-mismatch",
-          "name": "db-56f8666648-p8bzw"
+          "name": "db-56f8666648-5sbc5"
         }
       ]
     }

@@ -1,0 +1,69 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-spread-zone-label-missing"
+  ],
+  "collectedAt": "2026-11-23 11:48 UTC",
+  "findings": [
+    {
+      "rule": "KD245",
+      "title": "Spread constraint's topology key is on no node",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-spread-zone-label-missing",
+        "name": "web"
+      },
+      "cause": "its topologySpreadConstraints spread it over topology.kubernetes.io/zone (whenUnsatisfiable: DoNotSchedule), and none of the 1 node has that label, so the scheduler rejects them all; Deployment web has 0 of 2 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-spread-zone-label-missing",
+            "name": "web-5479544b58-5jbd9"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod web-5479544b58-5jbd9 -n kd-spread-zone-label-missing -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-spread-zone-label-missing",
+            "name": "web-5479544b58-5jbd9"
+          },
+          "what": "topologySpreadConstraints: topologyKey topology.kubernetes.io/zone, maxSkew 1",
+          "command": "kubectl get pod web-5479544b58-5jbd9 -n kd-spread-zone-label-missing -o jsonpath='{.spec.topologySpreadConstraints}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "*"
+          },
+          "what": "none of the 1 node has the label topology.kubernetes.io/zone",
+          "command": "kubectl get nodes -L topology.kubernetes.io/zone"
+        }
+      ],
+      "fix": "Label the nodes with topology.kubernetes.io/zone (cloud providers set the zone labels; kind and bare-metal nodes have none), spread over a label the nodes have, such as kubernetes.io/hostname, or set whenUnsatisfiable: ScheduleAnyway.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-spread-zone-label-missing",
+          "name": "web-5479544b58-5jbd9"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-spread-zone-label-missing",
+          "name": "web-5479544b58-sznsc"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-image-never-pull"
   ],
-  "collectedAt": "2026-11-22 07:17 UTC",
+  "collectedAt": "2026-11-23 11:45 UTC",
   "findings": [
     {
       "rule": "KD108",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-image-never-pull",
-            "name": "web-7859f6669f-p5jz8"
+            "name": "web-7859f6669f-88ddk"
           },
           "what": "container web is waiting: ErrImageNeverPull",
           "detail": "Container image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\" is not present with pull policy of Never",
-          "command": "kubectl get pod web-7859f6669f-p5jz8 -n kd-image-never-pull -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "command": "kubectl get pod web-7859f6669f-88ddk -n kd-image-never-pull -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-image-never-pull",
-            "name": "web-7859f6669f-p5jz8"
+            "name": "web-7859f6669f-88ddk"
           },
           "what": "container web has imagePullPolicy Never",
-          "command": "kubectl get pod web-7859f6669f-p5jz8 -n kd-image-never-pull -o jsonpath='{.spec.containers[?(@.name==\"web\")].imagePullPolicy}'"
+          "command": "kubectl get pod web-7859f6669f-88ddk -n kd-image-never-pull -o jsonpath='{.spec.containers[?(@.name==\"web\")].imagePullPolicy}'"
         }
       ],
       "fix": "Load the image onto every node that may run the pod (kind load docker-image, or pre-pull it), or set imagePullPolicy to IfNotPresent so the kubelet pulls it.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-image-never-pull",
-          "name": "web-7859f6669f-p5jz8"
+          "name": "web-7859f6669f-88ddk"
         }
       ]
     }

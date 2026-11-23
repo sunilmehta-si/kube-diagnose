@@ -2,11 +2,11 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 10,
+  "problems": 8,
   "results": [
     {
       "kind": "Pod",
-      "name": "kd-emptydir-size-limit/web-5bd8db9957-79hrl",
+      "name": "kd-emptydir-size-limit/web-5bd8db9957-8tddd",
       "error": [
         {
           "Text": "Usage of EmptyDir volume \"cache\" exceeds the limit \"10Mi\". ",
@@ -14,7 +14,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-79hrl",
+          "Text": "the termination reason is ContainerStatusUnknown exitCode=137 container=web pod=web-5bd8db9957-8tddd",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -24,7 +24,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-emptydir-size-limit/web-5bd8db9957-849hr",
+      "name": "kd-emptydir-size-limit/web-5bd8db9957-9wnrc",
       "error": [
         {
           "Text": "Usage of EmptyDir volume \"cache\" exceeds the limit \"10Mi\". ",
@@ -32,7 +32,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-849hr",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-9wnrc",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -42,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-emptydir-size-limit/web-5bd8db9957-9ndmc",
+      "name": "kd-emptydir-size-limit/web-5bd8db9957-b6wm2",
       "error": [
         {
           "Text": "Usage of EmptyDir volume \"cache\" exceeds the limit \"10Mi\". ",
@@ -50,7 +50,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-9ndmc",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-b6wm2",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -60,7 +60,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-emptydir-size-limit/web-5bd8db9957-zl28z",
+      "name": "kd-emptydir-size-limit/web-5bd8db9957-mr4hm",
       "error": [
         {
           "Text": "Usage of EmptyDir volume \"cache\" exceeds the limit \"10Mi\". ",
@@ -68,25 +68,7 @@
           "Sensitive": []
         },
         {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-zl28z",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-emptydir-size-limit/web-5bd8db9957-69p5l",
-      "error": [
-        {
-          "Text": "Usage of EmptyDir volume \"cache\" exceeds the limit \"10Mi\". ",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        },
-        {
-          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-69p5l",
+          "Text": "the termination reason is Error exitCode=137 container=web pod=web-5bd8db9957-mr4hm",
           "KubernetesDoc": "",
           "Sensitive": []
         }

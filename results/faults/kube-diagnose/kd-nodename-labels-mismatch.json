@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-nodename-labels-mismatch"
   ],
-  "collectedAt": "2026-11-22 07:19 UTC",
+  "collectedAt": "2026-11-23 11:46 UTC",
   "findings": [
     {
       "rule": "KD242",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-labels-mismatch",
-            "name": "batch-47fk2"
+            "name": "batch-5wx25"
           },
           "what": "pod status is Failed, reason NodeAffinity",
           "detail": "Pod was rejected: Predicate NodeAffinity failed: node(s) didn't match Pod's node affinity/selector",
-          "command": "kubectl get pod batch-47fk2 -n kd-nodename-labels-mismatch -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+          "command": "kubectl get pod batch-5wx25 -n kd-nodename-labels-mismatch -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-labels-mismatch",
-            "name": "batch-47fk2"
+            "name": "batch-5wx25"
           },
           "what": "the pod's nodeName, nodeSelector and affinity",
-          "command": "kubectl get pod batch-47fk2 -n kd-nodename-labels-mismatch -o jsonpath='{.spec.nodeName}{\"\\n\"}{.spec.nodeSelector}{\"\\n\"}{.spec.affinity}'"
+          "command": "kubectl get pod batch-5wx25 -n kd-nodename-labels-mismatch -o jsonpath='{.spec.nodeName}{\"\\n\"}{.spec.nodeSelector}{\"\\n\"}{.spec.affinity}'"
         }
       ],
       "fix": "Choose one way to place the pod: drop spec.nodeName and let the scheduler use the nodeSelector or affinity, or name a node whose labels match (kubectl get nodes --show-labels).",
@@ -42,22 +42,22 @@
         {
           "kind": "Pod",
           "namespace": "kd-nodename-labels-mismatch",
-          "name": "batch-47fk2"
+          "name": "batch-5wx25"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-labels-mismatch",
-          "name": "batch-5qbwh"
+          "name": "batch-hlwc8"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-labels-mismatch",
-          "name": "batch-gwhxn"
+          "name": "batch-sl77g"
         },
         {
           "kind": "Pod",
           "namespace": "kd-nodename-labels-mismatch",
-          "name": "batch-pg2ns"
+          "name": "batch-vddkf"
         }
       ]
     }

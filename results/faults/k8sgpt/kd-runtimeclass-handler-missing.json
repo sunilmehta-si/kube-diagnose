@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-runtimeclass-handler-missing",
-              "Masked": "YUdZOXNzM055WGxTZV1OYzxzc1ciQz81WDw3XjZIew=="
+              "Masked": "ZDNyeHAqVTdEMWhvaF5xUjBYKHRJL0d1P1VmRUhacw=="
             },
             {
               "Unmasked": "infer",
-              "Masked": "TichJXg="
+              "Masked": "UlkuQ2g="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-runtimeclass-handler-missing/infer-59c655c685-t948g",
+      "name": "kd-runtimeclass-handler-missing/infer-59c655c685-2vbzx",
       "error": [
         {
-          "Text": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"d581764a5e792b512a133c53095dfe901e78831f59af778d9dcd42aac382bc89\": no runtime for \"nvidia\" is configured",
+          "Text": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"7abd9c490f6f43e35ac530e2302927fb5a9663601171d96a91e2a5b4e3a749ff\": no runtime for \"nvidia\" is configured",
           "KubernetesDoc": "",
           "Sensitive": []
         }

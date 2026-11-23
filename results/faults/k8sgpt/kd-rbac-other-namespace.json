@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rbac-other-namespace/config-watcher",
+      "error": [
+        {
+          "Text": "Deployment kd-rbac-other-namespace/config-watcher has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rbac-other-namespace",
+              "Masked": "VVJAcXpzPEMhKlQ5JlN2SXd6KFZ6SEM="
+            },
+            {
+              "Unmasked": "config-watcher",
+              "Masked": "YztHKzJwKn0/Jid1KnA="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rbac-other-namespace/config-watcher-697bc4cb57-7fdtk",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=watcher pod=config-watcher-697bc4cb57-7fdtk",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/config-watcher"
+    }
+  ]
+}

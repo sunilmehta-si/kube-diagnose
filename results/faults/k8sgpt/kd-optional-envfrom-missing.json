@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-optional-envfrom-missing/api",
+      "error": [
+        {
+          "Text": "Deployment kd-optional-envfrom-missing/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-optional-envfrom-missing",
+              "Masked": "eyRWYjloPihZMjQuTkJ0SzRvUk0rNHRJQlp5"
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "TU9j"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-optional-envfrom-missing/app-env",
+      "error": [
+        {
+          "Text": "ConfigMap app-env is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-optional-envfrom-missing/api-7dc995dd89-jbfjw",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=api pod=api-7dc995dd89-jbfjw",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}
