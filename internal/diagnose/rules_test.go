@@ -4521,7 +4521,7 @@ func TestPodAffinityRequiresPodsThatDoNotExist(t *testing.T) {
 	s.Pods = []kube.Pod{p, cache}
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD246", "Pod shop/web", "only beside pods labelled app=cache (topologyKey kubernetes.io/hostname), and namespace shop has no such pod",
-		"the other pods there are labelled app=redis")
+		"(the other pods there have app=redis)")
 
 	// The pod matches its own term: the scheduler would let it start, so the rule is unmet for another reason.
 	p.Metadata.Labels["app"] = "cache"

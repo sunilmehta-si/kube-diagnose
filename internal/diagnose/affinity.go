@@ -125,19 +125,10 @@ func affinityPodsMissing(ix *index, p kube.Pod) *problem {
 			continue
 		}
 		found := false
-		var others []string
-		seen := map[string]bool{}
 		for _, q := range ix.s.Pods {
-			if !slices.Contains(nss, q.Metadata.Namespace) || q.Metadata.Name == p.Metadata.Name && q.Metadata.Namespace == p.Metadata.Namespace {
-				continue
-			}
-			if t.LabelSelector.Matches(q.Metadata.Labels) {
+			if slices.Contains(nss, q.Metadata.Namespace) && t.LabelSelector.Matches(q.Metadata.Labels) {
 				found = true
 				break
-			}
-			if l := kube.FormatMap(q.Metadata.Labels); l != "" && !seen[l] && !kube.MatchesMap(p.Metadata.Labels, q.Metadata.Labels) {
-				seen[l] = true
-				others = append(others, l)
 			}
 		}
 		if found {
@@ -146,12 +137,8 @@ func affinityPodsMissing(ix *index, p kube.Pod) *problem {
 		sel := formatSelector(*t.LabelSelector)
 		where := "namespace " + strings.Join(nss, ", ")
 		cause := fmt.Sprintf("its required podAffinity places it only beside pods labelled %s (topologyKey %s), and %s has no such pod, so no node qualifies", sel, t.TopologyKey, where)
-		if len(others) > 0 {
-			sort.Strings(others)
-			if len(others) > 4 {
-				others = others[:4]
-			}
-			cause += "; the other pods there are labelled " + strings.Join(others, "; ")
+		if near := otherPodsLabels(ix, p, nss, t.LabelSelector.MatchLabels); near != "" {
+			cause += " (the other pods there have " + near + ")"
 		}
 		fix := "Correct the podAffinity selector to the labels the pods it should run beside carry, start those pods first, or make the rule preferredDuringSchedulingIgnoredDuringExecution so the pod can run without them."
 		return newProblem(p, "", "KD246", "Pod affinity requires pods that do not exist", Critical, cause, "affinitypods|"+sel, fix,
@@ -202,4 +189,36 @@ func nodeAffinityUnmet(ix *index, p kube.Pod) string {
 		terms = append(terms, strings.Join(unmet, "; "))
 	}
 	return strings.Join(terms, "; or ")
+}
+
+// otherPodsLabels lists the values that the pods of the namespaces, other than the pod's own workload, give the
+// selector's keys: what a mistyped selector was most likely meant to say. Only the selector's keys are shown, so
+// labels the controllers add (pod-template-hash) stay out.
+func otherPodsLabels(ix *index, p kube.Pod, nss []string, sel map[string]string) string {
+	if len(sel) == 0 {
+		return ""
+	}
+	own := ix.owner(p)
+	seen := map[string]bool{}
+	var out []string
+	for _, q := range ix.s.Pods {
+		if !slices.Contains(nss, q.Metadata.Namespace) || ix.owner(q) == own {
+			continue
+		}
+		vals := map[string]string{}
+		for k := range sel {
+			if v, ok := q.Metadata.Labels[k]; ok {
+				vals[k] = v
+			}
+		}
+		if s := kube.FormatMap(vals); s != "" && !seen[s] {
+			seen[s] = true
+			out = append(out, s)
+		}
+	}
+	sort.Strings(out)
+	if len(out) > 4 {
+		out = out[:4]
+	}
+	return strings.Join(out, "; ")
 }
