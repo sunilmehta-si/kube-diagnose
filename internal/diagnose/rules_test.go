@@ -4542,3 +4542,23 @@ func TestPodAffinityRequiresPodsThatDoNotExist(t *testing.T) {
 	s.Pods = []kube.Pod{p, cache}
 	expect(t, only(t, Diagnose(s)), "KD144", "Pod shop/web")
 }
+
+func TestNodeAffinityNoNodeMeets(t *testing.T) {
+	s := snap()
+	s.Nodes[0].Metadata.Labels["kubernetes.io/arch"] = "amd64"
+	p := unschedulablePod("0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.")
+	p.Spec.Affinity = []byte(`{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/arch","operator":"In","values":["arm64"]},{"key":"kubernetes.io/os","operator":"Exists"}]}]}}}`)
+	s.Pods = []kube.Pod{p}
+	s.Nodes[0].Metadata.Labels["kubernetes.io/os"] = "linux"
+	expect(t, only(t, Diagnose(s)), "KD141", "Pod shop/web", "the pod's required node affinity asks for kubernetes.io/arch in (arm64), and the nodes have amd64, which no node meets")
+
+	// Two terms, either of which would do; a label no node has.
+	p.Spec.Affinity = []byte(`{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"gpu","operator":"Exists"}]},{"key":"x","matchExpressions":[{"key":"kubernetes.io/arch","operator":"NotIn","values":["amd64"]}]}]}}}`)
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD141", "Pod shop/web", "asks for gpu, a label no node has; or kubernetes.io/arch notin (amd64), and the nodes have amd64")
+
+	// Each expression is met by some node: no claim about which.
+	p.Spec.Affinity = []byte(`{"nodeAffinity":{"requiredDuringSchedulingIgnoredDuringExecution":{"nodeSelectorTerms":[{"matchExpressions":[{"key":"kubernetes.io/arch","operator":"In","values":["amd64"]}]}]}}}`)
+	s.Pods = []kube.Pod{p}
+	expect(t, only(t, Diagnose(s)), "KD141", "Pod shop/web", "no node matches the pod's node selector or affinity")
+}

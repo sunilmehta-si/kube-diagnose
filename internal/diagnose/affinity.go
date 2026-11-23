@@ -162,3 +162,44 @@ func affinityPodsMissing(ix *index, p kube.Pod) *problem {
 	}
 	return nil
 }
+
+// nodeAffinityUnmet describes the expressions of a pod's required node affinity that no node meets, with the values
+// the nodes do give those labels: "kubernetes.io/arch in (arm64), and the nodes have amd64". Each term is an
+// alternative, so every term is described. Empty when nodes were not read, a term uses Gt or Lt, or some node meets
+// every expression of a term (the pod is then held by something else).
+func nodeAffinityUnmet(ix *index, p kube.Pod) string {
+	a := affinityOf(p)
+	if a.NodeAffinity == nil || a.NodeAffinity.Required == nil || !ix.read("nodes") || len(ix.s.Nodes) == 0 {
+		return ""
+	}
+	var terms []string
+	for _, t := range a.NodeAffinity.Required.Terms {
+		var unmet []string
+		for _, e := range t.MatchExpressions {
+			if e.Operator == "Gt" || e.Operator == "Lt" {
+				return ""
+			}
+			sel := kube.LabelSelector{MatchExpressions: []kube.LabelSelectorRequirement{e}}
+			met := false
+			for _, n := range ix.s.Nodes {
+				met = met || sel.Matches(n.Metadata.Labels)
+			}
+			if met {
+				continue
+			}
+			desc := formatSelector(sel)
+			switch _, values := nodesWith(ix, e.Key); {
+			case len(values) == 0:
+				desc += ", a label no node has"
+			case len(values) <= 4:
+				desc += ", and the nodes have " + strings.Join(values, ", ")
+			}
+			unmet = append(unmet, desc)
+		}
+		if len(unmet) == 0 {
+			return "" // a node meets this term on its own; the expressions together, or something else, rule it out
+		}
+		terms = append(terms, strings.Join(unmet, "; "))
+	}
+	return strings.Join(terms, "; or ")
+}

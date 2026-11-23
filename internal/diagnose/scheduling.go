@@ -138,6 +138,12 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 					What:    fmt.Sprintf("none of the %d nodes has %s", len(ix.s.Nodes), sel),
 					Command: "kubectl get nodes -l " + sel})
 			}
+		} else if unmet := nodeAffinityUnmet(ix, p); unmet != "" {
+			cause = "the pod's required node affinity asks for " + unmet + ", which no node meets"
+			phrase = nodesVerb(r.nodes, "does not meet", "do not meet") + " its node affinity (" + unmet + ")"
+			ev = append(ev, Evidence{Object: p.Ref(), What: "required node affinity: " + unmet,
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.affinity.nodeAffinity}")},
+				Evidence{Object: kube.Ref{Kind: "Node", Name: "*"}, What: "the nodes' labels", Command: "kubectl get nodes --show-labels"})
 		}
 		return newProblem(p, "", "KD141", "No node matches the pod's node selector", Critical, cause,
 			"selector|"+kube.FormatMap(p.Spec.NodeSelector),
