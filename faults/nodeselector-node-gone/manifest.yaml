@@ -1,0 +1,29 @@
+# The pods are pinned with nodeSelector kubernetes.io/hostname to node kd-faults-worker-old, which does not exist, so the scheduler places them on no node.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-nodeselector-node-gone
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-nodeselector-node-gone
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      # Pinned to the node that held its local data, which has since been replaced.
+      nodeSelector:
+        kubernetes.io/hostname: kd-faults-worker-old
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]

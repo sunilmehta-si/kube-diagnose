@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-nodeselector-node-gone",
+  "description": "The pods are pinned with nodeSelector kubernetes.io/hostname to node kd-faults-worker-old, which does not exist, so the scheduler places them on no node.",
+  "rule": "KD141",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "kd-faults-worker-old"
+    ],
+    [
+      "no node",
+      "does not exist"
+    ],
+    [
+      "hostname"
+    ]
+  ]
+}
