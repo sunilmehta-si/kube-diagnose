@@ -422,6 +422,13 @@ func containerProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			}
 		case "CrashLoopBackOff":
 			return crash(ix, p, cs)
+		case "PostStartHookError":
+			// Caught between a failed postStart hook and the kubelet's back-off, before the state reads
+			// CrashLoopBackOff.
+			if pr := hookFailed(ix, p, cs); pr != nil {
+				return pr
+			}
+			return crash(ix, p, cs)
 		}
 	}
 	if t := cs.State.Terminated; t != nil && t.Reason == "StartError" {

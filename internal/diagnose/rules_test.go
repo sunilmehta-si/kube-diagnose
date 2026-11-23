@@ -4944,3 +4944,17 @@ func TestServiceOfPodsWaitingForAClaimIsTheClaims(t *testing.T) {
 		t.Errorf("affects %v", f.Affects)
 	}
 }
+
+func TestPostStartHookCaughtBeforeTheBackOff(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	waiting(&p, "PostStartHookError", `Exec lifecycle hook ([sh -c /opt/warm-cache.sh]) for Container "web" in Pod "web-rs-a_shop(uid)" failed - error: command 'sh -c /opt/warm-cache.sh' exited with 127: sh: /opt/warm-cache.sh: not found`)
+	p.Status.ContainerStatuses[0].RestartCount = 5
+	p.Spec.Containers[0].Lifecycle = &kube.Lifecycle{PostStart: &kube.LifecycleHandler{Exec: &kube.ExecAction{Command: []string{"sh", "-c", "/opt/warm-cache.sh"}}}}
+	s.Pods = []kube.Pod{p}
+	e := event("Pod", "web-rs-a", "FailedPostStartHook", `Exec lifecycle hook ([sh -c /opt/warm-cache.sh]) for Container "web" in Pod "web-rs-a_shop(uid)" failed - error: command 'sh -c /opt/warm-cache.sh' exited with 127: sh: /opt/warm-cache.sh: not found`, time.Minute)
+	e.InvolvedObject.FieldPath = "spec.containers{web}"
+	s.Events = []kube.Event{e}
+	expect(t, only(t, Diagnose(s)), "KD116", "Deployment shop/web", "postStart hook (sh -c /opt/warm-cache.sh) fails")
+}
