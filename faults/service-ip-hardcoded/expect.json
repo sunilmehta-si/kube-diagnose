@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-service-ip-hardcoded",
+  "description": "The api connects to the database at 10.96.0.201, set in DB_HOST, and Service db has another cluster IP, so the connection fails and the api exits.",
+  "rule": "KD361",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "DB_HOST"
+    ],
+    [
+      "10.96.0.201"
+    ],
+    [
+      "Service db",
+      "cluster IP"
+    ]
+  ]
+}
