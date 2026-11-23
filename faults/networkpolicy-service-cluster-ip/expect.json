@@ -1,0 +1,21 @@
+{
+  "namespace": "kd-networkpolicy-service-cluster-ip",
+  "description": "An egress NetworkPolicy allows the client to reach the web Service by its cluster IP in an ipBlock; policies are checked after the Service forwards the connection, against the web pod's IP, so it is dropped.",
+  "rule": "KD360",
+  "object": "Deployment/client",
+  "keywords": [
+    [
+      "client-egress",
+      "NetworkPolicy"
+    ],
+    [
+      "10.96.0.200",
+      "cluster IP"
+    ],
+    [
+      "podSelector",
+      "IPs",
+      "pod IP"
+    ]
+  ]
+}
