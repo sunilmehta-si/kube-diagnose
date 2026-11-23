@@ -803,11 +803,17 @@ func mountProblem(ix *index, p kube.Pod) *problem {
 		}
 		if m := reHostPath.FindStringSubmatch(e.Message); m != nil {
 			node := orNode(p.Spec.NodeName)
-			return newProblem(p, "", "KD135", "hostPath does not exist on the node", Critical,
-				fmt.Sprintf("volume %s mounts hostPath %s, which is not a %s on %s, and the volume's type requires one, so the pod cannot start", m[1], m[2], m[3], node),
-				"hostpath|"+m[2], fmt.Sprintf("Create %s on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.", m[2]),
-				append(ev, Evidence{Object: p.Ref(), What: "volume " + m[1],
-					Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, m[1]))})...)
+			cause := fmt.Sprintf("volume %s mounts hostPath %s, which is not a %s on %s, and the volume's type requires one, so the pod cannot start", m[1], m[2], m[3], node)
+			fix := fmt.Sprintf("Create %s on every node the pod may run on (a DaemonSet or the node image), use type DirectoryOrCreate or FileOrCreate if the pod may create it, or schedule the pod onto the nodes that have it.", m[2])
+			ev = append(ev, Evidence{Object: p.Ref(), What: "volume " + m[1],
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")]}`, m[1]))})
+			if rt := nodeRuntime(ix, p.Spec.NodeName); dockerSocket(m[2]) && rt != "" && !strings.HasPrefix(rt, "docker") {
+				cause = fmt.Sprintf("volume %s mounts the Docker socket %s, and %s runs %s, not Docker, so there is no such socket and the pod cannot start", m[1], m[2], node, rt)
+				fix = "Talk to the node's runtime through its own socket (/run/containerd/containerd.sock for containerd, with a client such as crictl or nerdctl), or, to build images, use a builder that needs no daemon (BuildKit rootless, kaniko, buildah); Kubernetes has not run on Docker Engine since 1.24 unless cri-dockerd was installed."
+				ev = append(ev, Evidence{Object: kube.Ref{Kind: "Node", Name: p.Spec.NodeName}, What: "container runtime " + rt,
+					Command: cmdGet("node", "", p.Spec.NodeName, "{.status.nodeInfo.containerRuntimeVersion}")})
+			}
+			return newProblem(p, "", "KD135", "hostPath does not exist on the node", Critical, cause, "hostpath|"+m[2], fix, ev...)
 		}
 		if m := reMountKey.FindStringSubmatch(e.Message); m != nil {
 			kind, name := volumeSourceFor(p, m[1], m[2])
@@ -1801,4 +1807,19 @@ func orReason(r string) string {
 		return "a plain exit"
 	}
 	return r
+}
+
+// nodeRuntime returns the container runtime a node reports, such as containerd://2.1.4; empty when not known.
+func nodeRuntime(ix *index, name string) string {
+	for _, n := range ix.s.Nodes {
+		if n.Metadata.Name == name {
+			return n.Status.NodeInfo.ContainerRuntimeVersion
+		}
+	}
+	return ""
+}
+
+// dockerSocket reports whether a path is Docker Engine's socket.
+func dockerSocket(path string) bool {
+	return path == "/var/run/docker.sock" || path == "/run/docker.sock"
 }

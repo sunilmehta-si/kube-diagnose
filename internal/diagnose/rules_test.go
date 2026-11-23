@@ -4562,3 +4562,21 @@ func TestNodeAffinityNoNodeMeets(t *testing.T) {
 	s.Pods = []kube.Pod{p}
 	expect(t, only(t, Diagnose(s)), "KD141", "Pod shop/web", "no node matches the pod's node selector or affinity")
 }
+
+func TestDockerSocketOnAContainerdNode(t *testing.T) {
+	s := snap()
+	s.Nodes[0].Status.NodeInfo.ContainerRuntimeVersion = "containerd://2.1.4"
+	p := pod("builder", "")
+	p.Status.Phase = "Pending"
+	waiting(&p, "ContainerCreating", "")
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "builder", "FailedMount", `MountVolume.SetUp failed for volume "docker" : hostPath type check failed, /var/run/docker.sock is not a socket file, unable to determine its type: path "/var/run/docker.sock" does not exist`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD135", "Pod shop/builder", "volume docker mounts the Docker socket /var/run/docker.sock, and node node-1 runs containerd://2.1.4, not Docker")
+	if !strings.Contains(f.Fix, "/run/containerd/containerd.sock") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The runtime is not known: the plain account.
+	s.Nodes[0].Status.NodeInfo.ContainerRuntimeVersion = ""
+	expect(t, only(t, Diagnose(s)), "KD135", "Pod shop/builder", "which is not a socket file on node node-1")
+}

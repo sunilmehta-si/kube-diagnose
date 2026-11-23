@@ -607,6 +607,10 @@ type Node struct {
 		Conditions  []Condition       `json:"conditions,omitempty"`
 		Allocatable map[string]string `json:"allocatable,omitempty"`
 		Capacity    map[string]string `json:"capacity,omitempty"`
+		// NodeInfo.ContainerRuntimeVersion names the runtime the kubelet uses, such as containerd://2.1.4.
+		NodeInfo struct {
+			ContainerRuntimeVersion string `json:"containerRuntimeVersion,omitempty"`
+		} `json:"nodeInfo"`
 	} `json:"status"`
 }
 
