@@ -4752,3 +4752,36 @@ func TestNetworkPolicyAllowsTheServiceClusterIP(t *testing.T) {
 	s.NetworkPolicies[0].Spec.Egress[0].To[0].IPBlock.CIDR = "192.168.0.0/16"
 	expect(t, only(t, Diagnose(s)), "KD127", "ReplicaSet shop/client-rs")
 }
+
+func TestContainerConnectsToAFixedIPNotTheService(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "DB_HOST", Value: "10.96.0.201"}, {Name: "DB_PORT", Value: "5432"}}
+	crashed(&p, 1, "Error", 3)
+	db := service("db", map[string]string{"app": "db"}, port(8080))
+	db.Spec.ClusterIP = "10.96.37.4"
+	dbPod := pod("db-0", "")
+	dbPod.Metadata.Labels = map[string]string{"app": "db"}
+	s.Pods = []kube.Pod{p, dbPod}
+	s.Services = []kube.Service{db}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db", 1)}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"connecting to the database at 10.96.0.201:5432",
+		"Connecting to 10.96.0.201:5432 (10.96.0.201:5432)", "wget: can't connect to remote host (10.96.0.201): Connection refused"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD361", "Deployment shop/api", "its connection to 10.96.0.201 fails: the address is written into DB_HOST=10.96.0.201, and Service db, which DB_HOST names, has cluster IP 10.96.37.4")
+	if !strings.HasPrefix(f.Fix, "Set DB_HOST to the Service's name, db (or db.shop.svc)") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The variable names no Service: no guess at which was meant.
+	s.Pods[0].Spec.Containers[0].Env[0].Name = "DATABASE"
+	if f := only(t, Diagnose(s)); f.Rule == "KD361" {
+		t.Errorf("%+v", f)
+	}
+	// The address is the Service's own: the failure is something else.
+	s.Pods[0].Spec.Containers[0].Env[0].Name = "DB_HOST"
+	s.Services[0].Spec.ClusterIP = "10.96.0.201"
+	if f := only(t, Diagnose(s)); f.Rule == "KD361" {
+		t.Errorf("%+v", f)
+	}
+}

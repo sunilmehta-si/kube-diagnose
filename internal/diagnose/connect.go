@@ -273,3 +273,68 @@ func refusedByReadyPods(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []
 		fmt.Sprintf("Set Service %s's targetPort to %s (a containerPort in the pod spec is a label, not a setting: it does not make the app listen there), or make the app listen on %d on all interfaces (0.0.0.0, not 127.0.0.1). Then add a readiness probe on that port, so a pod that does not answer gets no traffic and shows as not ready.",
 			name, fixPort, tport), ev...)
 }
+
+var (
+	reIPv4        = regexp.MustCompile(`\b(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})\b`)
+	reConnFailure = regexp.MustCompile(`(?i)timed out|connection refused|no route to host|network is unreachable|i/o timeout|can't connect`)
+)
+
+// fixedServiceIP finds a container that exits because it connects to an IP address written into its environment,
+// in a variable named for a Service of its namespace (DB_HOST=10.96.0.201 beside Service db) whose cluster IP is now
+// another: the address of the Service before it was recreated, most often. A cluster IP is not kept when a Service
+// is deleted and created again; its name is.
+func fixedServiceIP(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	if !ix.read("services") {
+		return nil
+	}
+	failed := ""
+	for i := len(lines) - 1; i >= 0 && failed == ""; i-- {
+		if reConnFailure.MatchString(lines[i]) {
+			failed = lines[i]
+		}
+	}
+	if failed == "" {
+		return nil
+	}
+	c, _ := containerSpec(p, cs.Name)
+	ns := p.Metadata.Namespace
+	for _, e := range c.Env {
+		m := reIPv4.FindStringSubmatch(e.Value)
+		if m == nil || !mentions(lines, m[1]) {
+			continue
+		}
+		ip := m[1]
+		for _, svc := range ix.s.Services {
+			if svc.Metadata.Namespace != ns || svc.Spec.ClusterIP == "" || svc.Spec.ClusterIP == "None" || svc.Spec.ClusterIP == ip {
+				continue
+			}
+			prefix := strings.ToUpper(strings.ReplaceAll(svc.Metadata.Name, "-", "_")) + "_"
+			if !strings.HasPrefix(e.Name, prefix) {
+				continue
+			}
+			cause := fmt.Sprintf("container %s exits because its connection to %s fails: the address is written into %s=%s, and Service %s, which %s names, has cluster IP %s, not %s; a Service gets a new cluster IP when it is created again, and its name stays; its log says: %q",
+				cs.Name, ip, e.Name, e.Value, svc.Metadata.Name, e.Name, svc.Spec.ClusterIP, ip, clip(failed, 200))
+			fix := fmt.Sprintf("Set %s to the Service's name, %s (or %s.%s.svc), which cluster DNS keeps pointing at its current address, in place of %s.",
+				e.Name, strings.Replace(e.Value, ip, svc.Metadata.Name, 1), svc.Metadata.Name, ns, ip)
+			return newProblem(p, cs.Name, "KD361", "Container connects to a fixed IP, not the Service's address", Critical, cause,
+				"fixedip|"+e.Name+"|"+svc.Metadata.Name, fix,
+				append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s has %s=%s", cs.Name, e.Name, e.Value),
+					Command: cmdGet("pod", ns, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].env}`, cs.Name))},
+					Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s has cluster IP %s", svc.Metadata.Name, svc.Spec.ClusterIP),
+						Command: cmdGet("service", ns, svc.Metadata.Name, "{.spec.clusterIP}")})...)
+		}
+	}
+	return nil
+}
+
+// mentions reports whether any line holds the IP address as a whole word.
+func mentions(lines []string, ip string) bool {
+	for _, l := range lines {
+		for _, m := range reIPv4.FindAllString(l, -1) {
+			if m == ip {
+				return true
+			}
+		}
+	}
+	return false
+}
