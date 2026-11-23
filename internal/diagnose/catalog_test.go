@@ -56,7 +56,8 @@ func rulesDoc() string {
 	b.WriteString("x30-x39 its configuration and volumes, x40-x49 scheduling, x50-x59 storage, x60-x69 Services and ")
 	b.WriteString("networking, x70-x79 creating pods, x80-x89 workloads and x90-x99 nodes. KD2xx continues an area once its KD1xx ")
 	b.WriteString("numbers are used up, and two areas ran past their ten there: KD270-KD274 are Services and networking, and ")
-	b.WriteString("KD290-KD292 are workloads.\n\n| Rule | Title | Severity | Detects | Evidence |\n|---|---|---|---|---|\n")
+	b.WriteString("KD290-KD292 are workloads. KD3xx continues an area whose KD2xx numbers are used up: KD300 and on are ")
+	b.WriteString("running the container.\n\n| Rule | Title | Severity | Detects | Evidence |\n|---|---|---|---|---|\n")
 	ids := make([]string, 0, len(Rules))
 	for _, r := range Rules {
 		ids = append(ids, r.ID)

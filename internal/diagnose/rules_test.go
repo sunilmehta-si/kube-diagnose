@@ -1,6 +1,7 @@
 package diagnose
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -4365,4 +4366,30 @@ func TestContainerCaughtJustAfterFinishing(t *testing.T) {
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("job: %+v", r.Findings)
 	}
+}
+
+// kubectlDenied puts the API server's refusal, as kubectl prints it, in the worker's log.
+func kubectlDenied(s *snapshot.Snapshot, verb, resource, group, scope string) {
+	s.Logs[0].Lines = []string{fmt.Sprintf(`Error from server (Forbidden): %s is forbidden: User "system:serviceaccount:shop:app" cannot %s resource %q in API group %q %s`, resource, verb, resource, group, scope)}
+}
+
+func TestRoleGrantsTheResourceInAnotherGroup(t *testing.T) {
+	s, _ := rbacSnapshot()
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"deployments"}, Verbs: []string{"get", "list", "watch"}}}
+	kubectlDenied(s, "list", "deployments", "apps", `in the namespace "shop"`)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD300", "ReplicaSet shop/worker-rs", "it may not list deployments.apps in namespace shop",
+		`Role configmap-reader grants get, list, watch on deployments, but in apiGroups [""], and deployments are in API group "apps"`)
+	if !strings.Contains(f.Fix, `Set apiGroups to ["apps"] in the rule of Role configmap-reader`) {
+		t.Errorf("fix: %s", f.Fix)
+	}
+
+	// The rule grants it in full: the refusal is something else, and KD126 says what to grant.
+	s.Roles[0].Rules[0].APIGroups = []string{"apps"}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+
+	// Roles were not read: no claim about them.
+	s.Roles[0].Rules[0].APIGroups = []string{""}
+	s.Gaps = []snapshot.Gap{{Resource: "roles.rbac.authorization.k8s.io"}}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }

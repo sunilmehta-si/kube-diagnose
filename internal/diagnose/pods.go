@@ -1177,6 +1177,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := rbacBroken(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := grantNearMiss(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := rbacDenied(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
