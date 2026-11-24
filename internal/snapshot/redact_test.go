@@ -229,3 +229,39 @@ func TestRedactRenamesRolesAndKeepsBuiltInClusterRoles(t *testing.T) {
 		t.Errorf("message %q", out.Events[0].Message)
 	}
 }
+
+func TestRedactRenamesTheGatewayAPIsObjects(t *testing.T) {
+	var gw kube.Gateway
+	gw.Metadata = kube.ObjectMeta{Name: "acme-public", Namespace: "shop"}
+	gw.Spec.GatewayClassName = "acme-envoy"
+	gw.Spec.Listeners = []kube.Listener{{Name: "https", Hostname: "*.shop.acme.example", Port: 443, Protocol: "HTTPS"}}
+	var class kube.GatewayClass
+	class.Metadata.Name = "acme-envoy"
+	var rt kube.Route
+	rt.Kind, rt.Metadata = "HTTPRoute", kube.ObjectMeta{Name: "checkout-route", Namespace: "shop"}
+	rt.Spec.Hostnames = []string{"pay.shop.acme.example"}
+	rt.Spec.ParentRefs = []kube.ParentRef{{Name: "acme-public", Namespace: "edge-gateways", SectionName: "https"}}
+	rt.Spec.Rules = append(rt.Spec.Rules, struct {
+		BackendRefs []kube.BackendRef `json:"backendRefs,omitempty"`
+	}{BackendRefs: []kube.BackendRef{{Name: "checkout-v2"}}})
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Gateways: []kube.Gateway{gw}, GatewayClasses: []kube.GatewayClass{class}, Routes: []kube.Route{rt}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(red)
+	for _, name := range []string{"acme-public", "acme-envoy", "shop.acme.example", "checkout-route", "pay.", "acme", "edge-gateways", "checkout-v2"} {
+		if strings.Contains(string(b), name) {
+			t.Errorf("redacted snapshot still contains %q", name)
+		}
+	}
+	// The wildcard listener still covers the route's hostname, label for label.
+	l, h := red.Gateways[0].Spec.Listeners[0].Hostname, red.Routes[0].Spec.Hostnames[0]
+	if !strings.HasPrefix(l, "*.") || !strings.HasSuffix(h, l[1:]) || h == l[2:] {
+		t.Errorf("listener %q, route %q", l, h)
+	}
+	// The route still names its Gateway and its listener, so the diagnosis of the redacted snapshot is the same.
+	if red.Routes[0].Spec.ParentRefs[0].Name != red.Gateways[0].Metadata.Name || red.Routes[0].Spec.ParentRefs[0].SectionName != "https" || red.Routes[0].Kind != "HTTPRoute" {
+		t.Errorf("route %+v, gateway %+v", red.Routes[0].Spec.ParentRefs, red.Gateways[0].Metadata)
+	}
+}
