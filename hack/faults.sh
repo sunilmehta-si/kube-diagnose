@@ -22,7 +22,11 @@ platform="$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m)"
 
 fetch() { # url sha256 dest
   curl -fsSL --retry 3 -o "$3" "$1"
-  echo "$2  $3" | sha256sum -c --quiet -
+  if command -v sha256sum >/dev/null; then
+    echo "$2  $3" | sha256sum -c --quiet -
+  else
+    echo "$2  $3" | shasum -a 256 -c --quiet -
+  fi
 }
 
 if [ "$platform" = "linux-x86_64" ]; then
@@ -54,6 +58,12 @@ if ! "$kind" get clusters 2>/dev/null | grep -qx kd-faults; then
 else
   "$kind" get kubeconfig --name kd-faults > "$work/kubeconfig"
 fi
+
+# The Gateway API's CRDs go in before the scenarios, some of which create Gateways and routes.
+[ -f "$work/gateway-api-$GATEWAY_API_VERSION.yaml" ] || fetch "https://github.com/kubernetes-sigs/gateway-api/releases/download/$GATEWAY_API_VERSION/standard-install.yaml" "$GATEWAY_API_SHA256" "$work/gateway-api-$GATEWAY_API_VERSION.yaml"
+kubectl --kubeconfig "$work/kubeconfig" apply --server-side -f "$work/gateway-api-$GATEWAY_API_VERSION.yaml" >/dev/null
+kubectl --kubeconfig "$work/kubeconfig" wait --for condition=Established --timeout 120s \
+  crd/gatewayclasses.gateway.networking.k8s.io crd/gateways.gateway.networking.k8s.io crd/httproutes.gateway.networking.k8s.io crd/grpcroutes.gateway.networking.k8s.io
 
 make build
 gpt_args=()
