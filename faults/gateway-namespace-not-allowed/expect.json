@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-namespace-not-allowed",
+  "description": "The Gateway listener admits routes from namespaces labelled gateway-access=public, and the route namespace has no such label.",
+  "rule": "KD368",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "gateway-access"
+    ],
+    [
+      "admits"
+    ],
+    [
+      "Selector"
+    ]
+  ]
+}
