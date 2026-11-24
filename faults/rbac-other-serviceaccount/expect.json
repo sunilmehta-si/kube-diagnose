@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-rbac-other-serviceaccount",
+  "description": "Role read-configmaps is bound to ServiceAccount config-reader, and the settings loader sets no serviceAccountName, so it runs as default and the API server refuses its watch.",
+  "rule": "KD308",
+  "object": "Deployment/settings-loader",
+  "keywords": [
+    [
+      "config-reader"
+    ],
+    [
+      "default"
+    ],
+    [
+      "serviceAccountName"
+    ]
+  ]
+}
