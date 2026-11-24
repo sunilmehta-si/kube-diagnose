@@ -203,9 +203,17 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 		if strings.Contains(r.text, "missing required label") {
 			cause += " (they lack the label the constraint's topologyKey names)"
 		}
+		fix := "Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count."
+		if strings.Contains(r.text, "topology spread") {
+			if account, minFix := spreadAccount(ix, p); account != "" {
+				cause += ": " + account
+				if minFix != "" {
+					fix = minFix
+				}
+			}
+		}
 		return newProblem(p, "", "KD144", "Pod spread or affinity rules cannot be met", Critical,
-			"no node can run the pod: "+cause, "spread|"+what,
-			"Add nodes in the missing topology domains, relax the rule (whenUnsatisfiable: ScheduleAnyway, preferred instead of required affinity), or lower the replica count.",
+			"no node can run the pod: "+cause, "spread|"+what, fix,
 			Evidence{Object: p.Ref(), What: "pod scheduling constraints",
 				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}")}), cause
 	case strings.Contains(r.text, "volume node affinity conflict"):

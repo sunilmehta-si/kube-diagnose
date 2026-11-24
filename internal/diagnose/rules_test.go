@@ -4958,3 +4958,520 @@ func TestPostStartHookCaughtBeforeTheBackOff(t *testing.T) {
 	s.Events = []kube.Event{e}
 	expect(t, only(t, Diagnose(s)), "KD116", "Deployment shop/web", "postStart hook (sh -c /opt/warm-cache.sh) fails")
 }
+
+func TestRoleGrantsTheResourceButNotItsSubresource(t *testing.T) {
+	s, _ := rbacSnapshot()
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get", "list"}}}
+	kubectlDenied(s, "get", "pods/log", "", `in the namespace "shop"`)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD307", "ReplicaSet shop/worker-rs", "it may not get pods/log in namespace shop",
+		"Role configmap-reader grants get, list on pods, and the request is for its log subresource, pods/log", "a rule that names pods covers the objects, not their subresources")
+	if !strings.Contains(f.Fix, `Add "pods/log" to the resources of the rule of Role configmap-reader that names pods (with verb get)`) {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// "pods/*" and "*/log" grant it: the refusal is something else.
+	for _, r := range []string{"pods/*", "*/log", "pods/log"} {
+		s.Roles[0].Rules[0].Resources = []string{"pods", r}
+		expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+	}
+	// A rule without the verb is KD307's business only when it has the verb.
+	s.Roles[0].Rules[0].Resources, s.Roles[0].Rules[0].Verbs = []string{"pods"}, []string{"list"}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}
+
+func TestPermissionIsBoundToAnotherServiceAccount(t *testing.T) {
+	s, p := rbacSnapshot()
+	p.Spec.ServiceAccountName = ""
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"configmaps"}, Verbs: []string{"get", "list", "watch"}}}
+	s.RoleBindings[0].Subjects[0] = kube.Subject{Kind: "ServiceAccount", Name: "app"}
+	s.Logs[0].Lines = []string{`configmaps is forbidden: User "system:serviceaccount:shop:default" cannot list resource "configmaps" in API group "" in the namespace "shop"`}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD308", "ReplicaSet shop/worker-rs", "refuses its ServiceAccount default: it may not list configmaps in namespace shop",
+		"RoleBinding read-config grants it, through Role configmap-reader, to ServiceAccount app", "a pod whose template sets no serviceAccountName runs as default")
+	if !strings.Contains(f.Fix, "Set serviceAccountName: app in the pod template, or, if the app should keep ServiceAccount default, add it to the subjects of RoleBinding read-config") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The Role does not grant the request: nothing to point at.
+	s.Roles[0].Rules[0].Verbs = []string{"get"}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}
+
+func TestScriptHasWindowsLineEndings(t *testing.T) {
+	s := snap()
+	deployment(s, "worker", 1, 0)
+	p := pod("worker-rs-a", "worker")
+	p.Spec.Containers[0].Command = []string{"sh", "/scripts/start.sh"}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "scripts", MountPath: "/scripts"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "scripts", ConfigMap: &kube.ConfigMapVolumeSource{Name: "worker-scripts"}}}
+	crashed(&p, 2, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{{Namespace: "shop", Name: "worker-scripts", Keys: []string{"start.sh"}}}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"starting the worker", "/scripts/start.sh: line 3: cd: can't cd to /app\r: No such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD309", "Deployment shop/worker", "script /scripts/start.sh has Windows line endings (CRLF)", "the script comes from ConfigMap worker-scripts", `/app\r`)
+	if !strings.Contains(f.Fix, "create ConfigMap worker-scripts again from the file") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Bash says it another way.
+	s.Logs[0].Lines = []string{"/scripts/start.sh: line 2: $'\\r': command not found"}
+	expect(t, only(t, Diagnose(s)), "KD309", "Deployment shop/worker", "Windows line endings")
+
+	// An app that writes CRLF logs, or a progress bar, is no sign.
+	s.Logs[0].Lines = []string{"fatal: config not found\r", "downloading\r 45%\r 90%"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD309" {
+		t.Errorf("CRLF logs: %s", f.Cause)
+	}
+}
+
+func TestContainerReadsAPathWhereOnlyTheInitContainerMounts(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Volumes = []kube.Volume{{Name: "rendered", EmptyDir: &kube.EmptyDirVolumeSource{}}}
+	p.Spec.InitContainers = []kube.Container{{Name: "render", VolumeMounts: []kube.VolumeMount{{Name: "rendered", MountPath: "/work"}}}}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "rendered", MountPath: "/etc/app"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"cat: can't open '/work/app.conf': No such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD310", "Deployment shop/web", "/work/app.conf does not exist: init container render mounts volume rendered (emptyDir) at /work",
+		"container web mounts it at /etc/app, so the file is /etc/app/app.conf there")
+	if !strings.Contains(f.Fix, "Mount volume rendered at /work in container web as in init container render, or have the app read /etc/app/app.conf") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The container does not mount the volume.
+	s.Pods[0].Spec.Containers[0].VolumeMounts = nil
+	expect(t, only(t, Diagnose(s)), "KD310", "Deployment shop/web", "container web does not mount volume rendered at all")
+	// A path the init container does not mount: not this.
+	s.Logs[0].Lines = []string{"cat: can't open '/srv/app.conf': No such file or directory"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD310" {
+		t.Errorf("other path: %s", f.Cause)
+	}
+}
+
+func TestKeyFileModeIsTooOpen(t *testing.T) {
+	s := snap()
+	deployment(s, "git-sync", 1, 0)
+	p := pod("git-sync-rs-a", "git-sync")
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "deploy-key", MountPath: "/etc/git-secret"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "deploy-key", Secret: &kube.SecretVolumeSource{SecretName: "deploy-key"}}}
+	crashed(&p, 255, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{
+		"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+		"Permissions 0644 for '/etc/git-secret/ssh' are too open.",
+		"It is required that your private key files are NOT accessible by others.",
+	}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD311", "Deployment shop/git-sync", "the app refuses key file /etc/git-secret/ssh", "its mode is 0644 (the default mode, as no defaultMode is set) on volume deploy-key (Secret deploy-key)")
+	if !strings.Contains(f.Fix, "Set defaultMode: 0400 on volume deploy-key") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// PostgreSQL's words; the user is not root.
+	uid := int64(999)
+	s.Pods[0].Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	s.Logs[0].Lines = []string{`FATAL:  private key file "/etc/git-secret/ssh" has group or world access`}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD311", "Deployment shop/git-sync", "its mode is 0644")
+	if !strings.Contains(f.Fix, "runs as user 999") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A private mode: the refusal is something else.
+	m := int32(0o400)
+	s.Pods[0].Spec.Volumes[0].Secret.DefaultMode = &m
+	if f := only(t, Diagnose(s)); f.Rule == "KD311" {
+		t.Errorf("0400: %s", f.Cause)
+	}
+}
+
+func TestContainerRunsAsAUserTheImageDoesNotDefine(t *testing.T) {
+	s := snap()
+	deployment(s, "worker", 1, 0)
+	p := pod("worker-rs-a", "worker")
+	uid := int64(10001)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"whoami: unknown uid 10001"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD312", "Deployment shop/worker", "it runs as user ID 10001 (runAsUser, in the pod's securityContext), which has no entry in the image's /etc/passwd")
+	if !strings.Contains(f.Fix, "add user 10001 to the image's /etc/passwd") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	for _, l := range []string{"KeyError: 'getpwuid(): uid not found: 10001'", "user: unknown userid 10001", "No user exists for uid 10001", "I have no name!"} {
+		s.Logs[0].Lines = []string{l}
+		expect(t, only(t, Diagnose(s)), "KD312", "Deployment shop/worker", "10001")
+	}
+	// Another user ID in the message, or no runAsUser: not this.
+	s.Logs[0].Lines = []string{"whoami: unknown uid 20002"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD312" {
+		t.Errorf("other uid: %s", f.Cause)
+	}
+	s.Pods[0].Spec.SecurityContext = nil
+	s.Logs[0].Lines = []string{"I have no name!"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD312" {
+		t.Errorf("no runAsUser: %s", f.Cause)
+	}
+}
+
+// gatewaySnapshot holds a working Gateway API setup: GatewayClass envoy, Gateway public with an HTTP listener on
+// port 80, and HTTPRoute shop sending shop.example.com to Service web, port 80, which has a ready pod.
+func gatewaySnapshot() *snapshot.Snapshot {
+	s := snap()
+	s.Pods = []kube.Pod{pod("web", "")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.NamespaceObjects = []kube.Namespace{{Metadata: kube.ObjectMeta{Name: "shop", Labels: map[string]string{"kubernetes.io/metadata.name": "shop"}}}}
+	var class kube.GatewayClass
+	class.Metadata.Name = "envoy"
+	s.GatewayClasses = []kube.GatewayClass{class}
+	var gw kube.Gateway
+	gw.Metadata = kube.ObjectMeta{Name: "public", Namespace: "shop"}
+	gw.Spec.GatewayClassName = "envoy"
+	gw.Spec.Listeners = []kube.Listener{{Name: "http", Port: 80, Protocol: "HTTP"}}
+	s.Gateways = []kube.Gateway{gw}
+	var rt kube.Route
+	rt.Kind, rt.Metadata = "HTTPRoute", kube.ObjectMeta{Name: "shop", Namespace: "shop"}
+	rt.Spec.ParentRefs = []kube.ParentRef{{Name: "public"}}
+	rt.Spec.Hostnames = []string{"shop.example.com"}
+	p := int32(80)
+	rt.Spec.Rules = append(rt.Spec.Rules, kube.RouteRule{BackendRefs: []kube.BackendRef{{Name: "web", Port: &p}}})
+	s.Routes = []kube.Route{rt}
+	return s
+}
+
+func TestAWorkingGatewaySetupIsQuiet(t *testing.T) {
+	if r := Diagnose(gatewaySnapshot()); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestRouteSendsTrafficToAServiceThatDoesNotExist(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Name = "web-v2"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD362", "HTTPRoute shop/shop", "HTTPRoute shop sends traffic to Service web-v2 (from rule 1), which does not exist", "HTTP 500")
+	if !strings.Contains(f.Fix, "Correct the backendRef's name in HTTPRoute shop, or create the Service") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A backend in a namespace that was not read: nothing is known about it.
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Namespace = "payments"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// Services were not read.
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Namespace = ""
+	s.Gaps = []snapshot.Gap{{Resource: "services"}}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD362" {
+			t.Errorf("services unread: %s", f.Cause)
+		}
+	}
+}
+
+func TestRouteSendsTrafficToAPortTheServiceDoesNotExpose(t *testing.T) {
+	s := gatewaySnapshot()
+	p := int32(8080)
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Port = &p
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD363", "HTTPRoute shop/shop", "port 8080 of Service web (from rule 1), which exposes port 80 (to the pods' http)")
+	if !strings.Contains(f.Fix, "not the container's targetPort") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestRouteIsAttachedToAGatewayThatDoesNotExist(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.ParentRefs[0].Name = "public-gateway"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD364", "HTTPRoute shop/shop", "HTTPRoute shop attaches to Gateway public-gateway, which does not exist in namespace shop", "the Gateways of namespace shop are public")
+	// A Gateway in a namespace that was not read: nothing is known about it.
+	s.Routes[0].Spec.ParentRefs[0].Namespace = "gateways"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// Gateways were not read.
+	s.Routes[0].Spec.ParentRefs[0].Namespace = ""
+	s.Gaps = []snapshot.Gap{{Resource: "gateways.gateway.networking.k8s.io"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestGatewayNamesAGatewayClassThatDoesNotExist(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Gateways[0].Spec.GatewayClassName = "nginx"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD365", "Gateway shop/public", "Gateway public names GatewayClass nginx, which does not exist", "the cluster's GatewayClasses are envoy")
+	s.GatewayClasses = nil
+	expect(t, only(t, Diagnose(s)), "KD365", "Gateway shop/public", "the cluster has no GatewayClass")
+	s.Gaps = []snapshot.Gap{{Resource: "gatewayclasses.gateway.networking.k8s.io"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestRouteNamesAListenerTheGatewayDoesNotHave(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.ParentRefs[0].SectionName = "https"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD366", "HTTPRoute shop/shop", "HTTPRoute shop attaches to listener https of Gateway public, and the Gateway has no such listener", "its listeners are http (port 80, HTTP)")
+	s.Routes[0].Spec.ParentRefs[0].SectionName = ""
+	p := int32(443)
+	s.Routes[0].Spec.ParentRefs[0].Port = &p
+	expect(t, only(t, Diagnose(s)), "KD366", "HTTPRoute shop/shop", "attaches to port 443 of Gateway public")
+	s.Routes[0].Spec.ParentRefs[0].SectionName, p = "http", 80
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestGatewaysListenersDoNotAdmitTheRoute(t *testing.T) {
+	s := gatewaySnapshot()
+	l := &s.Gateways[0].Spec.Listeners[0]
+	l.AllowedRoutes = &struct {
+		Namespaces *struct {
+			From     string              `json:"from,omitempty"`
+			Selector *kube.LabelSelector `json:"selector,omitempty"`
+		} `json:"namespaces,omitempty"`
+		Kinds []struct {
+			Group string `json:"group,omitempty"`
+			Kind  string `json:"kind"`
+		} `json:"kinds,omitempty"`
+	}{}
+	l.AllowedRoutes.Namespaces = &struct {
+		From     string              `json:"from,omitempty"`
+		Selector *kube.LabelSelector `json:"selector,omitempty"`
+	}{From: "Selector", Selector: &kube.LabelSelector{MatchLabels: map[string]string{"gateway-access": "public"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD368", "HTTPRoute shop/shop", "no listener it attaches to admits it", "listener http admits routes from namespaces labelled gateway-access=public only", "namespace shop has labels kubernetes.io/metadata.name=shop")
+	if !strings.Contains(f.Fix, "Label namespace shop so listener http's selector matches it") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.NamespaceObjects[0].Metadata.Labels["gateway-access"] = "public"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+
+	// A Gateway in another namespace admits routes from its own only, by default.
+	s = gatewaySnapshot()
+	s.Namespaces = nil
+	s.Gateways[0].Metadata.Namespace = "edge"
+	s.Routes[0].Spec.ParentRefs[0].Namespace = "edge"
+	expect(t, only(t, Diagnose(s)), "KD368", "HTTPRoute shop/shop", "listener http admits routes from its own namespace, edge, only (allowedRoutes.namespaces.from: Same, the default), and the route is in namespace shop")
+
+	// A TCP listener takes TCPRoutes.
+	s = gatewaySnapshot()
+	s.Gateways[0].Spec.Listeners[0].Protocol = "TCP"
+	expect(t, only(t, Diagnose(s)), "KD368", "HTTPRoute shop/shop", "listener http (TCP) takes TCPRoute, not HTTPRoutes")
+}
+
+func TestRoutesHostnamesAreServedByNoListener(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Gateways[0].Spec.Listeners[0].Hostname = "*.store.example.com"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD367", "HTTPRoute shop/shop", "HTTPRoute shop serves shop.example.com, and the listeners of Gateway public it attaches to serve *.store.example.com (listener http)")
+	for _, h := range []string{"shop.example.com", "*.example.com", ""} {
+		s.Gateways[0].Spec.Listeners[0].Hostname = h
+		if r := Diagnose(s); len(r.Findings) != 0 {
+			t.Errorf("listener %q: %+v", h, r.Findings)
+		}
+	}
+	for _, c := range []struct {
+		l, r string
+		ok   bool
+	}{{"*.example.com", "a.b.example.com", true}, {"*.example.com", "example.com", false}, {"a.example.com", "*.example.com", true}, {"*.example.com", "*.shop.example.com", true}, {"*.store.example.com", "*.example.com", true}, {"*.a.com", "*.b.com", false}} {
+		if hostMatch(c.l, c.r) != c.ok {
+			t.Errorf("hostMatch(%q, %q) = %v", c.l, c.r, !c.ok)
+		}
+	}
+}
+
+func TestGatewayListenersCertificateSecretIsMissing(t *testing.T) {
+	s := gatewaySnapshot()
+	l := kube.Listener{Name: "https", Port: 443, Protocol: "HTTPS"}
+	l.TLS = &struct {
+		Mode            string `json:"mode,omitempty"`
+		CertificateRefs []struct {
+			Group     string `json:"group,omitempty"`
+			Kind      string `json:"kind,omitempty"`
+			Name      string `json:"name"`
+			Namespace string `json:"namespace,omitempty"`
+		} `json:"certificateRefs,omitempty"`
+	}{}
+	l.TLS.CertificateRefs = append(l.TLS.CertificateRefs, struct {
+		Group     string `json:"group,omitempty"`
+		Kind      string `json:"kind,omitempty"`
+		Name      string `json:"name"`
+		Namespace string `json:"namespace,omitempty"`
+	}{Name: "shop-tls"})
+	s.Gateways[0].Spec.Listeners = append(s.Gateways[0].Spec.Listeners, l)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD370", "Gateway shop/public", "listener https of Gateway public (port 443, HTTPS) terminates TLS with Secret shop-tls, and there is no Secret shop-tls in namespace shop")
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "Opaque", Keys: []string{"cert.pem", "key.pem"}}}
+	expect(t, only(t, Diagnose(s)), "KD370", "Gateway shop/public", "Secret shop-tls has keys cert.pem, key.pem, and a certificate Secret needs tls.crt and tls.key")
+	s.Secrets[0].Keys = []string{"tls.crt", "tls.key"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestRouteSendsTrafficToANamespaceThatDoesNotGrantIt(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Namespaces = nil // every namespace read
+	s.Services[0].Metadata.Namespace = "payments"
+	s.EndpointSlices[0].Metadata.Namespace = "payments"
+	s.Pods[0].Metadata.Namespace = "payments"
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Namespace = "payments"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD369", "HTTPRoute shop/shop", "HTTPRoute shop sends traffic to Service web in namespace payments (from rule 1), and no ReferenceGrant in namespace payments lets HTTPRoutes of namespace shop refer to its Services")
+	var g kube.ReferenceGrant
+	g.Metadata = kube.ObjectMeta{Name: "from-shop", Namespace: "payments"}
+	g.Spec.From = append(g.Spec.From, struct {
+		Group     string `json:"group"`
+		Kind      string `json:"kind"`
+		Namespace string `json:"namespace"`
+	}{"gateway.networking.k8s.io", "HTTPRoute", "shop"})
+	g.Spec.To = append(g.Spec.To, struct {
+		Group string `json:"group"`
+		Kind  string `json:"kind"`
+		Name  string `json:"name,omitempty"`
+	}{"", "Service", ""})
+	s.ReferenceGrants = []kube.ReferenceGrant{g}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// A grant for another Service only.
+	s.ReferenceGrants[0].Spec.To[0].Name = "ledger"
+	expect(t, only(t, Diagnose(s)), "KD369", "HTTPRoute shop/shop")
+}
+
+func TestRouteIsAttachedToNoGateway(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.ParentRefs = nil
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD372", "HTTPRoute shop/shop", "HTTPRoute shop has no parentRefs, so it is attached to no Gateway")
+	// Gateways unread: a route with no parentRefs is attached to nothing all the same.
+	s.Gaps = []snapshot.Gap{{Resource: "gateways.gateway.networking.k8s.io"}}
+	expect(t, only(t, Diagnose(s)), "KD372", "HTTPRoute shop/shop")
+}
+
+func TestHTTPRoutesSendTheSameHostAndPathToDifferentServices(t *testing.T) {
+	s := gatewaySnapshot()
+	canary := s.Routes[0]
+	canary.Metadata.Name = "shop-canary"
+	canary.Spec.Rules = []kube.RouteRule{{BackendRefs: []kube.BackendRef{{Name: "web", Port: canary.Spec.Rules[0].BackendRefs[0].Port}}}}
+	canary.Spec.Rules[0].BackendRefs[0].Name = "web"
+	s.Routes = append(s.Routes, canary)
+	// The same Service: no conflict.
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	s.Services = append(s.Services, service("web-v2", map[string]string{"app": "web"}, named("http")))
+	s.EndpointSlices = append(s.EndpointSlices, slice("web-v2", 1))
+	s.Routes[1].Spec.Rules[0].BackendRefs[0].Name = "web-v2"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD371", "HTTPRoute shop/shop-canary", "HTTPRoute shop-canary claims shop.example.com with path prefix / (to Service web-v2; HTTPRoute shop sends it to Service web), on Gateway public", "so shop-canary gets none of those requests")
+	// Created first, the canary wins instead.
+	s.Routes[0].Metadata.CreationTimestamp, s.Routes[1].Metadata.CreationTimestamp = t0, t0.Add(-time.Hour)
+	expect(t, only(t, Diagnose(s)), "KD371", "HTTPRoute shop/shop", "HTTPRoute shop claims shop.example.com")
+	// A header match is narrower: no tie.
+	s.Routes[1].Spec.Rules[0].Matches = []kube.RouteMatch{{Headers: []any{map[string]string{"name": "x-canary", "value": "true"}}}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestVariableComesFromALabelThePodDoesNotHave(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "APP_VERSION", ValueFrom: &kube.EnvVarSource{FieldRef: &struct {
+		FieldPath string `json:"fieldPath"`
+	}{FieldPath: "metadata.labels['app.kubernetes.io/version']"}}}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"APP_VERSION is empty: cannot tag the build"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD236", "Deployment shop/api", "APP_VERSION is empty: it comes from the pod's label app.kubernetes.io/version (fieldRef metadata.labels['app.kubernetes.io/version']), and the pod has no such label", "the pod's labels are app")
+	if !strings.Contains(f.Fix, "Add label app.kubernetes.io/version to the pod template's metadata") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The pod has the label: the complaint is something else.
+	s.Pods[0].Metadata.Labels["app.kubernetes.io/version"] = "1.4.2"
+	if f := only(t, Diagnose(s)); f.Rule == "KD236" {
+		t.Errorf("label present: %s", f.Cause)
+	}
+}
+
+func TestClaimsSelectorStopsProvisioning(t *testing.T) {
+	s := snap()
+	var sc kube.StorageClass
+	sc.Metadata = kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}}
+	sc.Provisioner, sc.VolumeBindingMode = "rancher.io/local-path", "WaitForFirstConsumer"
+	s.StorageClasses = []kube.StorageClass{sc}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pvc.Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"tier": "fast"}}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	p := pod("web", "")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "ProvisioningFailed",
+		`failed to provision volume with StorageClass "standard": claim.Spec.Selector is not supported`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD253", "PersistentVolumeClaim shop/data", "has a selector, tier=fast, and the provisioner of the default StorageClass standard does not provision a volume for a claim with one")
+	// The same words, and no selector: KD152 reports the event as it is.
+	s.PVCs[0].Spec.Selector = nil
+	expect(t, only(t, Diagnose(s)), "KD152", "PersistentVolumeClaim shop/data")
+}
+
+func TestSpreadConstraintWithMoreMinDomainsThanTheNodesForm(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 1)
+	running := pod("web-rs-a", "web")
+	pending := pod("web-rs-b", "web")
+	md := int32(3)
+	for _, p := range []*kube.Pod{&running, &pending} {
+		p.Spec.TopologySpreadConstraints = []kube.TopologySpreadConstraint{{MaxSkew: 1, TopologyKey: "kubernetes.io/hostname", WhenUnsatisfiable: "DoNotSchedule",
+			LabelSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}, MinDomains: &md}}
+	}
+	pending.Spec.NodeName = ""
+	pending.Status.Phase = "Pending"
+	pending.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."}}
+	pending.Status.ContainerStatuses = nil
+	s.Pods = []kube.Pod{running, pending}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD144", "Deployment shop/web", "its constraint over kubernetes.io/hostname has minDomains 3, and the nodes form 1 domain (node-1)",
+		"no domain may hold more than maxSkew (1) of the pods the constraint counts, and 1 such pod already run")
+	if !strings.Contains(f.Fix, "Lower minDomains to the number of kubernetes.io/hostname domains the nodes form (1)") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Without minDomains, the account says where the pods are.
+	for i := range s.Pods {
+		s.Pods[i].Spec.TopologySpreadConstraints[0].MinDomains = nil
+	}
+	expect(t, only(t, Diagnose(s)), "KD144", "Deployment shop/web", "its constraint over kubernetes.io/hostname (maxSkew 1) spreads the pods it counts over 1 domain (node-1), where 1 such pod already run")
+}
+
+func TestPortInUseOnTheHostNetwork(t *testing.T) {
+	s := snap()
+	deployment(s, "node-agent", 1, 0)
+	p := pod("node-agent-rs-a", "node-agent")
+	p.Spec.HostNetwork = true
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{ContainerPort: 10250}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"httpd: bind: Address in use"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD122", "Deployment shop/node-agent", "the pod runs in the node's network (hostNetwork: true), so it shares ports with every process of the node, and 10250 is the kubelet's")
+	if !strings.Contains(f.Fix, "drop hostNetwork") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Logs[0].Lines = []string{"listen tcp 0.0.0.0:9100: bind: address already in use"}
+	expect(t, only(t, Diagnose(s)), "KD122", "Deployment shop/node-agent", "something on the node has 9100")
+}

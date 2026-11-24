@@ -82,6 +82,21 @@ func (r *redactor) addName(prefix, name string) {
 	}
 }
 
+// addHost names a Gateway API hostname label by label, so that a wildcard listener (*.shop.example.com) still covers
+// the route hostnames under it (pay.shop.example.com) after redaction, and KD367 judges them alike.
+func (r *redactor) addHost(h string) {
+	if _, ok := r.names[h]; ok || h == "" || h == "*" {
+		return
+	}
+	labels := strings.Split(h, ".")
+	for i, l := range labels {
+		if l != "*" {
+			labels[i] = r.pseudonym("h", l)
+		}
+	}
+	r.names[h] = strings.Join(labels, ".")
+}
+
 // addSliceName gives an EndpointSlice named for a Service (the Service's name and a suffix, as slices are named) the
 // Service's pseudonym and the same suffix, so the slice still reads as the Service's after redaction; KD264 links a
 // slice that lacks its label by that name. Services must be added first.
@@ -261,6 +276,49 @@ func (r *redactor) collect(s *Snapshot) {
 		}
 		if x.Spec.IngressClassName != nil {
 			r.addName("ingclass", *x.Spec.IngressClassName)
+		}
+	}
+	// The Gateway API's objects and what they name. Listener names (http, https) are left: they are a Gateway's
+	// section names, chosen from a few words, and replacing them would replace those words everywhere.
+	for _, x := range s.GatewayClasses {
+		r.addName("gwclass", x.Metadata.Name)
+	}
+	for _, x := range s.Gateways {
+		r.addName("gw", x.Metadata.Name)
+		r.addName("gwclass", x.Spec.GatewayClassName) // the class it names may not exist, and is then named
+		for _, l := range x.Spec.Listeners {
+			r.addHost(l.Hostname)
+			if l.TLS != nil {
+				for _, c := range l.TLS.CertificateRefs {
+					r.addName("ns", c.Namespace)
+					r.addName("secret", c.Name)
+				}
+			}
+		}
+	}
+	for _, x := range s.ReferenceGrants {
+		r.addName("refgrant", x.Metadata.Name)
+		for _, f := range x.Spec.From {
+			r.addName("ns", f.Namespace)
+		}
+		for _, t := range x.Spec.To {
+			r.addName("svc", t.Name)
+		}
+	}
+	for _, x := range s.Routes {
+		r.addName("route", x.Metadata.Name)
+		for _, h := range x.Spec.Hostnames {
+			r.addHost(h)
+		}
+		for _, p := range x.Spec.ParentRefs {
+			r.addName("ns", p.Namespace)
+			r.addName("gw", p.Name)
+		}
+		for _, rule := range x.Spec.Rules {
+			for _, b := range rule.BackendRefs {
+				r.addName("ns", b.Namespace)
+				r.addName("svc", b.Name)
+			}
 		}
 	}
 	for _, x := range s.HPAs {

@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-namespace-not-allowed"
+  ],
+  "collectedAt": "2026-11-24 11:17 UTC",
+  "findings": [
+    {
+      "rule": "KD368",
+      "title": "Gateway's listeners do not admit the route",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-namespace-not-allowed",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop attaches to Gateway public, and no listener it attaches to admits it, so the Gateway serves none of its requests: listener http admits routes from namespaces labelled gateway-access=public only (allowedRoutes.namespaces.from: Selector), and namespace kd-gateway-namespace-not-allowed has labels kubernetes.io/metadata.name=kd-gateway-namespace-not-allowed",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-namespace-not-allowed",
+            "name": "shop"
+          },
+          "what": "HTTPRoute parentRefs",
+          "command": "kubectl get httproute shop -n kd-gateway-namespace-not-allowed -o jsonpath='{.spec.parentRefs}'"
+        },
+        {
+          "object": {
+            "kind": "Gateway",
+            "namespace": "kd-gateway-namespace-not-allowed",
+            "name": "public"
+          },
+          "what": "Gateway public's listeners and the routes they allow",
+          "command": "kubectl get gateway public -n kd-gateway-namespace-not-allowed -o jsonpath='{.spec.listeners}'"
+        }
+      ],
+      "fix": "Label namespace kd-gateway-namespace-not-allowed so listener http's selector matches it, or correct the selector on Gateway public."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

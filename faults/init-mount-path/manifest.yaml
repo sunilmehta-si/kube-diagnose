@@ -1,0 +1,41 @@
+# Init container render writes app.conf into volume rendered at /work, and the web container mounts that volume at /etc/app but reads /work/app.conf.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-init-mount-path
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-init-mount-path
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      initContainers:
+        - name: render
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Renders the app's configuration into the shared volume.
+          command: ["sh", "-c", "echo 'listen 8080' > /work/app.conf"]
+          volumeMounts:
+            - name: rendered
+              mountPath: /work
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Reads the file where the init container wrote it; this container mounts the volume at /etc/app.
+          command: ["sh", "-c", "cat /work/app.conf && exec sleep 3600"]
+          volumeMounts:
+            - name: rendered
+              mountPath: /etc/app
+      volumes:
+        - name: rendered
+          emptyDir: {}

@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-parent-missing"
+  ],
+  "collectedAt": "2026-11-24 11:17 UTC",
+  "findings": [
+    {
+      "rule": "KD364",
+      "title": "Route is attached to a Gateway that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-parent-missing",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop attaches to Gateway shop-gateway, which does not exist in namespace kd-gateway-parent-missing, so no Gateway serves the route and its requests get no answer from the cluster; the Gateways of namespace kd-gateway-parent-missing are public",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-parent-missing",
+            "name": "shop"
+          },
+          "what": "HTTPRoute parentRefs",
+          "command": "kubectl get httproute shop -n kd-gateway-parent-missing -o jsonpath='{.spec.parentRefs}'"
+        },
+        {
+          "object": {
+            "kind": "Gateway",
+            "namespace": "kd-gateway-parent-missing",
+            "name": "shop-gateway"
+          },
+          "what": "the Gateways of namespace kd-gateway-parent-missing are public",
+          "command": "kubectl get gateways -n kd-gateway-parent-missing"
+        }
+      ],
+      "fix": "Correct the parentRef's name in HTTPRoute shop (and its namespace, for a Gateway in another namespace), or create the Gateway."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

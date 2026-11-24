@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-script-crlf-line-endings",
+  "description": "The worker runs start.sh from ConfigMap worker-scripts, which was saved with Windows line endings, so the shell reads cd /tmp with a carriage return and the script fails.",
+  "rule": "KD309",
+  "object": "Deployment/worker",
+  "keywords": [
+    [
+      "CRLF",
+      "Windows line endings"
+    ],
+    [
+      "start.sh"
+    ],
+    [
+      "carriage return"
+    ]
+  ]
+}

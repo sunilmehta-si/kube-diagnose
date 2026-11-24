@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pvc-selector-dynamic"
+  ],
+  "collectedAt": "2026-11-24 11:22 UTC",
+  "findings": [
+    {
+      "rule": "KD253",
+      "title": "Claim's selector stops its StorageClass provisioning a volume",
+      "severity": "critical",
+      "object": {
+        "kind": "PersistentVolumeClaim",
+        "namespace": "kd-pvc-selector-dynamic",
+        "name": "data"
+      },
+      "cause": "PersistentVolumeClaim data has a selector, tier=fast, and the provisioner of StorageClass standard does not provision a volume for a claim with one: a selector picks among PersistentVolumes that already exist, and no volume with those labels does; the provisioner says: failed to provision volume with StorageClass \"standard\": claim.Spec.Selector is not supported",
+      "evidence": [
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-selector-dynamic",
+            "name": "data"
+          },
+          "what": "PersistentVolumeClaim is Pending",
+          "command": "kubectl get pvc data -n kd-pvc-selector-dynamic -o jsonpath='{.status.phase}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-selector-dynamic",
+            "name": "data"
+          },
+          "what": "claim selects volumes labelled tier=fast",
+          "command": "kubectl get pvc data -n kd-pvc-selector-dynamic -o jsonpath='{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "PersistentVolumeClaim",
+            "namespace": "kd-pvc-selector-dynamic",
+            "name": "data"
+          },
+          "what": "event ProvisioningFailed (6 times)",
+          "detail": "failed to provision volume with StorageClass \"standard\": claim.Spec.Selector is not supported",
+          "command": "kubectl get events -n kd-pvc-selector-dynamic --field-selector involvedObject.kind=PersistentVolumeClaim,involvedObject.name=data"
+        }
+      ],
+      "fix": "Remove the selector to have the class provision a volume (a claim's selector cannot be changed: recreate the claim), or create a PersistentVolume with those labels and the claim's storageClassName for it to bind to.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pvc-selector-dynamic",
+          "name": "cache-65d9d4b888-fhlfm"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 1,
+    "nodes": 1
+  }
+}

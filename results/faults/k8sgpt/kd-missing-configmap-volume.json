@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-missing-configmap-volume",
-              "Masked": "MTRJVWEtWFdAcUFPJS87QnNnaEl0cHc4d0I/"
+              "Masked": "aV9TZ21kNlcpRWRJSzcqTWRjbUdxPDtJaylD"
             },
             {
               "Unmasked": "web",
-              "Masked": "XXpY"
+              "Masked": "eFhI"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-missing-configmap-volume/web-6cfc54975f-gdhp4",
+      "name": "kd-missing-configmap-volume/web-6cfc54975f-6pw2p",
       "error": [
         {
           "Text": "MountVolume.SetUp failed for volume \"config\" : configmap \"nginx-conf\" not found",

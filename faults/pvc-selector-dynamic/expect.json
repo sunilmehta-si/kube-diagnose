@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-pvc-selector-dynamic",
+  "description": "Claim data has a selector, tier=fast, and asks StorageClass standard, whose provisioner does not provision for a claim with a selector, so the claim stays Pending.",
+  "rule": "KD253",
+  "object": "PersistentVolumeClaim/data",
+  "keywords": [
+    [
+      "selector"
+    ],
+    [
+      "tier=fast"
+    ],
+    [
+      "provision"
+    ]
+  ]
+}

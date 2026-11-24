@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rbac-clusterrole-rolebinding",
-              "Masked": "QCNNcmpGRkRpZVNLTnlLNCdqeWM8aDtTVkFAM285QA=="
+              "Masked": "OyZQcSFObUE4KiNiWGpFK1dKdG5RbyhFZyFedCpVRQ=="
             },
             {
               "Unmasked": "node-inventory",
-              "Masked": "dD9NMGJ1VE9TM1s/QTQ="
+              "Masked": "Zm9kTG9DJGN9QmFAWyQ="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rbac-clusterrole-rolebinding/node-inventory-8797b59d-j4z77",
+      "name": "kd-rbac-clusterrole-rolebinding/node-inventory-8797b59d-67kfc",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=inventory pod=node-inventory-8797b59d-j4z77",
+          "Text": "the termination reason is Error exitCode=1 container=inventory pod=node-inventory-8797b59d-67kfc",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-init-container-fails",
-              "Masked": "OEJoOXcvP0IsOVA9Ukk5Zj1SU1NWWzo="
+              "Masked": "Ym8kIi1GZ28jMmQ9eCskbyFSY1kqWkI="
             },
             {
               "Unmasked": "web",
-              "Masked": "VEc1"
+              "Masked": "ZXZ6"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-init-container-fails/web-845dc8755d-xnjvg",
+      "name": "kd-init-container-fails/web-845dc8755d-zgkgc",
       "error": [
         {
-          "Text": "the last termination reason is Error container=wait-for-db pod=web-845dc8755d-xnjvg",
+          "Text": "the last termination reason is Error container=wait-for-db pod=web-845dc8755d-zgkgc",
           "KubernetesDoc": "",
           "Sensitive": []
         }

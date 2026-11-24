@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-rbac-subresource-log",
+  "description": "Role pod-reader grants get and list on pods but not pods/log, and the log shipper follows the web pods' logs, so the API server refuses it.",
+  "rule": "KD307",
+  "object": "Deployment/log-shipper",
+  "keywords": [
+    [
+      "pod-reader"
+    ],
+    [
+      "pods/log"
+    ],
+    [
+      "subresource"
+    ]
+  ]
+}

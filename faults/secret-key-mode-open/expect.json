@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-secret-key-mode-open",
+  "description": "The deploy key comes from a Secret volume with no defaultMode, so the file is 0644, and the app refuses a private key others may read.",
+  "rule": "KD311",
+  "object": "Deployment/git-sync",
+  "keywords": [
+    [
+      "/etc/git-secret/ssh"
+    ],
+    [
+      "0644"
+    ],
+    [
+      "defaultMode"
+    ]
+  ]
+}

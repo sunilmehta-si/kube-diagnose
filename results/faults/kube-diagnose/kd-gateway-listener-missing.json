@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-listener-missing"
+  ],
+  "collectedAt": "2026-11-24 11:16 UTC",
+  "findings": [
+    {
+      "rule": "KD366",
+      "title": "Route names a listener the Gateway does not have",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-listener-missing",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop attaches to listener https of Gateway public, and the Gateway has no such listener, so the route is attached to nothing; its listeners are http (port 80, HTTP)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-listener-missing",
+            "name": "shop"
+          },
+          "what": "HTTPRoute parentRefs",
+          "command": "kubectl get httproute shop -n kd-gateway-listener-missing -o jsonpath='{.spec.parentRefs}'"
+        },
+        {
+          "object": {
+            "kind": "Gateway",
+            "namespace": "kd-gateway-listener-missing",
+            "name": "public"
+          },
+          "what": "Gateway public has listeners http (port 80, HTTP)",
+          "command": "kubectl get gateway public -n kd-gateway-listener-missing -o jsonpath='{.spec.listeners}'"
+        }
+      ],
+      "fix": "Set the parentRef's sectionName (and port) to a listener of Gateway public, or leave them out to attach to every listener that admits the route."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

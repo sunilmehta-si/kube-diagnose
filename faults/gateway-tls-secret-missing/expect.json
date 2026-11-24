@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-tls-secret-missing",
+  "description": "The https listener of Gateway public terminates TLS with Secret shop-tls, which does not exist.",
+  "rule": "KD370",
+  "object": "Gateway/public",
+  "keywords": [
+    [
+      "shop-tls"
+    ],
+    [
+      "https"
+    ],
+    [
+      "Secret"
+    ]
+  ]
+}

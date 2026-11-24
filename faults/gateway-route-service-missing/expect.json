@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-route-service-missing",
+  "description": "HTTPRoute shop sends traffic to Service storefront-v2, and the Service is called storefront.",
+  "rule": "KD362",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "storefront-v2"
+    ],
+    [
+      "does not exist"
+    ],
+    [
+      "Service"
+    ]
+  ]
+}

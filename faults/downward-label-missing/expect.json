@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-downward-label-missing",
+  "description": "APP_VERSION comes from the pod label app.kubernetes.io/version through the downward API, and the pods have no such label, so the variable is empty and the api exits.",
+  "rule": "KD236",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "APP_VERSION"
+    ],
+    [
+      "app.kubernetes.io/version"
+    ],
+    [
+      "label"
+    ]
+  ]
+}

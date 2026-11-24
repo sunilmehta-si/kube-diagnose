@@ -1,0 +1,79 @@
+# Role pod-reader grants get and list on pods but not pods/log, and the log shipper follows the web pods' logs, so the API server refuses it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rbac-subresource-log
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-rbac-subresource-log
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "while true; do echo \"$(date) served a request\"; sleep 5; done"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: log-shipper
+  namespace: kd-rbac-subresource-log
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: pod-reader
+  namespace: kd-rbac-subresource-log
+rules:
+  # Meant to let the shipper read the web pods' logs.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: log-shipper-pod-reader
+  namespace: kd-rbac-subresource-log
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-reader
+subjects:
+  - kind: ServiceAccount
+    name: log-shipper
+    namespace: kd-rbac-subresource-log
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-shipper
+  namespace: kd-rbac-subresource-log
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-shipper
+  template:
+    metadata:
+      labels:
+        app: log-shipper
+    spec:
+      serviceAccountName: log-shipper
+      containers:
+        - name: shipper
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          # Follows the web pods' logs, as a log shipper does.
+          args: ["logs", "-l", "app=web", "-f", "--tail=5"]

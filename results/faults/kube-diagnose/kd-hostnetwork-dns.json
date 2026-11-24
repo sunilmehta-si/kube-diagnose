@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hostnetwork-dns"
   ],
-  "collectedAt": "2026-11-23 11:45 UTC",
+  "collectedAt": "2026-11-24 11:17 UTC",
   "findings": [
     {
       "rule": "KD261",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostnetwork-dns",
-            "name": "client-5fb5b6c577-xcvdv"
+            "name": "client-5fb5b6c577-82znq"
           },
-          "what": "container client exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod client-5fb5b6c577-xcvdv -n kd-hostnetwork-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
+          "what": "container client exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod client-5fb5b6c577-82znq -n kd-hostnetwork-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostnetwork-dns",
-            "name": "client-5fb5b6c577-xcvdv"
+            "name": "client-5fb5b6c577-82znq"
           },
           "what": "last lines of container client's log (current run)",
           "detail": "wget: bad address 'api.kd-hostnetwork-dns.svc.cluster.local'",
-          "command": "kubectl logs client-5fb5b6c577-xcvdv -n kd-hostnetwork-dns -c client --tail=20"
+          "command": "kubectl logs client-5fb5b6c577-82znq -n kd-hostnetwork-dns -c client --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostnetwork-dns",
-            "name": "client-5fb5b6c577-xcvdv"
+            "name": "client-5fb5b6c577-82znq"
           },
           "what": "the pod sets hostNetwork: true and dnsPolicy ClusterFirst",
-          "command": "kubectl get pod client-5fb5b6c577-xcvdv -n kd-hostnetwork-dns -o jsonpath='{.spec.hostNetwork}{\" \"}{.spec.dnsPolicy}'"
+          "command": "kubectl get pod client-5fb5b6c577-82znq -n kd-hostnetwork-dns -o jsonpath='{.spec.hostNetwork}{\" \"}{.spec.dnsPolicy}'"
         }
       ],
       "fix": "Set dnsPolicy: ClusterFirstWithHostNet in the pod spec, so a pod on the host network uses cluster DNS.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-hostnetwork-dns",
-          "name": "client-5fb5b6c577-xcvdv"
+          "name": "client-5fb5b6c577-82znq"
         }
       ]
     }

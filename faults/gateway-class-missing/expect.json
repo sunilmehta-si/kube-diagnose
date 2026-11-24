@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-class-missing",
+  "description": "Gateway public names GatewayClass nginx, and the cluster has no such class, so no controller takes it.",
+  "rule": "KD365",
+  "object": "Gateway/public",
+  "keywords": [
+    [
+      "nginx"
+    ],
+    [
+      "GatewayClass"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}

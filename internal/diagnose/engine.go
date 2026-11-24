@@ -98,6 +98,7 @@ func Diagnose(s *snapshot.Snapshot) Report {
 	svcFindings, blocked := serviceFindings(ix)
 	r.Findings = append(r.Findings, svcFindings...)
 	r.Findings = append(r.Findings, ingressFindings(ix)...)
+	r.Findings = append(r.Findings, gatewayFindings(ix)...)
 	for _, svc := range sortedRefs(blocked) {
 		attached := false
 		for _, pod := range blocked[svc] {

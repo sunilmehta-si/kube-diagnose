@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-route-no-parent"
+  ],
+  "collectedAt": "2026-11-24 11:17 UTC",
+  "findings": [
+    {
+      "rule": "KD372",
+      "title": "Route is attached to no Gateway",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-route-no-parent",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop has no parentRefs, so it is attached to no Gateway, and no Gateway sends it a request",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-no-parent",
+            "name": "shop"
+          },
+          "what": "HTTPRoute parentRefs",
+          "command": "kubectl get httproute shop -n kd-gateway-route-no-parent -o jsonpath='{.spec.parentRefs}'"
+        }
+      ],
+      "fix": "Add a parentRef to HTTPRoute shop naming the Gateway (and its listener, by sectionName) that should serve it; kubectl get gateways -A lists them."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

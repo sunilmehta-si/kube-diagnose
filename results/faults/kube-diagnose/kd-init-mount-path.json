@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-init-mount-path"
+  ],
+  "collectedAt": "2026-11-24 11:18 UTC",
+  "findings": [
+    {
+      "rule": "KD310",
+      "title": "Container reads a path where only the init container mounts the volume",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-init-mount-path",
+        "name": "web"
+      },
+      "cause": "container web exits because /work/app.conf does not exist: init container render mounts volume rendered (emptyDir) at /work and writes there, and container web mounts it at /etc/app, so the file is /etc/app/app.conf there; its log says: \"cat: can't open '/work/app.conf': No such file or directory\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-mount-path",
+            "name": "web-75bb58bf7d-84dn9"
+          },
+          "what": "container web exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod web-75bb58bf7d-84dn9 -n kd-init-mount-path -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-mount-path",
+            "name": "web-75bb58bf7d-84dn9"
+          },
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "cat: can't open '/work/app.conf': No such file or directory",
+          "command": "kubectl logs web-75bb58bf7d-84dn9 -n kd-init-mount-path -c web --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-init-mount-path",
+            "name": "web-75bb58bf7d-84dn9"
+          },
+          "what": "container render mounts volume rendered (emptyDir) at /work",
+          "command": "kubectl get pod web-75bb58bf7d-84dn9 -n kd-init-mount-path -o jsonpath='{.spec.volumes[?(@.name==\"rendered\")]}'"
+        }
+      ],
+      "fix": "Mount volume rendered at /work in container web as in init container render, or have the app read /etc/app/app.conf.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-init-mount-path",
+          "name": "web-75bb58bf7d-84dn9"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

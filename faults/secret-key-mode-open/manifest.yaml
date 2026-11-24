@@ -1,0 +1,43 @@
+# The deploy key comes from a Secret volume with no defaultMode, so the file is 0644, and the app refuses a private key others may read.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-secret-key-mode-open
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: deploy-key
+  namespace: kd-secret-key-mode-open
+stringData:
+  # A placeholder, not a key: the app checks the file's mode before it reads it.
+  ssh: "placeholder"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: git-sync
+  namespace: kd-secret-key-mode-open
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: git-sync
+  template:
+    metadata:
+      labels:
+        app: git-sync
+    spec:
+      containers:
+        - name: git-sync
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Refuses a key others may read, with OpenSSH's words, as ssh does before it uses one.
+          command: ["sh", "-c", "mode=$(stat -L -c %a /etc/git-secret/ssh); case $mode in 400|600) exec sleep 3600;; esac; echo \"Permissions 0$mode for '/etc/git-secret/ssh' are too open.\"; echo 'It is required that your private key files are NOT accessible by others.'; exit 1"]
+          volumeMounts:
+            - name: deploy-key
+              mountPath: /etc/git-secret
+      volumes:
+        - name: deploy-key
+          secret:
+            secretName: deploy-key

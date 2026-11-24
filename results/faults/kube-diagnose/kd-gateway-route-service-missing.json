@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-route-service-missing"
+  ],
+  "collectedAt": "2026-11-24 11:17 UTC",
+  "findings": [
+    {
+      "rule": "KD362",
+      "title": "Route sends traffic to a Service that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-route-service-missing",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop sends traffic to Service storefront-v2 (from rule 1), which does not exist, so the Gateway answers the requests that rule matches with an error (HTTP 500, as the Gateway API requires for a backend it cannot resolve)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-service-missing",
+            "name": "shop"
+          },
+          "what": "HTTPRoute backendRefs",
+          "command": "kubectl get httproute shop -n kd-gateway-route-service-missing -o jsonpath='{.spec.rules[*].backendRefs}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-gateway-route-service-missing",
+            "name": "storefront-v2"
+          },
+          "what": "there is no Service storefront-v2 in namespace kd-gateway-route-service-missing",
+          "command": "kubectl get service storefront-v2 -n kd-gateway-route-service-missing"
+        }
+      ],
+      "fix": "Correct the backendRef's name in HTTPRoute shop, or create the Service."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

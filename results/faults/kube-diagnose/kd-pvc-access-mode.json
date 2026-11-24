@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-access-mode"
   ],
-  "collectedAt": "2026-11-23 11:47 UTC",
+  "collectedAt": "2026-11-24 11:22 UTC",
   "findings": [
     {
       "rule": "KD156",
@@ -41,12 +41,19 @@
             "namespace": "kd-pvc-access-mode",
             "name": "shared"
           },
-          "what": "event ProvisioningFailed (5 times)",
+          "what": "event ProvisioningFailed (6 times)",
           "detail": "failed to provision volume with StorageClass \"standard\": NodePath only supports ReadWriteOnce and ReadWriteOncePod (1.22+) access modes",
           "command": "kubectl get events -n kd-pvc-access-mode --field-selector involvedObject.kind=PersistentVolumeClaim,involvedObject.name=shared"
         }
       ],
-      "fix": "Ask for an access mode the class supports (usually ReadWriteOnce), or use a StorageClass whose storage can be shared (NFS, CephFS, a cloud file store) for ReadWriteMany. A claim's access modes cannot be changed: recreate it."
+      "fix": "Ask for an access mode the class supports (usually ReadWriteOnce), or use a StorageClass whose storage can be shared (NFS, CephFS, a cloud file store) for ReadWriteMany. A claim's access modes cannot be changed: recreate it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pvc-access-mode",
+          "name": "web-dd5864d49-w4z9c"
+        }
+      ]
     }
   ],
   "checked": {

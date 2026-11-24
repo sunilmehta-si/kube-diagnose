@@ -1,0 +1,35 @@
+# The Deployment spreads two replicas over kubernetes.io/hostname with minDomains 3, and kind has one node, so the scheduler lets that node hold one replica and the second stays Pending.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-spread-min-domains
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-spread-min-domains
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      # Written for a three-node cluster; kind has one node, so one hostname domain.
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: DoNotSchedule
+          minDomains: 3
+          labelSelector:
+            matchLabels:
+              app: web
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "exec sleep 3600"]

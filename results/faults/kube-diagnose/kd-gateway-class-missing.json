@@ -1,0 +1,47 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-class-missing"
+  ],
+  "collectedAt": "2026-11-24 11:16 UTC",
+  "findings": [
+    {
+      "rule": "KD365",
+      "title": "Gateway names a GatewayClass that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Gateway",
+        "namespace": "kd-gateway-class-missing",
+        "name": "public"
+      },
+      "cause": "Gateway public names GatewayClass nginx, which does not exist, so no controller takes the Gateway: it gets no address, and the routes attached to it are served by nothing; the cluster's GatewayClasses are kd-faults",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Gateway",
+            "namespace": "kd-gateway-class-missing",
+            "name": "public"
+          },
+          "what": "Gateway public has gatewayClassName nginx",
+          "command": "kubectl get gateway public -n kd-gateway-class-missing -o jsonpath='{.spec.gatewayClassName}'"
+        },
+        {
+          "object": {
+            "kind": "GatewayClass",
+            "name": "nginx"
+          },
+          "what": "the cluster's GatewayClasses are kd-faults",
+          "command": "kubectl get gatewayclasses"
+        }
+      ],
+      "fix": "Set gatewayClassName to a class the cluster has (kubectl get gatewayclasses); a Gateway's class cannot be changed, so delete the Gateway and create it again with the right one."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-run-as-unknown-uid/reporter",
+      "error": [
+        {
+          "Text": "Deployment kd-run-as-unknown-uid/reporter has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-run-as-unknown-uid",
+              "Masked": "NHJtVGY4KVlBZnEzWXMlIlZRSzJq"
+            },
+            {
+              "Unmasked": "reporter",
+              "Masked": "MSg5WUxYQyQ="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-run-as-unknown-uid/reporter-78c5b4fbf-kx8d5",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=reporter pod=reporter-78c5b4fbf-kx8d5",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/reporter"
+    }
+  ]
+}

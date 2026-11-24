@@ -401,3 +401,55 @@ func wordIn(line, name string) bool {
 func isIdent(b byte) bool {
 	return b == '_' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
+
+// reMetaField is a downward API field path to one label or annotation of the pod.
+var reMetaField = regexp.MustCompile(`^metadata\.(labels|annotations)\['([^']+)'\]$`)
+
+// downwardFieldMissing finds a container that exits because a variable it needs is empty, where the variable comes
+// from a label or annotation of the pod (fieldRef metadata.labels['version']) that the pod does not have: the
+// kubelet sets the variable to an empty string, and starts the container regardless.
+func downwardFieldMissing(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	for _, e := range c.Env {
+		if e.ValueFrom == nil || e.ValueFrom.FieldRef == nil {
+			continue
+		}
+		m := reMetaField.FindStringSubmatch(e.ValueFrom.FieldRef.FieldPath)
+		if m == nil {
+			continue
+		}
+		have := p.Metadata.Labels
+		what := "label"
+		if m[1] == "annotations" {
+			have, what = p.Metadata.Annotations, "annotation"
+		}
+		if _, ok := have[m[2]]; ok {
+			continue
+		}
+		line := ""
+		for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+			if wordIn(lines[i], e.Name) && reVarUnset.MatchString(lines[i]) {
+				line = lines[i]
+			}
+		}
+		if line == "" {
+			continue
+		}
+		keys := make([]string, 0, len(have))
+		for k := range have {
+			keys = append(keys, k)
+		}
+		slices.Sort(keys)
+		its := "none"
+		if len(keys) > 0 {
+			its = strings.Join(keys, ", ")
+		}
+		cause := fmt.Sprintf("container %s exits because %s is empty: it comes from the pod's %s %s (fieldRef %s), and the pod has no such %s, so the kubelet sets the variable to an empty string; the pod's %ss are %s; its log says: %q",
+			cs.Name, e.Name, what, m[2], e.ValueFrom.FieldRef.FieldPath, what, what, its, clip(line, 200))
+		fix := fmt.Sprintf("Add %s %s to the pod template's metadata (spec.template.metadata.%s of the workload), or point %s at a %s the pods have.", what, m[2], m[1], e.Name, what)
+		return newProblem(p, cs.Name, "KD236", "Variable comes from a pod label or annotation the pod does not have", Critical, cause,
+			"fieldref|"+e.Name, fix, append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("%s comes from %s; the pod's %ss are %s", e.Name, e.ValueFrom.FieldRef.FieldPath, what, its),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.metadata."+m[1]+"}")})...)
+	}
+	return nil
+}

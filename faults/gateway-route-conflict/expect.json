@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-gateway-route-conflict",
+  "description": "HTTPRoutes shop and shop-canary both send shop.example.com to Gateway public, to different Services, and the older route wins the tie, so the canary gets no request.",
+  "rule": "KD371",
+  "object": "HTTPRoute/shop-canary",
+  "keywords": [
+    [
+      "shop-canary"
+    ],
+    [
+      "shop.example.com"
+    ],
+    [
+      "older",
+      "tie"
+    ]
+  ]
+}

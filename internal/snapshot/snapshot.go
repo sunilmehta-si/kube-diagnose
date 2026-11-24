@@ -44,20 +44,25 @@ type Snapshot struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 	Redacted   bool     `json:"redacted,omitempty"`
 
-	Pods           []kube.Pod                     `json:"pods"`
-	Events         []kube.Event                   `json:"events"`
-	Nodes          []kube.Node                    `json:"nodes"`
-	Services       []kube.Service                 `json:"services"`
-	EndpointSlices []kube.EndpointSlice           `json:"endpointSlices"`
-	Ingresses      []kube.Ingress                 `json:"ingresses"`
-	IngressClasses []kube.IngressClass            `json:"ingressClasses"`
-	Workloads      []kube.Workload                `json:"workloads"`
-	Jobs           []kube.Job                     `json:"jobs"`
-	CronJobs       []kube.CronJob                 `json:"cronJobs"`
-	HPAs           []kube.HorizontalPodAutoscaler `json:"horizontalPodAutoscalers"`
-	PDBs           []kube.PodDisruptionBudget     `json:"podDisruptionBudgets"`
-	PVCs           []kube.PersistentVolumeClaim   `json:"persistentVolumeClaims"`
-	PVs            []kube.PersistentVolume        `json:"persistentVolumes"`
+	Pods           []kube.Pod           `json:"pods"`
+	Events         []kube.Event         `json:"events"`
+	Nodes          []kube.Node          `json:"nodes"`
+	Services       []kube.Service       `json:"services"`
+	EndpointSlices []kube.EndpointSlice `json:"endpointSlices"`
+	Ingresses      []kube.Ingress       `json:"ingresses"`
+	IngressClasses []kube.IngressClass  `json:"ingressClasses"`
+	// The Gateway API's objects: empty when the cluster does not serve it, and in snapshots recorded before 0.14.0.
+	Gateways        []kube.Gateway                 `json:"gateways,omitempty"`
+	GatewayClasses  []kube.GatewayClass            `json:"gatewayClasses,omitempty"`
+	Routes          []kube.Route                   `json:"routes,omitempty"`
+	ReferenceGrants []kube.ReferenceGrant          `json:"referenceGrants,omitempty"`
+	Workloads       []kube.Workload                `json:"workloads"`
+	Jobs            []kube.Job                     `json:"jobs"`
+	CronJobs        []kube.CronJob                 `json:"cronJobs"`
+	HPAs            []kube.HorizontalPodAutoscaler `json:"horizontalPodAutoscalers"`
+	PDBs            []kube.PodDisruptionBudget     `json:"podDisruptionBudgets"`
+	PVCs            []kube.PersistentVolumeClaim   `json:"persistentVolumeClaims"`
+	PVs             []kube.PersistentVolume        `json:"persistentVolumes"`
 	// NamespaceObjects holds the name and labels of every namespace of the cluster, read to judge namespace
 	// selectors; empty in snapshots recorded before 0.12.0 and when namespaces could not be listed.
 	NamespaceObjects []kube.Namespace      `json:"namespaceObjects,omitempty"`

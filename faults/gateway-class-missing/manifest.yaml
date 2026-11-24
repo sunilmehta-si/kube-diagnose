@@ -1,0 +1,79 @@
+# Gateway public names GatewayClass nginx, and the cluster has no such class, so no controller takes it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-gateway-class-missing
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  # The suite's class, shared by its Gateway scenarios; no controller runs it.
+  name: kd-faults
+spec:
+  controllerName: example.com/kd-faults
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: storefront
+  namespace: kd-gateway-class-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: storefront
+  template:
+    metadata:
+      labels:
+        app: storefront
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 5
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: storefront
+  namespace: kd-gateway-class-missing
+spec:
+  selector:
+    app: storefront
+  ports:
+    - port: 80
+      targetPort: 8080
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: kd-gateway-class-missing
+spec:
+  gatewayClassName: nginx  # the cluster's class is kd-faults
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: shop
+  namespace: kd-gateway-class-missing
+spec:
+  parentRefs:
+    - name: public
+  hostnames: ["shop.example.com"]
+  rules:
+    - backendRefs:
+        - name: storefront
+          port: 80

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-rbac-subresource-log/log-shipper",
+      "error": [
+        {
+          "Text": "Deployment kd-rbac-subresource-log/log-shipper has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rbac-subresource-log",
+              "Masked": "Kmc6UyM6NnhAVkdtOmdtaWwpaHhAP2I="
+            },
+            {
+              "Unmasked": "log-shipper",
+              "Masked": "byhZWkpVWHBdQGo="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rbac-subresource-log/log-shipper-fd8ccbccf-mhjbh",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=shipper pod=log-shipper-fd8ccbccf-mhjbh",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/log-shipper"
+    }
+  ]
+}

@@ -136,6 +136,10 @@ type KeyRef struct {
 type EnvVarSource struct {
 	ConfigMapKeyRef *KeyRef `json:"configMapKeyRef,omitempty"`
 	SecretKeyRef    *KeyRef `json:"secretKeyRef,omitempty"`
+	// FieldRef is the downward API: a field of the pod, metadata.labels['version'] for one.
+	FieldRef *struct {
+		FieldPath string `json:"fieldPath"`
+	} `json:"fieldRef,omitempty"`
 }
 
 type EnvVar struct {
@@ -957,6 +961,7 @@ type TopologySpreadConstraint struct {
 	TopologyKey       string         `json:"topologyKey"`
 	WhenUnsatisfiable string         `json:"whenUnsatisfiable"`
 	LabelSelector     *LabelSelector `json:"labelSelector,omitempty"`
+	MinDomains        *int32         `json:"minDomains,omitempty"`
 }
 
 // Namespace is a namespace reduced to its name and labels: what a NetworkPolicy's namespaceSelector is matched
@@ -1101,4 +1106,123 @@ func (k KeySet) Has(key string) bool {
 // List is the shape of `kubectl get <kind> -o json`.
 type List[T any] struct {
 	Items []T `json:"items"`
+}
+
+// ---- Gateway API ----
+
+// GatewayClass is read for its name and the controller that implements it.
+type GatewayClass struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ControllerName string `json:"controllerName,omitempty"`
+	} `json:"spec"`
+}
+
+type Gateway struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		GatewayClassName string     `json:"gatewayClassName"`
+		Listeners        []Listener `json:"listeners,omitempty"`
+	} `json:"spec"`
+}
+
+func (g Gateway) Ref() Ref {
+	return Ref{Kind: "Gateway", Namespace: g.Metadata.Namespace, Name: g.Metadata.Name}
+}
+
+type Listener struct {
+	Name     string `json:"name"`
+	Hostname string `json:"hostname,omitempty"`
+	Port     int32  `json:"port"`
+	Protocol string `json:"protocol"`
+	TLS      *struct {
+		Mode            string `json:"mode,omitempty"`
+		CertificateRefs []struct {
+			Group     string `json:"group,omitempty"`
+			Kind      string `json:"kind,omitempty"`
+			Name      string `json:"name"`
+			Namespace string `json:"namespace,omitempty"`
+		} `json:"certificateRefs,omitempty"`
+	} `json:"tls,omitempty"`
+	AllowedRoutes *struct {
+		Namespaces *struct {
+			From     string         `json:"from,omitempty"`
+			Selector *LabelSelector `json:"selector,omitempty"`
+		} `json:"namespaces,omitempty"`
+		Kinds []struct {
+			Group string `json:"group,omitempty"`
+			Kind  string `json:"kind"`
+		} `json:"kinds,omitempty"`
+	} `json:"allowedRoutes,omitempty"`
+}
+
+// ParentRef is a route's reference to the Gateway it attaches to. Empty Group and Kind mean a Gateway; an empty
+// Namespace, the route's own.
+type ParentRef struct {
+	Group       string `json:"group,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	Name        string `json:"name"`
+	SectionName string `json:"sectionName,omitempty"`
+	Port        *int32 `json:"port,omitempty"`
+}
+
+// BackendRef is where a route rule sends traffic. Empty Group and Kind mean a Service.
+type BackendRef struct {
+	Group     string `json:"group,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	Name      string `json:"name"`
+	Port      *int32 `json:"port,omitempty"`
+}
+
+// Route is an HTTPRoute or a GRPCRoute: the two share what is read of them. Kind is set by the collector.
+type Route struct {
+	Kind     string     `json:"kind"`
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ParentRefs []ParentRef `json:"parentRefs,omitempty"`
+		Hostnames  []string    `json:"hostnames,omitempty"`
+		Rules      []RouteRule `json:"rules,omitempty"`
+	} `json:"spec"`
+}
+
+// RouteRule is one rule of a route: the requests it matches, and where it sends them.
+type RouteRule struct {
+	Matches     []RouteMatch `json:"matches,omitempty"`
+	BackendRefs []BackendRef `json:"backendRefs,omitempty"`
+}
+
+// RouteMatch is an HTTPRoute match. Headers and query parameters are only counted: a match that has any is narrower
+// than its path.
+type RouteMatch struct {
+	Path *struct {
+		Type  string `json:"type,omitempty"`
+		Value string `json:"value,omitempty"`
+	} `json:"path,omitempty"`
+	Headers     []any  `json:"headers,omitempty"`
+	QueryParams []any  `json:"queryParams,omitempty"`
+	Method      string `json:"method,omitempty"`
+}
+
+func (r Route) Ref() Ref {
+	return Ref{Kind: r.Kind, Namespace: r.Metadata.Namespace, Name: r.Metadata.Name}
+}
+
+// ReferenceGrant lets objects of other namespaces refer to objects of its own: a route in namespace web to a Service
+// here, for one.
+type ReferenceGrant struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		From []struct {
+			Group     string `json:"group"`
+			Kind      string `json:"kind"`
+			Namespace string `json:"namespace"`
+		} `json:"from"`
+		To []struct {
+			Group string `json:"group"`
+			Kind  string `json:"kind"`
+			Name  string `json:"name,omitempty"`
+		} `json:"to"`
+	} `json:"spec"`
 }

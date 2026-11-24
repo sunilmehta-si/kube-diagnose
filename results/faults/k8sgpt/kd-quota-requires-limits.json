@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,30 +14,31 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-requires-limits",
-              "Masked": "KV5faGE9akVyezN5Y0wvWW9Pe1RfQ2RZ"
+              "Masked": "UjNtWk1abVF9RDBIcVNCOGYnKmgkZ0JK"
             },
             {
               "Unmasked": "web",
-              "Masked": "cllO"
+              "Masked": "Ky9P"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-quota-requires-limits/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-6d754df847\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-quota-requires-limits",
+              "Masked": "UExzQCRxVnJ3Y1E4I0tUO3R7X2h5amN9"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "TSdV"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "ReplicaSet",
-      "name": "kd-quota-requires-limits/web-6d754df847",
-      "error": [
-        {
-          "Text": "pods \"web-6d754df847-7p2hk\" is forbidden: failed quota: compute: must specify limits.memory for: web",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     },
     {
       "kind": "ConfigMap",
@@ -51,6 +52,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-quota-requires-limits/web-6d754df847",
+      "error": [
+        {
+          "Text": "pods \"web-6d754df847-cdbdp\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

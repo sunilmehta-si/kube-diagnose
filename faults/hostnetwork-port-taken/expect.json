@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-hostnetwork-port-taken",
+  "description": "The node agent runs on the host network and listens on 10250, which the kubelet holds on every node, so the bind fails and it exits.",
+  "rule": "KD122",
+  "object": "Deployment/node-agent",
+  "keywords": [
+    [
+      "hostNetwork"
+    ],
+    [
+      "10250"
+    ],
+    [
+      "kubelet"
+    ]
+  ]
+}

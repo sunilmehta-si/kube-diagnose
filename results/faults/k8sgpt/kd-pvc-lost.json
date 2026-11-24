@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-lost",
-              "Masked": "X3whNVlHcjheXnU="
+              "Masked": "U09ZZlF3eUItekE="
             },
             {
               "Unmasked": "db",
-              "Masked": "KHQ="
+              "Masked": "KFA="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pvc-lost/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-lost",
+              "Masked": "THpEdzU3fVklVkw="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "d1g="
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pvc-lost/db-56f8666648-9w575",
+      "name": "kd-pvc-lost/db-56f8666648-69zws",
       "error": [
         {
           "Text": "0/1 nodes are available: persistentvolumeclaim \"data\" bound to non-existent persistentvolume \"pvc-4c1d9a7e-2b6f-4e0a-9c3d-8f5a1b7e6d20\". not found",

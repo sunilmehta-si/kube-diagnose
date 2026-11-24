@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hostport-conflict"
   ],
-  "collectedAt": "2026-11-23 11:45 UTC",
+  "collectedAt": "2026-11-24 11:17 UTC",
   "findings": [
     {
       "rule": "KD145",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostport-conflict",
-            "name": "web-7d46598d5d-mmll9"
+            "name": "web-7d46598d5d-gw8sj"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't have free ports for the requested pod ports. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
-          "command": "kubectl get pod web-7d46598d5d-mmll9 -n kd-hostport-conflict -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-7d46598d5d-gw8sj -n kd-hostport-conflict -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostport-conflict",
-            "name": "web-7d46598d5d-mmll9"
+            "name": "web-7d46598d5d-gw8sj"
           },
           "what": "pod requests host ports 8081",
-          "command": "kubectl get pod web-7d46598d5d-mmll9 -n kd-hostport-conflict -o jsonpath='{.spec.containers[*].ports}'"
+          "command": "kubectl get pod web-7d46598d5d-gw8sj -n kd-hostport-conflict -o jsonpath='{.spec.containers[*].ports}'"
         }
       ],
       "fix": "Drop hostPort and reach the pod through a Service, or run at most one such pod per node (a DaemonSet, or fewer replicas than nodes).",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-hostport-conflict",
-          "name": "web-7d46598d5d-mmll9"
+          "name": "web-7d46598d5d-gw8sj"
         }
       ]
     }

@@ -1,0 +1,30 @@
+# The pod runs as user 10001, which busybox has no /etc/passwd entry for, and the app looks up its user name and exits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-run-as-unknown-uid
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: reporter
+  namespace: kd-run-as-unknown-uid
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reporter
+  template:
+    metadata:
+      labels:
+        app: reporter
+    spec:
+      securityContext:
+        # A user ID picked for the pod; busybox's /etc/passwd has no entry for it.
+        runAsUser: 10001
+      containers:
+        - name: reporter
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Looks up the user it runs as, to name its report.
+          command: ["sh", "-c", "user=$(whoami) || exit 1; echo \"reporting as $user\"; exec sleep 3600"]

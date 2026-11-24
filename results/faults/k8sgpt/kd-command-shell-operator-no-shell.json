@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-command-shell-operator-no-shell",
-              "Masked": "Qj8zYkM7IyxkKjlOW2I9Ijhqa2pHdjUieWhsMzJDV2ZJTw=="
+              "Masked": "VWc6cFZlbmpFKVl5SFl3TUBrN3Q1JjhqI3tMIUtyN2tOSQ=="
             },
             {
               "Unmasked": "worker",
-              "Masked": "e3hmbkpN"
+              "Masked": "R0xncite"
             }
           ]
         }

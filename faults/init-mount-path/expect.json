@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-init-mount-path",
+  "description": "Init container render writes app.conf into volume rendered at /work, and the web container mounts that volume at /etc/app but reads /work/app.conf.",
+  "rule": "KD310",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "init container render"
+    ],
+    [
+      "/work"
+    ],
+    [
+      "/etc/app"
+    ]
+  ]
+}

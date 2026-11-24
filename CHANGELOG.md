@@ -2,6 +2,41 @@
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-11-24
+
+- The fault suite's committed run (45381548969): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 201 of 201 faults and raises no false alarm; k8sgpt v0.4.41 names 36, 9 of them first.
+
+### Added
+- The Gateway API. Where the cluster serves it, kube-diagnose reads Gateways, GatewayClasses, HTTPRoutes, GRPCRoutes
+  and ReferenceGrants (a cluster without it is no gap), and 11 rules judge what they name, which needs no controller:
+  a route rule that sends traffic to a Service that does not exist (KD362) or to a port the Service does not expose
+  (KD363); a route attached to a Gateway that does not exist (KD364), to a listener the Gateway does not have
+  (KD366), to listeners that do not admit it by namespace or kind (KD368), or that serve none of its hostnames
+  (KD367); a route attached to no Gateway at all (KD372); a route that sends traffic to another namespace that grants
+  it nothing (KD369); two HTTPRoutes that tie for a hostname and path, the older winning (KD371); and a Gateway whose
+  GatewayClass (KD365) or listener certificate Secret (KD370) does not exist.
+- 8 more rules, 200 in all (`docs/rules.md`):
+  - RBAC: a Role that grants pods but not pods/log, which a rule must name on its own (KD307), and a permission bound
+    to another ServiceAccount than the one the pod runs as, default for a pod that names none (KD308);
+  - the running container: a script saved with Windows line endings, read from the carriage return in the shell's
+    error (KD309); a file read where only the init container mounts the volume they share (KD310); a key file from a
+    Secret volume that others may read, which ssh and PostgreSQL refuse (KD311); a runAsUser the image's /etc/passwd
+    does not define, which an app looking up its user trips on (KD312);
+  - configuration: a variable read through the downward API from a pod label or annotation the pods lack (KD236);
+  - storage: a claim with a selector, which a dynamic provisioner refuses (KD253).
+- 20 fault scenarios, 201 broken namespaces in all: one for each new rule kind can break, and one each for KD144's and
+  KD122's new causes. The suite installs the Gateway API's CRDs (v1.7.0, pinned by checksum in
+  `faults/versions.env`) before the scenarios; no Gateway controller runs. The control namespace has a working Gateway
+  and HTTPRoute.
+
+### Changed
+- KD144 counts the topology domains a spread constraint sees and the pods it counts, and says when minDomains asks for
+  more domains than the nodes form, which holds each domain to maxSkew pods.
+- KD122 says when a pod on the host network takes a port of the node itself, the kubelet's 10250 among them.
+- `record --redact` renames the Gateway API's objects; their hostnames are renamed label by label, so a wildcard
+  listener still covers the routes under it.
+
 ## [0.13.0] - 2026-11-23
 
 - The fault suite's committed run (45167155607): kube-diagnose names the root cause in its first finding, with the

@@ -95,6 +95,16 @@ func allows(list []string, v string) bool {
 	return false
 }
 
+// allowsResource reports whether a rule's resources cover the requested one. A subresource, pods/log, is covered by
+// its own name, by "pods/*" or "*/log", or by the wildcard; a rule naming pods alone does not cover it.
+func allowsResource(list []string, res string) bool {
+	if allows(list, res) {
+		return true
+	}
+	base, sub, ok := strings.Cut(res, "/")
+	return ok && (allows(list, base+"/*") || allows(list, "*/"+sub))
+}
+
 func quoted(list []string) string {
 	q := make([]string, len(list))
 	for i, x := range list {
@@ -133,7 +143,7 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 			continue
 		}
 		r := g.rule
-		if allows(r.APIGroups, d.group) && allows(r.Resources, d.resource) && allows(r.Verbs, d.verb) && len(r.ResourceNames) == 0 {
+		if allows(r.APIGroups, d.group) && allowsResource(r.Resources, d.resource) && allows(r.Verbs, d.verb) && len(r.ResourceNames) == 0 {
 			return nil
 		}
 		here = append(here, g)
@@ -142,7 +152,7 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 	prefix := fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: it may not %s %s %s", cs.Name, d.sa, d.verb, d.res(), d.scope())
 	for _, g := range here {
 		r := g.rule
-		if len(r.ResourceNames) > 0 && unnamedVerb[d.verb] && allows(r.APIGroups, d.group) && allows(r.Resources, d.resource) && allows(r.Verbs, d.verb) {
+		if len(r.ResourceNames) > 0 && unnamedVerb[d.verb] && allows(r.APIGroups, d.group) && allowsResource(r.Resources, d.resource) && allows(r.Verbs, d.verb) {
 			cause := fmt.Sprintf("%s. Role %s grants %s on %s only for resourceNames %s, and a %s request names no object, so a rule with resourceNames never allows it; its log says: %q",
 				prefix, g.role.Metadata.Name, strings.Join(r.Verbs, ", "), d.resource, quoted(r.ResourceNames), d.verb, clip(d.line, 200))
 			fix := fmt.Sprintf("Grant %s on %s in a rule of Role %s without resourceNames (it then covers every %s of the namespace), or have the app get %s by name, which the rule allows.",
@@ -151,9 +161,22 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 				"rbacnames|"+g.role.Metadata.Name+"|"+d.res()+"|"+d.verb, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
 		}
 	}
+	if base, subres, ok := strings.Cut(d.resource, "/"); ok {
+		for _, g := range here {
+			r := g.rule
+			if !allows(r.APIGroups, d.group) || !allows(r.Resources, base) || !allows(r.Verbs, d.verb) {
+				continue
+			}
+			cause := fmt.Sprintf("%s. Role %s grants %s on %s, and the request is for its %s subresource, %s, which a rule grants only by that name (or %q): a rule that names %s covers the objects, not their subresources; its log says: %q",
+				prefix, g.role.Metadata.Name, strings.Join(r.Verbs, ", "), base, subres, d.resource, base+"/*", base, clip(d.line, 200))
+			fix := fmt.Sprintf("Add %q to the resources of the rule of Role %s that names %s (with verb %s).", d.resource, g.role.Metadata.Name, base, d.verb)
+			return newProblem(p, cs.Name, "KD307", "Role grants the resource but not its subresource", Critical, cause,
+				"rbacsub|"+g.role.Metadata.Name+"|"+d.res()+"|"+d.verb, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
+		}
+	}
 	for _, g := range here {
 		r := g.rule
-		if allows(r.APIGroups, d.group) && allows(r.Resources, d.resource) && !allows(r.Verbs, d.verb) {
+		if allows(r.APIGroups, d.group) && allowsResource(r.Resources, d.resource) && !allows(r.Verbs, d.verb) {
 			cause := fmt.Sprintf("%s. Role %s grants %s on %s, and not %s%s; its log says: %q",
 				prefix, g.role.Metadata.Name, strings.Join(r.Verbs, ", "), d.resource, d.verb, verbNote(d.verb, r.Verbs), clip(d.line, 200))
 			fix := fmt.Sprintf("Add %q to the verbs of the rule of Role %s that names %s.", d.verb, g.role.Metadata.Name, d.resource)
@@ -163,7 +186,7 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 	}
 	for _, g := range here {
 		r := g.rule
-		if allows(r.Resources, d.resource) && allows(r.Verbs, d.verb) && !allows(r.APIGroups, d.group) {
+		if allowsResource(r.Resources, d.resource) && allows(r.Verbs, d.verb) && !allows(r.APIGroups, d.group) {
 			cause := fmt.Sprintf("%s. Role %s grants %s on %s, but in apiGroups %s, and %s are in %s, so the rule never matches; its log says: %q",
 				prefix, g.role.Metadata.Name, strings.Join(r.Verbs, ", "), d.resource, quoted(r.APIGroups), d.resource, groupName(d.group), clip(d.line, 200))
 			fix := fmt.Sprintf("Set apiGroups to [%q] in the rule of Role %s that names %s (kubectl api-resources shows each resource's group).", d.group, g.role.Metadata.Name, d.resource)
@@ -192,7 +215,7 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 	}
 	for _, g := range gs {
 		r := g.rule
-		if g.ns() == d.ns || !allows(r.APIGroups, d.group) || !allows(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
+		if g.ns() == d.ns || !allows(r.APIGroups, d.group) || !allowsResource(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
 			continue
 		}
 		cause := fmt.Sprintf("%s. RoleBinding %s grants it, through Role %s, in namespace %s only: a RoleBinding grants in its own namespace, and the request is for namespace %s; its log says: %q",
@@ -201,6 +224,52 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 			d.ns, d.saNS, d.sa, d.ns)
 		return newProblem(p, cs.Name, "KD304", "Permission is granted in another namespace", Critical, cause,
 			"rbacns|"+g.binding.Metadata.Name+"|"+d.ns, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
+	}
+	return otherAccount(ix, p, cs, d, prefix, ev)
+}
+
+// otherAccount finds a request that a Role grants in full, in the request's namespace, to another ServiceAccount of
+// the pod's namespace than the one the pod runs as: the binding names reader, and the pod, with no
+// serviceAccountName, runs as default.
+func otherAccount(ix *index, p kube.Pod, cs kube.ContainerStatus, d denial, prefix string, ev []Evidence) *problem {
+	for _, b := range ix.s.RoleBindings {
+		if b.Metadata.Namespace != d.ns || b.RoleRef.Kind != "Role" || namesAccount(b, d.saNS, d.sa) {
+			continue
+		}
+		var others []string
+		for _, s := range b.Subjects {
+			ns := s.Namespace
+			if ns == "" {
+				ns = b.Metadata.Namespace
+			}
+			if s.Kind == "ServiceAccount" && ns == d.saNS {
+				others = append(others, s.Name)
+			}
+		}
+		if len(others) == 0 {
+			continue
+		}
+		for _, g := range grantsOf(ix, d.saNS, others[0]) {
+			r := g.rule
+			if g.binding.Metadata.Name != b.Metadata.Name || !allows(r.APIGroups, d.group) || !allowsResource(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
+				continue
+			}
+			runs := fmt.Sprintf("the pod runs as ServiceAccount %s", d.sa)
+			if d.sa == "default" {
+				// The API server writes default into a pod that names no ServiceAccount, so the pod's spec cannot tell
+				// a choice from an omission; the template is where one is missing.
+				runs += " (a pod whose template sets no serviceAccountName runs as default)"
+			}
+			cause := fmt.Sprintf("%s. RoleBinding %s grants it, through Role %s, to ServiceAccount %s, and %s; its log says: %q",
+				prefix, b.Metadata.Name, g.role.Metadata.Name, strings.Join(others, ", "), runs, clip(d.line, 200))
+			fix := fmt.Sprintf("Set serviceAccountName: %s in the pod template, or, if the app should keep ServiceAccount %s, add it to the subjects of RoleBinding %s.",
+				others[0], d.sa, b.Metadata.Name)
+			return newProblem(p, cs.Name, "KD308", "Permission is bound to another ServiceAccount than the pod's", Critical, cause,
+				"rbacsa|"+b.Metadata.Name+"|"+d.sa, fix, append(ev,
+					Evidence{Object: p.Ref(), What: fmt.Sprintf("pod %s runs as ServiceAccount %s", p.Metadata.Name, d.sa),
+						Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.serviceAccountName}")},
+					roleEvidence(g), bindingEvidence(b))...)
+		}
 	}
 	return nil
 }
@@ -275,7 +344,7 @@ func clusterScope(ix *index, p kube.Pod, cs kube.ContainerStatus, d denial, gs [
 	scope := "across all namespaces (or of a resource that belongs to no namespace), which only a ClusterRoleBinding grants"
 	for _, g := range gs {
 		r := g.rule
-		if !allows(r.APIGroups, d.group) || !allows(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
+		if !allows(r.APIGroups, d.group) || !allowsResource(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
 			continue
 		}
 		cause := fmt.Sprintf("%s. RoleBinding %s grants it, through Role %s, in namespace %s only, and the request is %s; its log says: %q",

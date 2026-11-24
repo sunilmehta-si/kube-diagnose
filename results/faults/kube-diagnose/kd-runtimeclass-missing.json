@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-runtimeclass-missing"
   ],
-  "collectedAt": "2026-11-23 11:47 UTC",
+  "collectedAt": "2026-11-24 11:24 UTC",
   "findings": [
     {
       "rule": "KD183",
@@ -23,7 +23,7 @@
             "namespace": "kd-runtimeclass-missing",
             "name": "web-69dd9c9864"
           },
-          "what": "event FailedCreate (17 times)",
+          "what": "event FailedCreate (18 times)",
           "detail": "Error creating: pods \"web-69dd9c9864-\" is forbidden: pod rejected: RuntimeClass \"gvisor\" not found",
           "command": "kubectl get events -n kd-runtimeclass-missing --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-69dd9c9864"
         },

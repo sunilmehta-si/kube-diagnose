@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-hostname-mismatch"
+  ],
+  "collectedAt": "2026-11-24 11:16 UTC",
+  "findings": [
+    {
+      "rule": "KD367",
+      "title": "Route's hostnames are served by none of its Gateway's listeners",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-hostname-mismatch",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop serves shop.example.com, and the listeners of Gateway public it attaches to serve *.store.example.com (listener http): no hostname is in both, so the Gateway sends none of the route's requests to it",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-hostname-mismatch",
+            "name": "shop"
+          },
+          "what": "HTTPRoute hostnames",
+          "command": "kubectl get httproute shop -n kd-gateway-hostname-mismatch -o jsonpath='{.spec.hostnames}'"
+        },
+        {
+          "object": {
+            "kind": "Gateway",
+            "namespace": "kd-gateway-hostname-mismatch",
+            "name": "public"
+          },
+          "what": "Gateway public has listeners http (port 80, HTTP, *.store.example.com)",
+          "command": "kubectl get gateway public -n kd-gateway-hostname-mismatch -o jsonpath='{.spec.listeners}'"
+        }
+      ],
+      "fix": "Correct the hostnames of HTTPRoute shop, or add a listener to Gateway public that serves them (a listener with no hostname serves every name)."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pvc-selector-dynamic/cache",
+      "error": [
+        {
+          "Text": "Deployment kd-pvc-selector-dynamic/cache has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-selector-dynamic",
+              "Masked": "PUIxWFEqQ0REdSRaTmRmRzsjaCtJVnk="
+            },
+            {
+              "Unmasked": "cache",
+              "Masked": "a1JSJ08="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pvc-selector-dynamic/cache has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"cache-65d9d4b888\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-selector-dynamic",
+              "Masked": "WjRHU2JTLTkidXMhYiRpeEdMfURjI2Q="
+            },
+            {
+              "Unmasked": "cache",
+              "Masked": "fSo5Mmw="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-scheduling-gate",
-              "Masked": "Nn1vcCRSVXBMYSVya1ZUdnJA"
+              "Masked": "dldxSnYkTnRKVzN6YUVSWD1V"
             },
             {
               "Unmasked": "web",
-              "Masked": "M2xS"
+              "Masked": "TF0m"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-scheduling-gate/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-65f8ddb774\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-scheduling-gate",
+              "Masked": "P1YtdipXJ3Y3ZiQ9fTRTeUdh"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "PUp9"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-scheduling-gate/web-65f8ddb774-xw8km",
+      "name": "kd-scheduling-gate/web-65f8ddb774-v8dkc",
       "error": [
         {
           "Text": "Scheduling is blocked due to non-empty scheduling gates",

@@ -474,3 +474,75 @@ func mountedAsDirectory(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []
 	}
 	return nil
 }
+
+// initMountPath finds a container that exits because a file it opens is not there, at a path where an init
+// container mounts a volume they share and the container itself does not: the init container wrote the file into the
+// volume, and the container finds the volume elsewhere, or not at all.
+func initMountPath(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	if isInit(p, cs.Name) {
+		return nil
+	}
+	app, _ := containerSpec(p, cs.Name)
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !reNoSuchFile.MatchString(lines[i]) && !strings.Contains(strings.ToLower(lines[i]), "can't open") {
+			continue
+		}
+		for _, pm := range rePath.FindAllStringSubmatch(lines[i], -1) {
+			path := pm[1]
+			if _, ok := p.MountAt(cs.Name, path); ok {
+				continue
+			}
+			for _, ic := range p.Spec.InitContainers {
+				im, ok := p.MountAt(ic.Name, path)
+				if !ok || strings.TrimRight(im.MountPath, "/") == "" || im.Volume.EmptyDir == nil && im.Volume.PersistentVolumeClaim == nil {
+					continue
+				}
+				where := fmt.Sprintf("container %s does not mount volume %s at all", cs.Name, im.Name)
+				fix := fmt.Sprintf("Mount volume %s in container %s at %s, where the app reads it.", im.Name, cs.Name, im.MountPath)
+				for _, vm := range app.VolumeMounts {
+					if vm.Name == im.Name {
+						where = fmt.Sprintf("container %s mounts it at %s, so the file is %s there", cs.Name, vm.MountPath, pathpkg.Join(vm.MountPath, im.Rel))
+						fix = fmt.Sprintf("Mount volume %s at %s in container %s as in init container %s, or have the app read %s.", im.Name, im.MountPath, cs.Name, ic.Name, pathpkg.Join(vm.MountPath, im.Rel))
+					}
+				}
+				cause := fmt.Sprintf("container %s exits because %s does not exist: init container %s mounts volume %s (%s) at %s and writes there, and %s; its log says: %q",
+					cs.Name, path, ic.Name, im.Name, im.Volume.Source(), im.MountPath, where, clip(lines[i], 200))
+				return newProblem(p, cs.Name, "KD310", "Container reads a path where only the init container mounts the volume", Critical, cause,
+					"initpath|"+im.Name+"|"+path, fix, append(ev, mountEvidence(p, ic.Name, im))...)
+			}
+		}
+	}
+	return nil
+}
+
+// reKeyTooOpen is an app refusing a private key that others may read: OpenSSH, PostgreSQL, and ssh's config check.
+var reKeyTooOpen = regexp.MustCompile(`(?i)permissions 0?[0-7]{3,4} for '([^']+)' are too open|private key file "([^"]+)" has group or world access|bad owner or permissions on (/\S+)`)
+
+// keyFileTooOpen finds a container that exits because the app refuses a key file from a Secret or ConfigMap volume
+// whose mode lets the group or others read it: the kubelet writes those files 0644 unless the volume sets a mode.
+func keyFileTooOpen(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	for i := len(lines) - 1; i >= 0; i-- {
+		sm := reKeyTooOpen.FindStringSubmatch(lines[i])
+		if sm == nil {
+			continue
+		}
+		path := sm[1] + sm[2] + sm[3]
+		m, ok := p.MountAt(cs.Name, path)
+		if !ok {
+			continue
+		}
+		mode, from, ok := fileMode(m)
+		if !ok || mode&0o077 == 0 {
+			continue
+		}
+		cause := fmt.Sprintf("container %s exits because the app refuses key file %s: others may read it, and the app wants it private; its mode is %04o (%s) on volume %s (%s); its log says: %q",
+			cs.Name, path, mode, from, m.Name, m.Volume.Source(), clip(lines[i], 200))
+		fix := fmt.Sprintf("Set defaultMode: 0400 on volume %s (or mode: 0400 on the key's item); YAML takes it with the leading zero, JSON as 256.", m.Name)
+		if uid, set := p.RunAsUser(cs.Name); set && uid != 0 {
+			fix += fmt.Sprintf(" The container runs as user %d and the kubelet makes the files root's: set the pod's fsGroup so the user can read them, or copy the key in an init container and chmod 0600 it there.", uid)
+		}
+		return newProblem(p, cs.Name, "KD311", "Key file's mode lets others read it, and the app refuses it", Critical, cause,
+			"keymode|"+m.Name+"|"+path, fix, append(ev, mountEvidence(p, cs.Name, m))...)
+	}
+	return nil
+}

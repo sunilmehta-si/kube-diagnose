@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-limitrange-default-below-request"
   ],
-  "collectedAt": "2026-11-23 11:45 UTC",
+  "collectedAt": "2026-11-24 11:19 UTC",
   "findings": [
     {
       "rule": "KD276",
@@ -23,8 +23,8 @@
             "namespace": "kd-limitrange-default-below-request",
             "name": "web-6c8ddf67c6"
           },
-          "what": "event FailedCreate (7 times)",
-          "detail": "(combined from similar events): Error creating: Pod \"web-6c8ddf67c6-5rzmn\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
+          "what": "event FailedCreate (8 times)",
+          "detail": "(combined from similar events): Error creating: Pod \"web-6c8ddf67c6-58v8h\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
           "command": "kubectl get events -n kd-limitrange-default-below-request --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-6c8ddf67c6"
         },
         {

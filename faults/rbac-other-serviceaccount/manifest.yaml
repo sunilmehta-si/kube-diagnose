@@ -1,0 +1,57 @@
+# Role read-configmaps is bound to ServiceAccount config-reader, and the settings loader sets no serviceAccountName, so it runs as default and the API server refuses its watch.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rbac-other-serviceaccount
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: config-reader
+  namespace: kd-rbac-other-serviceaccount
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: read-configmaps
+  namespace: kd-rbac-other-serviceaccount
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: config-reader-read-configmaps
+  namespace: kd-rbac-other-serviceaccount
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: read-configmaps
+subjects:
+  - kind: ServiceAccount
+    name: config-reader
+    namespace: kd-rbac-other-serviceaccount
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: settings-loader
+  namespace: kd-rbac-other-serviceaccount
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: settings-loader
+  template:
+    metadata:
+      labels:
+        app: settings-loader
+    spec:
+      # serviceAccountName: config-reader was meant to be here; without it the pod runs as default.
+      containers:
+        - name: loader
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["get", "configmaps", "--watch"]

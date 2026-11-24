@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-hostnetwork-dns",
-              "Masked": "ekckOWVUbTZDeGhpO1U7aksl"
+              "Masked": "P14mO1olZ2VPRVNlTz9WWnF9"
             },
             {
               "Unmasked": "client",
-              "Masked": "VVUwQWQq"
+              "Masked": "Rj9wbVQ1"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-hostnetwork-dns/client-5fb5b6c577-xcvdv",
+      "name": "kd-hostnetwork-dns/client-5fb5b6c577-82znq",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=client pod=client-5fb5b6c577-xcvdv",
+          "Text": "the termination reason is Error exitCode=1 container=client pod=client-5fb5b6c577-82znq",
           "KubernetesDoc": "",
           "Sensitive": []
         }

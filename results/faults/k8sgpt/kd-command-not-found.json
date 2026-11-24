@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-command-not-found",
-              "Masked": "VGktP3YqKHYkY15sRElIRDg6bzI="
+              "Masked": "eE8yWEUiI1kxaGYoe15IUDpSMFE="
             },
             {
               "Unmasked": "web",
-              "Masked": "PjF2"
+              "Masked": "aE5Q"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-command-not-found/web-855c99bf89-qz47w",
+      "name": "kd-command-not-found/web-855c99bf89-knz2s",
       "error": [
         {
           "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"webserver\": executable file not found in $PATH",

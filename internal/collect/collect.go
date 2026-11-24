@@ -134,6 +134,16 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		},
 		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "persistentvolumes", "", nil, &s.PVs) },
 		func(g *snapshot.Snapshot) error { return namespaces(ctx, r, g, &s.NamespaceObjects) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "gateways.gateway.networking.k8s.io", ns, scope, &s.Gateways)
+		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "gatewayclasses.gateway.networking.k8s.io", "", nil, &s.GatewayClasses)
+		},
+		func(g *snapshot.Snapshot) error { return routes(ctx, r, g, ns, scope, &s.Routes) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "referencegrants.gateway.networking.k8s.io", ns, scope, &s.ReferenceGrants)
+		},
 	}
 	// The reads are independent, each a kubectl process and one API request, so a few run at once. Every step
 	// writes its own field of the snapshot and collects its gaps apart, which are then added in the steps' order: the
@@ -203,6 +213,9 @@ func list[T any](ctx context.Context, r Runner, s *snapshot.Snapshot, resource, 
 		if resource == "pods" && !Forbidden(err) {
 			return fmt.Errorf("cannot read the cluster: %w", err)
 		}
+		if strings.HasSuffix(resource, ".gateway.networking.k8s.io") && notServed(err) {
+			return nil // the cluster has no Gateway API: nothing to read, and nothing missed
+		}
 		s.Gaps = append(s.Gaps, snapshot.Gap{Resource: resource, Namespace: ns, Error: firstLine(err.Error())})
 		return nil
 	}
@@ -211,6 +224,29 @@ func list[T any](ctx context.Context, r Runner, s *snapshot.Snapshot, resource, 
 		return fmt.Errorf("kubectl get %s: unexpected output: %w", resource, err)
 	}
 	*out = append(*out, l.Items...)
+	return nil
+}
+
+// notServed reports whether kubectl failed because the API server does not serve the resource at all: its CRD is
+// not installed.
+func notServed(err error) bool {
+	return strings.Contains(err.Error(), "doesn't have a resource type")
+}
+
+// routes reads the HTTPRoutes and GRPCRoutes, which are read alike.
+func routes(ctx context.Context, r Runner, s *snapshot.Snapshot, ns string, scope []string, out *[]kube.Route) error {
+	for _, k := range []struct{ resource, kind string }{
+		{"httproutes.gateway.networking.k8s.io", "HTTPRoute"}, {"grpcroutes.gateway.networking.k8s.io", "GRPCRoute"},
+	} {
+		var rs []kube.Route
+		if err := list(ctx, r, s, k.resource, ns, scope, &rs); err != nil {
+			return err
+		}
+		for i := range rs {
+			rs[i].Kind = k.kind
+		}
+		*out = append(*out, rs...)
+	}
 	return nil
 }
 

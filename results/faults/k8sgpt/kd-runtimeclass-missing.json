@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,26 +14,27 @@
           "Sensitive": [
             {
               "Unmasked": "kd-runtimeclass-missing",
-              "Masked": "cjEsWXtGfCFYNyloLm4wWnRFITpMJEU="
+              "Masked": "bCdkM1hnMDo7NnpnJ11PVTYzW31qPTE="
             },
             {
               "Unmasked": "web",
-              "Masked": "QXJ9"
+              "Masked": "KTRI"
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "ConfigMap",
-      "name": "kd-runtimeclass-missing/kube-root-ca.crt",
-      "error": [
+        },
         {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "Text": "Deployment kd-runtimeclass-missing/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-69dd9c9864\" has timed out progressing.",
           "KubernetesDoc": "",
-          "Sensitive": []
+          "Sensitive": [
+            {
+              "Unmasked": "kd-runtimeclass-missing",
+              "Masked": "Xjg5PFdBdXBzLzp0cVhZNXFudERdbV4="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "PXYm"
+            }
+          ]
         }
       ],
       "details": "",
@@ -51,6 +52,19 @@
       ],
       "details": "",
       "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-runtimeclass-missing/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
     }
   ]
 }

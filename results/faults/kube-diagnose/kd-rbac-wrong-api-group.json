@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-wrong-api-group"
   ],
-  "collectedAt": "2026-11-23 11:47 UTC",
+  "collectedAt": "2026-11-24 11:23 UTC",
   "findings": [
     {
       "rule": "KD300",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-wrong-api-group",
-            "name": "rollout-watcher-868db6486d-l87vb"
+            "name": "rollout-watcher-868db6486d-fjg7k"
           },
-          "what": "container watcher exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod rollout-watcher-868db6486d-l87vb -n kd-rbac-wrong-api-group -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+          "what": "container watcher exited with code 1 (Error), restarted 7 times",
+          "command": "kubectl get pod rollout-watcher-868db6486d-fjg7k -n kd-rbac-wrong-api-group -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-wrong-api-group",
-            "name": "rollout-watcher-868db6486d-l87vb"
+            "name": "rollout-watcher-868db6486d-fjg7k"
           },
-          "what": "last lines of container watcher's log (current run)",
+          "what": "last lines of container watcher's log (run that exited)",
           "detail": "Error from server (Forbidden): deployments.apps is forbidden: User \"system:serviceaccount:kd-rbac-wrong-api-group:deployer\" cannot list resource \"deployments\" in API group \"apps\" in the namespace \"kd-rbac-wrong-api-group\"",
-          "command": "kubectl logs rollout-watcher-868db6486d-l87vb -n kd-rbac-wrong-api-group -c watcher --tail=20"
+          "command": "kubectl logs rollout-watcher-868db6486d-fjg7k -n kd-rbac-wrong-api-group -c watcher --tail=20 --previous"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-wrong-api-group",
-          "name": "rollout-watcher-868db6486d-l87vb"
+          "name": "rollout-watcher-868db6486d-fjg7k"
         }
       ]
     }

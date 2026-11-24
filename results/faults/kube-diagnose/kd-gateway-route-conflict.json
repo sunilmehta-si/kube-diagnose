@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-route-conflict"
+  ],
+  "collectedAt": "2026-11-24 11:17 UTC",
+  "findings": [
+    {
+      "rule": "KD371",
+      "title": "HTTPRoutes send the same hostname and path to different Services",
+      "severity": "warning",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-route-conflict",
+        "name": "shop-canary"
+      },
+      "cause": "HTTPRoute shop-canary claims shop.example.com with path prefix / (to Service storefront-v2; HTTPRoute shop sends it to Service storefront), on Gateway public: another route on the same Gateway already claims each of those, and the Gateway API gives a tie to the older route (or, created in the same second, the first by name), so shop-canary gets none of those requests",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-conflict",
+            "name": "shop-canary"
+          },
+          "what": "the route's hostnames and matches",
+          "command": "kubectl get httproute shop-canary -n kd-gateway-route-conflict -o jsonpath='{.spec.hostnames}{\"\\n\"}{.spec.rules[*].matches}'"
+        },
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-conflict",
+            "name": "*"
+          },
+          "what": "the namespace's HTTPRoutes, oldest first",
+          "command": "kubectl get httproutes -n kd-gateway-route-conflict --sort-by=.metadata.creationTimestamp"
+        }
+      ],
+      "fix": "Give the routes different hostnames or paths, or merge them; for a canary, send one rule to both Services with weights on its backendRefs."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 2,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

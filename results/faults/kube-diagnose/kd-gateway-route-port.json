@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-route-port"
+  ],
+  "collectedAt": "2026-11-24 11:17 UTC",
+  "findings": [
+    {
+      "rule": "KD363",
+      "title": "Route sends traffic to a port the Service does not expose",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-route-port",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop sends traffic to port 8080 of Service storefront (from rule 1), which exposes port 80 (to the pods' 8080), so the Gateway has no endpoints for that rule and answers its requests with an error",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-port",
+            "name": "shop"
+          },
+          "what": "HTTPRoute backendRefs",
+          "command": "kubectl get httproute shop -n kd-gateway-route-port -o jsonpath='{.spec.rules[*].backendRefs}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-gateway-route-port",
+            "name": "storefront"
+          },
+          "what": "Service storefront exposes port 80 (to the pods' 8080)",
+          "command": "kubectl get service storefront -n kd-gateway-route-port -o jsonpath='{.spec.ports}'"
+        }
+      ],
+      "fix": "Set the backendRef's port to a port the Service exposes (its port, not the container's targetPort)."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}
