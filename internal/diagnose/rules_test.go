@@ -5428,3 +5428,32 @@ func TestClaimsSelectorStopsProvisioning(t *testing.T) {
 	s.PVCs[0].Spec.Selector = nil
 	expect(t, only(t, Diagnose(s)), "KD152", "PersistentVolumeClaim shop/data")
 }
+
+func TestSpreadConstraintWithMoreMinDomainsThanTheNodesForm(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 1)
+	running := pod("web-rs-a", "web")
+	pending := pod("web-rs-b", "web")
+	md := int32(3)
+	for _, p := range []*kube.Pod{&running, &pending} {
+		p.Spec.TopologySpreadConstraints = []kube.TopologySpreadConstraint{{MaxSkew: 1, TopologyKey: "kubernetes.io/hostname", WhenUnsatisfiable: "DoNotSchedule",
+			LabelSelector: &kube.LabelSelector{MatchLabels: map[string]string{"app": "web"}}, MinDomains: &md}}
+	}
+	pending.Spec.NodeName = ""
+	pending.Status.Phase = "Pending"
+	pending.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."}}
+	pending.Status.ContainerStatuses = nil
+	s.Pods = []kube.Pod{running, pending}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD144", "Deployment shop/web", "its constraint over kubernetes.io/hostname has minDomains 3, and the nodes form 1 domain (node-1)",
+		"no domain may hold more than maxSkew (1) of the pods the constraint counts, and 1 such pod already run")
+	if !strings.Contains(f.Fix, "Lower minDomains to the number of kubernetes.io/hostname domains the nodes form (1)") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Without minDomains, the account says where the pods are.
+	for i := range s.Pods {
+		s.Pods[i].Spec.TopologySpreadConstraints[0].MinDomains = nil
+	}
+	expect(t, only(t, Diagnose(s)), "KD144", "Deployment shop/web", "its constraint over kubernetes.io/hostname (maxSkew 1) spreads the pods it counts over 1 domain (node-1), where 1 such pod already run")
+}

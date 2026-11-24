@@ -222,3 +222,38 @@ func otherPodsLabels(ix *index, p kube.Pod, nss []string, sel map[string]string)
 	}
 	return strings.Join(out, "; ")
 }
+
+// spreadAccount explains the first topology spread constraint that must hold: the domains the nodes form for its key,
+// and the pods it counts. With minDomains above the number of domains, the scheduler takes the global minimum as 0,
+// so no domain may hold more than maxSkew matching pods: a second replica on one node is refused. The fix for that
+// case comes back too.
+func spreadAccount(ix *index, p kube.Pod) (string, string) {
+	if !ix.read("nodes") || len(ix.s.Nodes) == 0 {
+		return "", ""
+	}
+	for _, c := range p.Spec.TopologySpreadConstraints {
+		if c.WhenUnsatisfiable == "ScheduleAnyway" || c.TopologyKey == "" {
+			continue
+		}
+		_, values := nodesWith(ix, c.TopologyKey)
+		if len(values) == 0 {
+			continue
+		}
+		count := 0
+		for _, q := range ix.s.Pods {
+			if q.Metadata.Namespace == p.Metadata.Namespace && q.Spec.NodeName != "" && q.Status.Phase != "Succeeded" && q.Status.Phase != "Failed" &&
+				c.LabelSelector != nil && c.LabelSelector.Matches(q.Metadata.Labels) {
+				count++
+			}
+		}
+		domains := fmt.Sprintf("%s (%s)", plural(len(values), "domain"), strings.Join(values, ", "))
+		if c.MinDomains != nil && int(*c.MinDomains) > len(values) {
+			return fmt.Sprintf("its constraint over %s has minDomains %d, and the nodes form %s; while there are fewer domains than minDomains, the scheduler takes the smallest domain to hold 0 pods, so no domain may hold more than maxSkew (%d) of the pods the constraint counts, and %s already run",
+					c.TopologyKey, *c.MinDomains, domains, c.MaxSkew, plural(count, "such pod")),
+				fmt.Sprintf("Lower minDomains to the number of %s domains the nodes form (%d), or drop it; or add nodes in more domains.", c.TopologyKey, len(values))
+		}
+		return fmt.Sprintf("its constraint over %s (maxSkew %d) spreads the pods it counts over %s, where %s already run",
+			c.TopologyKey, c.MaxSkew, domains, plural(count, "such pod")), ""
+	}
+	return "", ""
+}

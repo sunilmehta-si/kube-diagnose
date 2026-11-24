@@ -961,6 +961,7 @@ type TopologySpreadConstraint struct {
 	TopologyKey       string         `json:"topologyKey"`
 	WhenUnsatisfiable string         `json:"whenUnsatisfiable"`
 	LabelSelector     *LabelSelector `json:"labelSelector,omitempty"`
+	MinDomains        *int32         `json:"minDomains,omitempty"`
 }
 
 // Namespace is a namespace reduced to its name and labels: what a NetworkPolicy's namespaceSelector is matched
