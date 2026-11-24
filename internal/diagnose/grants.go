@@ -225,6 +225,50 @@ func grantNearMiss(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []strin
 		return newProblem(p, cs.Name, "KD304", "Permission is granted in another namespace", Critical, cause,
 			"rbacns|"+g.binding.Metadata.Name+"|"+d.ns, fix, append(ev, roleEvidence(g), bindingEvidence(g.binding))...)
 	}
+	return otherAccount(ix, p, cs, d, prefix, ev)
+}
+
+// otherAccount finds a request that a Role grants in full, in the request's namespace, to another ServiceAccount of
+// the pod's namespace than the one the pod runs as: the binding names reader, and the pod, with no
+// serviceAccountName, runs as default.
+func otherAccount(ix *index, p kube.Pod, cs kube.ContainerStatus, d denial, prefix string, ev []Evidence) *problem {
+	for _, b := range ix.s.RoleBindings {
+		if b.Metadata.Namespace != d.ns || b.RoleRef.Kind != "Role" || namesAccount(b, d.saNS, d.sa) {
+			continue
+		}
+		var others []string
+		for _, s := range b.Subjects {
+			ns := s.Namespace
+			if ns == "" {
+				ns = b.Metadata.Namespace
+			}
+			if s.Kind == "ServiceAccount" && ns == d.saNS {
+				others = append(others, s.Name)
+			}
+		}
+		if len(others) == 0 {
+			continue
+		}
+		for _, g := range grantsOf(ix, d.saNS, others[0]) {
+			r := g.rule
+			if g.binding.Metadata.Name != b.Metadata.Name || !allows(r.APIGroups, d.group) || !allowsResource(r.Resources, d.resource) || !allows(r.Verbs, d.verb) || len(r.ResourceNames) > 0 {
+				continue
+			}
+			runs := fmt.Sprintf("the pod runs as ServiceAccount %s", d.sa)
+			if p.Spec.ServiceAccountName == "" {
+				runs += " (its spec sets no serviceAccountName, and a pod without one runs as default)"
+			}
+			cause := fmt.Sprintf("%s. RoleBinding %s grants it, through Role %s, to ServiceAccount %s, and %s; its log says: %q",
+				prefix, b.Metadata.Name, g.role.Metadata.Name, strings.Join(others, ", "), runs, clip(d.line, 200))
+			fix := fmt.Sprintf("Set serviceAccountName: %s in the pod template, or, if the app should keep ServiceAccount %s, add it to the subjects of RoleBinding %s.",
+				others[0], d.sa, b.Metadata.Name)
+			return newProblem(p, cs.Name, "KD308", "Permission is bound to another ServiceAccount than the pod's", Critical, cause,
+				"rbacsa|"+b.Metadata.Name+"|"+d.sa, fix, append(ev,
+					Evidence{Object: p.Ref(), What: fmt.Sprintf("pod %s runs as ServiceAccount %s", p.Metadata.Name, d.sa),
+						Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.serviceAccountName}")},
+					roleEvidence(g), bindingEvidence(b))...)
+		}
+	}
 	return nil
 }
 

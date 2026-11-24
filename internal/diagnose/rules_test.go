@@ -4978,3 +4978,20 @@ func TestRoleGrantsTheResourceButNotItsSubresource(t *testing.T) {
 	s.Roles[0].Rules[0].Resources, s.Roles[0].Rules[0].Verbs = []string{"pods"}, []string{"list"}
 	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }
+
+func TestPermissionIsBoundToAnotherServiceAccount(t *testing.T) {
+	s, p := rbacSnapshot()
+	p.Spec.ServiceAccountName = ""
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"configmaps"}, Verbs: []string{"get", "list", "watch"}}}
+	s.RoleBindings[0].Subjects[0] = kube.Subject{Kind: "ServiceAccount", Name: "app"}
+	s.Logs[0].Lines = []string{`configmaps is forbidden: User "system:serviceaccount:shop:default" cannot list resource "configmaps" in API group "" in the namespace "shop"`}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD308", "ReplicaSet shop/worker-rs", "refuses its ServiceAccount default: it may not list configmaps in namespace shop",
+		"RoleBinding read-config grants it, through Role configmap-reader, to ServiceAccount app", "its spec sets no serviceAccountName, and a pod without one runs as default")
+	if !strings.Contains(f.Fix, "Set serviceAccountName: app in the pod template, or, if the app should keep ServiceAccount default, add it to the subjects of RoleBinding read-config") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The Role does not grant the request: nothing to point at.
+	s.Roles[0].Rules[0].Verbs = []string{"get"}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}
