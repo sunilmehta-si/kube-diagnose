@@ -141,6 +141,9 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 			return list(ctx, r, g, "gatewayclasses.gateway.networking.k8s.io", "", nil, &s.GatewayClasses)
 		},
 		func(g *snapshot.Snapshot) error { return routes(ctx, r, g, ns, scope, &s.Routes) },
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "referencegrants.gateway.networking.k8s.io", ns, scope, &s.ReferenceGrants)
+		},
 	}
 	// The reads are independent, each a kubectl process and one API request, so a few run at once. Every step
 	// writes its own field of the snapshot and collects its gaps apart, which are then added in the steps' order: the

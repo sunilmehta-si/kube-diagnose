@@ -1187,3 +1187,21 @@ type Route struct {
 func (r Route) Ref() Ref {
 	return Ref{Kind: r.Kind, Namespace: r.Metadata.Namespace, Name: r.Metadata.Name}
 }
+
+// ReferenceGrant lets objects of other namespaces refer to objects of its own: a route in namespace web to a Service
+// here, for one.
+type ReferenceGrant struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		From []struct {
+			Group     string `json:"group"`
+			Kind      string `json:"kind"`
+			Namespace string `json:"namespace"`
+		} `json:"from"`
+		To []struct {
+			Group string `json:"group"`
+			Kind  string `json:"kind"`
+			Name  string `json:"name,omitempty"`
+		} `json:"to"`
+	} `json:"spec"`
+}

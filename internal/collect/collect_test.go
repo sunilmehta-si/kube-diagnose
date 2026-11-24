@@ -345,10 +345,11 @@ func TestCollectReadsSeveralAtOnce(t *testing.T) {
 
 func TestCollectReadsTheGatewayAPIWhenTheClusterServesIt(t *testing.T) {
 	f := &fake{answers: map[string]string{
-		"get gateways.gateway.networking.k8s.io":       `{"items":[{"metadata":{"name":"public","namespace":"shop"},"spec":{"gatewayClassName":"envoy","listeners":[{"name":"http","port":80,"protocol":"HTTP"}]}}]}`,
-		"get gatewayclasses.gateway.networking.k8s.io": `{"items":[{"metadata":{"name":"envoy"},"spec":{"controllerName":"gateway.envoyproxy.io/gatewayclass-controller"}}]}`,
-		"get httproutes.gateway.networking.k8s.io":     `{"items":[{"metadata":{"name":"shop","namespace":"shop"},"spec":{"parentRefs":[{"name":"public"}],"rules":[{"backendRefs":[{"name":"storefront","port":80}]}]}}]}`,
-		"get grpcroutes.gateway.networking.k8s.io":     `{"items":[{"metadata":{"name":"orders","namespace":"shop"},"spec":{"parentRefs":[{"name":"public"}]}}]}`,
+		"get gateways.gateway.networking.k8s.io":        `{"items":[{"metadata":{"name":"public","namespace":"shop"},"spec":{"gatewayClassName":"envoy","listeners":[{"name":"http","port":80,"protocol":"HTTP"}]}}]}`,
+		"get gatewayclasses.gateway.networking.k8s.io":  `{"items":[{"metadata":{"name":"envoy"},"spec":{"controllerName":"gateway.envoyproxy.io/gatewayclass-controller"}}]}`,
+		"get httproutes.gateway.networking.k8s.io":      `{"items":[{"metadata":{"name":"shop","namespace":"shop"},"spec":{"parentRefs":[{"name":"public"}],"rules":[{"backendRefs":[{"name":"storefront","port":80}]}]}}]}`,
+		"get grpcroutes.gateway.networking.k8s.io":      `{"items":[{"metadata":{"name":"orders","namespace":"shop"},"spec":{"parentRefs":[{"name":"public"}]}}]}`,
+		"get referencegrants.gateway.networking.k8s.io": `{"items":[{"metadata":{"name":"from-web","namespace":"shop"},"spec":{"from":[{"group":"gateway.networking.k8s.io","kind":"HTTPRoute","namespace":"web"}],"to":[{"group":"","kind":"Service"}]}}]}`,
 	}}
 	s, err := Collect(context.Background(), f, Options{Namespace: "shop"})
 	if err != nil {
@@ -356,6 +357,9 @@ func TestCollectReadsTheGatewayAPIWhenTheClusterServesIt(t *testing.T) {
 	}
 	if len(s.Gateways) != 1 || s.Gateways[0].Spec.Listeners[0].Name != "http" || len(s.GatewayClasses) != 1 {
 		t.Errorf("gateways %+v classes %+v", s.Gateways, s.GatewayClasses)
+	}
+	if len(s.ReferenceGrants) != 1 || s.ReferenceGrants[0].Spec.From[0].Namespace != "web" {
+		t.Errorf("reference grants %+v", s.ReferenceGrants)
 	}
 	if len(s.Routes) != 2 || s.Routes[0].Kind != "HTTPRoute" || s.Routes[1].Kind != "GRPCRoute" || *s.Routes[0].Spec.Rules[0].BackendRefs[0].Port != 80 {
 		t.Errorf("routes %+v", s.Routes)
@@ -366,6 +370,7 @@ func TestCollectReadsTheGatewayAPIWhenTheClusterServesIt(t *testing.T) {
 	f = &fake{errs: map[string]error{
 		"get gateways.gateway.networking.k8s.io": notServed, "get gatewayclasses.gateway.networking.k8s.io": notServed,
 		"get httproutes.gateway.networking.k8s.io": notServed, "get grpcroutes.gateway.networking.k8s.io": notServed,
+		"get referencegrants.gateway.networking.k8s.io": notServed,
 	}}
 	s, err = Collect(context.Background(), f, Options{Namespace: "shop"})
 	if err != nil {

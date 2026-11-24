@@ -296,6 +296,15 @@ func (r *redactor) collect(s *Snapshot) {
 			}
 		}
 	}
+	for _, x := range s.ReferenceGrants {
+		r.addName("refgrant", x.Metadata.Name)
+		for _, f := range x.Spec.From {
+			r.addName("ns", f.Namespace)
+		}
+		for _, t := range x.Spec.To {
+			r.addName("svc", t.Name)
+		}
+	}
 	for _, x := range s.Routes {
 		r.addName("route", x.Metadata.Name)
 		for _, h := range x.Spec.Hostnames {
