@@ -5084,3 +5084,33 @@ func TestKeyFileModeIsTooOpen(t *testing.T) {
 		t.Errorf("0400: %s", f.Cause)
 	}
 }
+
+func TestContainerRunsAsAUserTheImageDoesNotDefine(t *testing.T) {
+	s := snap()
+	deployment(s, "worker", 1, 0)
+	p := pod("worker-rs-a", "worker")
+	uid := int64(10001)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"whoami: unknown uid 10001"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD312", "Deployment shop/worker", "it runs as user ID 10001 (runAsUser, in the pod's securityContext), which has no entry in the image's /etc/passwd")
+	if !strings.Contains(f.Fix, "add user 10001 to the image's /etc/passwd") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	for _, l := range []string{"KeyError: 'getpwuid(): uid not found: 10001'", "user: unknown userid 10001", "No user exists for uid 10001", "I have no name!"} {
+		s.Logs[0].Lines = []string{l}
+		expect(t, only(t, Diagnose(s)), "KD312", "Deployment shop/worker", "10001")
+	}
+	// Another user ID in the message, or no runAsUser: not this.
+	s.Logs[0].Lines = []string{"whoami: unknown uid 20002"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD312" {
+		t.Errorf("other uid: %s", f.Cause)
+	}
+	s.Pods[0].Spec.SecurityContext = nil
+	s.Logs[0].Lines = []string{"I have no name!"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD312" {
+		t.Errorf("no runAsUser: %s", f.Cause)
+	}
+}

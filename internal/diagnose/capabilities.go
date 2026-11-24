@@ -76,3 +76,37 @@ func capabilityDropped(p kube.Pod, cs kube.ContainerStatus, lines []string, ev [
 	}
 	return nil
 }
+
+// reUnknownUser is a program looking up the user it runs as and finding no entry in /etc/passwd: busybox and
+// coreutils whoami, Python's pwd module, Go's os/user, OpenSSH and git, Node's os.userInfo, and bash's prompt.
+var reUnknownUser = regexp.MustCompile(`(?i)unknown uid (\d+)|getpwuid\(\): uid not found: (\d+)|unknown userid (\d+)|no user exists for uid (\d+)|cannot find name for user id (\d+)|uv_os_get_passwd returned ENOENT|I have no name!`)
+
+// unknownUser finds a container that exits because the app looks up the user it runs as, and the user ID that
+// runAsUser sets has no entry in the image's /etc/passwd: a program asking for its home directory or user name gets
+// nothing back.
+func unknownUser(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	uid, set := p.RunAsUser(cs.Name)
+	if !set || uid == 0 {
+		return nil
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		m := reUnknownUser.FindStringSubmatch(lines[i])
+		if m == nil {
+			continue
+		}
+		if n := strings.Join(m[1:], ""); n != "" && n != fmt.Sprint(uid) {
+			continue
+		}
+		where := "the pod's securityContext"
+		if c, _ := containerSpec(p, cs.Name); c.SecurityContext != nil && c.SecurityContext.RunAsUser != nil {
+			where = "the container's securityContext"
+		}
+		cause := fmt.Sprintf("container %s exits because it runs as user ID %d (runAsUser, in %s), which has no entry in the image's /etc/passwd, and the app looks up the user it runs as; its log says: %q",
+			cs.Name, uid, where, clip(lines[i], 200))
+		fix := fmt.Sprintf("Run as a user the image defines (its USER, or a user ID listed in its /etc/passwd), or add user %d to the image's /etc/passwd when building it.", uid)
+		return newProblem(p, cs.Name, "KD312", "Container runs as a user ID the image does not define", Critical, cause,
+			fmt.Sprintf("nouser|%d", uid), fix, append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s runs as user %d", cs.Name, uid),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.securityContext.runAsUser}{" "}{.spec.containers[?(@.name=="%s")].securityContext.runAsUser}`, cs.Name))})...)
+	}
+	return nil
+}
