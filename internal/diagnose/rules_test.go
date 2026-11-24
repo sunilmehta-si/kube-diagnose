@@ -4958,3 +4958,23 @@ func TestPostStartHookCaughtBeforeTheBackOff(t *testing.T) {
 	s.Events = []kube.Event{e}
 	expect(t, only(t, Diagnose(s)), "KD116", "Deployment shop/web", "postStart hook (sh -c /opt/warm-cache.sh) fails")
 }
+
+func TestRoleGrantsTheResourceButNotItsSubresource(t *testing.T) {
+	s, _ := rbacSnapshot()
+	s.Roles[0].Rules = []kube.PolicyRule{{APIGroups: []string{""}, Resources: []string{"pods"}, Verbs: []string{"get", "list"}}}
+	kubectlDenied(s, "get", "pods/log", "", `in the namespace "shop"`)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD307", "ReplicaSet shop/worker-rs", "it may not get pods/log in namespace shop",
+		"Role configmap-reader grants get, list on pods, and the request is for its log subresource, pods/log", "a rule that names pods covers the objects, not their subresources")
+	if !strings.Contains(f.Fix, `Add "pods/log" to the resources of the rule of Role configmap-reader that names pods (with verb get)`) {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// "pods/*" and "*/log" grant it: the refusal is something else.
+	for _, r := range []string{"pods/*", "*/log", "pods/log"} {
+		s.Roles[0].Rules[0].Resources = []string{"pods", r}
+		expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+	}
+	// A rule without the verb is KD307's business only when it has the verb.
+	s.Roles[0].Rules[0].Resources, s.Roles[0].Rules[0].Verbs = []string{"pods"}, []string{"list"}
+	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
+}
