@@ -88,6 +88,23 @@ func pendingClaim(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
 		return nil
 	}
 	for _, e := range evs {
+		if e.Reason != "ProvisioningFailed" || pvc.Spec.Selector == nil || !reSelectorUnsupported.MatchString(e.Message) {
+			continue
+		}
+		class := "its StorageClass"
+		if pvc.Spec.StorageClassName != nil && *pvc.Spec.StorageClassName != "" {
+			class = "StorageClass " + *pvc.Spec.StorageClassName
+		} else if d := defaultClass(ix); d != "" {
+			class = "the default StorageClass " + d
+		}
+		sel := formatSelector(*pvc.Spec.Selector)
+		return &Finding{Rule: "KD253", Title: "Claim's selector stops its StorageClass provisioning a volume", Severity: Critical, Object: ref,
+			Cause: fmt.Sprintf("PersistentVolumeClaim %s has a selector, %s, and the provisioner of %s does not provision a volume for a claim with one: a selector picks among PersistentVolumes that already exist, and no volume with those labels does; the provisioner says: %s",
+				name, sel, class, clip(e.Message, 200)),
+			Evidence: []Evidence{state, {Object: ref, What: "claim selects volumes labelled " + sel, Command: cmdGet("pvc", ns, name, "{.spec.selector}")}, eventEvidence(ref, e)},
+			Fix:      "Remove the selector to have the class provision a volume (a claim's selector cannot be changed: recreate the claim), or create a PersistentVolume with those labels and the claim's storageClassName for it to bind to."}
+	}
+	for _, e := range evs {
 		if e.Reason != "ProvisioningFailed" || !reAccessMode.MatchString(e.Message) {
 			continue
 		}
@@ -112,6 +129,10 @@ func pendingClaim(ix *index, pvc kube.PersistentVolumeClaim) *Finding {
 		Evidence: []Evidence{state, eventEvidence(ref, e)},
 		Fix:      "Check that the StorageClass's provisioner runs in the cluster and read its logs; for static volumes, create a PersistentVolume that matches the claim."}
 }
+
+// reSelectorUnsupported is a provisioner refusing a claim with a selector: external-provisioner's and
+// local-path-provisioner's words.
+var reSelectorUnsupported = regexp.MustCompile(`(?i)selector is not supported|selector not supported`)
 
 var reAccessMode = regexp.MustCompile(`(?i)access ?modes?\b|ReadWriteMany|ReadOnlyMany|ReadWriteOncePod`)
 

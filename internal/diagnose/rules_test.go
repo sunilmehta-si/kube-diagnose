@@ -5404,3 +5404,27 @@ func TestVariableComesFromALabelThePodDoesNotHave(t *testing.T) {
 		t.Errorf("label present: %s", f.Cause)
 	}
 }
+
+func TestClaimsSelectorStopsProvisioning(t *testing.T) {
+	s := snap()
+	var sc kube.StorageClass
+	sc.Metadata = kube.ObjectMeta{Name: "standard", Annotations: map[string]string{"storageclass.kubernetes.io/is-default-class": "true"}}
+	sc.Provisioner, sc.VolumeBindingMode = "rancher.io/local-path", "WaitForFirstConsumer"
+	s.StorageClasses = []kube.StorageClass{sc}
+	var pvc kube.PersistentVolumeClaim
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop"}
+	pvc.Spec.AccessModes = []string{"ReadWriteOnce"}
+	pvc.Spec.Selector = &kube.LabelSelector{MatchLabels: map[string]string{"tier": "fast"}}
+	pvc.Status.Phase = "Pending"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	p := pod("web", "")
+	p.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("PersistentVolumeClaim", "data", "ProvisioningFailed",
+		`failed to provision volume with StorageClass "standard": claim.Spec.Selector is not supported`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD253", "PersistentVolumeClaim shop/data", "has a selector, tier=fast, and the provisioner of the default StorageClass standard does not provision a volume for a claim with one")
+	// The same words, and no selector: KD152 reports the event as it is.
+	s.PVCs[0].Spec.Selector = nil
+	expect(t, only(t, Diagnose(s)), "KD152", "PersistentVolumeClaim shop/data")
+}
