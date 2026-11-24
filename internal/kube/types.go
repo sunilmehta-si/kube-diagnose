@@ -136,6 +136,10 @@ type KeyRef struct {
 type EnvVarSource struct {
 	ConfigMapKeyRef *KeyRef `json:"configMapKeyRef,omitempty"`
 	SecretKeyRef    *KeyRef `json:"secretKeyRef,omitempty"`
+	// FieldRef is the downward API: a field of the pod, metadata.labels['version'] for one.
+	FieldRef *struct {
+		FieldPath string `json:"fieldPath"`
+	} `json:"fieldRef,omitempty"`
 }
 
 type EnvVar struct {

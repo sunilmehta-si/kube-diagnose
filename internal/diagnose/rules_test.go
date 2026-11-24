@@ -5382,3 +5382,25 @@ func TestHTTPRoutesSendTheSameHostAndPathToDifferentServices(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestVariableComesFromALabelThePodDoesNotHave(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	p.Spec.Containers[0].Env = []kube.EnvVar{{Name: "APP_VERSION", ValueFrom: &kube.EnvVarSource{FieldRef: &struct {
+		FieldPath string `json:"fieldPath"`
+	}{FieldPath: "metadata.labels['app.kubernetes.io/version']"}}}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"APP_VERSION is empty: cannot tag the build"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD236", "Deployment shop/api", "APP_VERSION is empty: it comes from the pod's label app.kubernetes.io/version (fieldRef metadata.labels['app.kubernetes.io/version']), and the pod has no such label", "the pod's labels are app")
+	if !strings.Contains(f.Fix, "Add label app.kubernetes.io/version to the pod template's metadata") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The pod has the label: the complaint is something else.
+	s.Pods[0].Metadata.Labels["app.kubernetes.io/version"] = "1.4.2"
+	if f := only(t, Diagnose(s)); f.Rule == "KD236" {
+		t.Errorf("label present: %s", f.Cause)
+	}
+}
