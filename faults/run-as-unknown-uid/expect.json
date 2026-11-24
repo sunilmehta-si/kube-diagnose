@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-run-as-unknown-uid",
+  "description": "The pod runs as user 10001, which busybox has no /etc/passwd entry for, and the app looks up its user name and exits.",
+  "rule": "KD312",
+  "object": "Deployment/reporter",
+  "keywords": [
+    [
+      "10001"
+    ],
+    [
+      "/etc/passwd"
+    ],
+    [
+      "runAsUser"
+    ]
+  ]
+}
