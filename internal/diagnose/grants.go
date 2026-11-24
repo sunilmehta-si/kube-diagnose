@@ -255,8 +255,10 @@ func otherAccount(ix *index, p kube.Pod, cs kube.ContainerStatus, d denial, pref
 				continue
 			}
 			runs := fmt.Sprintf("the pod runs as ServiceAccount %s", d.sa)
-			if p.Spec.ServiceAccountName == "" {
-				runs += " (its spec sets no serviceAccountName, and a pod without one runs as default)"
+			if d.sa == "default" {
+				// The API server writes default into a pod that names no ServiceAccount, so the pod's spec cannot tell
+				// a choice from an omission; the template is where one is missing.
+				runs += " (a pod whose template sets no serviceAccountName runs as default)"
 			}
 			cause := fmt.Sprintf("%s. RoleBinding %s grants it, through Role %s, to ServiceAccount %s, and %s; its log says: %q",
 				prefix, b.Metadata.Name, g.role.Metadata.Name, strings.Join(others, ", "), runs, clip(d.line, 200))

@@ -4987,7 +4987,7 @@ func TestPermissionIsBoundToAnotherServiceAccount(t *testing.T) {
 	s.Logs[0].Lines = []string{`configmaps is forbidden: User "system:serviceaccount:shop:default" cannot list resource "configmaps" in API group "" in the namespace "shop"`}
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD308", "ReplicaSet shop/worker-rs", "refuses its ServiceAccount default: it may not list configmaps in namespace shop",
-		"RoleBinding read-config grants it, through Role configmap-reader, to ServiceAccount app", "its spec sets no serviceAccountName, and a pod without one runs as default")
+		"RoleBinding read-config grants it, through Role configmap-reader, to ServiceAccount app", "a pod whose template sets no serviceAccountName runs as default")
 	if !strings.Contains(f.Fix, "Set serviceAccountName: app in the pod template, or, if the app should keep ServiceAccount default, add it to the subjects of RoleBinding read-config") {
 		t.Errorf("fix: %s", f.Fix)
 	}
