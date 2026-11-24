@@ -5114,3 +5114,60 @@ func TestContainerRunsAsAUserTheImageDoesNotDefine(t *testing.T) {
 		t.Errorf("no runAsUser: %s", f.Cause)
 	}
 }
+
+// gatewaySnapshot holds a working Gateway API setup: GatewayClass envoy, Gateway public with an HTTP listener on
+// port 80, and HTTPRoute shop sending shop.example.com to Service web, port 80, which has a ready pod.
+func gatewaySnapshot() *snapshot.Snapshot {
+	s := snap()
+	s.Pods = []kube.Pod{pod("web", "")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	s.NamespaceObjects = []kube.Namespace{{Metadata: kube.ObjectMeta{Name: "shop", Labels: map[string]string{"kubernetes.io/metadata.name": "shop"}}}}
+	var class kube.GatewayClass
+	class.Metadata.Name = "envoy"
+	s.GatewayClasses = []kube.GatewayClass{class}
+	var gw kube.Gateway
+	gw.Metadata = kube.ObjectMeta{Name: "public", Namespace: "shop"}
+	gw.Spec.GatewayClassName = "envoy"
+	gw.Spec.Listeners = []kube.Listener{{Name: "http", Port: 80, Protocol: "HTTP"}}
+	s.Gateways = []kube.Gateway{gw}
+	var rt kube.Route
+	rt.Kind, rt.Metadata = "HTTPRoute", kube.ObjectMeta{Name: "shop", Namespace: "shop"}
+	rt.Spec.ParentRefs = []kube.ParentRef{{Name: "public"}}
+	rt.Spec.Hostnames = []string{"shop.example.com"}
+	p := int32(80)
+	rt.Spec.Rules = append(rt.Spec.Rules, struct {
+		BackendRefs []kube.BackendRef `json:"backendRefs,omitempty"`
+	}{BackendRefs: []kube.BackendRef{{Name: "web", Port: &p}}})
+	s.Routes = []kube.Route{rt}
+	return s
+}
+
+func TestAWorkingGatewaySetupIsQuiet(t *testing.T) {
+	if r := Diagnose(gatewaySnapshot()); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestRouteSendsTrafficToAServiceThatDoesNotExist(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Name = "web-v2"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD362", "HTTPRoute shop/shop", "HTTPRoute shop sends traffic to Service web-v2 (from rule 1), which does not exist", "HTTP 500")
+	if !strings.Contains(f.Fix, "Correct the backendRef's name in HTTPRoute shop, or create the Service") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A backend in a namespace that was not read: nothing is known about it.
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Namespace = "payments"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// Services were not read.
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Namespace = ""
+	s.Gaps = []snapshot.Gap{{Resource: "services"}}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD362" {
+			t.Errorf("services unread: %s", f.Cause)
+		}
+	}
+}
