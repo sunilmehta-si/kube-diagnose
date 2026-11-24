@@ -136,7 +136,9 @@ kube-diagnose rules KD14               # a range: KD14 is scheduling (docs/rules
 It needs permission to `get` and `list` pods, events, Services, EndpointSlices, Ingresses, workloads, Jobs, CronJobs,
 HorizontalPodAutoscalers, PodDisruptionBudgets, claims, NetworkPolicies, ResourceQuotas, ServiceAccounts, Roles,
 RoleBindings, ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses, PersistentVolumes,
-namespaces (their names and labels) and ClusterRoles (their names) in the cluster, and to read pod logs. With less, it diagnoses from the rest and lists what it could not read.
+namespaces (their names and labels) and ClusterRoles (their names) in the cluster, and to read pod logs. Where the
+cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes and ReferenceGrants in the namespace
+and GatewayClasses in the cluster; a cluster without it is no gap. With less, it diagnoses from the rest and lists what it could not read.
 
 A snapshot holds object names, labels, event messages and log lines (never Secret or ConfigMap values) and is
 written readable by you only; treat it like the cluster data it came from. To share one in an issue, record it with
