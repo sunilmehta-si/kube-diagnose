@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -178,8 +179,13 @@ func routeParentFindings(ix *index, rt kube.Route) []Finding {
 			out = append(out, listenerMissing(rt, p, gw))
 			continue
 		}
+		admits, why, fix := admitting(ix, rt, gw, ls)
+		if len(admits) == 0 {
+			out = append(out, notAdmitted(rt, gw, why, fix))
+			continue
+		}
 		// next parent checks
-		_ = ls
+		_ = admits
 	}
 	return out
 }
@@ -285,4 +291,89 @@ func listenerMissing(rt kube.Route, p kube.ParentRef, gw kube.Gateway) Finding {
 			rt.Kind, rt.Metadata.Name, strings.Join(named, " on "), gw.Metadata.Name, describeListeners(gw.Spec.Listeners)),
 		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" parentRefs", "{.spec.parentRefs}"), gatewayEvidence(gw)},
 		Fix:      fmt.Sprintf("Set the parentRef's sectionName (and port) to a listener of Gateway %s, or leave them out to attach to every listener that admits the route.", gw.Metadata.Name)}
+}
+
+// routeKinds is what each listener protocol takes when its allowedRoutes names no kinds.
+var routeKinds = map[string][]string{"HTTP": {"HTTPRoute", "GRPCRoute"}, "HTTPS": {"HTTPRoute", "GRPCRoute"}, "TLS": {"TLSRoute"}, "TCP": {"TCPRoute"}, "UDP": {"UDPRoute"}}
+
+// admitting returns the listeners that admit the route, by its kind and its namespace, and for those that do not,
+// why not and what would let them.
+func admitting(ix *index, rt kube.Route, gw kube.Gateway, ls []kube.Listener) ([]kube.Listener, []string, string) {
+	var ok []kube.Listener
+	var why []string
+	fix := ""
+	for _, l := range ls {
+		kinds := routeKinds[l.Protocol]
+		from, sel := "Same", (*kube.LabelSelector)(nil)
+		if a := l.AllowedRoutes; a != nil {
+			if len(a.Kinds) > 0 {
+				kinds = nil
+				for _, k := range a.Kinds {
+					if k.Group == "" || k.Group == "gateway.networking.k8s.io" {
+						kinds = append(kinds, k.Kind)
+					}
+				}
+			}
+			if a.Namespaces != nil {
+				if a.Namespaces.From != "" {
+					from = a.Namespaces.From
+				}
+				sel = a.Namespaces.Selector
+			}
+		}
+		if !slices.Contains(kinds, rt.Kind) {
+			why = append(why, fmt.Sprintf("listener %s (%s) takes %s, not %ss", l.Name, l.Protocol, strings.Join(kinds, " and "), rt.Kind))
+			if fix == "" {
+				fix = fmt.Sprintf("Attach the route to a listener whose protocol and allowedRoutes.kinds take %ss, or add %s to listener %s's allowedRoutes.kinds.", rt.Kind, rt.Kind, l.Name)
+			}
+			continue
+		}
+		ns := rt.Metadata.Namespace
+		switch from {
+		case "All":
+			ok = append(ok, l)
+		case "Selector":
+			labels, known := namespaceLabels(ix, ns)
+			if !known || sel == nil || sel.Matches(labels) {
+				ok = append(ok, l)
+				continue
+			}
+			why = append(why, fmt.Sprintf("listener %s admits routes from namespaces labelled %s only (allowedRoutes.namespaces.from: Selector), and namespace %s has labels %s",
+				l.Name, formatSelector(*sel), ns, kube.FormatMap(labels)))
+			if fix == "" {
+				fix = fmt.Sprintf("Label namespace %s so listener %s's selector matches it, or correct the selector on Gateway %s.", ns, l.Name, gw.Metadata.Name)
+			}
+		default:
+			if ns == gw.Metadata.Namespace {
+				ok = append(ok, l)
+				continue
+			}
+			why = append(why, fmt.Sprintf("listener %s admits routes from its own namespace, %s, only (allowedRoutes.namespaces.from: Same, the default), and the route is in namespace %s",
+				l.Name, gw.Metadata.Namespace, ns))
+			if fix == "" {
+				fix = fmt.Sprintf("Set allowedRoutes.namespaces.from to All, or to Selector with a selector namespace %s matches, on listener %s of Gateway %s.", ns, l.Name, gw.Metadata.Name)
+			}
+		}
+	}
+	return ok, why, fix
+}
+
+// namespaceLabels returns a namespace's labels, and whether the namespaces were read.
+func namespaceLabels(ix *index, ns string) (map[string]string, bool) {
+	for _, n := range ix.s.NamespaceObjects {
+		if n.Metadata.Name == ns {
+			return n.Metadata.Labels, true
+		}
+	}
+	return nil, false
+}
+
+// notAdmitted is a route that none of the listeners it attaches to admits.
+func notAdmitted(rt kube.Route, gw kube.Gateway, why []string, fix string) Finding {
+	return Finding{Rule: "KD368", Title: "Gateway's listeners do not admit the route", Severity: Critical, Object: rt.Ref(),
+		Cause: fmt.Sprintf("%s %s attaches to Gateway %s, and no listener it attaches to admits it, so the Gateway serves none of its requests: %s",
+			rt.Kind, rt.Metadata.Name, gw.Metadata.Name, strings.Join(why, "; ")),
+		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" parentRefs", "{.spec.parentRefs}"),
+			{Object: gw.Ref(), What: fmt.Sprintf("Gateway %s's listeners and the routes they allow", gw.Metadata.Name), Command: cmdGet("gateway", gw.Metadata.Namespace, gw.Metadata.Name, "{.spec.listeners}")}},
+		Fix: fix}
 }

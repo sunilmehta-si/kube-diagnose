@@ -5228,3 +5228,43 @@ func TestRouteNamesAListenerTheGatewayDoesNotHave(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestGatewaysListenersDoNotAdmitTheRoute(t *testing.T) {
+	s := gatewaySnapshot()
+	l := &s.Gateways[0].Spec.Listeners[0]
+	l.AllowedRoutes = &struct {
+		Namespaces *struct {
+			From     string              `json:"from,omitempty"`
+			Selector *kube.LabelSelector `json:"selector,omitempty"`
+		} `json:"namespaces,omitempty"`
+		Kinds []struct {
+			Group string `json:"group,omitempty"`
+			Kind  string `json:"kind"`
+		} `json:"kinds,omitempty"`
+	}{}
+	l.AllowedRoutes.Namespaces = &struct {
+		From     string              `json:"from,omitempty"`
+		Selector *kube.LabelSelector `json:"selector,omitempty"`
+	}{From: "Selector", Selector: &kube.LabelSelector{MatchLabels: map[string]string{"gateway-access": "public"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD368", "HTTPRoute shop/shop", "no listener it attaches to admits it", "listener http admits routes from namespaces labelled gateway-access=public only", "namespace shop has labels kubernetes.io/metadata.name=shop")
+	if !strings.Contains(f.Fix, "Label namespace shop so listener http's selector matches it") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.NamespaceObjects[0].Metadata.Labels["gateway-access"] = "public"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+
+	// A Gateway in another namespace admits routes from its own only, by default.
+	s = gatewaySnapshot()
+	s.Namespaces = nil
+	s.Gateways[0].Metadata.Namespace = "edge"
+	s.Routes[0].Spec.ParentRefs[0].Namespace = "edge"
+	expect(t, only(t, Diagnose(s)), "KD368", "HTTPRoute shop/shop", "listener http admits routes from its own namespace, edge, only (allowedRoutes.namespaces.from: Same, the default), and the route is in namespace shop")
+
+	// A TCP listener takes TCPRoutes.
+	s = gatewaySnapshot()
+	s.Gateways[0].Spec.Listeners[0].Protocol = "TCP"
+	expect(t, only(t, Diagnose(s)), "KD368", "HTTPRoute shop/shop", "listener http (TCP) takes TCPRoute, not HTTPRoutes")
+}

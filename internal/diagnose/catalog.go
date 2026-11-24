@@ -203,6 +203,7 @@ var Rules = []Rule{
 	{"KD364", "Route is attached to a Gateway that does not exist", Critical, "An HTTPRoute or GRPCRoute's parentRef names a Gateway that does not exist in the namespace it gives, so no Gateway serves the route.", "The route's parentRefs, and the namespace's Gateways."},
 	{"KD365", "Gateway names a GatewayClass that does not exist", Critical, "A Gateway's gatewayClassName names a class the cluster does not have, so no controller takes it and its routes are served by nothing.", "The Gateway's class, and the cluster's GatewayClasses."},
 	{"KD366", "Route names a listener the Gateway does not have", Critical, "An HTTPRoute or GRPCRoute's parentRef names a listener of its Gateway, by sectionName or port, that the Gateway does not have, so the route is attached to nothing.", "The route's parentRefs, and the Gateway's listeners."},
+	{"KD368", "Gateway's listeners do not admit the route", Critical, "None of the listeners an HTTPRoute or GRPCRoute attaches to admits it: their allowedRoutes take routes from the Gateway's own namespace only, or from namespaces whose labels the route's namespace lacks, or take other kinds of route.", "The route's parentRefs, and the Gateway's listeners with their allowedRoutes."},
 }
 
 // RuleByID finds a rule.
