@@ -474,3 +474,43 @@ func mountedAsDirectory(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []
 	}
 	return nil
 }
+
+// initMountPath finds a container that exits because a file it opens is not there, at a path where an init
+// container mounts a volume they share and the container itself does not: the init container wrote the file into the
+// volume, and the container finds the volume elsewhere, or not at all.
+func initMountPath(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	if isInit(p, cs.Name) {
+		return nil
+	}
+	app, _ := containerSpec(p, cs.Name)
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !reNoSuchFile.MatchString(lines[i]) && !strings.Contains(strings.ToLower(lines[i]), "can't open") {
+			continue
+		}
+		for _, pm := range rePath.FindAllStringSubmatch(lines[i], -1) {
+			path := pm[1]
+			if _, ok := p.MountAt(cs.Name, path); ok {
+				continue
+			}
+			for _, ic := range p.Spec.InitContainers {
+				im, ok := p.MountAt(ic.Name, path)
+				if !ok || strings.TrimRight(im.MountPath, "/") == "" || im.Volume.EmptyDir == nil && im.Volume.PersistentVolumeClaim == nil {
+					continue
+				}
+				where := fmt.Sprintf("container %s does not mount volume %s at all", cs.Name, im.Name)
+				fix := fmt.Sprintf("Mount volume %s in container %s at %s, where the app reads it.", im.Name, cs.Name, im.MountPath)
+				for _, vm := range app.VolumeMounts {
+					if vm.Name == im.Name {
+						where = fmt.Sprintf("container %s mounts it at %s, so the file is %s there", cs.Name, vm.MountPath, pathpkg.Join(vm.MountPath, im.Rel))
+						fix = fmt.Sprintf("Mount volume %s at %s in container %s as in init container %s, or have the app read %s.", im.Name, im.MountPath, cs.Name, ic.Name, pathpkg.Join(vm.MountPath, im.Rel))
+					}
+				}
+				cause := fmt.Sprintf("container %s exits because %s does not exist: init container %s mounts volume %s (%s) at %s and writes there, and %s; its log says: %q",
+					cs.Name, path, ic.Name, im.Name, im.Volume.Source(), im.MountPath, where, clip(lines[i], 200))
+				return newProblem(p, cs.Name, "KD310", "Container reads a path where only the init container mounts the volume", Critical, cause,
+					"initpath|"+im.Name+"|"+path, fix, append(ev, mountEvidence(p, ic.Name, im))...)
+			}
+		}
+	}
+	return nil
+}

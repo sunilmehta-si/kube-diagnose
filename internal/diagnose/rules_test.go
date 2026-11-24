@@ -5023,3 +5023,29 @@ func TestScriptHasWindowsLineEndings(t *testing.T) {
 		t.Errorf("CRLF logs: %s", f.Cause)
 	}
 }
+
+func TestContainerReadsAPathWhereOnlyTheInitContainerMounts(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Volumes = []kube.Volume{{Name: "rendered", EmptyDir: &kube.EmptyDirVolumeSource{}}}
+	p.Spec.InitContainers = []kube.Container{{Name: "render", VolumeMounts: []kube.VolumeMount{{Name: "rendered", MountPath: "/work"}}}}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "rendered", MountPath: "/etc/app"}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"cat: can't open '/work/app.conf': No such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD310", "Deployment shop/web", "/work/app.conf does not exist: init container render mounts volume rendered (emptyDir) at /work",
+		"container web mounts it at /etc/app, so the file is /etc/app/app.conf there")
+	if !strings.Contains(f.Fix, "Mount volume rendered at /work in container web as in init container render, or have the app read /etc/app/app.conf") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The container does not mount the volume.
+	s.Pods[0].Spec.Containers[0].VolumeMounts = nil
+	expect(t, only(t, Diagnose(s)), "KD310", "Deployment shop/web", "container web does not mount volume rendered at all")
+	// A path the init container does not mount: not this.
+	s.Logs[0].Lines = []string{"cat: can't open '/srv/app.conf': No such file or directory"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD310" {
+		t.Errorf("other path: %s", f.Cause)
+	}
+}
