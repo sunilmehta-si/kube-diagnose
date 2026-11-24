@@ -1,0 +1,32 @@
+# APP_VERSION comes from the pod label app.kubernetes.io/version through the downward API, and the pods have no such label, so the variable is empty and the api exits.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-downward-label-missing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kd-downward-label-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+        # app.kubernetes.io/version was meant to be here; the env entry below reads it.
+    spec:
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          env:
+            - name: APP_VERSION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.labels['app.kubernetes.io/version']
+          command: ["sh", "-c", "[ -n \"$APP_VERSION\" ] || { echo 'APP_VERSION is empty: cannot tag the metrics'; exit 1; }; echo \"api $APP_VERSION\"; exec sleep 3600"]
