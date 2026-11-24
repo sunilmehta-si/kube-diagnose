@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-parent-missing",
+  "description": "HTTPRoute shop attaches to Gateway shop-gateway, and the Gateway is called public.",
+  "rule": "KD364",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "shop-gateway"
+    ],
+    [
+      "does not exist"
+    ],
+    [
+      "Gateway"
+    ]
+  ]
+}
