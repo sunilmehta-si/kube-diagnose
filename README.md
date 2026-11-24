@@ -446,7 +446,14 @@ storageClassName "" and no volume to bind, was taken out again: on the suite's o
 have no class either, and kube-diagnose named the nearest of them, a Released volume, which is what the cluster held. It
 showed a gap all the same: the Service of the waiting pod was reported ahead of the claim, and is listed under it now.
 Replaying the committed run showed one more: a container caught in PostStartHookError, between its hook's failure and
-the back-off, which gave no finding. Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
+the back-off, which gave no finding.
+The 20 added for 0.14.0 were named first, with the exact rule and object, on their first run, but for one: the pod that
+runs as default while its permission is bound to another ServiceAccount had the right rule and object without the word
+serviceAccountName, because the API server writes default into a pod that names no ServiceAccount, and the cause had
+looked for the omission in the pod's own spec; it says now that a pod whose template names none runs as default. The ten
+Gateway API scenarios run with the API's CRDs installed and no controller, as the rules judge what the objects name;
+k8sgpt's Gateway analyzers are not among its defaults, and it reported nothing for any of them.
+Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.
 
 ## How it works

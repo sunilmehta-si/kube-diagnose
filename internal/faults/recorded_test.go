@@ -107,7 +107,15 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 	if !strings.Contains(sel, "didn't match Pod's node affinity/selector") || strings.Contains(sel, "disktype") {
 		t.Errorf("node selector: %s", sel)
 	}
-	for _, ns := range []string{"kd-networkpolicy-deny-all"} {
+	gateway, _ := filepath.Glob("../../results/faults/k8sgpt/kd-gateway-*.json")
+	if len(gateway) != 10 {
+		t.Errorf("the README says ten Gateway API scenarios; results hold %d", len(gateway))
+	}
+	nss := []string{"kd-networkpolicy-deny-all"}
+	for _, f := range gateway {
+		nss = append(nss, strings.TrimSuffix(filepath.Base(f), ".json"))
+	}
+	for _, ns := range nss {
 		if _, n := text(ns); n != 0 {
 			t.Errorf("%s: k8sgpt reported %d results; the README says none", ns, n)
 		}
