@@ -33,6 +33,9 @@ func gatewayFindings(ix *index) []Finding {
 		out = append(out, routeParentFindings(ix, rt)...)
 		out = append(out, routeBackendFindings(ix, rt)...)
 		out = append(out, routePortFindings(ix, rt)...)
+		if f := backendNotGranted(ix, rt); f != nil {
+			out = append(out, *f)
+		}
 	}
 	return out
 }
@@ -458,4 +461,45 @@ func listenerCertificate(ix *index, gw kube.Gateway) *Finding {
 		}
 	}
 	return nil
+}
+
+// backendNotGranted is a route that sends traffic to a Service in another namespace that has no ReferenceGrant
+// letting routes of the route's namespace refer to it: the controller does not resolve the reference, and the rule
+// answers with an error.
+func backendNotGranted(ix *index, rt kube.Route) *Finding {
+	if !ix.read("referencegrants.gateway.networking.k8s.io") {
+		return nil
+	}
+	for _, b := range routeBackends(rt) {
+		if b.ns == rt.Metadata.Namespace || !ix.nsRead(b.ns) || granted(ix, rt, b) {
+			continue
+		}
+		return &Finding{Rule: "KD369", Title: "Route sends traffic to another namespace that does not grant it", Severity: Critical, Object: rt.Ref(),
+			Cause: fmt.Sprintf("%s %s sends traffic to Service %s in namespace %s (from rule %d), and no ReferenceGrant in namespace %s lets %ss of namespace %s refer to its Services, so the controller does not resolve the reference and answers that rule's requests with an error",
+				rt.Kind, rt.Metadata.Name, b.ref.Name, b.ns, b.rule, b.ns, rt.Kind, rt.Metadata.Namespace),
+			Evidence: []Evidence{routeEvidence(rt, rt.Kind+" backendRefs", "{.spec.rules[*].backendRefs}"),
+				{Object: kube.Ref{Kind: "ReferenceGrant", Namespace: b.ns, Name: "*"}, What: fmt.Sprintf("the ReferenceGrants of namespace %s", b.ns), Command: "kubectl get referencegrants -n " + b.ns + " -o yaml"}},
+			Fix: fmt.Sprintf("Create a ReferenceGrant in namespace %s with from: [{group: gateway.networking.k8s.io, kind: %s, namespace: %s}] and to: [{group: \"\", kind: Service}] (name: %s to allow that Service only).",
+				b.ns, rt.Kind, rt.Metadata.Namespace, b.ref.Name)}
+	}
+	return nil
+}
+
+// granted reports whether a ReferenceGrant in the backend's namespace lets the route refer to its Service.
+func granted(ix *index, rt kube.Route, b routeBackend) bool {
+	for _, g := range ix.s.ReferenceGrants {
+		if g.Metadata.Namespace != b.ns {
+			continue
+		}
+		from := false
+		for _, f := range g.Spec.From {
+			from = from || f.Group == "gateway.networking.k8s.io" && f.Kind == rt.Kind && f.Namespace == rt.Metadata.Namespace
+		}
+		for _, t := range g.Spec.To {
+			if from && t.Group == "" && t.Kind == "Service" && (t.Name == "" || t.Name == b.ref.Name) {
+				return true
+			}
+		}
+	}
+	return false
 }

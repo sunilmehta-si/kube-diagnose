@@ -5318,3 +5318,33 @@ func TestGatewayListenersCertificateSecretIsMissing(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestRouteSendsTrafficToANamespaceThatDoesNotGrantIt(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Namespaces = nil // every namespace read
+	s.Services[0].Metadata.Namespace = "payments"
+	s.EndpointSlices[0].Metadata.Namespace = "payments"
+	s.Pods[0].Metadata.Namespace = "payments"
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Namespace = "payments"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD369", "HTTPRoute shop/shop", "HTTPRoute shop sends traffic to Service web in namespace payments (from rule 1), and no ReferenceGrant in namespace payments lets HTTPRoutes of namespace shop refer to its Services")
+	var g kube.ReferenceGrant
+	g.Metadata = kube.ObjectMeta{Name: "from-shop", Namespace: "payments"}
+	g.Spec.From = append(g.Spec.From, struct {
+		Group     string `json:"group"`
+		Kind      string `json:"kind"`
+		Namespace string `json:"namespace"`
+	}{"gateway.networking.k8s.io", "HTTPRoute", "shop"})
+	g.Spec.To = append(g.Spec.To, struct {
+		Group string `json:"group"`
+		Kind  string `json:"kind"`
+		Name  string `json:"name,omitempty"`
+	}{"", "Service", ""})
+	s.ReferenceGrants = []kube.ReferenceGrant{g}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// A grant for another Service only.
+	s.ReferenceGrants[0].Spec.To[0].Name = "ledger"
+	expect(t, only(t, Diagnose(s)), "KD369", "HTTPRoute shop/shop")
+}
