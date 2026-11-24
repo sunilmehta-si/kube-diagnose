@@ -5213,3 +5213,18 @@ func TestGatewayNamesAGatewayClassThatDoesNotExist(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestRouteNamesAListenerTheGatewayDoesNotHave(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.ParentRefs[0].SectionName = "https"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD366", "HTTPRoute shop/shop", "HTTPRoute shop attaches to listener https of Gateway public, and the Gateway has no such listener", "its listeners are http (port 80, HTTP)")
+	s.Routes[0].Spec.ParentRefs[0].SectionName = ""
+	p := int32(443)
+	s.Routes[0].Spec.ParentRefs[0].Port = &p
+	expect(t, only(t, Diagnose(s)), "KD366", "HTTPRoute shop/shop", "attaches to port 443 of Gateway public")
+	s.Routes[0].Spec.ParentRefs[0].SectionName, p = "http", 80
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}

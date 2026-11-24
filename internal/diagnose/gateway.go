@@ -173,8 +173,13 @@ func routeParentFindings(ix *index, rt kube.Route) []Finding {
 			out = append(out, parentMissing(ix, rt, p, ns))
 			continue
 		}
+		ls := listenersFor(gw, p)
+		if len(ls) == 0 {
+			out = append(out, listenerMissing(rt, p, gw))
+			continue
+		}
 		// next parent checks
-		_ = gw
+		_ = ls
 	}
 	return out
 }
@@ -235,4 +240,49 @@ func gatewayClassMissing(ix *index, gw kube.Gateway) *Finding {
 			Command: cmdGet("gateway", ns, gw.Metadata.Name, "{.spec.gatewayClassName}")},
 			{Object: kube.Ref{Kind: "GatewayClass", Name: gw.Spec.GatewayClassName}, What: have, Command: "kubectl get gatewayclasses"}},
 		Fix: "Set gatewayClassName to a class the cluster has (kubectl get gatewayclasses); a Gateway's class cannot be changed, so delete the Gateway and create it again with the right one."}
+}
+
+// listenersFor returns the listeners of a Gateway that a parentRef picks: the one its sectionName names and those on
+// its port, or every listener when it names neither.
+func listenersFor(gw kube.Gateway, p kube.ParentRef) []kube.Listener {
+	var out []kube.Listener
+	for _, l := range gw.Spec.Listeners {
+		if (p.SectionName == "" || l.Name == p.SectionName) && (p.Port == nil || l.Port == *p.Port) {
+			out = append(out, l)
+		}
+	}
+	return out
+}
+
+func describeListeners(ls []kube.Listener) string {
+	var parts []string
+	for _, l := range ls {
+		d := fmt.Sprintf("%s (port %d, %s", l.Name, l.Port, l.Protocol)
+		if l.Hostname != "" {
+			d += ", " + l.Hostname
+		}
+		parts = append(parts, d+")")
+	}
+	return strings.Join(parts, ", ")
+}
+
+func gatewayEvidence(gw kube.Gateway) Evidence {
+	return Evidence{Object: gw.Ref(), What: fmt.Sprintf("Gateway %s has listeners %s", gw.Metadata.Name, describeListeners(gw.Spec.Listeners)),
+		Command: cmdGet("gateway", gw.Metadata.Namespace, gw.Metadata.Name, "{.spec.listeners}")}
+}
+
+// listenerMissing is a route whose parentRef names a listener, by sectionName or port, that its Gateway does not have.
+func listenerMissing(rt kube.Route, p kube.ParentRef, gw kube.Gateway) Finding {
+	var named []string
+	if p.SectionName != "" {
+		named = append(named, "listener "+p.SectionName)
+	}
+	if p.Port != nil {
+		named = append(named, fmt.Sprintf("port %d", *p.Port))
+	}
+	return Finding{Rule: "KD366", Title: "Route names a listener the Gateway does not have", Severity: Critical, Object: rt.Ref(),
+		Cause: fmt.Sprintf("%s %s attaches to %s of Gateway %s, and the Gateway has no such listener, so the route is attached to nothing; its listeners are %s",
+			rt.Kind, rt.Metadata.Name, strings.Join(named, " on "), gw.Metadata.Name, describeListeners(gw.Spec.Listeners)),
+		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" parentRefs", "{.spec.parentRefs}"), gatewayEvidence(gw)},
+		Fix:      fmt.Sprintf("Set the parentRef's sectionName (and port) to a listener of Gateway %s, or leave them out to attach to every listener that admits the route.", gw.Metadata.Name)}
 }
