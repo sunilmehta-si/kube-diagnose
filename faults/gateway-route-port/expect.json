@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-route-port",
+  "description": "HTTPRoute shop sends traffic to port 8080 of Service storefront, the container port, and the Service exposes port 80.",
+  "rule": "KD363",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "8080"
+    ],
+    [
+      "port 80"
+    ],
+    [
+      "Service storefront"
+    ]
+  ]
+}
