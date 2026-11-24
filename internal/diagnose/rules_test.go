@@ -5136,9 +5136,7 @@ func gatewaySnapshot() *snapshot.Snapshot {
 	rt.Spec.ParentRefs = []kube.ParentRef{{Name: "public"}}
 	rt.Spec.Hostnames = []string{"shop.example.com"}
 	p := int32(80)
-	rt.Spec.Rules = append(rt.Spec.Rules, struct {
-		BackendRefs []kube.BackendRef `json:"backendRefs,omitempty"`
-	}{BackendRefs: []kube.BackendRef{{Name: "web", Port: &p}}})
+	rt.Spec.Rules = append(rt.Spec.Rules, kube.RouteRule{BackendRefs: []kube.BackendRef{{Name: "web", Port: &p}}})
 	s.Routes = []kube.Route{rt}
 	return s
 }
@@ -5357,4 +5355,30 @@ func TestRouteIsAttachedToNoGateway(t *testing.T) {
 	// Gateways unread: a route with no parentRefs is attached to nothing all the same.
 	s.Gaps = []snapshot.Gap{{Resource: "gateways.gateway.networking.k8s.io"}}
 	expect(t, only(t, Diagnose(s)), "KD372", "HTTPRoute shop/shop")
+}
+
+func TestHTTPRoutesSendTheSameHostAndPathToDifferentServices(t *testing.T) {
+	s := gatewaySnapshot()
+	canary := s.Routes[0]
+	canary.Metadata.Name = "shop-canary"
+	canary.Spec.Rules = []kube.RouteRule{{BackendRefs: []kube.BackendRef{{Name: "web", Port: canary.Spec.Rules[0].BackendRefs[0].Port}}}}
+	canary.Spec.Rules[0].BackendRefs[0].Name = "web"
+	s.Routes = append(s.Routes, canary)
+	// The same Service: no conflict.
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	s.Services = append(s.Services, service("web-v2", map[string]string{"app": "web"}, named("http")))
+	s.EndpointSlices = append(s.EndpointSlices, slice("web-v2", 1))
+	s.Routes[1].Spec.Rules[0].BackendRefs[0].Name = "web-v2"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD371", "HTTPRoute shop/shop-canary", "HTTPRoute shop-canary claims shop.example.com with path prefix / (to Service web-v2; HTTPRoute shop sends it to Service web), on Gateway public", "so shop-canary gets none of those requests")
+	// Created first, the canary wins instead.
+	s.Routes[0].Metadata.CreationTimestamp, s.Routes[1].Metadata.CreationTimestamp = t0, t0.Add(-time.Hour)
+	expect(t, only(t, Diagnose(s)), "KD371", "HTTPRoute shop/shop", "HTTPRoute shop claims shop.example.com")
+	// A header match is narrower: no tie.
+	s.Routes[1].Spec.Rules[0].Matches = []kube.RouteMatch{{Headers: []any{map[string]string{"name": "x-canary", "value": "true"}}}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
 }

@@ -1178,10 +1178,26 @@ type Route struct {
 	Spec     struct {
 		ParentRefs []ParentRef `json:"parentRefs,omitempty"`
 		Hostnames  []string    `json:"hostnames,omitempty"`
-		Rules      []struct {
-			BackendRefs []BackendRef `json:"backendRefs,omitempty"`
-		} `json:"rules,omitempty"`
+		Rules      []RouteRule `json:"rules,omitempty"`
 	} `json:"spec"`
+}
+
+// RouteRule is one rule of a route: the requests it matches, and where it sends them.
+type RouteRule struct {
+	Matches     []RouteMatch `json:"matches,omitempty"`
+	BackendRefs []BackendRef `json:"backendRefs,omitempty"`
+}
+
+// RouteMatch is an HTTPRoute match. Headers and query parameters are only counted: a match that has any is narrower
+// than its path.
+type RouteMatch struct {
+	Path *struct {
+		Type  string `json:"type,omitempty"`
+		Value string `json:"value,omitempty"`
+	} `json:"path,omitempty"`
+	Headers     []any  `json:"headers,omitempty"`
+	QueryParams []any  `json:"queryParams,omitempty"`
+	Method      string `json:"method,omitempty"`
 }
 
 func (r Route) Ref() Ref {

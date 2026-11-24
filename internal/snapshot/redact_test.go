@@ -241,9 +241,7 @@ func TestRedactRenamesTheGatewayAPIsObjects(t *testing.T) {
 	rt.Kind, rt.Metadata = "HTTPRoute", kube.ObjectMeta{Name: "checkout-route", Namespace: "shop"}
 	rt.Spec.Hostnames = []string{"pay.shop.acme.example"}
 	rt.Spec.ParentRefs = []kube.ParentRef{{Name: "acme-public", Namespace: "edge-gateways", SectionName: "https"}}
-	rt.Spec.Rules = append(rt.Spec.Rules, struct {
-		BackendRefs []kube.BackendRef `json:"backendRefs,omitempty"`
-	}{BackendRefs: []kube.BackendRef{{Name: "checkout-v2"}}})
+	rt.Spec.Rules = append(rt.Spec.Rules, kube.RouteRule{BackendRefs: []kube.BackendRef{{Name: "checkout-v2"}}})
 	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Gateways: []kube.Gateway{gw}, GatewayClasses: []kube.GatewayClass{class}, Routes: []kube.Route{rt}}
 	red, err := redactWithKey(s, []byte("k"))
 	if err != nil {

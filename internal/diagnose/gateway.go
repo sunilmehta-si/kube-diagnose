@@ -29,6 +29,7 @@ func gatewayFindings(ix *index) []Finding {
 			out = append(out, *f)
 		}
 	}
+	out = append(out, routeConflicts(ix)...)
 	for _, rt := range ix.s.Routes {
 		out = append(out, routeParentFindings(ix, rt)...)
 		out = append(out, routeBackendFindings(ix, rt)...)
@@ -508,4 +509,101 @@ func granted(ix *index, rt kube.Route, b routeBackend) bool {
 		}
 	}
 	return false
+}
+
+// routeClaim is one HTTPRoute rule's claim on a hostname and path of a Gateway.
+type routeClaim struct {
+	rt       kube.Route
+	backends string
+}
+
+// precedes reports whether route a wins a tie with route b: the Gateway API gives it to the older route, and between
+// routes created in the same second to the first by namespace and name.
+func precedes(a, b kube.Route) bool {
+	if !a.Metadata.CreationTimestamp.Equal(b.Metadata.CreationTimestamp) {
+		return a.Metadata.CreationTimestamp.Before(b.Metadata.CreationTimestamp)
+	}
+	return a.Metadata.Namespace+"/"+a.Metadata.Name < b.Metadata.Namespace+"/"+b.Metadata.Name
+}
+
+// routeConflicts finds HTTPRoutes on one Gateway that send the same hostname and path to different Services. A match
+// with headers, query parameters or a method is narrower than the path, and left out. The route that loses the tie
+// gets none of those requests.
+func routeConflicts(ix *index) []Finding {
+	routes := []kube.Route{}
+	for _, rt := range ix.s.Routes {
+		if rt.Kind == "HTTPRoute" {
+			routes = append(routes, rt)
+		}
+	}
+	sort.SliceStable(routes, func(i, j int) bool { return precedes(routes[i], routes[j]) })
+	claims := map[string]routeClaim{}
+	lost := map[kube.Ref][]string{}
+	var order []kube.Ref
+	for _, rt := range routes {
+		hosts := rt.Spec.Hostnames
+		if len(hosts) == 0 {
+			hosts = []string{"*"}
+		}
+		for _, p := range rt.Spec.ParentRefs {
+			ns := p.Namespace
+			if ns == "" {
+				ns = rt.Metadata.Namespace
+			}
+			for _, rule := range rt.Spec.Rules {
+				var names []string
+				for _, b := range rule.BackendRefs {
+					names = append(names, "Service "+b.Name)
+				}
+				sort.Strings(names)
+				backends := strings.Join(names, " and ")
+				matches := rule.Matches
+				if len(matches) == 0 {
+					matches = []kube.RouteMatch{{}}
+				}
+				for _, m := range matches {
+					if len(m.Headers) > 0 || len(m.QueryParams) > 0 || m.Method != "" {
+						continue
+					}
+					typ, val := "PathPrefix", "/"
+					if m.Path != nil {
+						if m.Path.Type != "" {
+							typ = m.Path.Type
+						}
+						if m.Path.Value != "" {
+							val = m.Path.Value
+						}
+					}
+					for _, h := range hosts {
+						key := strings.Join([]string{ns, p.Name, p.SectionName, h, typ, val}, "|")
+						first, ok := claims[key]
+						if !ok {
+							claims[key] = routeClaim{rt, backends}
+							continue
+						}
+						if first.rt.Ref() == rt.Ref() || first.backends == backends {
+							continue
+						}
+						if len(lost[rt.Ref()]) == 0 {
+							order = append(order, rt.Ref())
+						}
+						lost[rt.Ref()] = append(lost[rt.Ref()], fmt.Sprintf("%s %s %s (to %s; %s %s sends it to %s), on Gateway %s",
+							h, map[string]string{"PathPrefix": "with path prefix", "Exact": "with path", "RegularExpression": "with path matching"}[typ], val,
+							backends, first.rt.Kind, first.rt.Metadata.Name, first.backends, p.Name))
+					}
+				}
+			}
+		}
+	}
+	var out []Finding
+	for _, ref := range order {
+		parts := lost[ref]
+		out = append(out, Finding{Rule: "KD371", Title: "HTTPRoutes send the same hostname and path to different Services", Severity: Warning, Object: ref,
+			Cause: fmt.Sprintf("HTTPRoute %s claims %s: another route on the same Gateway already claims each of those, and the Gateway API gives a tie to the older route (or, created in the same second, the first by name), so %s gets none of those requests",
+				ref.Name, strings.Join(parts, "; "), ref.Name),
+			Evidence: []Evidence{{Object: ref, What: "the route's hostnames and matches", Command: cmdGet("httproute", ref.Namespace, ref.Name, "{.spec.hostnames}{\"\\n\"}{.spec.rules[*].matches}")},
+				{Object: kube.Ref{Kind: "HTTPRoute", Namespace: ref.Namespace, Name: "*"}, What: "the namespace's HTTPRoutes, oldest first", Command: "kubectl get httproutes -n " + ref.Namespace + " --sort-by=.metadata.creationTimestamp"}},
+			Fix: "Give the routes different hostnames or paths, or merge them; for a canary, send one rule to both Services with weights on its backendRefs."})
+	}
+	return out
 }
