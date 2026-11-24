@@ -199,6 +199,7 @@ var Rules = []Rule{
 	{"KD360", "NetworkPolicy allows a Service's cluster IP, which policies never see", Critical, "A container's connection to a Service times out, and the egress rule meant to allow it names the Service's cluster IP in an ipBlock. A policy is checked after the Service has forwarded the connection, against the pod it went to, so the rule allows nothing and the connection is dropped.", "The client's log line with the timeout, the policy's ipBlock, and the Service's cluster IP."},
 	{"KD361", "Container connects to a fixed IP, not the Service's address", Critical, "A container exits after a connection fails to an IP address written into its environment, in a variable named for a Service of the namespace (DB_HOST beside Service db), and that Service's cluster IP is another: usually its address before it was created again.", "The log line with the failed connection, the environment variable, and the Service's cluster IP."},
 	{"KD362", "Route sends traffic to a Service that does not exist", Critical, "An HTTPRoute or GRPCRoute rule's backendRef names a Service that does not exist, so the Gateway answers the requests that rule matches with an error.", "The route's backendRefs, and the Service that is not there."},
+	{"KD363", "Route sends traffic to a port the Service does not expose", Critical, "An HTTPRoute or GRPCRoute rule's backendRef names a port its Service does not expose, often the container's port in place of the Service's.", "The route's backendRefs, and the Service's ports."},
 }
 
 // RuleByID finds a rule.

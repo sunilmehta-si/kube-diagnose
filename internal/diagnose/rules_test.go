@@ -5171,3 +5171,14 @@ func TestRouteSendsTrafficToAServiceThatDoesNotExist(t *testing.T) {
 		}
 	}
 }
+
+func TestRouteSendsTrafficToAPortTheServiceDoesNotExpose(t *testing.T) {
+	s := gatewaySnapshot()
+	p := int32(8080)
+	s.Routes[0].Spec.Rules[0].BackendRefs[0].Port = &p
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD363", "HTTPRoute shop/shop", "port 8080 of Service web (from rule 1), which exposes port 80 (to the pods' http)")
+	if !strings.Contains(f.Fix, "not the container's targetPort") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}

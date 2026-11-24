@@ -22,6 +22,7 @@ func gatewayFindings(ix *index) []Finding {
 	var out []Finding
 	for _, rt := range ix.s.Routes {
 		out = append(out, routeBackendFindings(ix, rt)...)
+		out = append(out, routePortFindings(ix, rt)...)
 	}
 	return out
 }
@@ -94,4 +95,52 @@ func routeBackendFindings(ix *index, rt kube.Route) []Finding {
 			rt.Kind, rt.Metadata.Name, strings.Join(parts, " and ")),
 		Evidence: append([]Evidence{routeEvidence(rt, rt.Kind+" backendRefs", "{.spec.rules[*].backendRefs}")}, ev...),
 		Fix:      fmt.Sprintf("Correct the backendRef's name in %s %s, or create the Service.", rt.Kind, rt.Metadata.Name)}}
+}
+
+// routePortFindings finds a route rule that sends traffic to a port its Service does not expose. A backendRef's port
+// is the Service's port, not the pods' targetPort, and a route naming the container's port reaches nothing.
+func routePortFindings(ix *index, rt kube.Route) []Finding {
+	if !ix.read("services") {
+		return nil
+	}
+	var bad []string
+	var ev []Evidence
+	seen := map[string]bool{}
+	for _, b := range routeBackends(rt) {
+		if b.ref.Port == nil {
+			continue
+		}
+		for _, svc := range ix.s.Services {
+			if svc.Metadata.Namespace != b.ns || svc.Metadata.Name != b.ref.Name {
+				continue
+			}
+			var have []string
+			found := false
+			for _, sp := range svc.Spec.Ports {
+				found = found || sp.Port == *b.ref.Port
+				desc := strconv.Itoa(int(sp.Port))
+				if sp.TargetPort.String() != "" && sp.TargetPort.String() != desc {
+					desc += " (to the pods' " + sp.TargetPort.String() + ")"
+				}
+				have = append(have, desc)
+			}
+			if found {
+				continue
+			}
+			bad = append(bad, fmt.Sprintf("port %d of Service %s (from rule %d), which exposes port %s", *b.ref.Port, svc.Metadata.Name, b.rule, strings.Join(have, ", ")))
+			if !seen[svc.Metadata.Name] {
+				seen[svc.Metadata.Name] = true
+				ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s exposes port %s", svc.Metadata.Name, strings.Join(have, ", ")),
+					Command: cmdGet("service", svc.Metadata.Namespace, svc.Metadata.Name, "{.spec.ports}")})
+			}
+		}
+	}
+	if len(bad) == 0 {
+		return nil
+	}
+	return []Finding{{Rule: "KD363", Title: "Route sends traffic to a port the Service does not expose", Severity: Critical, Object: rt.Ref(),
+		Cause: fmt.Sprintf("%s %s sends traffic to %s, so the Gateway has no endpoints for that rule and answers its requests with an error",
+			rt.Kind, rt.Metadata.Name, strings.Join(bad, "; ")),
+		Evidence: append([]Evidence{routeEvidence(rt, rt.Kind+" backendRefs", "{.spec.rules[*].backendRefs}")}, ev...),
+		Fix:      "Set the backendRef's port to a port the Service exposes (its port, not the container's targetPort)."}}
 }
