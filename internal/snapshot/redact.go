@@ -288,6 +288,12 @@ func (r *redactor) collect(s *Snapshot) {
 		r.addName("gwclass", x.Spec.GatewayClassName) // the class it names may not exist, and is then named
 		for _, l := range x.Spec.Listeners {
 			r.addHost(l.Hostname)
+			if l.TLS != nil {
+				for _, c := range l.TLS.CertificateRefs {
+					r.addName("ns", c.Namespace)
+					r.addName("secret", c.Name)
+				}
+			}
 		}
 	}
 	for _, x := range s.Routes {

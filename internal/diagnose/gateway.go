@@ -25,6 +25,9 @@ func gatewayFindings(ix *index) []Finding {
 		if f := gatewayClassMissing(ix, gw); f != nil {
 			out = append(out, *f)
 		}
+		if f := listenerCertificate(ix, gw); f != nil {
+			out = append(out, *f)
+		}
 	}
 	for _, rt := range ix.s.Routes {
 		out = append(out, routeParentFindings(ix, rt)...)
@@ -413,4 +416,46 @@ func hostnameUnserved(rt kube.Route, gw kube.Gateway, ls []kube.Listener) *Findi
 			rt.Kind, rt.Metadata.Name, strings.Join(rt.Spec.Hostnames, ", "), gw.Metadata.Name, strings.Join(served, ", ")),
 		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" hostnames", "{.spec.hostnames}"), gatewayEvidence(gw)},
 		Fix:      fmt.Sprintf("Correct the hostnames of %s %s, or add a listener to Gateway %s that serves them (a listener with no hostname serves every name).", rt.Kind, rt.Metadata.Name, gw.Metadata.Name)}
+}
+
+// listenerCertificate is a Gateway whose HTTPS or TLS listener terminates TLS with a Secret that does not exist, or
+// that holds no certificate and key: the controller cannot serve that listener, and refuses its connections.
+func listenerCertificate(ix *index, gw kube.Gateway) *Finding {
+	if !ix.read("secrets") {
+		return nil
+	}
+	for _, l := range gw.Spec.Listeners {
+		if l.TLS == nil || l.TLS.Mode == "Passthrough" {
+			continue
+		}
+		for _, c := range l.TLS.CertificateRefs {
+			if (c.Group != "" && c.Group != "core") || (c.Kind != "" && c.Kind != "Secret") {
+				continue
+			}
+			ns := c.Namespace
+			if ns == "" {
+				ns = gw.Metadata.Namespace
+			}
+			if !ix.nsRead(ns) {
+				continue
+			}
+			ks, exists, known := ix.keySet("secret", ns, c.Name)
+			if !known {
+				continue
+			}
+			why := fmt.Sprintf("there is no Secret %s in namespace %s", c.Name, ns)
+			if exists {
+				if slices.Contains(ks.Keys, "tls.crt") && slices.Contains(ks.Keys, "tls.key") {
+					continue
+				}
+				why = fmt.Sprintf("Secret %s has keys %s, and a certificate Secret needs tls.crt and tls.key", c.Name, strings.Join(ks.Keys, ", "))
+			}
+			return &Finding{Rule: "KD370", Title: "Gateway listener's certificate Secret is missing or has no certificate", Severity: Critical, Object: gw.Ref(),
+				Cause: fmt.Sprintf("listener %s of Gateway %s (port %d, %s) terminates TLS with Secret %s, and %s, so the controller cannot serve the listener: HTTPS clients there get no answer, or a handshake error",
+					l.Name, gw.Metadata.Name, l.Port, l.Protocol, c.Name, why),
+				Evidence: []Evidence{gatewayEvidence(gw), {Object: kube.Ref{Kind: "Secret", Namespace: ns, Name: c.Name}, What: why, Command: cmdGet("secret", ns, c.Name, "{.type}")}},
+				Fix:      fmt.Sprintf("Create Secret %s in namespace %s of type kubernetes.io/tls (kubectl create secret tls %s --cert=... --key=... -n %s), or have cert-manager issue it; or point the listener's certificateRefs at the Secret that holds the certificate.", c.Name, ns, c.Name, ns)}
+		}
+	}
+	return nil
 }

@@ -1126,10 +1126,19 @@ func (g Gateway) Ref() Ref {
 }
 
 type Listener struct {
-	Name          string `json:"name"`
-	Hostname      string `json:"hostname,omitempty"`
-	Port          int32  `json:"port"`
-	Protocol      string `json:"protocol"`
+	Name     string `json:"name"`
+	Hostname string `json:"hostname,omitempty"`
+	Port     int32  `json:"port"`
+	Protocol string `json:"protocol"`
+	TLS      *struct {
+		Mode            string `json:"mode,omitempty"`
+		CertificateRefs []struct {
+			Group     string `json:"group,omitempty"`
+			Kind      string `json:"kind,omitempty"`
+			Name      string `json:"name"`
+			Namespace string `json:"namespace,omitempty"`
+		} `json:"certificateRefs,omitempty"`
+	} `json:"tls,omitempty"`
 	AllowedRoutes *struct {
 		Namespaces *struct {
 			From     string         `json:"from,omitempty"`

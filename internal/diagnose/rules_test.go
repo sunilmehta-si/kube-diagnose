@@ -5289,3 +5289,32 @@ func TestRoutesHostnamesAreServedByNoListener(t *testing.T) {
 		}
 	}
 }
+
+func TestGatewayListenersCertificateSecretIsMissing(t *testing.T) {
+	s := gatewaySnapshot()
+	l := kube.Listener{Name: "https", Port: 443, Protocol: "HTTPS"}
+	l.TLS = &struct {
+		Mode            string `json:"mode,omitempty"`
+		CertificateRefs []struct {
+			Group     string `json:"group,omitempty"`
+			Kind      string `json:"kind,omitempty"`
+			Name      string `json:"name"`
+			Namespace string `json:"namespace,omitempty"`
+		} `json:"certificateRefs,omitempty"`
+	}{}
+	l.TLS.CertificateRefs = append(l.TLS.CertificateRefs, struct {
+		Group     string `json:"group,omitempty"`
+		Kind      string `json:"kind,omitempty"`
+		Name      string `json:"name"`
+		Namespace string `json:"namespace,omitempty"`
+	}{Name: "shop-tls"})
+	s.Gateways[0].Spec.Listeners = append(s.Gateways[0].Spec.Listeners, l)
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD370", "Gateway shop/public", "listener https of Gateway public (port 443, HTTPS) terminates TLS with Secret shop-tls, and there is no Secret shop-tls in namespace shop")
+	s.Secrets = []kube.KeySet{{Namespace: "shop", Name: "shop-tls", Type: "Opaque", Keys: []string{"cert.pem", "key.pem"}}}
+	expect(t, only(t, Diagnose(s)), "KD370", "Gateway shop/public", "Secret shop-tls has keys cert.pem, key.pem, and a certificate Secret needs tls.crt and tls.key")
+	s.Secrets[0].Keys = []string{"tls.crt", "tls.key"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
