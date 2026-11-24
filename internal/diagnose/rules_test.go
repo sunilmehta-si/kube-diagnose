@@ -4995,3 +4995,31 @@ func TestPermissionIsBoundToAnotherServiceAccount(t *testing.T) {
 	s.Roles[0].Rules[0].Verbs = []string{"get"}
 	expect(t, only(t, Diagnose(s)), "KD126", "ReplicaSet shop/worker-rs")
 }
+
+func TestScriptHasWindowsLineEndings(t *testing.T) {
+	s := snap()
+	deployment(s, "worker", 1, 0)
+	p := pod("worker-rs-a", "worker")
+	p.Spec.Containers[0].Command = []string{"sh", "/scripts/start.sh"}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "scripts", MountPath: "/scripts"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "scripts", ConfigMap: &kube.ConfigMapVolumeSource{Name: "worker-scripts"}}}
+	crashed(&p, 2, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{{Namespace: "shop", Name: "worker-scripts", Keys: []string{"start.sh"}}}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"starting the worker", "/scripts/start.sh: line 3: cd: can't cd to /app\r: No such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD309", "Deployment shop/worker", "script /scripts/start.sh has Windows line endings (CRLF)", "the script comes from ConfigMap worker-scripts", `/app\r`)
+	if !strings.Contains(f.Fix, "create ConfigMap worker-scripts again from the file") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Bash says it another way.
+	s.Logs[0].Lines = []string{"/scripts/start.sh: line 2: $'\\r': command not found"}
+	expect(t, only(t, Diagnose(s)), "KD309", "Deployment shop/worker", "Windows line endings")
+
+	// An app that writes CRLF logs, or a progress bar, is no sign.
+	s.Logs[0].Lines = []string{"fatal: config not found\r", "downloading\r 45%\r 90%"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD309" {
+		t.Errorf("CRLF logs: %s", f.Cause)
+	}
+}

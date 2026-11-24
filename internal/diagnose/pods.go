@@ -1117,6 +1117,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			return pr
 		}
 	}
+	if pr := windowsLineEndings(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := undefinedVar(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
