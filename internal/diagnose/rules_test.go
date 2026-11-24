@@ -5049,3 +5049,38 @@ func TestContainerReadsAPathWhereOnlyTheInitContainerMounts(t *testing.T) {
 		t.Errorf("other path: %s", f.Cause)
 	}
 }
+
+func TestKeyFileModeIsTooOpen(t *testing.T) {
+	s := snap()
+	deployment(s, "git-sync", 1, 0)
+	p := pod("git-sync-rs-a", "git-sync")
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "deploy-key", MountPath: "/etc/git-secret"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "deploy-key", Secret: &kube.SecretVolumeSource{SecretName: "deploy-key"}}}
+	crashed(&p, 255, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{
+		"@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@",
+		"Permissions 0644 for '/etc/git-secret/ssh' are too open.",
+		"It is required that your private key files are NOT accessible by others.",
+	}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD311", "Deployment shop/git-sync", "the app refuses key file /etc/git-secret/ssh", "its mode is 0644 (the default mode, as no defaultMode is set) on volume deploy-key (Secret deploy-key)")
+	if !strings.Contains(f.Fix, "Set defaultMode: 0400 on volume deploy-key") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// PostgreSQL's words; the user is not root.
+	uid := int64(999)
+	s.Pods[0].Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	s.Logs[0].Lines = []string{`FATAL:  private key file "/etc/git-secret/ssh" has group or world access`}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD311", "Deployment shop/git-sync", "its mode is 0644")
+	if !strings.Contains(f.Fix, "runs as user 999") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A private mode: the refusal is something else.
+	m := int32(0o400)
+	s.Pods[0].Spec.Volumes[0].Secret.DefaultMode = &m
+	if f := only(t, Diagnose(s)); f.Rule == "KD311" {
+		t.Errorf("0400: %s", f.Cause)
+	}
+}

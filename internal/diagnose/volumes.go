@@ -514,3 +514,35 @@ func initMountPath(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evi
 	}
 	return nil
 }
+
+// reKeyTooOpen is an app refusing a private key that others may read: OpenSSH, PostgreSQL, and ssh's config check.
+var reKeyTooOpen = regexp.MustCompile(`(?i)permissions 0?[0-7]{3,4} for '([^']+)' are too open|private key file "([^"]+)" has group or world access|bad owner or permissions on (/\S+)`)
+
+// keyFileTooOpen finds a container that exits because the app refuses a key file from a Secret or ConfigMap volume
+// whose mode lets the group or others read it: the kubelet writes those files 0644 unless the volume sets a mode.
+func keyFileTooOpen(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	for i := len(lines) - 1; i >= 0; i-- {
+		sm := reKeyTooOpen.FindStringSubmatch(lines[i])
+		if sm == nil {
+			continue
+		}
+		path := sm[1] + sm[2] + sm[3]
+		m, ok := p.MountAt(cs.Name, path)
+		if !ok {
+			continue
+		}
+		mode, from, ok := fileMode(m)
+		if !ok || mode&0o077 == 0 {
+			continue
+		}
+		cause := fmt.Sprintf("container %s exits because the app refuses key file %s: others may read it, and the app wants it private; its mode is %04o (%s) on volume %s (%s); its log says: %q",
+			cs.Name, path, mode, from, m.Name, m.Volume.Source(), clip(lines[i], 200))
+		fix := fmt.Sprintf("Set defaultMode: 0400 on volume %s (or mode: 0400 on the key's item); YAML takes it with the leading zero, JSON as 256.", m.Name)
+		if uid, set := p.RunAsUser(cs.Name); set && uid != 0 {
+			fix += fmt.Sprintf(" The container runs as user %d and the kubelet makes the files root's: set the pod's fsGroup so the user can read them, or copy the key in an init container and chmod 0600 it there.", uid)
+		}
+		return newProblem(p, cs.Name, "KD311", "Key file's mode lets others read it, and the app refuses it", Critical, cause,
+			"keymode|"+m.Name+"|"+path, fix, append(ev, mountEvidence(p, cs.Name, m))...)
+	}
+	return nil
+}
