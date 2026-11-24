@@ -184,8 +184,9 @@ func routeParentFindings(ix *index, rt kube.Route) []Finding {
 			out = append(out, notAdmitted(rt, gw, why, fix))
 			continue
 		}
-		// next parent checks
-		_ = admits
+		if f := hostnameUnserved(rt, gw, admits); f != nil {
+			out = append(out, *f)
+		}
 	}
 	return out
 }
@@ -376,4 +377,40 @@ func notAdmitted(rt kube.Route, gw kube.Gateway, why []string, fix string) Findi
 		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" parentRefs", "{.spec.parentRefs}"),
 			{Object: gw.Ref(), What: fmt.Sprintf("Gateway %s's listeners and the routes they allow", gw.Metadata.Name), Command: cmdGet("gateway", gw.Metadata.Namespace, gw.Metadata.Name, "{.spec.listeners}")}},
 		Fix: fix}
+}
+
+// hostMatch reports whether a listener's hostname and a route's can meet: either is empty, they are equal, or a
+// wildcard (*.example.com) of one covers the other.
+func hostMatch(listener, route string) bool {
+	if listener == "" || route == "" || listener == route {
+		return true
+	}
+	covers := func(wild, host string) bool {
+		suffix, ok := strings.CutPrefix(wild, "*")
+		host = strings.TrimPrefix(host, "*")
+		return ok && strings.HasSuffix(host, suffix) && len(host) > len(suffix)
+	}
+	return covers(listener, route) || covers(route, listener) ||
+		strings.HasPrefix(listener, "*.") && strings.HasPrefix(route, "*.") && (strings.HasSuffix(listener, route[1:]) || strings.HasSuffix(route, listener[1:]))
+}
+
+// hostnameUnserved is a route whose hostnames none of the listeners admitting it serve.
+func hostnameUnserved(rt kube.Route, gw kube.Gateway, ls []kube.Listener) *Finding {
+	if len(rt.Spec.Hostnames) == 0 {
+		return nil
+	}
+	var served []string
+	for _, l := range ls {
+		for _, h := range rt.Spec.Hostnames {
+			if hostMatch(l.Hostname, h) {
+				return nil
+			}
+		}
+		served = append(served, l.Hostname+" (listener "+l.Name+")")
+	}
+	return &Finding{Rule: "KD367", Title: "Route's hostnames are served by none of its Gateway's listeners", Severity: Critical, Object: rt.Ref(),
+		Cause: fmt.Sprintf("%s %s serves %s, and the listeners of Gateway %s it attaches to serve %s: no hostname is in both, so the Gateway sends none of the route's requests to it",
+			rt.Kind, rt.Metadata.Name, strings.Join(rt.Spec.Hostnames, ", "), gw.Metadata.Name, strings.Join(served, ", ")),
+		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" hostnames", "{.spec.hostnames}"), gatewayEvidence(gw)},
+		Fix:      fmt.Sprintf("Correct the hostnames of %s %s, or add a listener to Gateway %s that serves them (a listener with no hostname serves every name).", rt.Kind, rt.Metadata.Name, gw.Metadata.Name)}
 }

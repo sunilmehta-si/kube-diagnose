@@ -5268,3 +5268,24 @@ func TestGatewaysListenersDoNotAdmitTheRoute(t *testing.T) {
 	s.Gateways[0].Spec.Listeners[0].Protocol = "TCP"
 	expect(t, only(t, Diagnose(s)), "KD368", "HTTPRoute shop/shop", "listener http (TCP) takes TCPRoute, not HTTPRoutes")
 }
+
+func TestRoutesHostnamesAreServedByNoListener(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Gateways[0].Spec.Listeners[0].Hostname = "*.store.example.com"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD367", "HTTPRoute shop/shop", "HTTPRoute shop serves shop.example.com, and the listeners of Gateway public it attaches to serve *.store.example.com (listener http)")
+	for _, h := range []string{"shop.example.com", "*.example.com", ""} {
+		s.Gateways[0].Spec.Listeners[0].Hostname = h
+		if r := Diagnose(s); len(r.Findings) != 0 {
+			t.Errorf("listener %q: %+v", h, r.Findings)
+		}
+	}
+	for _, c := range []struct {
+		l, r string
+		ok   bool
+	}{{"*.example.com", "a.b.example.com", true}, {"*.example.com", "example.com", false}, {"a.example.com", "*.example.com", true}, {"*.example.com", "*.shop.example.com", true}, {"*.store.example.com", "*.example.com", true}, {"*.a.com", "*.b.com", false}} {
+		if hostMatch(c.l, c.r) != c.ok {
+			t.Errorf("hostMatch(%q, %q) = %v", c.l, c.r, !c.ok)
+		}
+	}
+}
