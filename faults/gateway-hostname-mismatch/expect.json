@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-hostname-mismatch",
+  "description": "HTTPRoute shop serves shop.example.com, and the Gateway listener serves *.store.example.com only.",
+  "rule": "KD367",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "shop.example.com"
+    ],
+    [
+      "*.store.example.com"
+    ],
+    [
+      "serve"
+    ]
+  ]
+}
