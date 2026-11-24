@@ -1102,3 +1102,79 @@ func (k KeySet) Has(key string) bool {
 type List[T any] struct {
 	Items []T `json:"items"`
 }
+
+// ---- Gateway API ----
+
+// GatewayClass is read for its name and the controller that implements it.
+type GatewayClass struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ControllerName string `json:"controllerName,omitempty"`
+	} `json:"spec"`
+}
+
+type Gateway struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		GatewayClassName string     `json:"gatewayClassName"`
+		Listeners        []Listener `json:"listeners,omitempty"`
+	} `json:"spec"`
+}
+
+func (g Gateway) Ref() Ref {
+	return Ref{Kind: "Gateway", Namespace: g.Metadata.Namespace, Name: g.Metadata.Name}
+}
+
+type Listener struct {
+	Name          string `json:"name"`
+	Hostname      string `json:"hostname,omitempty"`
+	Port          int32  `json:"port"`
+	Protocol      string `json:"protocol"`
+	AllowedRoutes *struct {
+		Namespaces *struct {
+			From     string         `json:"from,omitempty"`
+			Selector *LabelSelector `json:"selector,omitempty"`
+		} `json:"namespaces,omitempty"`
+		Kinds []struct {
+			Group string `json:"group,omitempty"`
+			Kind  string `json:"kind"`
+		} `json:"kinds,omitempty"`
+	} `json:"allowedRoutes,omitempty"`
+}
+
+// ParentRef is a route's reference to the Gateway it attaches to. Empty Group and Kind mean a Gateway; an empty
+// Namespace, the route's own.
+type ParentRef struct {
+	Group       string `json:"group,omitempty"`
+	Kind        string `json:"kind,omitempty"`
+	Namespace   string `json:"namespace,omitempty"`
+	Name        string `json:"name"`
+	SectionName string `json:"sectionName,omitempty"`
+	Port        *int32 `json:"port,omitempty"`
+}
+
+// BackendRef is where a route rule sends traffic. Empty Group and Kind mean a Service.
+type BackendRef struct {
+	Group     string `json:"group,omitempty"`
+	Kind      string `json:"kind,omitempty"`
+	Namespace string `json:"namespace,omitempty"`
+	Name      string `json:"name"`
+	Port      *int32 `json:"port,omitempty"`
+}
+
+// Route is an HTTPRoute or a GRPCRoute: the two share what is read of them. Kind is set by the collector.
+type Route struct {
+	Kind     string     `json:"kind"`
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ParentRefs []ParentRef `json:"parentRefs,omitempty"`
+		Hostnames  []string    `json:"hostnames,omitempty"`
+		Rules      []struct {
+			BackendRefs []BackendRef `json:"backendRefs,omitempty"`
+		} `json:"rules,omitempty"`
+	} `json:"spec"`
+}
+
+func (r Route) Ref() Ref {
+	return Ref{Kind: r.Kind, Namespace: r.Metadata.Namespace, Name: r.Metadata.Name}
+}

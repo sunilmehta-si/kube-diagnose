@@ -44,13 +44,17 @@ type Snapshot struct {
 	Namespaces []string `json:"namespaces,omitempty"`
 	Redacted   bool     `json:"redacted,omitempty"`
 
-	Pods           []kube.Pod                     `json:"pods"`
-	Events         []kube.Event                   `json:"events"`
-	Nodes          []kube.Node                    `json:"nodes"`
-	Services       []kube.Service                 `json:"services"`
-	EndpointSlices []kube.EndpointSlice           `json:"endpointSlices"`
-	Ingresses      []kube.Ingress                 `json:"ingresses"`
-	IngressClasses []kube.IngressClass            `json:"ingressClasses"`
+	Pods           []kube.Pod           `json:"pods"`
+	Events         []kube.Event         `json:"events"`
+	Nodes          []kube.Node          `json:"nodes"`
+	Services       []kube.Service       `json:"services"`
+	EndpointSlices []kube.EndpointSlice `json:"endpointSlices"`
+	Ingresses      []kube.Ingress       `json:"ingresses"`
+	IngressClasses []kube.IngressClass  `json:"ingressClasses"`
+	// The Gateway API's objects: empty when the cluster does not serve it, and in snapshots recorded before 0.14.0.
+	Gateways       []kube.Gateway                 `json:"gateways,omitempty"`
+	GatewayClasses []kube.GatewayClass            `json:"gatewayClasses,omitempty"`
+	Routes         []kube.Route                   `json:"routes,omitempty"`
 	Workloads      []kube.Workload                `json:"workloads"`
 	Jobs           []kube.Job                     `json:"jobs"`
 	CronJobs       []kube.CronJob                 `json:"cronJobs"`

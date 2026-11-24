@@ -158,7 +158,7 @@ func TestCollect(t *testing.T) {
 		if c[0] == "get" && c[1] == "secrets" && !strings.HasPrefix(c[3], "go-template=") {
 			t.Errorf("secrets must be read as key names only: %v", c)
 		}
-		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" && c[1] != "namespaces" && c[1] != "clusterroles.rbac.authorization.k8s.io" &&
+		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" && c[1] != "namespaces" && c[1] != "clusterroles.rbac.authorization.k8s.io" && c[1] != "gatewayclasses.gateway.networking.k8s.io" &&
 			!(c[len(c)-2] == "-n" && c[len(c)-1] == "shop") {
 			t.Errorf("namespaced read not scoped to the namespace: %v", c)
 		}
@@ -340,5 +340,45 @@ func TestCollectReadsSeveralAtOnce(t *testing.T) {
 		if len(s.Gaps) != 2 || s.Gaps[0].Resource != "jobs.batch" || s.Gaps[1].Resource != "secrets" {
 			t.Fatalf("gaps %+v", s.Gaps)
 		}
+	}
+}
+
+func TestCollectReadsTheGatewayAPIWhenTheClusterServesIt(t *testing.T) {
+	f := &fake{answers: map[string]string{
+		"get gateways.gateway.networking.k8s.io":       `{"items":[{"metadata":{"name":"public","namespace":"shop"},"spec":{"gatewayClassName":"envoy","listeners":[{"name":"http","port":80,"protocol":"HTTP"}]}}]}`,
+		"get gatewayclasses.gateway.networking.k8s.io": `{"items":[{"metadata":{"name":"envoy"},"spec":{"controllerName":"gateway.envoyproxy.io/gatewayclass-controller"}}]}`,
+		"get httproutes.gateway.networking.k8s.io":     `{"items":[{"metadata":{"name":"shop","namespace":"shop"},"spec":{"parentRefs":[{"name":"public"}],"rules":[{"backendRefs":[{"name":"storefront","port":80}]}]}}]}`,
+		"get grpcroutes.gateway.networking.k8s.io":     `{"items":[{"metadata":{"name":"orders","namespace":"shop"},"spec":{"parentRefs":[{"name":"public"}]}}]}`,
+	}}
+	s, err := Collect(context.Background(), f, Options{Namespace: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Gateways) != 1 || s.Gateways[0].Spec.Listeners[0].Name != "http" || len(s.GatewayClasses) != 1 {
+		t.Errorf("gateways %+v classes %+v", s.Gateways, s.GatewayClasses)
+	}
+	if len(s.Routes) != 2 || s.Routes[0].Kind != "HTTPRoute" || s.Routes[1].Kind != "GRPCRoute" || *s.Routes[0].Spec.Rules[0].BackendRefs[0].Port != 80 {
+		t.Errorf("routes %+v", s.Routes)
+	}
+
+	// A cluster without the Gateway API: nothing read, and no gap reported.
+	notServed := errors.New(`kubectl: error: the server doesn't have a resource type "gateways"`)
+	f = &fake{errs: map[string]error{
+		"get gateways.gateway.networking.k8s.io": notServed, "get gatewayclasses.gateway.networking.k8s.io": notServed,
+		"get httproutes.gateway.networking.k8s.io": notServed, "get grpcroutes.gateway.networking.k8s.io": notServed,
+	}}
+	s, err = Collect(context.Background(), f, Options{Namespace: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.Gaps) != 0 || len(s.Gateways)+len(s.Routes)+len(s.GatewayClasses) != 0 {
+		t.Errorf("gaps %+v", s.Gaps)
+	}
+
+	// Served, but forbidden: a gap, as for any other resource.
+	f = &fake{errs: map[string]error{"get httproutes.gateway.networking.k8s.io": errors.New(`Error from server (Forbidden): httproutes.gateway.networking.k8s.io is forbidden`)}}
+	s, _ = Collect(context.Background(), f, Options{Namespace: "shop"})
+	if len(s.Gaps) != 1 || s.Gaps[0].Resource != "httproutes.gateway.networking.k8s.io" {
+		t.Errorf("gaps %+v", s.Gaps)
 	}
 }
