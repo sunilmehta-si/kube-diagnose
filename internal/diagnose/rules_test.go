@@ -5182,3 +5182,21 @@ func TestRouteSendsTrafficToAPortTheServiceDoesNotExpose(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestRouteIsAttachedToAGatewayThatDoesNotExist(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.ParentRefs[0].Name = "public-gateway"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD364", "HTTPRoute shop/shop", "HTTPRoute shop attaches to Gateway public-gateway, which does not exist in namespace shop", "the Gateways of namespace shop are public")
+	// A Gateway in a namespace that was not read: nothing is known about it.
+	s.Routes[0].Spec.ParentRefs[0].Namespace = "gateways"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// Gateways were not read.
+	s.Routes[0].Spec.ParentRefs[0].Namespace = ""
+	s.Gaps = []snapshot.Gap{{Resource: "gateways.gateway.networking.k8s.io"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}

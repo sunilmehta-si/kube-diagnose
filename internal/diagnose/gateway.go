@@ -21,6 +21,7 @@ const (
 func gatewayFindings(ix *index) []Finding {
 	var out []Finding
 	for _, rt := range ix.s.Routes {
+		out = append(out, routeParentFindings(ix, rt)...)
 		out = append(out, routeBackendFindings(ix, rt)...)
 		out = append(out, routePortFindings(ix, rt)...)
 	}
@@ -143,4 +144,62 @@ func routePortFindings(ix *index, rt kube.Route) []Finding {
 			rt.Kind, rt.Metadata.Name, strings.Join(bad, "; ")),
 		Evidence: append([]Evidence{routeEvidence(rt, rt.Kind+" backendRefs", "{.spec.rules[*].backendRefs}")}, ev...),
 		Fix:      "Set the backendRef's port to a port the Service exposes (its port, not the container's targetPort)."}}
+}
+
+// routeParentFindings checks each Gateway a route attaches to: that it exists, and what of it the route names.
+func routeParentFindings(ix *index, rt kube.Route) []Finding {
+	if !ix.read(gatewaysResource) {
+		return nil
+	}
+	var out []Finding
+	for _, p := range rt.Spec.ParentRefs {
+		if (p.Group != "" && p.Group != "gateway.networking.k8s.io") || (p.Kind != "" && p.Kind != "Gateway") {
+			continue
+		}
+		ns := p.Namespace
+		if ns == "" {
+			ns = rt.Metadata.Namespace
+		}
+		if !ix.nsRead(ns) {
+			continue
+		}
+		gw, ok := findGateway(ix, ns, p.Name)
+		if !ok {
+			out = append(out, parentMissing(ix, rt, p, ns))
+			continue
+		}
+		// next parent checks
+		_ = gw
+	}
+	return out
+}
+
+func findGateway(ix *index, ns, name string) (kube.Gateway, bool) {
+	for _, g := range ix.s.Gateways {
+		if g.Metadata.Namespace == ns && g.Metadata.Name == name {
+			return g, true
+		}
+	}
+	return kube.Gateway{}, false
+}
+
+// parentMissing is a route attached to a Gateway that does not exist.
+func parentMissing(ix *index, rt kube.Route, p kube.ParentRef, ns string) Finding {
+	var names []string
+	for _, g := range ix.s.Gateways {
+		if g.Metadata.Namespace == ns {
+			names = append(names, g.Metadata.Name)
+		}
+	}
+	sort.Strings(names)
+	have := fmt.Sprintf("namespace %s has no Gateway", ns)
+	if len(names) > 0 {
+		have = fmt.Sprintf("the Gateways of namespace %s are %s", ns, strings.Join(names, ", "))
+	}
+	return Finding{Rule: "KD364", Title: "Route is attached to a Gateway that does not exist", Severity: Critical, Object: rt.Ref(),
+		Cause: fmt.Sprintf("%s %s attaches to Gateway %s, which does not exist in namespace %s, so no Gateway serves the route and its requests get no answer from the cluster; %s",
+			rt.Kind, rt.Metadata.Name, p.Name, ns, have),
+		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" parentRefs", "{.spec.parentRefs}"),
+			{Object: kube.Ref{Kind: "Gateway", Namespace: ns, Name: p.Name}, What: have, Command: fmt.Sprintf("kubectl get gateways -n %s", ns)}},
+		Fix: fmt.Sprintf("Correct the parentRef's name in %s %s (and its namespace, for a Gateway in another namespace), or create the Gateway.", rt.Kind, rt.Metadata.Name)}
 }

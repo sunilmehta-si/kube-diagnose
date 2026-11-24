@@ -200,6 +200,7 @@ var Rules = []Rule{
 	{"KD361", "Container connects to a fixed IP, not the Service's address", Critical, "A container exits after a connection fails to an IP address written into its environment, in a variable named for a Service of the namespace (DB_HOST beside Service db), and that Service's cluster IP is another: usually its address before it was created again.", "The log line with the failed connection, the environment variable, and the Service's cluster IP."},
 	{"KD362", "Route sends traffic to a Service that does not exist", Critical, "An HTTPRoute or GRPCRoute rule's backendRef names a Service that does not exist, so the Gateway answers the requests that rule matches with an error.", "The route's backendRefs, and the Service that is not there."},
 	{"KD363", "Route sends traffic to a port the Service does not expose", Critical, "An HTTPRoute or GRPCRoute rule's backendRef names a port its Service does not expose, often the container's port in place of the Service's.", "The route's backendRefs, and the Service's ports."},
+	{"KD364", "Route is attached to a Gateway that does not exist", Critical, "An HTTPRoute or GRPCRoute's parentRef names a Gateway that does not exist in the namespace it gives, so no Gateway serves the route.", "The route's parentRefs, and the namespace's Gateways."},
 }
 
 // RuleByID finds a rule.
