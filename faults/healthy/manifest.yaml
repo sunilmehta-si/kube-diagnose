@@ -44,3 +44,43 @@ spec:
   ports:
     - port: 80
       targetPort: "http"
+
+---
+# A working Gateway and HTTPRoute in front of the Service, so the Gateway API rules are held to no false alarm too.
+apiVersion: gateway.networking.k8s.io/v1
+kind: GatewayClass
+metadata:
+  # The suite's class, shared by its Gateway scenarios; no controller runs it.
+  name: kd-faults
+spec:
+  controllerName: example.com/kd-faults
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: Gateway
+metadata:
+  name: public
+  namespace: kd-healthy
+spec:
+  gatewayClassName: kd-faults
+  listeners:
+    - name: http
+      protocol: HTTP
+      port: 80
+      hostname: "*.example.com"
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: web
+  namespace: kd-healthy
+spec:
+  parentRefs:
+    - name: public
+      sectionName: http
+  hostnames: ["web.example.com"]
+  rules:
+    - backendRefs:
+        - name: web
+          port: 80
