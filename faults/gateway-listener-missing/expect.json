@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-listener-missing",
+  "description": "HTTPRoute shop attaches to listener https of Gateway public, which has an http listener only.",
+  "rule": "KD366",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "https"
+    ],
+    [
+      "listener"
+    ],
+    [
+      "no such listener"
+    ]
+  ]
+}
