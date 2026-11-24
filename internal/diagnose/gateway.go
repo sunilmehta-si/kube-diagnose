@@ -160,6 +160,12 @@ func routePortFindings(ix *index, rt kube.Route) []Finding {
 
 // routeParentFindings checks each Gateway a route attaches to: that it exists, and what of it the route names.
 func routeParentFindings(ix *index, rt kube.Route) []Finding {
+	if len(rt.Spec.ParentRefs) == 0 {
+		return []Finding{{Rule: "KD372", Title: "Route is attached to no Gateway", Severity: Critical, Object: rt.Ref(),
+			Cause:    fmt.Sprintf("%s %s has no parentRefs, so it is attached to no Gateway, and no Gateway sends it a request", rt.Kind, rt.Metadata.Name),
+			Evidence: []Evidence{routeEvidence(rt, rt.Kind+" parentRefs", "{.spec.parentRefs}")},
+			Fix:      fmt.Sprintf("Add a parentRef to %s %s naming the Gateway (and its listener, by sectionName) that should serve it; kubectl get gateways -A lists them.", rt.Kind, rt.Metadata.Name)}}
+	}
 	if !ix.read(gatewaysResource) {
 		return nil
 	}

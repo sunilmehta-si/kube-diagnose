@@ -207,6 +207,7 @@ var Rules = []Rule{
 	{"KD368", "Gateway's listeners do not admit the route", Critical, "None of the listeners an HTTPRoute or GRPCRoute attaches to admits it: their allowedRoutes take routes from the Gateway's own namespace only, or from namespaces whose labels the route's namespace lacks, or take other kinds of route.", "The route's parentRefs, and the Gateway's listeners with their allowedRoutes."},
 	{"KD369", "Route sends traffic to another namespace that does not grant it", Critical, "An HTTPRoute or GRPCRoute sends traffic to a Service in another namespace, and no ReferenceGrant there lets routes of the route's namespace refer to it.", "The route's backendRefs, and the ReferenceGrants of the Service's namespace."},
 	{"KD370", "Gateway listener's certificate Secret is missing or has no certificate", Critical, "An HTTPS or TLS listener of a Gateway terminates TLS with a Secret that does not exist, or that lacks tls.crt and tls.key, so the controller cannot serve the listener.", "The Gateway's listeners, and the Secret's keys (never their values)."},
+	{"KD372", "Route is attached to no Gateway", Critical, "An HTTPRoute or GRPCRoute has no parentRefs, so no Gateway serves it.", "The route's parentRefs."},
 }
 
 // RuleByID finds a rule.

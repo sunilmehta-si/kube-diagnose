@@ -5348,3 +5348,13 @@ func TestRouteSendsTrafficToANamespaceThatDoesNotGrantIt(t *testing.T) {
 	s.ReferenceGrants[0].Spec.To[0].Name = "ledger"
 	expect(t, only(t, Diagnose(s)), "KD369", "HTTPRoute shop/shop")
 }
+
+func TestRouteIsAttachedToNoGateway(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Routes[0].Spec.ParentRefs = nil
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD372", "HTTPRoute shop/shop", "HTTPRoute shop has no parentRefs, so it is attached to no Gateway")
+	// Gateways unread: a route with no parentRefs is attached to nothing all the same.
+	s.Gaps = []snapshot.Gap{{Resource: "gateways.gateway.networking.k8s.io"}}
+	expect(t, only(t, Diagnose(s)), "KD372", "HTTPRoute shop/shop")
+}
