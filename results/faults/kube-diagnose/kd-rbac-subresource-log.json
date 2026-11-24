@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rbac-subresource-log"
+  ],
+  "collectedAt": "2026-11-24 11:23 UTC",
+  "findings": [
+    {
+      "rule": "KD307",
+      "title": "Role grants the resource but not its subresource",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rbac-subresource-log",
+        "name": "log-shipper"
+      },
+      "cause": "container shipper exits because the API server refuses its ServiceAccount log-shipper: it may not get pods/log in namespace kd-rbac-subresource-log. Role pod-reader grants get, list on pods, and the request is for its log subresource, pods/log, which a rule grants only by that name (or \"pods/*\"): a rule that names pods covers the objects, not their subresources; its log says: \"pods \\\"web-b665dbb8b-tckvk\\\" is forbidden: User \\\"system:serviceaccount:kd-rbac-subresource-log:log-shipper\\\" cannot get resource \\\"pods/log\\\" in API group \\\"\\\" in the namespace \\\"kd-rbac-subresource-log\\\"\"; Deployment log-shipper has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-subresource-log",
+            "name": "log-shipper-fd8ccbccf-mhjbh"
+          },
+          "what": "container shipper exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod log-shipper-fd8ccbccf-mhjbh -n kd-rbac-subresource-log -o jsonpath='{.status.containerStatuses[?(@.name==\"shipper\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-rbac-subresource-log",
+            "name": "log-shipper-fd8ccbccf-mhjbh"
+          },
+          "what": "last lines of container shipper's log (run that exited)",
+          "detail": "pods \"web-b665dbb8b-tckvk\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-tckvk\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-tckvk\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-tckvk\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-tckvk\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\nerror: context deadline exceeded",
+          "command": "kubectl logs log-shipper-fd8ccbccf-mhjbh -n kd-rbac-subresource-log -c shipper --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Role",
+            "namespace": "kd-rbac-subresource-log",
+            "name": "pod-reader"
+          },
+          "what": "Role pod-reader, bound by RoleBinding log-shipper-pod-reader: apiGroups [\"\"], resources [\"pods\"], verbs [\"get\", \"list\"]",
+          "command": "kubectl get role pod-reader -n kd-rbac-subresource-log -o jsonpath='{.rules}'"
+        },
+        {
+          "object": {
+            "kind": "RoleBinding",
+            "namespace": "kd-rbac-subresource-log",
+            "name": "log-shipper-pod-reader"
+          },
+          "what": "RoleBinding log-shipper-pod-reader grants Role pod-reader to ServiceAccount log-shipper",
+          "command": "kubectl get rolebinding log-shipper-pod-reader -n kd-rbac-subresource-log -o jsonpath='{.roleRef.kind}{\"/\"}{.roleRef.name}{\" \"}{.subjects}'"
+        }
+      ],
+      "fix": "Add \"pods/log\" to the resources of the rule of Role pod-reader that names pods (with verb get).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-rbac-subresource-log",
+          "name": "log-shipper-fd8ccbccf-mhjbh"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

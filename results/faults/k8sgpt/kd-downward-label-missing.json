@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-downward-label-missing/api",
+      "error": [
+        {
+          "Text": "Deployment kd-downward-label-missing/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-downward-label-missing",
+              "Masked": "VVFSbEJMQ241YyolPUZIRlIzJVZBayhxMQ=="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "TD9D"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-downward-label-missing/api-8668bb5f87-b76cz",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=api pod=api-8668bb5f87-b76cz",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

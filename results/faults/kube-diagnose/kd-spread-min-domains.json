@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-spread-min-domains"
+  ],
+  "collectedAt": "2026-11-24 11:25 UTC",
+  "findings": [
+    {
+      "rule": "KD144",
+      "title": "Pod spread or affinity rules cannot be met",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-spread-min-domains",
+        "name": "web"
+      },
+      "cause": "no node can run the pod: 1 node fails its topology spread constraints: its constraint over kubernetes.io/hostname has minDomains 3, and the nodes form 1 domain (kd-faults-control-plane); while there are fewer domains than minDomains, the scheduler takes the smallest domain to hold 0 pods, so no domain may hold more than maxSkew (1) of the pods the constraint counts, and 1 such pod already run; Deployment web has 1 of 2 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-spread-min-domains",
+            "name": "web-bd5fc47c9-bnm2n"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
+          "command": "kubectl get pod web-bd5fc47c9-bnm2n -n kd-spread-min-domains -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-spread-min-domains",
+            "name": "web-bd5fc47c9-bnm2n"
+          },
+          "what": "pod scheduling constraints",
+          "command": "kubectl get pod web-bd5fc47c9-bnm2n -n kd-spread-min-domains -o jsonpath='{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}'"
+        }
+      ],
+      "fix": "Lower minDomains to the number of kubernetes.io/hostname domains the nodes form (1), or drop it; or add nodes in more domains.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-spread-min-domains",
+          "name": "web-bd5fc47c9-bnm2n"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

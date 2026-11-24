@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-init-container-fails"
   ],
-  "collectedAt": "2026-11-23 11:45 UTC",
+  "collectedAt": "2026-11-24 11:18 UTC",
   "findings": [
     {
       "rule": "KD115",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-container-fails",
-            "name": "web-845dc8755d-xnjvg"
+            "name": "web-845dc8755d-zgkgc"
           },
-          "what": "container wait-for-db exited with code 2 (Error), restarted 5 times",
-          "command": "kubectl get pod web-845dc8755d-xnjvg -n kd-init-container-fails -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].lastState.terminated}'"
+          "what": "container wait-for-db exited with code 2 (Error), restarted 6 times",
+          "command": "kubectl get pod web-845dc8755d-zgkgc -n kd-init-container-fails -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-container-fails",
-            "name": "web-845dc8755d-xnjvg"
+            "name": "web-845dc8755d-zgkgc"
           },
           "what": "last lines of container wait-for-db's log (run that exited)",
           "detail": "FATAL: cannot reach db:5432",
-          "command": "kubectl logs web-845dc8755d-xnjvg -n kd-init-container-fails -c wait-for-db --tail=20 --previous"
+          "command": "kubectl logs web-845dc8755d-zgkgc -n kd-init-container-fails -c wait-for-db --tail=20 --previous"
         }
       ],
       "fix": "Fix what the init container's log reports; the app containers start only after every init container succeeds.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-init-container-fails",
-          "name": "web-845dc8755d-xnjvg"
+          "name": "web-845dc8755d-zgkgc"
         }
       ]
     }

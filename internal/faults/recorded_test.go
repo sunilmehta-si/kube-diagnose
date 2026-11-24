@@ -97,7 +97,7 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 		}
 		return strings.Join(all, "\n"), len(items)
 	}
-	if got, _ := text("kd-crashloop-missing-env"); !strings.Contains(got, "the termination reason is Error exitCode=1") || strings.Contains(got, "DATABASE_URL") {
+	if got, _ := text("kd-crashloop-missing-env"); !strings.Contains(got, "termination reason is Error") || strings.Contains(got, "DATABASE_URL") {
 		t.Errorf("crash: %s", got)
 	}
 	if got, _ := text("kd-liveness-wrong-port"); !strings.Contains(got, "the last termination reason is Error") || strings.Contains(strings.ToLower(got), "probe") {

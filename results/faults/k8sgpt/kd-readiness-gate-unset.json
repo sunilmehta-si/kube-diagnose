@@ -2,14 +2,14 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Service",
       "name": "kd-readiness-gate-unset/web",
       "error": [
         {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-54495c8f84-8xqtp], expected 1",
+          "Text": "Service has not ready endpoints, pods: [Pod/web-54495c8f84-cw67h], expected 1",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -27,11 +27,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-gate-unset",
-              "Masked": "OSZiOVo8cVVLMSJDTWk0XUNZNElPTVo="
+              "Masked": "WnV7aWc7KytISTR2Tl1YOnBMSEkwY0Y="
             },
             {
               "Unmasked": "web",
-              "Masked": "N3Ut"
+              "Masked": "VFQj"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-readiness-gate-unset/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-54495c8f84\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readiness-gate-unset",
+              "Masked": "WHknbTA+WDhOcFo6NmF3cWZwRiRaZnA="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "UDIo"
             }
           ]
         }

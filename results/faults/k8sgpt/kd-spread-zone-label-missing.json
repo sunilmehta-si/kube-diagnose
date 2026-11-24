@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-spread-zone-label-missing",
-              "Masked": "R0YmR1JISG9VelM0Vkw0JCVwfTkqNFdwUUIkJw=="
+              "Masked": "X3pxR1lKTmJ7eFR9ciFOXz0yLD5HRyUuJno7NQ=="
             },
             {
               "Unmasked": "web",
-              "Masked": "Mmp6"
+              "Masked": "clBZ"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-spread-zone-label-missing/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-5479544b58\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-spread-zone-label-missing",
+              "Masked": "REwmSnc3WUs/LXwyIWhLPnlGfVddJihAJndtMQ=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "SCNK"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-spread-zone-label-missing/web-5479544b58-5jbd9",
+      "name": "kd-spread-zone-label-missing/web-5479544b58-gz4d8",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
@@ -41,7 +55,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-spread-zone-label-missing/web-5479544b58-sznsc",
+      "name": "kd-spread-zone-label-missing/web-5479544b58-cwl9s",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

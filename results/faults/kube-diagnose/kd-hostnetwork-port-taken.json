@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hostnetwork-port-taken"
+  ],
+  "collectedAt": "2026-11-24 11:17 UTC",
+  "findings": [
+    {
+      "rule": "KD122",
+      "title": "Port is already in use",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-hostnetwork-port-taken",
+        "name": "node-agent"
+      },
+      "cause": "container agent exits because the port it listens on is already in use: the pod runs in the node's network (hostNetwork: true), so it shares ports with every process of the node, and 10250 is the kubelet's; its log says: \"httpd: bind: Address already in use\"; Deployment node-agent has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostnetwork-port-taken",
+            "name": "node-agent-68f6b4788b-cl6bv"
+          },
+          "what": "container agent exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod node-agent-68f6b4788b-cl6bv -n kd-hostnetwork-port-taken -o jsonpath='{.status.containerStatuses[?(@.name==\"agent\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostnetwork-port-taken",
+            "name": "node-agent-68f6b4788b-cl6bv"
+          },
+          "what": "last lines of container agent's log (current run)",
+          "detail": "httpd: bind: Address already in use",
+          "command": "kubectl logs node-agent-68f6b4788b-cl6bv -n kd-hostnetwork-port-taken -c agent --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostnetwork-port-taken",
+            "name": "node-agent-68f6b4788b-cl6bv"
+          },
+          "what": "the pod has hostNetwork: true",
+          "command": "kubectl get pod node-agent-68f6b4788b-cl6bv -n kd-hostnetwork-port-taken -o jsonpath='{.spec.hostNetwork}'"
+        }
+      ],
+      "fix": "Listen on a port nothing on the node uses, or drop hostNetwork and reach the pod through a Service (or a hostPort, which the scheduler checks against the other pods' host ports).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-hostnetwork-port-taken",
+          "name": "node-agent-68f6b4788b-cl6bv"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

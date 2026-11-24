@@ -5,19 +5,6 @@
   "problems": 2,
   "results": [
     {
-      "kind": "ConfigMap",
-      "name": "kd-job-active-deadline/kube-root-ca.crt",
-      "error": [
-        {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "Job",
       "name": "kd-job-active-deadline/export",
       "error": [
@@ -27,13 +14,26 @@
           "Sensitive": [
             {
               "Unmasked": "kd-job-active-deadline",
-              "Masked": "RUk2Vn1fIUt0aWRJeWwibXJMU0FJag=="
+              "Masked": "WUdrdmw5dUxDPnslKDRvaTJ1IUgicg=="
             },
             {
               "Unmasked": "export",
-              "Masked": "JnR6a2E2"
+              "Masked": "KzJhJCd4"
             }
           ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-job-active-deadline/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
         }
       ],
       "details": "",

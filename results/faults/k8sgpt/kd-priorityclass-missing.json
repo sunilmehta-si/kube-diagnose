@@ -2,21 +2,8 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
-    {
-      "kind": "ReplicaSet",
-      "name": "kd-priorityclass-missing/web-55fb7dbd6f",
-      "error": [
-        {
-          "Text": "pods \"web-55fb7dbd6f-\" is forbidden: no PriorityClass with name business-critical was found",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
-    },
     {
       "kind": "Deployment",
       "name": "kd-priorityclass-missing/web",
@@ -27,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-priorityclass-missing",
-              "Masked": "bzVyMF8tX3dTZl4jTVJla1BTc1JiX2Zd"
+              "Masked": "SSp5cldMTU8nSUVncE5jSi0sTSxLPE9r"
             },
             {
               "Unmasked": "web",
-              "Masked": "OENL"
+              "Masked": "UVdm"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-priorityclass-missing/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-55fb7dbd6f\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-priorityclass-missing",
+              "Masked": "T2Q3XmhSK0JreDIjND8ubT9GKHB2YjBr"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "YUNJ"
             }
           ]
         }
@@ -51,6 +52,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-priorityclass-missing/web-55fb7dbd6f",
+      "error": [
+        {
+          "Text": "pods \"web-55fb7dbd6f-\" is forbidden: no PriorityClass with name business-critical was found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

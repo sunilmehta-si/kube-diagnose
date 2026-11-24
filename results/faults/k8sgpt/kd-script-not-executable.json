@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-script-not-executable",
-              "Masked": "cHd4OlE1SlpkIjJQTzNSZ0hhJTZkTjxl"
+              "Masked": "eDQ6fExaYShWenpYRFMtInNIaUNIP2hz"
             },
             {
               "Unmasked": "web",
-              "Masked": "em5u"
+              "Masked": "fHtz"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-script-not-executable/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-fd58cb87d\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-script-not-executable",
+              "Masked": "NmR9anxaZW5HWW9nTyFRT3JTYzlZS3No"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "d2ok"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-script-not-executable/web-fd58cb87d-jc42r",
+      "name": "kd-script-not-executable/web-fd58cb87d-6c8hj",
       "error": [
         {
-          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/scripts/run.sh\": permission denied",
+          "Text": "the last termination reason is StartError container=web pod=web-fd58cb87d-6c8hj",
           "KubernetesDoc": "",
           "Sensitive": []
         }

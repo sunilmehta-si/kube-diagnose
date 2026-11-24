@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-all-namespaces"
   ],
-  "collectedAt": "2026-11-23 11:47 UTC",
+  "collectedAt": "2026-11-24 11:23 UTC",
   "findings": [
     {
       "rule": "KD305",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-all-namespaces",
-            "name": "pod-dashboard-746cf4d754-9pzf6"
+            "name": "pod-dashboard-746cf4d754-vlgc7"
           },
-          "what": "container dashboard exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod pod-dashboard-746cf4d754-9pzf6 -n kd-rbac-all-namespaces -o jsonpath='{.status.containerStatuses[?(@.name==\"dashboard\")].state.terminated}'"
+          "what": "container dashboard exited with code 1 (Error), restarted 7 times",
+          "command": "kubectl get pod pod-dashboard-746cf4d754-vlgc7 -n kd-rbac-all-namespaces -o jsonpath='{.status.containerStatuses[?(@.name==\"dashboard\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-all-namespaces",
-            "name": "pod-dashboard-746cf4d754-9pzf6"
+            "name": "pod-dashboard-746cf4d754-vlgc7"
           },
           "what": "last lines of container dashboard's log (current run)",
           "detail": "Error from server (Forbidden): pods is forbidden: User \"system:serviceaccount:kd-rbac-all-namespaces:app\" cannot list resource \"pods\" in API group \"\" at the cluster scope",
-          "command": "kubectl logs pod-dashboard-746cf4d754-9pzf6 -n kd-rbac-all-namespaces -c dashboard --tail=20"
+          "command": "kubectl logs pod-dashboard-746cf4d754-vlgc7 -n kd-rbac-all-namespaces -c dashboard --tail=20"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-all-namespaces",
-          "name": "pod-dashboard-746cf4d754-9pzf6"
+          "name": "pod-dashboard-746cf4d754-vlgc7"
         }
       ]
     }

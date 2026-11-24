@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-deployment-paused",
-              "Masked": "RFdLeGo/WjUraUBZYTZOazZrc0E="
+              "Masked": "dVlUdjU5Z1N7cidAYlVoV1h2PlQ="
             },
             {
               "Unmasked": "web",
-              "Masked": "cmRq"
+              "Masked": "d2ot"
             }
           ]
         }

@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-command-one-string",
-              "Masked": "dip0fUp3cVVobTA5T0IlRDpRY2xqUFpVbTM+"
+              "Masked": "OSk2ViZzODp0TGJFZ1BKLzFmNGQhfWg8aClM"
             },
             {
               "Unmasked": "web",
-              "Masked": "TjNZ"
+              "Masked": "S30h"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-probe-command-one-string/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-7ffb5945f5\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-command-one-string",
+              "Masked": "SERQU19DKCFvZ04jKDokNHopI3JNYkxxUyNZ"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "ZF1Y"
             }
           ]
         }
@@ -31,7 +45,7 @@
       "name": "kd-probe-command-one-string/web",
       "error": [
         {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-7ffb5945f5-t7vqt], expected 1",
+          "Text": "Service has not ready endpoints, pods: [Pod/web-7ffb5945f5-75wsg], expected 1",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -41,10 +55,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-command-one-string/web-7ffb5945f5-t7vqt",
+      "name": "kd-probe-command-one-string/web-7ffb5945f5-75wsg",
       "error": [
         {
-          "Text": "(combined from similar events): Readiness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"73c1b923d44dc490398f362f09eb134641380614f863cc65b8ce827def111d18\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"cat /tmp/ready\": stat cat /tmp/ready: no such file or directory",
+          "Text": "(combined from similar events): Readiness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"86f266b22343bc9ee08b34e8269999af4c20fae9626469db5423e58bf2a1fb4d\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"cat /tmp/ready\": stat cat /tmp/ready: no such file or directory",
           "KubernetesDoc": "",
           "Sensitive": []
         }

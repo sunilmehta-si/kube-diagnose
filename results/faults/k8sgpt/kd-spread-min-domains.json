@@ -1,0 +1,57 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-spread-min-domains/web",
+      "error": [
+        {
+          "Text": "Deployment kd-spread-min-domains/web has 2 replicas but 1 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-spread-min-domains",
+              "Masked": "ISRzeV5TXl9fYihleDVxc0VfQ3dH"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "LGJ7"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-spread-min-domains/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-bd5fc47c9\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-spread-min-domains",
+              "Masked": "MDghWlRzdVZhS2JzQzVEXlZwcFYu"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "S1FZ"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-spread-min-domains/web-bd5fc47c9-bnm2n",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

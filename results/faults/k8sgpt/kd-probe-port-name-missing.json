@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-port-name-missing",
-              "Masked": "UHNKQ0I4JUw2XTMxQHIoa3ZxMUxlQV4rKEQ="
+              "Masked": "I19LejVZMCQ+WSR4TFE0Pk8kdDFwJT8sQEU="
             },
             {
               "Unmasked": "api",
-              "Masked": "SmN2"
+              "Masked": "VkZW"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-probe-port-name-missing/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-c688bf54b\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-port-name-missing",
+              "Masked": "UndwUjFIMVFPTSRBLzh1K10qKmlhemxHPDs="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "fTh6"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-port-name-missing/api-c688bf54b-2wgkg",
+      "name": "kd-probe-port-name-missing/api-c688bf54b-crhjd",
       "error": [
         {
           "Text": "Readiness probe errored and resulted in unknown state: port \"health\" not found",

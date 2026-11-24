@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pod-affinity-no-match"
   ],
-  "collectedAt": "2026-11-23 11:46 UTC",
+  "collectedAt": "2026-11-24 11:21 UTC",
   "findings": [
     {
       "rule": "KD246",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-pod-affinity-no-match",
-            "name": "web-9ff68f68b-cqm9r"
+            "name": "web-9ff68f68b-cgqmz"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't match pod affinity rules. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod web-9ff68f68b-cqm9r -n kd-pod-affinity-no-match -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-9ff68f68b-cgqmz -n kd-pod-affinity-no-match -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-pod-affinity-no-match",
-            "name": "web-9ff68f68b-cqm9r"
+            "name": "web-9ff68f68b-cgqmz"
           },
           "what": "required podAffinity: pods labelled app=cache, topologyKey kubernetes.io/hostname",
-          "command": "kubectl get pod web-9ff68f68b-cqm9r -n kd-pod-affinity-no-match -o jsonpath='{.spec.affinity.podAffinity}'"
+          "command": "kubectl get pod web-9ff68f68b-cgqmz -n kd-pod-affinity-no-match -o jsonpath='{.spec.affinity.podAffinity}'"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pod-affinity-no-match",
-          "name": "web-9ff68f68b-cqm9r"
+          "name": "web-9ff68f68b-cgqmz"
         }
       ]
     }

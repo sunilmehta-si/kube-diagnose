@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-link-env-collision"
   ],
-  "collectedAt": "2026-11-23 11:48 UTC",
+  "collectedAt": "2026-11-24 11:24 UTC",
   "findings": [
     {
       "rule": "KD223",
@@ -15,26 +15,26 @@
         "namespace": "kd-service-link-env-collision",
         "name": "worker"
       },
-      "cause": "container worker exits after reading CACHE_PORT as a setting of its own, and Kubernetes set it: for every Service of the namespace the kubelet gives each container variables named after the Service (service links), and for Service cache that includes CACHE_PORT=tcp://10.96.246.147:6379, an address where the app expects a port number; its log says: \"cannot reach the cache on port tcp://10.96.246.147:6379\"; Deployment worker has 0 of 1 replicas ready",
+      "cause": "container worker exits after reading CACHE_PORT as a setting of its own, and Kubernetes set it: for every Service of the namespace the kubelet gives each container variables named after the Service (service links), and for Service cache that includes CACHE_PORT=tcp://10.96.6.21:6379, an address where the app expects a port number; its log says: \"cannot reach the cache on port tcp://10.96.6.21:6379\"; Deployment worker has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-link-env-collision",
-            "name": "worker-65cbbfb8c5-qjmn8"
+            "name": "worker-65cbbfb8c5-rgrh4"
           },
-          "what": "container worker exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod worker-65cbbfb8c5-qjmn8 -n kd-service-link-env-collision -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+          "what": "container worker exited with code 1 (Error), restarted 7 times",
+          "command": "kubectl get pod worker-65cbbfb8c5-rgrh4 -n kd-service-link-env-collision -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-link-env-collision",
-            "name": "worker-65cbbfb8c5-qjmn8"
+            "name": "worker-65cbbfb8c5-rgrh4"
           },
           "what": "last lines of container worker's log (run that exited)",
-          "detail": "connecting to cache:tcp://10.96.246.147:6379\nwget: bad address 'cache:tcp:'\ncannot reach the cache on port tcp://10.96.246.147:6379",
-          "command": "kubectl logs worker-65cbbfb8c5-qjmn8 -n kd-service-link-env-collision -c worker --tail=20 --previous"
+          "detail": "connecting to cache:tcp://10.96.6.21:6379\nwget: bad address 'cache:tcp:'\ncannot reach the cache on port tcp://10.96.6.21:6379",
+          "command": "kubectl logs worker-65cbbfb8c5-rgrh4 -n kd-service-link-env-collision -c worker --tail=20 --previous"
         },
         {
           "object": {
@@ -42,17 +42,17 @@
             "namespace": "kd-service-link-env-collision",
             "name": "cache"
           },
-          "what": "Service cache has cluster IP 10.96.246.147 and port 6379, so the kubelet sets CACHE_PORT=tcp://10.96.246.147:6379 in the namespace's containers",
+          "what": "Service cache has cluster IP 10.96.6.21 and port 6379, so the kubelet sets CACHE_PORT=tcp://10.96.6.21:6379 in the namespace's containers",
           "command": "kubectl get service cache -n kd-service-link-env-collision -o jsonpath='{.spec.clusterIP}{\" \"}{.spec.ports[0].port}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-link-env-collision",
-            "name": "worker-65cbbfb8c5-qjmn8"
+            "name": "worker-65cbbfb8c5-rgrh4"
           },
           "what": "the pod does not set enableServiceLinks: false, and container worker defines no CACHE_PORT of its own",
-          "command": "kubectl get pod worker-65cbbfb8c5-qjmn8 -n kd-service-link-env-collision -o jsonpath='{.spec.enableServiceLinks}{\" \"}{.spec.containers[?(@.name==\"worker\")].env[*].name}'"
+          "command": "kubectl get pod worker-65cbbfb8c5-rgrh4 -n kd-service-link-env-collision -o jsonpath='{.spec.enableServiceLinks}{\" \"}{.spec.containers[?(@.name==\"worker\")].env[*].name}'"
         }
       ],
       "fix": "Set enableServiceLinks: false in the pod spec, so the kubelet adds no such variables (the Service's DNS name still works), or define CACHE_PORT in the container's env, which wins over the service link, or rename the app's variable or the Service.",
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-service-link-env-collision",
-          "name": "worker-65cbbfb8c5-qjmn8"
+          "name": "worker-65cbbfb8c5-rgrh4"
         }
       ]
     }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-cronjob-suspended"
   ],
-  "collectedAt": "2026-11-23 11:44 UTC",
+  "collectedAt": "2026-11-24 11:15 UTC",
   "findings": [
     {
       "rule": "KD189",

@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pv-access-mode-mismatch",
-              "Masked": "LCQ+UjJIRmpPYygjUjEqakA/cE47MUtrbU0="
+              "Masked": "QV1aanJMOSpAMFNSWnlVYmVyUltwOTVKZVA="
             },
             {
               "Unmasked": "db",
-              "Masked": "aEc="
+              "Masked": "Q1c="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pv-access-mode-mismatch/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-access-mode-mismatch",
+              "Masked": "WEEvOFlLSlMtQmcxKTVzN2c8IXEuWktiMDE="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "KU8="
             }
           ]
         }
@@ -41,7 +55,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pv-access-mode-mismatch/db-56f8666648-5sbc5",
+      "name": "kd-pv-access-mode-mismatch/db-56f8666648-4bkd4",
       "error": [
         {
           "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",

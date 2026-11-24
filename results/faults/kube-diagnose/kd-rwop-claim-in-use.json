@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rwop-claim-in-use"
   ],
-  "collectedAt": "2026-11-23 11:48 UTC",
+  "collectedAt": "2026-11-24 11:24 UTC",
   "findings": [
     {
       "rule": "KD147",
@@ -15,17 +15,17 @@
         "namespace": "kd-rwop-claim-in-use",
         "name": "db"
       },
-      "cause": "the pod mounts PersistentVolumeClaim data, whose access mode ReadWriteOncePod lets only one pod in the cluster use it, and pod db-56f8666648-4n2wj already does, so the scheduler keeps this one Pending; Deployment db has 1 of 2 replicas ready",
+      "cause": "the pod mounts PersistentVolumeClaim data, whose access mode ReadWriteOncePod lets only one pod in the cluster use it, and pod db-56f8666648-twh9w already does, so the scheduler keeps this one Pending; Deployment db has 1 of 2 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rwop-claim-in-use",
-            "name": "db-56f8666648-wn9rl"
+            "name": "db-56f8666648-vnn8k"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) unavailable due to PersistentVolumeClaim with ReadWriteOncePod access mode already in-use by another pod. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
-          "command": "kubectl get pod db-56f8666648-wn9rl -n kd-rwop-claim-in-use -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod db-56f8666648-vnn8k -n kd-rwop-claim-in-use -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
@@ -40,10 +40,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rwop-claim-in-use",
-            "name": "db-56f8666648-4n2wj"
+            "name": "db-56f8666648-twh9w"
           },
-          "what": "pod db-56f8666648-4n2wj mounts data on node kd-faults-control-plane",
-          "command": "kubectl get pod db-56f8666648-4n2wj -n kd-rwop-claim-in-use -o jsonpath='{.spec.nodeName}'"
+          "what": "pod db-56f8666648-twh9w mounts data on node kd-faults-control-plane",
+          "command": "kubectl get pod db-56f8666648-twh9w -n kd-rwop-claim-in-use -o jsonpath='{.spec.nodeName}'"
         }
       ],
       "fix": "Run one replica of Deployment db (a claim per replica needs a StatefulSet's volumeClaimTemplates), or use ReadWriteOnce if pods on one node may share the volume; with a rolling update, use strategy Recreate so the old pod lets go of the claim first.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rwop-claim-in-use",
-          "name": "db-56f8666648-wn9rl"
+          "name": "db-56f8666648-vnn8k"
         }
       ]
     }

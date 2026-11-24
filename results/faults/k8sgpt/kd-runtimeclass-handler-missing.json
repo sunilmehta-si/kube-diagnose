@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-runtimeclass-handler-missing",
-              "Masked": "ZDNyeHAqVTdEMWhvaF5xUjBYKHRJL0d1P1VmRUhacw=="
+              "Masked": "MkM+NkFXe3MpY31SR19ASS9ZYWEwQjQqM3M5bkpvag=="
             },
             {
               "Unmasked": "infer",
-              "Masked": "UlkuQ2g="
+              "Masked": "LzEwJGY="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-runtimeclass-handler-missing/infer has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"infer-59c655c685\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-runtimeclass-handler-missing",
+              "Masked": "aFc1eXlNeDJBSmJLe3tWTkQxV2dMfHQhOXQzSnI8KA=="
+            },
+            {
+              "Unmasked": "infer",
+              "Masked": "a29IQUM="
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-runtimeclass-handler-missing/infer-59c655c685-2vbzx",
+      "name": "kd-runtimeclass-handler-missing/infer-59c655c685-czzfj",
       "error": [
         {
-          "Text": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"7abd9c490f6f43e35ac530e2302927fb5a9663601171d96a91e2a5b4e3a749ff\": no runtime for \"nvidia\" is configured",
+          "Text": "(combined from similar events): Failed to create pod sandbox: rpc error: code = Unknown desc = unable to get OCI runtime for sandbox \"1963d78552f7d14c0fb26307a1ca8be7720a901b33466100a4bed60602bb50f2\": no runtime for \"nvidia\" is configured",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-other-namespace"
   ],
-  "collectedAt": "2026-11-23 11:47 UTC",
+  "collectedAt": "2026-11-24 11:23 UTC",
   "findings": [
     {
       "rule": "KD304",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-other-namespace",
-            "name": "config-watcher-697bc4cb57-7fdtk"
+            "name": "config-watcher-697bc4cb57-rf97c"
           },
-          "what": "container watcher exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod config-watcher-697bc4cb57-7fdtk -n kd-rbac-other-namespace -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+          "what": "container watcher exited with code 1 (Error), restarted 7 times",
+          "command": "kubectl get pod config-watcher-697bc4cb57-rf97c -n kd-rbac-other-namespace -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-other-namespace",
-            "name": "config-watcher-697bc4cb57-7fdtk"
+            "name": "config-watcher-697bc4cb57-rf97c"
           },
           "what": "last lines of container watcher's log (current run)",
           "detail": "Error from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-other-namespace:app\" cannot list resource \"configmaps\" in API group \"\" in the namespace \"default\"",
-          "command": "kubectl logs config-watcher-697bc4cb57-7fdtk -n kd-rbac-other-namespace -c watcher --tail=20"
+          "command": "kubectl logs config-watcher-697bc4cb57-rf97c -n kd-rbac-other-namespace -c watcher --tail=20"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-other-namespace",
-          "name": "config-watcher-697bc4cb57-7fdtk"
+          "name": "config-watcher-697bc4cb57-rf97c"
         }
       ]
     }

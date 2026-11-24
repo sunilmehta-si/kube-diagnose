@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-hostnetwork-port-taken/node-agent",
+      "error": [
+        {
+          "Text": "Deployment kd-hostnetwork-port-taken/node-agent has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-hostnetwork-port-taken",
+              "Masked": "WERiMGpLLVoyeFZSLHtial5WWEEyfSJjYw=="
+            },
+            {
+              "Unmasked": "node-agent",
+              "Masked": "Sm1HeWp4UmYucQ=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-hostnetwork-port-taken/node-agent-68f6b4788b-cl6bv",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=agent pod=node-agent-68f6b4788b-cl6bv",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/node-agent"
+    }
+  ]
+}

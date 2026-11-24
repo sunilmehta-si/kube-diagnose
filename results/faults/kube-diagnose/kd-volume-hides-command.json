@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-volume-hides-command"
   ],
-  "collectedAt": "2026-11-23 11:48 UTC",
+  "collectedAt": "2026-11-24 11:25 UTC",
   "findings": [
     {
       "rule": "KD214",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-hides-command",
-            "name": "api-544f5fbdf4-bzcx4"
+            "name": "api-544f5fbdf4-km6sv"
           },
           "what": "container api did not start",
           "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/bin/sleep\": stat /bin/sleep: no such file or directory",
-          "command": "kubectl get pod api-544f5fbdf4-bzcx4 -n kd-volume-hides-command -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
+          "command": "kubectl get pod api-544f5fbdf4-km6sv -n kd-volume-hides-command -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-hides-command",
-            "name": "api-544f5fbdf4-bzcx4"
+            "name": "api-544f5fbdf4-km6sv"
           },
           "what": "container api mounts volume scratch at /bin, and its command is /bin/sleep",
-          "command": "kubectl get pod api-544f5fbdf4-bzcx4 -n kd-volume-hides-command -o jsonpath='{.spec.containers[?(@.name==\"api\")].volumeMounts}'"
+          "command": "kubectl get pod api-544f5fbdf4-km6sv -n kd-volume-hides-command -o jsonpath='{.spec.containers[?(@.name==\"api\")].volumeMounts}'"
         }
       ],
       "fix": "Mount volume scratch somewhere the image keeps no files (a subdirectory such as /bin/data), or use subPath to mount only the directory the app writes to.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-volume-hides-command",
-          "name": "api-544f5fbdf4-bzcx4"
+          "name": "api-544f5fbdf4-km6sv"
         }
       ]
     }
