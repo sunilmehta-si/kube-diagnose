@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-spread-min-domains",
+  "description": "The Deployment spreads two replicas over kubernetes.io/hostname with minDomains 3, and kind has one node, so the scheduler lets that node hold one replica and the second stays Pending.",
+  "rule": "KD144",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "minDomains"
+    ],
+    [
+      "kubernetes.io/hostname"
+    ],
+    [
+      "domain"
+    ]
+  ]
+}
