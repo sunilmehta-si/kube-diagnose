@@ -20,6 +20,11 @@ const (
 // leaves the route, or the Gateway, serving nothing, whatever controller runs it.
 func gatewayFindings(ix *index) []Finding {
 	var out []Finding
+	for _, gw := range ix.s.Gateways {
+		if f := gatewayClassMissing(ix, gw); f != nil {
+			out = append(out, *f)
+		}
+	}
 	for _, rt := range ix.s.Routes {
 		out = append(out, routeParentFindings(ix, rt)...)
 		out = append(out, routeBackendFindings(ix, rt)...)
@@ -202,4 +207,32 @@ func parentMissing(ix *index, rt kube.Route, p kube.ParentRef, ns string) Findin
 		Evidence: []Evidence{routeEvidence(rt, rt.Kind+" parentRefs", "{.spec.parentRefs}"),
 			{Object: kube.Ref{Kind: "Gateway", Namespace: ns, Name: p.Name}, What: have, Command: fmt.Sprintf("kubectl get gateways -n %s", ns)}},
 		Fix: fmt.Sprintf("Correct the parentRef's name in %s %s (and its namespace, for a Gateway in another namespace), or create the Gateway.", rt.Kind, rt.Metadata.Name)}
+}
+
+// gatewayClassMissing is a Gateway whose gatewayClassName names a class the cluster does not have: no controller
+// takes it, so it gets no address and serves none of its routes.
+func gatewayClassMissing(ix *index, gw kube.Gateway) *Finding {
+	if !ix.read(gatewayClassesResource) {
+		return nil
+	}
+	var names []string
+	for _, c := range ix.s.GatewayClasses {
+		if c.Metadata.Name == gw.Spec.GatewayClassName {
+			return nil
+		}
+		names = append(names, c.Metadata.Name)
+	}
+	sort.Strings(names)
+	have := "the cluster has no GatewayClass, so no Gateway controller is installed"
+	if len(names) > 0 {
+		have = "the cluster's GatewayClasses are " + strings.Join(names, ", ")
+	}
+	ns := gw.Metadata.Namespace
+	return &Finding{Rule: "KD365", Title: "Gateway names a GatewayClass that does not exist", Severity: Critical, Object: gw.Ref(),
+		Cause: fmt.Sprintf("Gateway %s names GatewayClass %s, which does not exist, so no controller takes the Gateway: it gets no address, and the routes attached to it are served by nothing; %s",
+			gw.Metadata.Name, gw.Spec.GatewayClassName, have),
+		Evidence: []Evidence{{Object: gw.Ref(), What: fmt.Sprintf("Gateway %s has gatewayClassName %s", gw.Metadata.Name, gw.Spec.GatewayClassName),
+			Command: cmdGet("gateway", ns, gw.Metadata.Name, "{.spec.gatewayClassName}")},
+			{Object: kube.Ref{Kind: "GatewayClass", Name: gw.Spec.GatewayClassName}, What: have, Command: "kubectl get gatewayclasses"}},
+		Fix: "Set gatewayClassName to a class the cluster has (kubectl get gatewayclasses); a Gateway's class cannot be changed, so delete the Gateway and create it again with the right one."}
 }

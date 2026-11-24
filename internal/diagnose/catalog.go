@@ -201,6 +201,7 @@ var Rules = []Rule{
 	{"KD362", "Route sends traffic to a Service that does not exist", Critical, "An HTTPRoute or GRPCRoute rule's backendRef names a Service that does not exist, so the Gateway answers the requests that rule matches with an error.", "The route's backendRefs, and the Service that is not there."},
 	{"KD363", "Route sends traffic to a port the Service does not expose", Critical, "An HTTPRoute or GRPCRoute rule's backendRef names a port its Service does not expose, often the container's port in place of the Service's.", "The route's backendRefs, and the Service's ports."},
 	{"KD364", "Route is attached to a Gateway that does not exist", Critical, "An HTTPRoute or GRPCRoute's parentRef names a Gateway that does not exist in the namespace it gives, so no Gateway serves the route.", "The route's parentRefs, and the namespace's Gateways."},
+	{"KD365", "Gateway names a GatewayClass that does not exist", Critical, "A Gateway's gatewayClassName names a class the cluster does not have, so no controller takes it and its routes are served by nothing.", "The Gateway's class, and the cluster's GatewayClasses."},
 }
 
 // RuleByID finds a rule.

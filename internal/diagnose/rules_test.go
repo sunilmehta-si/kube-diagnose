@@ -5200,3 +5200,16 @@ func TestRouteIsAttachedToAGatewayThatDoesNotExist(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestGatewayNamesAGatewayClassThatDoesNotExist(t *testing.T) {
+	s := gatewaySnapshot()
+	s.Gateways[0].Spec.GatewayClassName = "nginx"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD365", "Gateway shop/public", "Gateway public names GatewayClass nginx, which does not exist", "the cluster's GatewayClasses are envoy")
+	s.GatewayClasses = nil
+	expect(t, only(t, Diagnose(s)), "KD365", "Gateway shop/public", "the cluster has no GatewayClass")
+	s.Gaps = []snapshot.Gap{{Resource: "gatewayclasses.gateway.networking.k8s.io"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
