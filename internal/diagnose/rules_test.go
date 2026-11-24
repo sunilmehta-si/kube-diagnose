@@ -5457,3 +5457,21 @@ func TestSpreadConstraintWithMoreMinDomainsThanTheNodesForm(t *testing.T) {
 	}
 	expect(t, only(t, Diagnose(s)), "KD144", "Deployment shop/web", "its constraint over kubernetes.io/hostname (maxSkew 1) spreads the pods it counts over 1 domain (node-1), where 1 such pod already run")
 }
+
+func TestPortInUseOnTheHostNetwork(t *testing.T) {
+	s := snap()
+	deployment(s, "node-agent", 1, 0)
+	p := pod("node-agent-rs-a", "node-agent")
+	p.Spec.HostNetwork = true
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{ContainerPort: 10250}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"httpd: bind: Address in use"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD122", "Deployment shop/node-agent", "the pod runs in the node's network (hostNetwork: true), so it shares ports with every process of the node, and 10250 is the kubelet's")
+	if !strings.Contains(f.Fix, "drop hostNetwork") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Logs[0].Lines = []string{"listen tcp 0.0.0.0:9100: bind: address already in use"}
+	expect(t, only(t, Diagnose(s)), "KD122", "Deployment shop/node-agent", "something on the node has 9100")
+}

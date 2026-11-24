@@ -1383,8 +1383,33 @@ func portInUse(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidenc
 			}
 		}
 	}
+	if p.Spec.HostNetwork {
+		port := 0
+		if m := rePortInLine.FindAllStringSubmatch(line, -1); len(m) > 0 {
+			port, _ = strconv.Atoi(m[len(m)-1][1])
+		} else if len(c.Ports) == 1 {
+			port = int(c.Ports[0].ContainerPort)
+		}
+		whose := ""
+		if owner := nodePorts[port]; owner != "" {
+			whose = fmt.Sprintf(", and %d is the %s's", port, owner)
+		} else if port > 0 {
+			whose = fmt.Sprintf(", and something on the node has %d", port)
+		}
+		cause = fmt.Sprintf("container %s exits because the port it listens on is already in use: the pod runs in the node's network (hostNetwork: true), so it shares ports with every process of the node%s; its log says: %q",
+			cs.Name, whose, clip(line, 160))
+		fix = "Listen on a port nothing on the node uses, or drop hostNetwork and reach the pod through a Service (or a hostPort, which the scheduler checks against the other pods' host ports)."
+		key = fmt.Sprintf("addrinuse|host|%d", port)
+		ev = append(ev, Evidence{Object: p.Ref(), What: "the pod has hostNetwork: true", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.hostNetwork}")})
+	}
 	return newProblem(p, cs.Name, "KD122", "Port is already in use", Critical, cause, key, fix, ev...)
 }
+
+// rePortInLine is a port number at the end of an address in a log line: 0.0.0.0:10250, [::]:8080.
+var rePortInLine = regexp.MustCompile(`:(\d{2,5})\b`)
+
+// nodePorts are the ports Kubernetes' own components hold on a node, which a pod on the host network cannot take.
+var nodePorts = map[int]string{10250: "kubelet", 10256: "kube-proxy health check", 6443: "API server", 2379: "etcd client", 2380: "etcd peer", 10257: "controller manager", 10259: "scheduler"}
 
 // hookFailed finds a container that the kubelet killed because its postStart hook failed. Such a container exits
 // with 137 and crash-loops like any other, and the hook's failure is only in the pod's events.
