@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 
 // Redact returns a copy of the snapshot that can be shared: every namespace, object, node and container name is
 // replaced by a pseudonym wherever it appears (fields, event messages, conditions), image repositories are
-// replaced (tags are kept), IP addresses are replaced, the context name is dropped, and container logs are removed.
+// replaced (tags are kept; Docker Hub's official base images, busybox or ubuntu, are kept whole), IP addresses are replaced, the context name is dropped, and container logs are removed.
 // Pseudonyms are keyed by a random secret that is not kept, so they cannot be reversed, and a name maps to the same
 // pseudonym throughout one snapshot, so the diagnosis of the redacted snapshot is the diagnosis of the original.
 func Redact(s *Snapshot) (*Snapshot, error) {
@@ -61,6 +62,9 @@ type redactor struct {
 	key    []byte
 	names  map[string]string // name -> pseudonym
 	images map[string]string // image repository -> pseudonym
+	// kept are the official base images, left as they are, tag and digest too: a name inside one (a volume called
+	// docker, in docker.io/library/busybox; a pod index label 1, in tag 1.37.0) must not be replaced there.
+	kept   []string
 	ips    map[string]string
 	nameRe *regexp.Regexp
 	// svcRe finds a name in a cluster DNS name, service.namespace.svc, where a dot comes before it.
@@ -126,7 +130,12 @@ var reGeneratedSuffix = regexp.MustCompile(`^[a-z0-9]{1,5}$`)
 
 func (r *redactor) addImage(image string) {
 	repo := imageRepository(image)
-	if repo != "" {
+	// An official base image names nothing of the cluster's, and a diagnosis reads it (KD315).
+	if repo != "" && kube.OfficialBaseImage(repo) != "" && !slices.Contains(r.kept, image) {
+		r.kept = append(r.kept, image)
+		sort.Slice(r.kept, func(i, j int) bool { return len(r.kept[i]) > len(r.kept[j]) })
+	}
+	if repo != "" && kube.OfficialBaseImage(repo) == "" {
 		if _, ok := r.images[repo]; !ok {
 			r.images[repo] = "registry.invalid/" + r.pseudonym("image", repo)
 		}
@@ -484,6 +493,10 @@ func (r *redactor) text(s string) string {
 	if r.nameRe == nil {
 		return s
 	}
+	// Kept image repositories are set aside while names are replaced, then put back.
+	for i, image := range r.kept {
+		s = strings.ReplaceAll(s, image, keptToken(i))
+	}
 	// A match consumes its delimiters, so run until nothing changes to catch adjacent names.
 	for i := 0; i < 4; i++ {
 		next := r.nameRe.ReplaceAllStringFunc(s, func(m string) string {
@@ -495,11 +508,19 @@ func (r *redactor) text(s string) string {
 		}
 		s = next
 	}
-	return r.svcRe.ReplaceAllStringFunc(s, func(m string) string {
+	s = r.svcRe.ReplaceAllStringFunc(s, func(m string) string {
 		sub := r.svcRe.FindStringSubmatch(m)
 		return sub[1] + r.names[sub[2]] + sub[3]
 	})
+	for i, image := range r.kept {
+		s = strings.ReplaceAll(s, keptToken(i), image)
+	}
+	return s
 }
+
+// keptToken stands in for a kept image while names are replaced: control characters only, which no name or label
+// value holds.
+func keptToken(i int) string { return "\x00" + strings.Repeat("\x01", i+1) + "\x00" }
 
 func (r *redactor) walk(v any) any {
 	switch x := v.(type) {

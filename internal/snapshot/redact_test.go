@@ -30,7 +30,11 @@ func TestRedactRemovesIdentifiersAndKeepsShape(t *testing.T) {
 		for _, p := range s.Pods {
 			secrets = append(secrets, p.Metadata.Name, p.Spec.NodeName)
 			for _, c := range p.Spec.Containers {
-				secrets = append(secrets, imageRepository(c.Image))
+				if repo := imageRepository(c.Image); kube.OfficialBaseImage(repo) == "" {
+					secrets = append(secrets, repo)
+				} else if !strings.Contains(text, repo) {
+					t.Errorf("%s: an official base image is public, and is kept: %s", filepath.Base(path), repo)
+				}
 			}
 		}
 		for _, sec := range secrets {

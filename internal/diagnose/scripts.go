@@ -63,10 +63,6 @@ func windowsLineEndings(p kube.Pod, cs kube.ContainerStatus, lines []string, ev 
 		"crlf|"+script, fix+".", ev...)
 }
 
-// baseImages are images whose default command is a shell: busybox's and alpine's sh, the distributions' bash.
-var baseImages = map[string]bool{"busybox": true, "alpine": true, "ubuntu": true, "debian": true, "centos": true, "fedora": true,
-	"rockylinux": true, "almalinux": true, "amazonlinux": true, "archlinux": true, "oraclelinux": true, "photon": true}
-
 var shells = map[string]bool{"sh": true, "bash": true, "ash": true, "zsh": true, "/bin/sh": true, "/bin/bash": true, "/bin/ash": true, "/usr/bin/bash": true}
 
 // shellExits finds a container that keeps exiting with code 0 because what it runs is an interactive shell with
@@ -84,10 +80,10 @@ func shellExits(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem {
 	if i := strings.LastIndex(repo, ":"); i > strings.LastIndex(repo, "/") {
 		repo = repo[:i]
 	}
-	base := repo[strings.LastIndex(repo, "/")+1:]
+	base := kube.OfficialBaseImage(repo)
 	var what string
 	switch {
-	case len(c.Command) == 0 && len(c.Args) == 0 && baseImages[base]:
+	case len(c.Command) == 0 && len(c.Args) == 0 && base != "":
 		what = fmt.Sprintf("it sets no command, and image %s's default command is a shell", base)
 	case len(c.Command) == 1 && shells[c.Command[0]] && len(c.Args) == 0, len(c.Command) == 0 && len(c.Args) == 1 && shells[c.Args[0]]:
 		what = "its command is a shell with no script to run"
