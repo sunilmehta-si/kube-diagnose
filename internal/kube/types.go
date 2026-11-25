@@ -385,6 +385,16 @@ type PodSpec struct {
 	Subdomain string `json:"subdomain,omitempty"`
 	// ActiveDeadlineSeconds is how long the kubelet lets the pod run, from its start, before it stops it.
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+	// ResourceClaims are the devices the pod asks for through dynamic resource allocation: each names a
+	// ResourceClaim, or a ResourceClaimTemplate from which a claim is made for the pod.
+	ResourceClaims []PodResourceClaim `json:"resourceClaims,omitempty"`
+}
+
+// PodResourceClaim is one entry of a pod's resourceClaims: exactly one of the two names is set.
+type PodResourceClaim struct {
+	Name                      string `json:"name"`
+	ResourceClaimName         string `json:"resourceClaimName,omitempty"`
+	ResourceClaimTemplateName string `json:"resourceClaimTemplateName,omitempty"`
 }
 
 type PodReadinessGate struct {
@@ -439,6 +449,11 @@ type PodStatus struct {
 	StartTime             *time.Time        `json:"startTime,omitempty"`
 	// PodIP is the pod's address, which a probe without host connects to.
 	PodIP string `json:"podIP,omitempty"`
+	// ResourceClaimStatuses name the claims made for the pod from its ResourceClaimTemplates.
+	ResourceClaimStatuses []struct {
+		Name              string `json:"name"`
+		ResourceClaimName string `json:"resourceClaimName,omitempty"`
+	} `json:"resourceClaimStatuses,omitempty"`
 }
 
 type Pod struct {
@@ -1224,5 +1239,124 @@ type ReferenceGrant struct {
 			Kind  string `json:"kind"`
 			Name  string `json:"name,omitempty"`
 		} `json:"to"`
+	} `json:"spec"`
+}
+
+// Dynamic resource allocation (resource.k8s.io): a pod asks for devices, a GPU for one, through a ResourceClaim;
+// each request names a DeviceClass, and the scheduler picks devices for it from those a driver publishes in
+// ResourceSlices. The fields read are those of resource.k8s.io/v1; v1beta1 put a request's class, count and
+// selectors on the request itself, and those are read too.
+
+// DeviceSelector is a CEL expression a device must satisfy.
+type DeviceSelector struct {
+	CEL *struct {
+		Expression string `json:"expression"`
+	} `json:"cel,omitempty"`
+}
+
+// ExactDeviceRequest asks for devices of one class: count of them (ExactCount, the default), or All.
+type ExactDeviceRequest struct {
+	DeviceClassName string           `json:"deviceClassName,omitempty"`
+	AllocationMode  string           `json:"allocationMode,omitempty"`
+	Count           int64            `json:"count,omitempty"`
+	Selectors       []DeviceSelector `json:"selectors,omitempty"`
+}
+
+// DeviceRequest is one request of a claim: exactly one kind of device, or the first of a list that can be had.
+type DeviceRequest struct {
+	Name           string              `json:"name"`
+	Exactly        *ExactDeviceRequest `json:"exactly,omitempty"`
+	FirstAvailable []struct {
+		Name string `json:"name"`
+		ExactDeviceRequest
+	} `json:"firstAvailable,omitempty"`
+	// v1beta1 kept these on the request.
+	ExactDeviceRequest
+}
+
+// Alternatives returns what the request asks for: one choice, or each of its firstAvailable choices in order.
+func (r DeviceRequest) Alternatives() []ExactDeviceRequest {
+	if r.Exactly != nil {
+		return []ExactDeviceRequest{*r.Exactly}
+	}
+	if len(r.FirstAvailable) > 0 {
+		out := make([]ExactDeviceRequest, len(r.FirstAvailable))
+		for i, a := range r.FirstAvailable {
+			out[i] = a.ExactDeviceRequest
+		}
+		return out
+	}
+	return []ExactDeviceRequest{r.ExactDeviceRequest}
+}
+
+type ResourceClaimSpec struct {
+	Devices struct {
+		Requests []DeviceRequest `json:"requests,omitempty"`
+	} `json:"devices"`
+}
+
+// ResourceClaim is a request for devices, made by hand or from a pod's ResourceClaimTemplate.
+type ResourceClaim struct {
+	Metadata ObjectMeta        `json:"metadata"`
+	Spec     ResourceClaimSpec `json:"spec"`
+	Status   struct {
+		// Allocation is set once the scheduler has picked the devices: one result per device.
+		Allocation *struct {
+			Devices struct {
+				Results []struct {
+					Request string `json:"request"`
+					Driver  string `json:"driver"`
+					Pool    string `json:"pool"`
+					Device  string `json:"device"`
+				} `json:"results,omitempty"`
+			} `json:"devices"`
+		} `json:"allocation,omitempty"`
+		ReservedFor []struct {
+			Resource string `json:"resource"`
+			Name     string `json:"name"`
+		} `json:"reservedFor,omitempty"`
+	} `json:"status"`
+}
+
+func (c ResourceClaim) Ref() Ref {
+	return Ref{Kind: "ResourceClaim", Namespace: c.Metadata.Namespace, Name: c.Metadata.Name}
+}
+
+// ResourceClaimTemplate is the claim made for each pod that names it.
+type ResourceClaimTemplate struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Spec ResourceClaimSpec `json:"spec"`
+	} `json:"spec"`
+}
+
+func (t ResourceClaimTemplate) Ref() Ref {
+	return Ref{Kind: "ResourceClaimTemplate", Namespace: t.Metadata.Namespace, Name: t.Metadata.Name}
+}
+
+// DeviceClass is a kind of device a request can name; its selectors pick the devices of that kind, usually by
+// driver.
+type DeviceClass struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Selectors []DeviceSelector `json:"selectors,omitempty"`
+	} `json:"spec"`
+}
+
+// ResourceSlice is a driver's list of the devices in one pool, on one node or on the nodes its selector picks. Of
+// each device only the name is kept.
+type ResourceSlice struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Driver       string          `json:"driver"`
+		NodeName     string          `json:"nodeName,omitempty"`
+		NodeSelector json.RawMessage `json:"nodeSelector,omitempty"`
+		AllNodes     bool            `json:"allNodes,omitempty"`
+		Pool         struct {
+			Name string `json:"name"`
+		} `json:"pool"`
+		Devices []struct {
+			Name string `json:"name"`
+		} `json:"devices,omitempty"`
 	} `json:"spec"`
 }
