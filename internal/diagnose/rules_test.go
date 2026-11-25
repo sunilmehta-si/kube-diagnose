@@ -5644,3 +5644,25 @@ func TestAppArmorProfileIsNotLoadedOnTheNode(t *testing.T) {
 	s.Pods = []kube.Pod{q}
 	expect(t, only(t, Diagnose(s)), "KD314", "Deployment shop/web", "asks for AppArmor profile Localhost k8s-web", "AppArmor is not enabled on the host")
 }
+
+func TestClaimIsBeingDeletedWhilePodsStillUseIt(t *testing.T) {
+	s := snap()
+	deployment(s, "db", 1, 1)
+	old := pod("db-rs-old", "db")
+	old.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	fresh := old
+	fresh.Metadata.Name, fresh.Spec.NodeName = "db-rs-new", ""
+	fresh.Status = kube.PodStatus{Phase: "Pending", Conditions: []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: `0/1 nodes are available: persistentvolumeclaim "data" is being deleted. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.`}}}
+	s.Pods = []kube.Pod{old, fresh}
+	var pvc kube.PersistentVolumeClaim
+	gone := t0.Add(-10 * time.Minute)
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", DeletionTimestamp: &gone, Finalizers: []string{"kubernetes.io/pvc-protection"}}
+	pvc.Status.Phase = "Bound"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD254", "Deployment shop/db", "PersistentVolumeClaim data, which was deleted 10m0s ago", "while pod db-rs-old still uses it", "when it stops, the claim goes")
+	if !strings.Contains(f.Fix, "persistentVolumeReclaimPolicy: Retain") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}

@@ -51,6 +51,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 	if pr := draProblem(ix, p); pr != nil {
 		return pr
 	}
+	if pr := claimBeingDeleted(ix, p); pr != nil {
+		return pr
+	}
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
 		if c.Reason == "SchedulingGated" {
 			return gated(ix, p)
