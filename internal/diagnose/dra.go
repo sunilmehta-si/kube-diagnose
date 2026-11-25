@@ -2,6 +2,8 @@ package diagnose
 
 import (
 	"fmt"
+	"regexp"
+	"slices"
 	"strings"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
@@ -93,6 +95,11 @@ func draProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 		if pr := deviceClassMissing(ix, p, r); pr != nil {
+			return pr
+		}
+	}
+	for _, r := range refs {
+		if pr := deviceShortage(ix, p, r); pr != nil {
 			return pr
 		}
 	}
@@ -213,6 +220,103 @@ func deviceClassMissing(ix *index, p kube.Pod, r podClaimRef) *problem {
 			Command: "kubectl get deviceclasses"})
 		fix := fmt.Sprintf("Name a DeviceClass the cluster has in request %s of %s %s, or install the DRA driver that provides class %s (a driver's Helm chart usually creates its classes).", req.Name, src.Kind, src.Name, classes)
 		return newProblem(p, "", "KD322", "Claim asks for a DeviceClass that does not exist", Critical, cause, "noclass|"+classes, fix, ev...)
+	}
+	return nil
+}
+
+// reDriverSelector matches the usual way a DeviceClass picks its devices: by the driver that publishes them.
+var reDriverSelector = regexp.MustCompile(`device\.driver\s*==\s*["']([^"']+)["']`)
+
+// drivers returns the drivers whose devices a request can be given, as its class's selectors (and its own) name
+// them; none when they do not say.
+func (ix *index) drivers(a kube.ExactDeviceRequest) []string {
+	var out []string
+	sels := append([]kube.DeviceSelector(nil), a.Selectors...)
+	if c := ix.deviceClass(a.DeviceClassName); c != nil {
+		sels = append(sels, c.Spec.Selectors...)
+	}
+	for _, s := range sels {
+		if s.CEL == nil {
+			continue
+		}
+		for _, m := range reDriverSelector.FindAllStringSubmatch(s.CEL.Expression, -1) {
+			if !slices.Contains(out, m[1]) {
+				out = append(out, m[1])
+			}
+		}
+	}
+	return out
+}
+
+// offered counts the devices the drivers publish (any driver's when none is named): in all, and at most on one node.
+// A slice for every node, or for the nodes a selector picks, counts toward each node.
+func (ix *index) offered(drivers []string) (total, most int) {
+	perNode := map[string]int{}
+	everywhere := 0
+	for _, sl := range ix.s.ResourceSlices {
+		if len(drivers) > 0 && !slices.Contains(drivers, sl.Spec.Driver) {
+			continue
+		}
+		n := len(sl.Spec.Devices)
+		total += n
+		if sl.Spec.NodeName != "" {
+			perNode[sl.Spec.NodeName] += n
+		} else {
+			everywhere += n
+		}
+	}
+	most = everywhere
+	for _, n := range perNode {
+		most = max(most, n+everywhere)
+	}
+	return total, most
+}
+
+// waitsForDevices reports whether the scheduler has tried the pod and failed: it has a PodScheduled condition
+// that is False, or a FailedScheduling event.
+func waitsForDevices(ix *index, p kube.Pod) bool {
+	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" && c.Reason != "SchedulingGated" {
+		return true
+	}
+	return len(ix.eventsFor(p.Ref(), "FailedScheduling")) > 0
+}
+
+// deviceShortage finds a claim the scheduler cannot allocate because of the devices on offer: none of its class at
+// all, when no driver publishes them.
+func deviceShortage(ix *index, p kube.Pod, r podClaimRef) *problem {
+	spec := r.spec()
+	if spec == nil || r.allocated() || p.Spec.NodeName != "" || !waitsForDevices(ix, p) || !ix.draRead("resourceslices") || !ix.draRead("deviceclasses") {
+		return nil
+	}
+	for _, req := range spec.Devices.Requests {
+		alts := req.Alternatives()
+		if len(alts) != 1 || ix.deviceClass(alts[0].DeviceClassName) == nil {
+			continue
+		}
+		a := alts[0]
+		drivers := ix.drivers(a)
+		total, _ := ix.offered(drivers)
+		src := r.source()
+		ev := []Evidence{requestsEvidence(r),
+			{Object: kube.Ref{Kind: "DeviceClass", Name: a.DeviceClassName}, What: fmt.Sprintf("DeviceClass %s's selectors", a.DeviceClassName),
+				Command: cmdGet("deviceclass", "", a.DeviceClassName, `{.spec.selectors}`)}}
+		sliceCmd := "kubectl get resourceslices"
+		if len(drivers) == 1 {
+			sliceCmd += " --field-selector spec.driver=" + drivers[0]
+		}
+		if e, ok := schedulerEvent(ix, p, "claim"); ok {
+			ev = append(ev, eventEvidence(p.Ref(), e))
+		}
+		if total == 0 && (len(drivers) > 0 || len(ix.s.ResourceSlices) == 0) {
+			who := "no DRA driver publishes any device: the cluster has no ResourceSlices"
+			if len(drivers) > 0 && len(ix.s.ResourceSlices) > 0 {
+				who = fmt.Sprintf("no ResourceSlice offers a device from driver %s, which the class's selectors pick: the driver is not running, or it has found no device on any node", strings.Join(drivers, ", "))
+			}
+			cause := fmt.Sprintf("request %s of %s %s asks for devices of DeviceClass %s, and %s, so the scheduler cannot allocate the claim on any node", req.Name, src.Kind, src.Name, a.DeviceClassName, who)
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "ResourceSlice", Name: "*"}, What: "the devices drivers publish", Command: sliceCmd})
+			fix := "Install or start the DRA driver for this class (its kubelet plugin runs as a DaemonSet on the nodes with the devices), and check its pods' logs for why it publishes nothing."
+			return newProblem(p, "", "KD323", "No driver offers a device of the claimed class", Critical, cause, "nodevices|"+a.DeviceClassName, fix, ev...)
+		}
 	}
 	return nil
 }

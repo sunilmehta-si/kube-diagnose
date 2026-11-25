@@ -141,3 +141,23 @@ func TestClaimAsksForADeviceClassThatDoesNotExist(t *testing.T) {
 		}
 	}
 }
+
+func TestNoDriverOffersADeviceOfTheClaimedClass(t *testing.T) {
+	s := draSnapshot()
+	unscheduledPod(s)
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedScheduling", "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.", 0)}
+	s.ResourceSlices[0].Spec.Driver = "nic.example.com"
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD323", "Deployment shop/trainer", "asks for devices of DeviceClass gpu.example.com", "no ResourceSlice offers a device from driver gpu.example.com", "cannot allocate the claim on any node")
+	if f.Evidence[len(f.Evidence)-1].Command != "kubectl get resourceslices --field-selector spec.driver=gpu.example.com" {
+		t.Errorf("evidence %+v", f.Evidence)
+	}
+	// No slices at all: no driver runs.
+	s.ResourceSlices = nil
+	expect(t, only(t, Diagnose(s)), "KD323", "Deployment shop/trainer", "the cluster has no ResourceSlices")
+	// The scheduler has not tried the pod yet: too early to say.
+	s.Events = nil
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
