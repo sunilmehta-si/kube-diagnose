@@ -161,3 +161,36 @@ func TestNoDriverOffersADeviceOfTheClaimedClass(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestClaimAsksForMoreDevicesThanAnyNodeHas(t *testing.T) {
+	s := draSnapshot()
+	unscheduledPod(s)
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedScheduling", "0/1 nodes are available: 1 cannot allocate all claims.", 0)}
+	s.ResourceClaims[0].Spec.Devices.Requests[0].Exactly.Count = 4
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD324", "Deployment shop/trainer", "asks for 4 devices of DeviceClass gpu.example.com, and no node has that many", "the most driver gpu.example.com publishes on one node is 2 (2 in all)")
+	if !strings.Contains(f.Fix, "at most 2 devices") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Two nodes with two each: still at most two on one node.
+	s.Nodes = append(s.Nodes, node("node-2", "8", "32Gi"))
+	sl := s.ResourceSlices[0]
+	sl.Spec.NodeName = "node-2"
+	s.ResourceSlices = append(s.ResourceSlices, sl)
+	expect(t, only(t, Diagnose(s)), "KD324", "Deployment shop/trainer", "is 2 (4 in all)")
+	// Network-attached devices, offered on every node, count toward each.
+	s.ResourceSlices[1].Spec.NodeName, s.ResourceSlices[1].Spec.AllNodes = "", true
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// All of them: as many as there are.
+	s = draSnapshot()
+	unscheduledPod(s)
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedScheduling", "0/1 nodes are available: 1 cannot allocate all claims.", 0)}
+	s.ResourceClaims[0].Spec.Devices.Requests[0].Exactly.AllocationMode = "All"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD324" {
+			t.Errorf("mode All: %s", f.Cause)
+		}
+	}
+}

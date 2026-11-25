@@ -295,7 +295,7 @@ func deviceShortage(ix *index, p kube.Pod, r podClaimRef) *problem {
 		}
 		a := alts[0]
 		drivers := ix.drivers(a)
-		total, _ := ix.offered(drivers)
+		total, most := ix.offered(drivers)
 		src := r.source()
 		ev := []Evidence{requestsEvidence(r),
 			{Object: kube.Ref{Kind: "DeviceClass", Name: a.DeviceClassName}, What: fmt.Sprintf("DeviceClass %s's selectors", a.DeviceClassName),
@@ -316,6 +316,18 @@ func deviceShortage(ix *index, p kube.Pod, r podClaimRef) *problem {
 			ev = append(ev, Evidence{Object: kube.Ref{Kind: "ResourceSlice", Name: "*"}, What: "the devices drivers publish", Command: sliceCmd})
 			fix := "Install or start the DRA driver for this class (its kubelet plugin runs as a DaemonSet on the nodes with the devices), and check its pods' logs for why it publishes nothing."
 			return newProblem(p, "", "KD323", "No driver offers a device of the claimed class", Critical, cause, "nodevices|"+a.DeviceClassName, fix, ev...)
+		}
+		count := max(a.Count, 1)
+		if a.AllocationMode != "All" && total > 0 && count > int64(most) {
+			from := "drivers publish"
+			if len(drivers) > 0 {
+				from = "driver " + strings.Join(drivers, ", ") + " publishes"
+			}
+			cause := fmt.Sprintf("request %s of %s %s asks for %d devices of DeviceClass %s, and no node has that many: the most %s on one node is %d (%d in all), and a claim's devices must all be usable on the node the pod runs on",
+				req.Name, src.Kind, src.Name, count, a.DeviceClassName, from, most, total)
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "ResourceSlice", Name: "*"}, What: fmt.Sprintf("%d devices in all, at most %d on one node", total, most), Command: sliceCmd})
+			fix := fmt.Sprintf("Ask for at most %d devices in request %s, or split the work over more pods that each claim fewer devices.", most, req.Name)
+			return newProblem(p, "", "KD324", "Claim asks for more devices than any node has", Critical, cause, "toomany|"+a.DeviceClassName, fix, ev...)
 		}
 	}
 	return nil
