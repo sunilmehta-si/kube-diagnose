@@ -5563,3 +5563,29 @@ func TestRouteRuleGivesEveryBackendWeightZero(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestRoutePathIsAPatternItsMatchTypeComparesAsText(t *testing.T) {
+	s := gatewaySnapshot()
+	var m kube.RouteMatch
+	m.Path = &struct {
+		Type  string `json:"type,omitempty"`
+		Value string `json:"value,omitempty"`
+	}{"PathPrefix", "/api/*"}
+	s.Routes[0].Spec.Rules[0].Matches = []kube.RouteMatch{m}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD375", "HTTPRoute shop/shop", "matches path /api/* with type PathPrefix, which compares it as text", "404")
+	if !strings.HasPrefix(f.Fix, "Use path /api with type PathPrefix") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Routes[0].Spec.Rules[0].Matches[0].Path.Type, s.Routes[0].Spec.Rules[0].Matches[0].Path.Value = "Exact", "/v[0-9]+/orders"
+	expect(t, only(t, Diagnose(s)), "KD375", "HTTPRoute shop/shop", "path /v[0-9]+/orders with type Exact")
+	// A regular expression is meant as one, and a plain prefix is fine.
+	s.Routes[0].Spec.Rules[0].Matches[0].Path.Type = "RegularExpression"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	s.Routes[0].Spec.Rules[0].Matches[0].Path.Type, s.Routes[0].Spec.Rules[0].Matches[0].Path.Value = "PathPrefix", "/api"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}

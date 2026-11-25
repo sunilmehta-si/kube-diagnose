@@ -221,6 +221,7 @@ var Rules = []Rule{
 	{"KD372", "Route is attached to no Gateway", Critical, "An HTTPRoute or GRPCRoute has no parentRefs, so no Gateway serves it.", "The route's parentRefs."},
 	{"KD373", "StatefulSet's peers have no DNS records until they are ready", Critical, "A StatefulSet's pod exits because it cannot resolve a peer's name (NAME-N.SERVICE) while the headless governing Service publishes ready pods only: peers that find each other by name while they start never become ready, so none ever gets a record.", "The lookup in the log, and the Service's clusterIP and publishNotReadyAddresses."},
 	{"KD374", "Route rule gives every backend weight 0", Critical, "Every backendRef of an HTTPRoute or GRPCRoute rule has weight 0, so the Gateway sends none of them a request and answers the requests the rule matches with an error: a canary or cutover left half done.", "The rule's backendRefs and their weights."},
+	{"KD375", "Route path is a pattern that its match type compares as text", Warning, "An HTTPRoute match's path holds a glob or regular expression (/api/*, /v[0-9]+/) under type PathPrefix or Exact, which compare paths as text, so only a request for that literal path matches.", "The route rule's match."},
 }
 
 // RuleByID finds a rule.
