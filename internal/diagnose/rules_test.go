@@ -5541,3 +5541,25 @@ func TestStatefulSetsPeersHaveNoDNSRecordsUntilReady(t *testing.T) {
 		}
 	}
 }
+
+func TestRouteRuleGivesEveryBackendWeightZero(t *testing.T) {
+	s := gatewaySnapshot()
+	zero, one := int32(0), int32(1)
+	p := int32(80)
+	s.Services = append(s.Services, service("web-v2", map[string]string{"app": "web"}, named("http")))
+	s.EndpointSlices = append(s.EndpointSlices, slice("web-v2", 1))
+	r := &s.Routes[0].Spec.Rules[0]
+	r.BackendRefs[0].Weight = &zero
+	r.BackendRefs = append(r.BackendRefs, kube.BackendRef{Name: "web-v2", Port: &p, Weight: &zero})
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD374", "HTTPRoute shop/shop", "rule 1 of HTTPRoute shop sends traffic to web, web-v2, all with weight 0", "HTTP 500")
+	// One backend at 1, or with no weight (which means 1): traffic flows.
+	r.BackendRefs[1].Weight = &one
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	r.BackendRefs[1].Weight = nil
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}

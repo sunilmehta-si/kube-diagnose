@@ -220,6 +220,7 @@ var Rules = []Rule{
 	{"KD371", "HTTPRoutes send the same hostname and path to different Services", Warning, "Two HTTPRoutes on one Gateway match the same hostname and path and send them to different Services; the Gateway API gives the tie to the older route, so the other gets none of those requests.", "Each route's hostnames and matches, and the routes in order of creation."},
 	{"KD372", "Route is attached to no Gateway", Critical, "An HTTPRoute or GRPCRoute has no parentRefs, so no Gateway serves it.", "The route's parentRefs."},
 	{"KD373", "StatefulSet's peers have no DNS records until they are ready", Critical, "A StatefulSet's pod exits because it cannot resolve a peer's name (NAME-N.SERVICE) while the headless governing Service publishes ready pods only: peers that find each other by name while they start never become ready, so none ever gets a record.", "The lookup in the log, and the Service's clusterIP and publishNotReadyAddresses."},
+	{"KD374", "Route rule gives every backend weight 0", Critical, "Every backendRef of an HTTPRoute or GRPCRoute rule has weight 0, so the Gateway sends none of them a request and answers the requests the rule matches with an error: a canary or cutover left half done.", "The rule's backendRefs and their weights."},
 }
 
 // RuleByID finds a rule.

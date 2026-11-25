@@ -1192,6 +1192,8 @@ type BackendRef struct {
 	Namespace string `json:"namespace,omitempty"`
 	Name      string `json:"name"`
 	Port      *int32 `json:"port,omitempty"`
+	// Weight is the share of the rule's requests this backend gets, among the rule's backends; 1 when unset.
+	Weight *int32 `json:"weight,omitempty"`
 }
 
 // Route is an HTTPRoute or a GRPCRoute: the two share what is read of them. Kind is set by the collector.

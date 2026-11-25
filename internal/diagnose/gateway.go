@@ -34,6 +34,7 @@ func gatewayFindings(ix *index) []Finding {
 		out = append(out, routeParentFindings(ix, rt)...)
 		out = append(out, routeBackendFindings(ix, rt)...)
 		out = append(out, routePortFindings(ix, rt)...)
+		out = append(out, routeZeroWeights(rt)...)
 		if f := backendNotGranted(ix, rt); f != nil {
 			out = append(out, *f)
 		}
@@ -604,6 +605,37 @@ func routeConflicts(ix *index) []Finding {
 			Evidence: []Evidence{{Object: ref, What: "the route's hostnames and matches", Command: cmdGet("httproute", ref.Namespace, ref.Name, "{.spec.hostnames}{\"\\n\"}{.spec.rules[*].matches}")},
 				{Object: kube.Ref{Kind: "HTTPRoute", Namespace: ref.Namespace, Name: "*"}, What: "the namespace's HTTPRoutes, oldest first", Command: "kubectl get httproutes -n " + ref.Namespace + " --sort-by=.metadata.creationTimestamp"}},
 			Fix: "Give the routes different hostnames or paths, or merge them; for a canary, send one rule to both Services with weights on its backendRefs."})
+	}
+	return out
+}
+
+// routeZeroWeights finds a route rule whose backends all have weight 0: the Gateway sends none of them a request
+// and answers every request the rule matches with an error (500 for an HTTPRoute). It is a canary or a cutover
+// left half done: the new backend added at 0, then the old one set to 0 too.
+func routeZeroWeights(rt kube.Route) []Finding {
+	var out []Finding
+	for i, r := range rt.Spec.Rules {
+		if len(r.BackendRefs) == 0 {
+			continue
+		}
+		var names []string
+		zero := true
+		for _, b := range r.BackendRefs {
+			zero = zero && b.Weight != nil && *b.Weight == 0
+			names = append(names, b.Name)
+		}
+		if !zero {
+			continue
+		}
+		answer := "an HTTP 500"
+		if rt.Kind == "GRPCRoute" {
+			answer = "an UNAVAILABLE error"
+		}
+		out = append(out, Finding{Rule: "KD374", Title: "Route rule gives every backend weight 0", Severity: Critical, Object: rt.Ref(),
+			Cause: fmt.Sprintf("rule %d of %s %s sends traffic to %s, all with weight 0, so the Gateway sends none of them a request and answers each request the rule matches with %s",
+				i+1, rt.Kind, rt.Metadata.Name, strings.Join(names, ", "), answer),
+			Evidence: []Evidence{routeEvidence(rt, fmt.Sprintf("rule %d's backendRefs and their weights", i+1), fmt.Sprintf("{.spec.rules[%d].backendRefs}", i))},
+			Fix:      fmt.Sprintf("Give at least one backend of rule %d a weight above 0 (leaving weight out means 1); to take a backend out of service, remove it from the rule.", i+1)})
 	}
 	return out
 }
