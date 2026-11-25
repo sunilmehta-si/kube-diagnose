@@ -650,6 +650,9 @@ type Service struct {
 		Ports        []ServicePort     `json:"ports,omitempty"`
 		ClusterIP    string            `json:"clusterIP,omitempty"`
 		ExternalName string            `json:"externalName,omitempty"`
+		// PublishNotReadyAddresses gives pods DNS records before they are ready, which peers that find each other by
+		// name while they start need.
+		PublishNotReadyAddresses bool `json:"publishNotReadyAddresses,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		LoadBalancer struct {

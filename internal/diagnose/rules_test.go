@@ -5508,3 +5508,36 @@ func TestSharedMemoryIsTooSmall(t *testing.T) {
 		}
 	}
 }
+
+func TestStatefulSetsPeersHaveNoDNSRecordsUntilReady(t *testing.T) {
+	s := snap()
+	sts := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "quorum", Namespace: "shop"}}
+	two := int32(2)
+	sts.Spec.Replicas, sts.Spec.ServiceName, sts.Spec.PodManagementPolicy = &two, "quorum", "Parallel"
+	s.Workloads = []kube.Workload{sts}
+	p := pod("quorum-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "quorum", Controller: yes()}}
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	svc := service("quorum", map[string]string{"app": "web"}, port(8080))
+	svc.Spec.ClusterIP, svc.Spec.Ports[0].Port = "None", 8080
+	s.Services = []kube.Service{svc}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"Server:\t\t10.96.0.10",
+		"** server can't find quorum-1.quorum.shop.svc.cluster.local: NXDOMAIN", "cannot reach peer quorum-1.quorum"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD373", "StatefulSet shop/quorum", "cannot resolve its peer quorum-1.quorum", "publishes a pod's DNS record only once the pod is ready")
+	if !strings.Contains(f.Fix, "publishNotReadyAddresses: true on Service quorum") || strings.Contains(f.Fix, "Parallel") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// OrderedReady: the peer is not even created.
+	s.Workloads[0].Spec.PodManagementPolicy = ""
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD373", "StatefulSet shop/quorum", "quorum-1 is not even created")
+	// The Service already publishes not-ready pods: the lookup fails for another reason.
+	s.Services[0].Spec.PublishNotReadyAddresses = true
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD373" {
+			t.Errorf("published: %s", f.Cause)
+		}
+	}
+}

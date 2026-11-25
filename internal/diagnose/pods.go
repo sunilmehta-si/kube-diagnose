@@ -1234,6 +1234,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := subdomainProblem(ix, p, &cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := peerNotPublished(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := externalNameUnresolved(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
