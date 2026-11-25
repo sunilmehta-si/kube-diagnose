@@ -482,6 +482,16 @@ serviceAccountName, because the API server writes default into a pod that names 
 looked for the omission in the pod's own spec; it says now that a pod whose template names none runs as default. The
 Gateway API scenarios (twelve, with 0.15.0's two) run with the API's CRDs installed and no controller, as the rules judge what the objects name;
 k8sgpt's Gateway analyzers are not among its defaults, and it reported nothing for any of them.
+The 17 added for 0.15.0 were named first, with the exact rule and object, on their first run. Two of them had first
+stopped a run before any scenario was scored: their manifests still held a route from the template they were made from,
+which kubectl refused, and the suite's test now fails on such a placeholder. The seven device-claim scenarios run with
+no DRA driver: their DeviceClasses and ResourceSlices are made by hand, the scheduler allocates from those as it would
+from a driver's, and in one it does, leaving the device to a kubelet with no plugin for it. k8sgpt said of each that the
+Deployment had 0 of 1 replicas available; where the scheduler had tried the pod it also quoted its message (cannot
+allocate all claims for three, the missing device class for one), and for the claim and template that do not exist,
+which the scheduler never tries, and the missing plugin, it said nothing more. Replaying the run after redaction caught
+one more: --redact replaced busybox with a pseudonym, which hid the base image KD315 reads, and Docker Hub's official
+base images are kept now.
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.
 

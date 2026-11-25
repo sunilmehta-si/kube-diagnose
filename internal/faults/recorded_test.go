@@ -120,6 +120,25 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 	if len(gateway) != 12 {
 		t.Errorf("the README says twelve Gateway API scenarios; results hold %d", len(gateway))
 	}
+	// The device-claim scenarios: k8sgpt names the Deployment short of replicas, and nothing of the claim.
+	dra, _ := filepath.Glob("../../results/faults/k8sgpt/kd-dra-*.json")
+	if len(dra) != 7 {
+		t.Errorf("the README says seven device-claim scenarios; results hold %d", len(dra))
+	}
+	scheduler := map[string]string{"kd-dra-no-driver": "cannot allocate all claims", "kd-dra-selector-no-match": "cannot allocate all claims",
+		"kd-dra-too-many-devices": "cannot allocate all claims", "kd-dra-device-class-missing": "device class gpu.nvidia.com does not exist"}
+	for _, f := range dra {
+		ns := strings.TrimSuffix(filepath.Base(f), ".json")
+		got, n := text(ns)
+		if !strings.Contains(got, "has 1 replicas but 0 are available") {
+			t.Errorf("%s: the README says k8sgpt gave 0 of 1 replicas available: %s", ns, got)
+		}
+		if want, ok := scheduler[ns]; ok && (n != 2 || !strings.Contains(got, want)) {
+			t.Errorf("%s: the README says k8sgpt quoted the scheduler's %q: %s", ns, want, got)
+		} else if !ok && n != 1 {
+			t.Errorf("%s: the README says k8sgpt said nothing more: %s", ns, got)
+		}
+	}
 	nss := []string{"kd-networkpolicy-deny-all"}
 	for _, f := range gateway {
 		nss = append(nss, strings.TrimSuffix(filepath.Base(f), ".json"))
