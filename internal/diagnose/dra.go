@@ -103,7 +103,7 @@ func draProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
-	return nil
+	return driverNotRegistered(ix, p, refs)
 }
 
 // claimMissing finds a pod that names a ResourceClaim which does not exist. The scheduler leaves such a pod out of
@@ -380,4 +380,48 @@ func (ix *index) devicesInUse(drivers []string, self *kube.ResourceClaim) int {
 
 func quoteAll(l []string) string {
 	return strings.Join(l, " and the selector ")
+}
+
+var reDriverNotRegistered = regexp.MustCompile(`DRA driver (\S+) is not registered`)
+
+// driverNotRegistered finds a pod placed on a node, its devices allocated, whose containers cannot start because
+// the node's kubelet has no plugin for the driver of those devices: the driver's ResourceSlices say it has devices
+// there, but its kubelet plugin is not running on the node (or never registered), so nothing prepares them.
+func driverNotRegistered(ix *index, p kube.Pod, refs []podClaimRef) *problem {
+	if p.Spec.NodeName == "" {
+		return nil
+	}
+	for _, e := range ix.eventsFor(p.Ref(), "FailedPrepareDynamicResources") {
+		m := reDriverNotRegistered.FindStringSubmatch(e.Message)
+		if m == nil {
+			continue
+		}
+		driver := m[1]
+		var claims []string
+		var ev []Evidence
+		for _, r := range refs {
+			if !r.allocated() {
+				continue
+			}
+			for _, res := range r.claim.Status.Allocation.Devices.Results {
+				if res.Driver == driver {
+					claims = append(claims, r.claim.Metadata.Name)
+					ev = append(ev, Evidence{Object: r.claim.Ref(), What: fmt.Sprintf("ResourceClaim %s is allocated device %s of pool %s from driver %s", r.claim.Metadata.Name, res.Device, res.Pool, driver),
+						Command: cmdGet("resourceclaim", r.claim.Metadata.Namespace, r.claim.Metadata.Name, `{.status.allocation.devices.results}`)})
+					break
+				}
+			}
+		}
+		node := p.Spec.NodeName
+		cause := fmt.Sprintf("the pod is on node %s with its devices allocated, but the node's kubelet has no plugin for DRA driver %s, so it cannot prepare them and the containers never start", node, driver)
+		if len(claims) > 0 {
+			cause = fmt.Sprintf("the pod is on node %s and ResourceClaim %s is allocated devices from DRA driver %s, but the node's kubelet has no plugin for that driver registered, so it cannot prepare them and the containers never start", node, strings.Join(claims, ", "), driver)
+		}
+		ev = append([]Evidence{eventEvidence(p.Ref(), e)}, ev...)
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "ResourceSlice", Name: "*"}, What: fmt.Sprintf("driver %s's slices, which offered the devices", driver),
+			Command: "kubectl get resourceslices --field-selector spec.driver=" + driver})
+		fix := fmt.Sprintf("Run driver %s's kubelet plugin on node %s (it is usually a DaemonSet: check that it has a pod there, and its logs for why it did not register). A ResourceSlice that offers devices on nodes without the plugin (allNodes, or a node selector) lets the scheduler place pods where nothing can prepare them.", driver, node)
+		return newProblem(p, "", "KD326", "Node's kubelet has no plugin for the claim's driver", Critical, cause, "notregistered|"+driver, fix, ev...)
+	}
+	return nil
 }

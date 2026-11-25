@@ -242,3 +242,34 @@ func TestClaimsSelectorsMatchNoDeviceOnOffer(t *testing.T) {
 		}
 	}
 }
+
+func TestNodesKubeletHasNoPluginForTheClaimsDriver(t *testing.T) {
+	s := draSnapshot()
+	p := &s.Pods[0]
+	p.Status.Phase = "Pending"
+	waiting(p, "ContainerCreating", "")
+	s.Workloads[0].Status.ReadyReplicas, s.Workloads[1].Status.ReadyReplicas = 0, 0
+	c := &s.ResourceClaims[0]
+	c.Status.Allocation = &struct {
+		Devices struct {
+			Results []struct {
+				Request string `json:"request"`
+				Driver  string `json:"driver"`
+				Pool    string `json:"pool"`
+				Device  string `json:"device"`
+			} `json:"results,omitempty"`
+		} `json:"devices"`
+	}{}
+	c.Status.Allocation.Devices.Results = append(c.Status.Allocation.Devices.Results, struct {
+		Request string `json:"request"`
+		Driver  string `json:"driver"`
+		Pool    string `json:"pool"`
+		Device  string `json:"device"`
+	}{"gpu", "gpu.example.com", "node-1", "gpu-0"})
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedPrepareDynamicResources", "Failed to prepare dynamic resources: prepare dynamic resources: DRA driver gpu.example.com is not registered", 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD326", "Deployment shop/trainer", "on node node-1 and ResourceClaim train-gpu is allocated devices from DRA driver gpu.example.com", "no plugin for that driver registered")
+	if len(f.Evidence) != 3 || !strings.Contains(f.Evidence[1].What, "device gpu-0 of pool node-1") || !strings.Contains(f.Fix, "kubelet plugin on node node-1") {
+		t.Errorf("evidence %+v fix %s", f.Evidence, f.Fix)
+	}
+}
