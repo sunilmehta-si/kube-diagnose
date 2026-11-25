@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dra-driver-not-registered",
+  "description": "The scheduler allocates a fpga.example.com device to the pod, and no kubelet plugin for that driver runs on the node, so the device is never prepared and the container never starts.",
+  "rule": "KD326",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "fpga.example.com"
+    ],
+    [
+      "plugin"
+    ],
+    [
+      "kubelet"
+    ]
+  ]
+}
