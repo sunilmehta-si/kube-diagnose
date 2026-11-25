@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-service-refused",
-              "Masked": "N3lqXiRTfCooJ09abU5BeWko"
+              "Masked": "KF4yc205cHRBLGh5VzkpMUFp"
             },
             {
               "Unmasked": "web",
-              "Masked": "KmxU"
+              "Masked": "c2I3"
             }
           ]
         }
@@ -36,11 +36,11 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "dXBL"
+              "Masked": "TEYr"
             },
             {
               "Unmasked": "db",
-              "Masked": "NWU="
+              "Masked": "dUU="
             }
           ]
         }
@@ -50,10 +50,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-service-refused/web-bc988964d-4bpd2",
+      "name": "kd-service-refused/web-bc988964d-8s6lb",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-bc988964d-4bpd2",
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-bc988964d-8s6lb",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-init-mount-path",
-              "Masked": "LzZJL3B3a1RlWix7blElRmNk"
+              "Masked": "YjRNYVQuJU9PcDk0OC5sXnAj"
             },
             {
               "Unmasked": "web",
-              "Masked": "MScw"
+              "Masked": "YXIo"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-init-mount-path/web-75bb58bf7d-84dn9",
+      "name": "kd-init-mount-path/web-75bb58bf7d-xqmfv",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-75bb58bf7d-84dn9",
+          "Text": "the last termination reason is Error container=web pod=web-75bb58bf7d-xqmfv",
           "KubernetesDoc": "",
           "Sensitive": []
         }

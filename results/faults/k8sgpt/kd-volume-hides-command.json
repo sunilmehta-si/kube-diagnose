@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-volume-hides-command",
-              "Masked": "ejkkVixdailJLU9TKW1vVDRmVWwsKSg="
+              "Masked": "bWY7RmNRWXVVUWg7bHoybkMlL3JfZ0Y="
             },
             {
               "Unmasked": "api",
-              "Masked": "eGt6"
+              "Masked": "R1Y8"
             }
           ]
         },
@@ -28,11 +28,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-volume-hides-command",
-              "Masked": "P3M9JDlIRy07TlR3Nm1vQ0s0PzpkV2I="
+              "Masked": "Ri9RelYwb2ttMWxRXld3cTJqOUtzcVc="
             },
             {
               "Unmasked": "api",
-              "Masked": "JVVV"
+              "Masked": "Y1Fs"
             }
           ]
         }
@@ -42,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-volume-hides-command/api-544f5fbdf4-km6sv",
+      "name": "kd-volume-hides-command/api-544f5fbdf4-tnzgt",
       "error": [
         {
-          "Text": "the last termination reason is StartError container=api pod=api-544f5fbdf4-km6sv",
+          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/bin/sleep\": stat /bin/sleep: no such file or directory",
           "KubernetesDoc": "",
           "Sensitive": []
         }

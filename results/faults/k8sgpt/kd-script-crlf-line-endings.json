@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-script-crlf-line-endings",
-              "Masked": "aG1pYXxdZFlAJlU4eTtQXkBZRlImKk1TMHtV"
+              "Masked": "J2ZDZSw6ZCYpbUROVl9LMHQhWS1bbFNoIyph"
             },
             {
               "Unmasked": "worker",
-              "Masked": "OGZWODtX"
+              "Masked": "azFZTkNE"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-script-crlf-line-endings/worker-58f8845f4f-6ggmd",
+      "name": "kd-script-crlf-line-endings/worker-58f8845f4f-h56k4",
       "error": [
         {
-          "Text": "the last termination reason is Error container=worker pod=worker-58f8845f4f-6ggmd",
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=worker-58f8845f4f-h56k4",
           "KubernetesDoc": "",
           "Sensitive": []
         }

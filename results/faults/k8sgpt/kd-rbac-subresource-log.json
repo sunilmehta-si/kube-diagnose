@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rbac-subresource-log",
-              "Masked": "Kmc6UyM6NnhAVkdtOmdtaWwpaHhAP2I="
+              "Masked": "VTU1KFBadC5pI1ljSVR5OD1jOEIrczg="
             },
             {
               "Unmasked": "log-shipper",
-              "Masked": "byhZWkpVWHBdQGo="
+              "Masked": "RkUlfU1aR2xjbmg="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rbac-subresource-log/log-shipper-fd8ccbccf-mhjbh",
+      "name": "kd-rbac-subresource-log/log-shipper-fd8ccbccf-rzdk7",
       "error": [
         {
-          "Text": "the last termination reason is Error container=shipper pod=log-shipper-fd8ccbccf-mhjbh",
+          "Text": "the last termination reason is Error container=shipper pod=log-shipper-fd8ccbccf-rzdk7",
           "KubernetesDoc": "",
           "Sensitive": []
         }

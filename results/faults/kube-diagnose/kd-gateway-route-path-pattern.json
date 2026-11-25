@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-route-path-pattern"
+  ],
+  "collectedAt": "2026-11-25 14:13 UTC",
+  "findings": [
+    {
+      "rule": "KD375",
+      "title": "Route path is a pattern that its match type compares as text",
+      "severity": "warning",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-route-path-pattern",
+        "name": "shop"
+      },
+      "cause": "rule 1 of HTTPRoute shop matches path /api/* with type PathPrefix, which compares it as text, not as a pattern: only a request for exactly /api/* matches, so the requests meant for the rule get a 404 or go to another rule",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-path-pattern",
+            "name": "shop"
+          },
+          "what": "rule 1's match 1",
+          "command": "kubectl get httproute shop -n kd-gateway-route-path-pattern -o jsonpath='{.spec.rules[0].matches[0].path}'"
+        }
+      ],
+      "fix": "Use path /api with type PathPrefix, which matches it and everything under it, or type RegularExpression if the Gateway's implementation supports it."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

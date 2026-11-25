@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-localhost-for-service"
   ],
-  "collectedAt": "2026-11-24 11:19 UTC",
+  "collectedAt": "2026-11-25 14:15 UTC",
   "findings": [
     {
       "rule": "KD217",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-localhost-for-service",
-            "name": "worker-59b4bbb7cd-nl2vm"
+            "name": "worker-59b4bbb7cd-tf6w4"
           },
           "what": "container worker exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod worker-59b4bbb7cd-nl2vm -n kd-localhost-for-service -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+          "command": "kubectl get pod worker-59b4bbb7cd-tf6w4 -n kd-localhost-for-service -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-localhost-for-service",
-            "name": "worker-59b4bbb7cd-nl2vm"
+            "name": "worker-59b4bbb7cd-tf6w4"
           },
           "what": "last lines of container worker's log (run that exited)",
           "detail": "Connecting to 127.0.0.1:6379 (127.0.0.1:6379)\nwget: can't connect to remote host (127.0.0.1): Connection refused",
-          "command": "kubectl logs worker-59b4bbb7cd-nl2vm -n kd-localhost-for-service -c worker --tail=20 --previous"
+          "command": "kubectl logs worker-59b4bbb7cd-tf6w4 -n kd-localhost-for-service -c worker --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-localhost-for-service",
-            "name": "worker-59b4bbb7cd-nl2vm"
+            "name": "worker-59b4bbb7cd-tf6w4"
           },
-          "what": "no container of pod worker-59b4bbb7cd-nl2vm declares port 6379",
-          "command": "kubectl get pod worker-59b4bbb7cd-nl2vm -n kd-localhost-for-service -o jsonpath='{range .spec.containers[*]}{.name}{\" \"}{.ports[*].containerPort}{\"\\n\"}{end}'"
+          "what": "no container of pod worker-59b4bbb7cd-tf6w4 declares port 6379",
+          "command": "kubectl get pod worker-59b4bbb7cd-tf6w4 -n kd-localhost-for-service -o jsonpath='{range .spec.containers[*]}{.name}{\" \"}{.ports[*].containerPort}{\"\\n\"}{end}'"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-localhost-for-service",
-          "name": "worker-59b4bbb7cd-nl2vm"
+          "name": "worker-59b4bbb7cd-tf6w4"
         }
       ]
     }

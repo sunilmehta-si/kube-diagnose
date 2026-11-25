@@ -5,19 +5,6 @@
   "problems": 2,
   "results": [
     {
-      "kind": "Pod",
-      "name": "kd-statefulset-first-pod-unready/db-0",
-      "error": [
-        {
-          "Text": "Readiness probe failed: cat: can't open '/tmp/ready': No such file or directory\n",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "StatefulSet/db"
-    },
-    {
       "kind": "Service",
       "name": "kd-statefulset-first-pod-unready/db",
       "error": [
@@ -29,6 +16,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-statefulset-first-pod-unready/db-0",
+      "error": [
+        {
+          "Text": "Readiness probe failed: cat: can't open '/tmp/ready': No such file or directory\n",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "StatefulSet/db"
     }
   ]
 }

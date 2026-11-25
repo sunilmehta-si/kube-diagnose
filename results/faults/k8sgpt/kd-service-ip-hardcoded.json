@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-service-ip-hardcoded",
-              "Masked": "WkgnTGx6dmFITjMydy5tJyVOZFMuRjY="
+              "Masked": "LUVVbioxZjJpdWxfY2xDIUZkU2Y7bmY="
             },
             {
               "Unmasked": "api",
-              "Masked": "QXs0"
+              "Masked": "S3ko"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-service-ip-hardcoded/api-55c5f8dc65-w8f9f",
+      "name": "kd-service-ip-hardcoded/api-55c5f8dc65-5jdcn",
       "error": [
         {
-          "Text": "the last termination reason is Error container=api pod=api-55c5f8dc65-w8f9f",
+          "Text": "the last termination reason is Error container=api pod=api-55c5f8dc65-5jdcn",
           "KubernetesDoc": "",
           "Sensitive": []
         }

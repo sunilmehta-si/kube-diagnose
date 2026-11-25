@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-dra-claim-missing"
+  ],
+  "collectedAt": "2026-11-25 14:12 UTC",
+  "findings": [
+    {
+      "rule": "KD320",
+      "title": "Pod's ResourceClaim does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-dra-claim-missing",
+        "name": "trainer"
+      },
+      "cause": "the pod's resourceClaims entry gpu names ResourceClaim train-gpu, which does not exist in namespace kd-dra-claim-missing: the scheduler does not try a pod until each claim it names exists, so the pod waits with no condition and no event; Deployment trainer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dra-claim-missing",
+            "name": "trainer-74c6d97c6b-7t45p"
+          },
+          "what": "pod claims gpu through ResourceClaim train-gpu",
+          "command": "kubectl get pod trainer-74c6d97c6b-7t45p -n kd-dra-claim-missing -o jsonpath='{.spec.resourceClaims}'"
+        },
+        {
+          "object": {
+            "kind": "ResourceClaim",
+            "namespace": "kd-dra-claim-missing",
+            "name": "train-gpu"
+          },
+          "what": "there is no ResourceClaim train-gpu in namespace kd-dra-claim-missing",
+          "command": "kubectl get resourceclaim train-gpu -n kd-dra-claim-missing"
+        }
+      ],
+      "fix": "Create ResourceClaim train-gpu in namespace kd-dra-claim-missing, or correct the name in the pod template. For a claim of each pod's own, use resourceClaimTemplateName with a ResourceClaimTemplate instead.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-dra-claim-missing",
+          "name": "trainer-74c6d97c6b-7t45p"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

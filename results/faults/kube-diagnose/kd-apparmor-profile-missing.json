@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-apparmor-profile-missing"
+  ],
+  "collectedAt": "2026-11-25 14:11 UTC",
+  "findings": [
+    {
+      "rule": "KD314",
+      "title": "AppArmor profile is not loaded on the node",
+      "severity": "critical",
+      "object": {
+        "kind": "Pod",
+        "namespace": "kd-apparmor-profile-missing",
+        "name": "web"
+      },
+      "cause": "the pod asks for AppArmor profile Localhost k8s-kd-faults-hardened, and node kd-faults-control-plane cannot enforce it, so the kubelet rejects the pod: Pod was rejected: Cannot enforce AppArmor: AppArmor is not enabled on the host",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-apparmor-profile-missing",
+            "name": "web"
+          },
+          "what": "pod status is Failed, reason AppArmor",
+          "detail": "Pod was rejected: Cannot enforce AppArmor: AppArmor is not enabled on the host",
+          "command": "kubectl get pod web -n kd-apparmor-profile-missing -o jsonpath='{.status.reason}{\"\\n\"}{.status.message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-apparmor-profile-missing",
+            "name": "web"
+          },
+          "what": "the pod's and the container's appArmorProfile",
+          "command": "kubectl get pod web -n kd-apparmor-profile-missing -o jsonpath='{.spec.securityContext.appArmorProfile}{\"\\n\"}{.spec.containers[?(@.name==\"web\")].securityContext.appArmorProfile}'"
+        }
+      ],
+      "fix": "Load the profile on every node that may run the pod (apparmor_parser, from a DaemonSet or the Security Profiles Operator), keep the pod to the nodes that have it, or use appArmorProfile type RuntimeDefault. A node without AppArmor (not enabled in its kernel) can run the pod only without a profile."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-memory-limit-no-unit"
   ],
-  "collectedAt": "2026-11-24 11:19 UTC",
+  "collectedAt": "2026-11-25 14:15 UTC",
   "findings": [
     {
       "rule": "KD210",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-memory-limit-no-unit",
-            "name": "api-6f9bcbd468-pfz4r"
+            "name": "api-6f9bcbd468-jk86b"
           },
-          "what": "event FailedMount (3 times)",
-          "detail": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-tbsmc\" : write /var/lib/kubelet/pods/2f6c0c79-a87d-4c55-9a80-334c4b3d7ba9/volumes/kubernetes.io~projected/kube-api-access-tbsmc/..2026_11_24_11_19_16.70229310/token: no space left on device",
-          "command": "kubectl get events -n kd-memory-limit-no-unit --field-selector involvedObject.kind=Pod,involvedObject.name=api-6f9bcbd468-pfz4r"
+          "what": "event FailedMount (2 times)",
+          "detail": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-mhk9t\" : write /var/lib/kubelet/pods/c37a4230-3601-40dc-8fb3-c785d3e3aee0/volumes/kubernetes.io~projected/kube-api-access-mhk9t/..2026_11_25_14_14_18.2671589816/token: no space left on device",
+          "command": "kubectl get events -n kd-memory-limit-no-unit --field-selector involvedObject.kind=Pod,involvedObject.name=api-6f9bcbd468-jk86b"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-memory-limit-no-unit",
-            "name": "api-6f9bcbd468-pfz4r"
+            "name": "api-6f9bcbd468-jk86b"
           },
           "what": "container api's memory limit is 512, with no unit",
-          "command": "kubectl get pod api-6f9bcbd468-pfz4r -n kd-memory-limit-no-unit -o jsonpath='{.spec.containers[?(@.name==\"api\")].resources}'"
+          "command": "kubectl get pod api-6f9bcbd468-jk86b -n kd-memory-limit-no-unit -o jsonpath='{.spec.containers[?(@.name==\"api\")].resources}'"
         }
       ],
       "fix": "Give the limit a unit: 512Mi if mebibytes were meant (Mi and Gi are powers of 1024; M and G are powers of 1000), and the request the same way.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-memory-limit-no-unit",
-          "name": "api-6f9bcbd468-pfz4r"
+          "name": "api-6f9bcbd468-jk86b"
         }
       ]
     }

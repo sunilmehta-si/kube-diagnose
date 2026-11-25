@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rolebinding-role-missing"
   ],
-  "collectedAt": "2026-11-24 11:23 UTC",
+  "collectedAt": "2026-11-25 14:18 UTC",
   "findings": [
     {
       "rule": "KD227",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rolebinding-role-missing",
-            "name": "worker-7ccbf678cc-z2g2s"
+            "name": "worker-7ccbf678cc-2vh84"
           },
-          "what": "container worker exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod worker-7ccbf678cc-z2g2s -n kd-rolebinding-role-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+          "what": "container worker exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod worker-7ccbf678cc-2vh84 -n kd-rolebinding-role-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rolebinding-role-missing",
-            "name": "worker-7ccbf678cc-z2g2s"
+            "name": "worker-7ccbf678cc-2vh84"
           },
           "what": "last lines of container worker's log (run that exited)",
           "detail": "Connecting to kubernetes.default.svc (10.96.0.1:443)\nwget: server returned error: HTTP/1.1 403 Forbidden",
-          "command": "kubectl logs worker-7ccbf678cc-z2g2s -n kd-rolebinding-role-missing -c worker --tail=20 --previous"
+          "command": "kubectl logs worker-7ccbf678cc-2vh84 -n kd-rolebinding-role-missing -c worker --tail=20 --previous"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rolebinding-role-missing",
-          "name": "worker-7ccbf678cc-z2g2s"
+          "name": "worker-7ccbf678cc-2vh84"
         }
       ]
     }

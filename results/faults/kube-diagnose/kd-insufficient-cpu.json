@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-insufficient-cpu"
   ],
-  "collectedAt": "2026-11-24 11:18 UTC",
+  "collectedAt": "2026-11-25 14:15 UTC",
   "findings": [
     {
       "rule": "KD140",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-insufficient-cpu",
-            "name": "web-84467bd69f-xpj8x"
+            "name": "web-84467bd69f-fk58d"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod web-84467bd69f-xpj8x -n kd-insufficient-cpu -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-84467bd69f-fk58d -n kd-insufficient-cpu -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-insufficient-cpu",
-            "name": "web-84467bd69f-xpj8x"
+            "name": "web-84467bd69f-fk58d"
           },
           "what": "pod requests 64 cpu",
-          "command": "kubectl get pod web-84467bd69f-xpj8x -n kd-insufficient-cpu -o jsonpath='{.spec.containers[*].resources.requests}'"
+          "command": "kubectl get pod web-84467bd69f-fk58d -n kd-insufficient-cpu -o jsonpath='{.spec.containers[*].resources.requests}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-insufficient-cpu",
-          "name": "web-84467bd69f-xpj8x"
+          "name": "web-84467bd69f-fk58d"
         }
       ]
     }

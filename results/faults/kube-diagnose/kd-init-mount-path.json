@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-init-mount-path"
   ],
-  "collectedAt": "2026-11-24 11:18 UTC",
+  "collectedAt": "2026-11-25 14:15 UTC",
   "findings": [
     {
       "rule": "KD310",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-mount-path",
-            "name": "web-75bb58bf7d-84dn9"
+            "name": "web-75bb58bf7d-xqmfv"
           },
           "what": "container web exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod web-75bb58bf7d-84dn9 -n kd-init-mount-path -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "command": "kubectl get pod web-75bb58bf7d-xqmfv -n kd-init-mount-path -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-mount-path",
-            "name": "web-75bb58bf7d-84dn9"
+            "name": "web-75bb58bf7d-xqmfv"
           },
           "what": "last lines of container web's log (run that exited)",
           "detail": "cat: can't open '/work/app.conf': No such file or directory",
-          "command": "kubectl logs web-75bb58bf7d-84dn9 -n kd-init-mount-path -c web --tail=20 --previous"
+          "command": "kubectl logs web-75bb58bf7d-xqmfv -n kd-init-mount-path -c web --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-mount-path",
-            "name": "web-75bb58bf7d-84dn9"
+            "name": "web-75bb58bf7d-xqmfv"
           },
           "what": "container render mounts volume rendered (emptyDir) at /work",
-          "command": "kubectl get pod web-75bb58bf7d-84dn9 -n kd-init-mount-path -o jsonpath='{.spec.volumes[?(@.name==\"rendered\")]}'"
+          "command": "kubectl get pod web-75bb58bf7d-xqmfv -n kd-init-mount-path -o jsonpath='{.spec.volumes[?(@.name==\"rendered\")]}'"
         }
       ],
       "fix": "Mount volume rendered at /work in container web as in init container render, or have the app read /etc/app/app.conf.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-init-mount-path",
-          "name": "web-75bb58bf7d-84dn9"
+          "name": "web-75bb58bf7d-xqmfv"
         }
       ]
     }

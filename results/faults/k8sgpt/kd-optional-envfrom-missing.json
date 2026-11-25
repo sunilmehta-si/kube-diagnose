@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-optional-envfrom-missing",
-              "Masked": "VCdpNipyKih6biFIYy8tbzUhIzN5fHlYO0pI"
+              "Masked": "N1IiVHEzTXhYLiJEb2E0PWpKL3FuQU8rQlBa"
             },
             {
               "Unmasked": "api",
-              "Masked": "UH1l"
+              "Masked": "IUI9"
             }
           ]
         }
@@ -41,10 +41,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-optional-envfrom-missing/api-7dc995dd89-tvfd5",
+      "name": "kd-optional-envfrom-missing/api-7dc995dd89-84hpt",
       "error": [
         {
-          "Text": "the last termination reason is Error container=api pod=api-7dc995dd89-tvfd5",
+          "Text": "the last termination reason is Error container=api pod=api-7dc995dd89-84hpt",
           "KubernetesDoc": "",
           "Sensitive": []
         }

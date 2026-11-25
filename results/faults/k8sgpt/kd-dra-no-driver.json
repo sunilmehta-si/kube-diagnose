@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dra-no-driver/trainer",
+      "error": [
+        {
+          "Text": "Deployment kd-dra-no-driver/trainer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dra-no-driver",
+              "Masked": "QEQwOik/TjcsLUBLZXd0Ug=="
+            },
+            {
+              "Unmasked": "trainer",
+              "Masked": "TjZDa1hTKQ=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-dra-no-driver/trainer-7845ff4f5b-48f6m",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/trainer"
+    }
+  ]
+}

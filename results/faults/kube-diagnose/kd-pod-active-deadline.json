@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pod-active-deadline"
   ],
-  "collectedAt": "2026-11-24 11:21 UTC",
+  "collectedAt": "2026-11-25 14:17 UTC",
   "findings": [
     {
       "rule": "KD195",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-pod-active-deadline",
-            "name": "report-85rf9"
+            "name": "report-9pv8n"
           },
           "what": "pod status is Failed, reason DeadlineExceeded",
           "detail": "Pod was active on the node longer than the specified deadline",
-          "command": "kubectl get pod report-85rf9 -n kd-pod-active-deadline -o jsonpath='{.spec.activeDeadlineSeconds}{\"\\n\"}{.status.message}'"
+          "command": "kubectl get pod report-9pv8n -n kd-pod-active-deadline -o jsonpath='{.spec.activeDeadlineSeconds}{\"\\n\"}{.status.message}'"
         }
       ],
       "fix": "Remove activeDeadlineSeconds from the Job's pod template, or raise it above how long one attempt takes; to bound the whole Job, set the Job's own spec.activeDeadlineSeconds.",
@@ -33,17 +33,17 @@
         {
           "kind": "Pod",
           "namespace": "kd-pod-active-deadline",
-          "name": "report-85rf9"
+          "name": "report-9pv8n"
         },
         {
           "kind": "Pod",
           "namespace": "kd-pod-active-deadline",
-          "name": "report-chz57"
+          "name": "report-k8b45"
         },
         {
           "kind": "Pod",
           "namespace": "kd-pod-active-deadline",
-          "name": "report-wk795"
+          "name": "report-lrqkt"
         }
       ]
     }

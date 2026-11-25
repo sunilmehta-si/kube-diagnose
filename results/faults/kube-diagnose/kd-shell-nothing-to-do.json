@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-shell-nothing-to-do"
+  ],
+  "collectedAt": "2026-11-25 14:20 UTC",
+  "findings": [
+    {
+      "rule": "KD315",
+      "title": "Container runs a shell with nothing to do",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-shell-nothing-to-do",
+        "name": "toolbox"
+      },
+      "cause": "container toolbox exits with code 0 as soon as it starts: it sets no command, and image busybox's default command is a shell, and a shell with no terminal and no input has nothing to do, so it exits at once and the kubelet restarts it; Deployment toolbox has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-shell-nothing-to-do",
+            "name": "toolbox-68b5fc954-pmlxz"
+          },
+          "what": "container toolbox exited with code 0 (Completed), restarted 7 times",
+          "command": "kubectl get pod toolbox-68b5fc954-pmlxz -n kd-shell-nothing-to-do -o jsonpath='{.status.containerStatuses[?(@.name==\"toolbox\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-shell-nothing-to-do",
+            "name": "toolbox-68b5fc954-pmlxz"
+          },
+          "what": "container toolbox's image, command and args",
+          "command": "kubectl get pod toolbox-68b5fc954-pmlxz -n kd-shell-nothing-to-do -o jsonpath='{.spec.containers[?(@.name==\"toolbox\")].image}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].command}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].args}'"
+        }
+      ],
+      "fix": "Give the container the command it is meant to run; to keep a debugging container alive, run sleep infinity (or set stdin: true and tty: true), and use kubectl debug or kubectl run -it for an interactive shell.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-shell-nothing-to-do",
+          "name": "toolbox-68b5fc954-pmlxz"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

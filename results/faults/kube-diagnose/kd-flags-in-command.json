@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-flags-in-command"
   ],
-  "collectedAt": "2026-11-24 11:16 UTC",
+  "collectedAt": "2026-11-25 14:13 UTC",
   "findings": [
     {
       "rule": "KD229",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-flags-in-command",
-            "name": "web-5cdb6c76fc-vgkts"
+            "name": "web-5cdb6c76fc-m94jh"
           },
           "what": "container web did not start",
           "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"--port=8080\": executable file not found in $PATH",
-          "command": "kubectl get pod web-5cdb6c76fc-vgkts -n kd-flags-in-command -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
+          "command": "kubectl get pod web-5cdb6c76fc-m94jh -n kd-flags-in-command -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-flags-in-command",
-            "name": "web-5cdb6c76fc-vgkts"
+            "name": "web-5cdb6c76fc-m94jh"
           },
           "what": "container web's command starts with the flag --port=8080",
-          "command": "kubectl get pod web-5cdb6c76fc-vgkts -n kd-flags-in-command -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}'"
+          "command": "kubectl get pod web-5cdb6c76fc-m94jh -n kd-flags-in-command -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}'"
         }
       ],
       "fix": "Move the flags to args and leave command out: args: [\"--port=8080\", \"--root=/www\"]. Then the image's entrypoint runs with them (args replaces the image's CMD, command its ENTRYPOINT). If the image has no entrypoint, put the program first in command.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-flags-in-command",
-          "name": "web-5cdb6c76fc-vgkts"
+          "name": "web-5cdb6c76fc-m94jh"
         }
       ]
     }

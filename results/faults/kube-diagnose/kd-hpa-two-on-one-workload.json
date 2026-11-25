@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hpa-two-on-one-workload"
   ],
-  "collectedAt": "2026-11-24 11:18 UTC",
+  "collectedAt": "2026-11-25 14:14 UTC",
   "findings": [
     {
       "rule": "KD291",
@@ -42,7 +42,7 @@
             "name": "web-cpu"
           },
           "what": "ScalingActive is False, reason AmbiguousSelector",
-          "detail": "pods by selector app=web are controlled by more than one HPA (e.g. [kd-hpa-two-on-one-workload/web-memory kd-hpa-two-on-one-workload/web-cpu])",
+          "detail": "pods by selector app=web are controlled by more than one HPA (e.g. [kd-hpa-two-on-one-workload/web-cpu kd-hpa-two-on-one-workload/web-memory])",
           "command": "kubectl get hpa web-cpu -n kd-hpa-two-on-one-workload -o jsonpath='{.status.conditions[?(@.type==\"ScalingActive\")]}'"
         }
       ],

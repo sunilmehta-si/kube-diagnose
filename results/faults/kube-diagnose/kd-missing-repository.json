@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-missing-repository"
   ],
-  "collectedAt": "2026-11-24 11:19 UTC",
+  "collectedAt": "2026-11-25 14:16 UTC",
   "findings": [
     {
       "rule": "KD102",
@@ -21,21 +21,21 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-repository",
-            "name": "web-ffc979654-dsz8g"
+            "name": "web-ffc979654-z98v4"
           },
           "what": "container web is waiting: ImagePullBackOff",
           "detail": "Back-off pulling image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": ErrImagePull: failed to pull and unpack image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to resolve reference \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Asunilmehta-si%2Fkube-diagnose-missing%3Apull\u0026service=ghcr.io: 403 Forbidden",
-          "command": "kubectl get pod web-ffc979654-dsz8g -n kd-missing-repository -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "command": "kubectl get pod web-ffc979654-z98v4 -n kd-missing-repository -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-missing-repository",
-            "name": "web-ffc979654-dsz8g"
+            "name": "web-ffc979654-z98v4"
           },
           "what": "event Failed (5 times)",
           "detail": "Failed to pull image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to pull and unpack image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to resolve reference \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Asunilmehta-si%2Fkube-diagnose-missing%3Apull\u0026service=ghcr.io: 403 Forbidden",
-          "command": "kubectl get events -n kd-missing-repository --field-selector involvedObject.kind=Pod,involvedObject.name=web-ffc979654-dsz8g"
+          "command": "kubectl get events -n kd-missing-repository --field-selector involvedObject.kind=Pod,involvedObject.name=web-ffc979654-z98v4"
         }
       ],
       "fix": "Check the repository name; if it is private, create a docker-registry Secret and list it in imagePullSecrets.",
@@ -43,7 +43,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-missing-repository",
-          "name": "web-ffc979654-dsz8g"
+          "name": "web-ffc979654-z98v4"
         }
       ]
     }

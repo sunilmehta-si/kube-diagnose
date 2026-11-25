@@ -2,8 +2,30 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 4,
+  "problems": 3,
   "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pv-reserved-elsewhere/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pv-reserved-elsewhere/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-reserved-elsewhere",
+              "Masked": "eXNUKWxNNCltXVNNSWIjZ0E9WXI5ZlRL"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "Vi4="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
     {
       "kind": "PersistentVolumeClaim",
       "name": "kd-pv-reserved-elsewhere/data",
@@ -18,44 +40,8 @@
       "parentObject": ""
     },
     {
-      "kind": "Deployment",
-      "name": "kd-pv-reserved-elsewhere/db",
-      "error": [
-        {
-          "Text": "Deployment kd-pv-reserved-elsewhere/db has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pv-reserved-elsewhere",
-              "Masked": "d2NSUEtqZVIpcmczUyYycURYels1TVA2"
-            },
-            {
-              "Unmasked": "db",
-              "Masked": "X0A="
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-pv-reserved-elsewhere/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pv-reserved-elsewhere",
-              "Masked": "WTFYUU5KelVCZFUxOmtCPS9bTGt8UWE3"
-            },
-            {
-              "Unmasked": "db",
-              "Masked": "WUs="
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "Pod",
-      "name": "kd-pv-reserved-elsewhere/db-56f8666648-v2fjn",
+      "name": "kd-pv-reserved-elsewhere/db-56f8666648-sh7rs",
       "error": [
         {
           "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",

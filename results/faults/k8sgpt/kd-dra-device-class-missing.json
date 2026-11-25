@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dra-device-class-missing/trainer",
+      "error": [
+        {
+          "Text": "Deployment kd-dra-device-class-missing/trainer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dra-device-class-missing",
+              "Masked": "cFVNUl5mJGlOaUpTfTJkbSRMd3l8bnZzSFBO"
+            },
+            {
+              "Unmasked": "trainer",
+              "Masked": "PkdmanlzXw=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-dra-device-class-missing/trainer-7845ff4f5b-8x5m9",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: request gpu: device class gpu.nvidia.com does not exist. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/trainer"
+    }
+  ]
+}

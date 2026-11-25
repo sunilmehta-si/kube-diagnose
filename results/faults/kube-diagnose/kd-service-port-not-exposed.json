@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-port-not-exposed"
   ],
-  "collectedAt": "2026-11-24 11:24 UTC",
+  "collectedAt": "2026-11-25 14:19 UTC",
   "findings": [
     {
       "rule": "KD218",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-port-not-exposed",
-            "name": "client-5d4f8f9d6-w7xs4"
+            "name": "client-5d4f8f9d6-7x5mw"
           },
-          "what": "container client exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod client-5d4f8f9d6-w7xs4 -n kd-service-port-not-exposed -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
+          "what": "container client exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod client-5d4f8f9d6-7x5mw -n kd-service-port-not-exposed -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-port-not-exposed",
-            "name": "client-5d4f8f9d6-w7xs4"
+            "name": "client-5d4f8f9d6-7x5mw"
           },
           "what": "last lines of container client's log (run that exited)",
-          "detail": "Connecting to web:8080 (10.96.116.174:8080)\nwget: download timed out",
-          "command": "kubectl logs client-5d4f8f9d6-w7xs4 -n kd-service-port-not-exposed -c client --tail=20 --previous"
+          "detail": "Connecting to web:8080 (10.96.200.178:8080)\nwget: download timed out",
+          "command": "kubectl logs client-5d4f8f9d6-7x5mw -n kd-service-port-not-exposed -c client --tail=20 --previous"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-service-port-not-exposed",
-          "name": "client-5d4f8f9d6-w7xs4"
+          "name": "client-5d4f8f9d6-7x5mw"
         }
       ]
     }

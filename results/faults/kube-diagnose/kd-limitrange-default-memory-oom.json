@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-limitrange-default-memory-oom"
   ],
-  "collectedAt": "2026-11-24 11:19 UTC",
+  "collectedAt": "2026-11-25 14:15 UTC",
   "findings": [
     {
       "rule": "KD111",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-limitrange-default-memory-oom",
-            "name": "worker-66df59b77f-fbz4m"
+            "name": "worker-66df59b77f-mvplh"
           },
           "what": "container worker exited with code 137 (OOMKilled), restarted 6 times",
-          "command": "kubectl get pod worker-66df59b77f-fbz4m -n kd-limitrange-default-memory-oom -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+          "command": "kubectl get pod worker-66df59b77f-mvplh -n kd-limitrange-default-memory-oom -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-limitrange-default-memory-oom",
-            "name": "worker-66df59b77f-fbz4m"
+            "name": "worker-66df59b77f-mvplh"
           },
           "what": "container worker has memory limit 16Mi",
-          "command": "kubectl get pod worker-66df59b77f-fbz4m -n kd-limitrange-default-memory-oom -o jsonpath='{.spec.containers[?(@.name==\"worker\")].resources.limits.memory}'"
+          "command": "kubectl get pod worker-66df59b77f-mvplh -n kd-limitrange-default-memory-oom -o jsonpath='{.spec.containers[?(@.name==\"worker\")].resources.limits.memory}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-limitrange-default-memory-oom",
-            "name": "worker-66df59b77f-fbz4m"
+            "name": "worker-66df59b77f-mvplh"
           },
           "what": "the LimitRanger admission plugin set container worker's memory limit",
           "detail": "LimitRanger plugin set: memory request for container worker; memory limit for container worker",
-          "command": "kubectl get pod worker-66df59b77f-fbz4m -n kd-limitrange-default-memory-oom -o jsonpath='{.metadata.annotations.kubernetes\\.io/limit-ranger}'"
+          "command": "kubectl get pod worker-66df59b77f-mvplh -n kd-limitrange-default-memory-oom -o jsonpath='{.metadata.annotations.kubernetes\\.io/limit-ranger}'"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-limitrange-default-memory-oom",
-          "name": "worker-66df59b77f-fbz4m"
+          "name": "worker-66df59b77f-mvplh"
         }
       ]
     }

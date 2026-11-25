@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-namespace-label",
-              "Masked": "OHZJWUEybUBTZSYyajUtZkRDfV83JjY1O0VnPj9MaW0="
+              "Masked": "OFZBeXpVX0crYTZ9WDByKSZvJSNmbCMsNzdlXi9rKzg="
             },
             {
               "Unmasked": "client",
-              "Masked": "KVpyal1K"
+              "Masked": "ZkJAYyQt"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-networkpolicy-namespace-label/client-5858c98f74-lk4x6",
+      "name": "kd-networkpolicy-namespace-label/client-5858c98f74-tg4dw",
       "error": [
         {
-          "Text": "the last termination reason is Error container=client pod=client-5858c98f74-lk4x6",
+          "Text": "the last termination reason is Error container=client pod=client-5858c98f74-tg4dw",
           "KubernetesDoc": "",
           "Sensitive": []
         }

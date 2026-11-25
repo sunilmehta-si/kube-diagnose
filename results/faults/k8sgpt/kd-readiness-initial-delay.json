@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-initial-delay",
-              "Masked": "R15lcmxnc3cjO19vcjEla0lyQVpNZFdzME0="
+              "Masked": "JU1uRHc7JXh0WGVjT1EqayFbRE8jNlchSHg="
             },
             {
               "Unmasked": "api",
-              "Masked": "VnBr"
+              "Masked": "eDRf"
             }
           ]
         },
@@ -28,11 +28,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-initial-delay",
-              "Masked": "KENFLSlsLElkY2gjUjN2NCV0d3I4cD9FZTM="
+              "Masked": "PDNHKl8jTjQyNXkuXk84Vlh8PHlkUTc7UCM="
             },
             {
               "Unmasked": "api",
-              "Masked": "PzZO"
+              "Masked": "XnR6"
             }
           ]
         }

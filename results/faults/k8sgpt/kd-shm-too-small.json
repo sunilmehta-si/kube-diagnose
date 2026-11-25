@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-shm-too-small/trainer",
+      "error": [
+        {
+          "Text": "Deployment kd-shm-too-small/trainer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-shm-too-small",
+              "Masked": "LWx5Tl95KGc0WThSKSY1Yg=="
+            },
+            {
+              "Unmasked": "trainer",
+              "Masked": "X3hhQD14NA=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-shm-too-small/trainer-75f5d88cf5-rrmcs",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=trainer pod=trainer-75f5d88cf5-rrmcs",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/trainer"
+    }
+  ]
+}

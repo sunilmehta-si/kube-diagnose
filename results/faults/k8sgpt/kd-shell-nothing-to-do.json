@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-shell-nothing-to-do/toolbox",
+      "error": [
+        {
+          "Text": "Deployment kd-shell-nothing-to-do/toolbox has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-shell-nothing-to-do",
+              "Masked": "UkUmbiVeR31ZblRjMzVCWVNrSzgreg=="
+            },
+            {
+              "Unmasked": "toolbox",
+              "Masked": "ST9NQCcybw=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

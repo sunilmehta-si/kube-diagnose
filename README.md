@@ -8,24 +8,24 @@ that shows it to you. It never changes anything: every kubectl command it runs i
 
 ```text
 $ kubectl diagnose -n kd-liveness-wrong-port
-kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-24 11:19 UTC
-1 problem: 1 critical.
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-25 14:15 UTC
+1 problem: 1 warning.
 
-1. CRITICAL  Liveness probe kills the container  KD112
+1. WARNING  Liveness probe kills the container  KD112
    Deployment kd-liveness-wrong-port/web
    Cause: container web fails its liveness probe (GET / on port 9090, but the container declares
-          port 8080), so the kubelet restarts it (6 restarts); Deployment web has 0 of 1 replicas
+          port 8080), so the kubelet restarts it (7 restarts); Deployment web has 1 of 1 replicas
           ready
    Evidence:
-     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-vn57z: event Unhealthy (7 times)
-         │ Liveness probe failed: Get "http://10.244.0.79:9090/": dial tcp 10.244.0.79:9090: connect: connection refused
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-vn57z
-     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-vn57z: event Killing (6 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-b7nxz: event Unhealthy (7 times)
+         │ Liveness probe failed: Get "http://10.244.0.82:9090/": dial tcp 10.244.0.82:9090: connect: connection refused
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-b7nxz
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-b7nxz: event Killing (6 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-vn57z
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-b7nxz
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pod web-67fbcb44db-vn57z
+   Affects: Pod web-67fbcb44db-b7nxz
 ```
 
 That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
@@ -178,18 +178,19 @@ count as false alarms. The workflow's summary shows the table for each run; `hac
 machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any kubeconfig context that is not
 kind-*.
 
-The run committed in [`results/faults`](results/faults) ([run 45381548969](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/45381548969),
-24 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
+The run committed in [`results/faults`](results/faults) ([run 45630414949](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/45630414949),
+25 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
 
 | Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
 |---|---|---|---|---|
-| kube-diagnose | 201 of 201 (exact rule and object: 201) | 201 | 0 | 0 |
-| k8sgpt | 36 of 201 | 9 | 0 | 325 |
+| kube-diagnose | 218 of 218 (exact rule and object: 218) | 218 | 0 | 0 |
+| k8sgpt | 36 of 218 | 9 | 0 | 342 |
 | holmesgpt | not run | | | |
 
 | Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
 |---|---|---|---|---|
 | app-listens-on-localhost | A web server is started with -p 127.0.0.1:8080, as on a laptop; in a pod that address is reachable only from the pod itself, so the kubelet's readiness probe is refused and the pod never becomes ready. | ✅ | ❌ | – |
+| apparmor-profile-missing | The pod runs under the Localhost AppArmor profile k8s-kd-faults-hardened, which no node has loaded, so its container cannot be created. | ✅ | ❌ | – |
 | bad-image-tag | A Deployment's image tag does not exist. | ✅ | ☑️ | – |
 | cache-size-above-limit | The cache is configured with CACHE_SIZE_MB=128 and fills it at start, and its memory limit is 64Mi, so it is OOMKilled every time. | ✅ | ❌ | – |
 | capability-dropped | A container drops ALL capabilities, as the restricted Pod Security standard asks, but its start script chowns a cache directory; root without CAP_CHOWN is refused, so the container exits at every start. | ✅ | ❌ | – |
@@ -220,6 +221,13 @@ The run committed in [`results/faults`](results/faults) ([run 45381548969](https
 | dnspolicy-none | An app sets dnsPolicy None with a public nameserver and its company's search domain, to reach outside names; with None its resolv.conf has only those, so the payments Service does not resolve and the app exits. | ✅ | ❌ | – |
 | docker-socket-on-containerd | The pod mounts /var/run/docker.sock as a hostPath of type Socket, and kind's node runs containerd, not Docker, so the socket does not exist and the pod stays in ContainerCreating. | ✅ | ❌ | – |
 | downward-label-missing | APP_VERSION comes from the pod label app.kubernetes.io/version through the downward API, and the pods have no such label, so the variable is empty and the api exits. | ✅ | ❌ | – |
+| dra-claim-missing | The trainer claims its GPU through ResourceClaim train-gpu, which was never created, so the scheduler does not try the pod and it waits with no event. | ✅ | ❌ | – |
+| dra-claim-template-missing | Each trainer pod is to get its claim from ResourceClaimTemplate single-gpu, which does not exist, so no claim is made and the pod waits. | ✅ | ❌ | – |
+| dra-device-class-missing | The claim made from template one-gpu asks for DeviceClass gpu.nvidia.com, which the cluster does not have, so the scheduler cannot pick a device. | ✅ | ❌ | – |
+| dra-driver-not-registered | The scheduler allocates a fpga.example.com device to the pod, and no kubelet plugin for that driver runs on the node, so the device is never prepared and the container never starts. | ✅ | ❌ | – |
+| dra-no-driver | DeviceClass accel.example.com exists, but no ResourceSlice offers a device from its driver, so the scheduler cannot allocate the claim on any node. | ✅ | ❌ | – |
+| dra-selector-no-match | The claim selects devices whose model attribute is v6e, and the driver offers two v5e devices, so its selector matches none. | ✅ | ❌ | – |
+| dra-too-many-devices | The claim asks for four devices of gpu.example.com, and the driver offers two, so no node can satisfy it. | ✅ | ❌ | – |
 | emptydir-memory-oom | A container writes 64 MiB into a memory-backed emptyDir with a 32 MiB memory limit; tmpfs pages count against the limit, so it is OOMKilled, and the file outlives each restart. | ✅ | ❌ | – |
 | emptydir-size-limit | A container writes 20 MiB into an emptyDir with a 10 MiB sizeLimit, so the kubelet evicts its pods. | ✅ | ❌ | – |
 | endpointslice-unlabelled | A Service without a selector points at an outside database through an EndpointSlice written by hand, which lacks the kubernetes.io/service-name label; nothing links the slice to the Service, so the Service has no endpoints. | ✅ | ❌ | – |
@@ -237,8 +245,10 @@ The run committed in [`results/faults`](results/faults) ([run 45381548969](https
 | gateway-parent-missing | HTTPRoute shop attaches to Gateway shop-gateway, and the Gateway is called public. | ✅ | ❌ | – |
 | gateway-route-conflict | HTTPRoutes shop and shop-canary both send shop.example.com to Gateway public, to different Services, and the older route wins the tie, so the canary gets no request. | ✅ | ❌ | – |
 | gateway-route-no-parent | HTTPRoute shop has no parentRefs, so it is attached to no Gateway. | ✅ | ❌ | – |
+| gateway-route-path-pattern | HTTPRoute shop matches path /api/* with type PathPrefix, which compares it as text, so no request under /api matches. | ✅ | ❌ | – |
 | gateway-route-port | HTTPRoute shop sends traffic to port 8080 of Service storefront, the container port, and the Service exposes port 80. | ✅ | ❌ | – |
 | gateway-route-service-missing | HTTPRoute shop sends traffic to Service storefront-v2, and the Service is called storefront. | ✅ | ❌ | – |
+| gateway-route-zero-weights | HTTPRoute shop sends its traffic to storefront and storefront-v2, both with weight 0, so the Gateway answers every request with a 500. | ✅ | ❌ | – |
 | gateway-tls-secret-missing | The https listener of Gateway public terminates TLS with Secret shop-tls, which does not exist. | ✅ | ❌ | – |
 | headless-port-remap | A headless Service (clusterIP: None) maps port 80 to targetPort 8080 for web servers on 8080; with no proxy to map it, clients that dial peers:80 reach the pods on port 80 and are refused. | ✅ | ❌ | – |
 | healthy | Control: a working Deployment and Service. Every finding here is a false alarm. | ✅ quiet | ✅ quiet | – |
@@ -256,6 +266,7 @@ The run committed in [`results/faults`](results/faults) ([run 45381548969](https
 | ingress-class-missing | An Ingress asks for an IngressClass that does not exist, so no controller serves it. | ✅ | ✅ | – |
 | ingress-host-without-tls | An Ingress has TLS for www.shop.example.com, but its rule serves shop.example.com, the name customers use; no TLS entry covers it, so HTTPS requests get the controller's default certificate. | ✅ | ❌ | – |
 | ingress-missing-service | An Ingress sends traffic to a Service that does not exist. | ✅ | ✅ | – |
+| ingress-path-pattern | Ingress web routes /api/* with pathType Prefix, which compares it as text, so no request under /api matches. | ✅ | ❌ | – |
 | ingress-route-conflict | A second Ingress sends the same host and path as the first to a new Service, so only one of them gets the traffic. | ✅ | ❌ | – |
 | ingress-scaled-to-zero | An Ingress routes to a Service whose Deployment is scaled to 0 replicas, so every request fails. | ✅ | ❌ | – |
 | ingress-tls-secret-missing | An Ingress serves TLS from a Secret that does not exist, so the controller would serve its default certificate. | ✅ | ✅ | – |
@@ -326,6 +337,7 @@ The run committed in [`results/faults`](results/faults) ([run 45381548969](https
 | probe-https-on-http | A web server answers plain HTTP on port 8080, and its readiness probe uses scheme HTTPS, so the probe never passes and the pod never becomes ready. | ✅ | ❌ | – |
 | probe-needs-credentials | The app puts every path behind basic auth, the health path included; the kubelet's readiness probe sends no credentials and is answered 401, so the pod never becomes ready. | ✅ | ❌ | – |
 | probe-port-name-missing | A readiness probe names port health, but the container declares only a port named http, so the kubelet cannot run the probe and the pod never becomes ready. | ✅ | ☑️ | – |
+| probe-udp-port | The syslog receiver listens on UDP port 5514, and its readiness probe checks that port with tcpSocket, so the probe is refused and the pod never becomes ready. | ✅ | ❌ | – |
 | pull-secret-missing | A private image is pulled with an imagePullSecret that does not exist. | ✅ | ❌ | – |
 | pull-secret-wrong-type | A private image is pulled with an imagePullSecret of type Opaque, which the kubelet ignores. | ✅ | ❌ | – |
 | pv-access-mode-mismatch | A claim asks for ReadWriteMany from hand-made volumes of class nfs, and the only such PersistentVolume offers ReadWriteOnce, so the claim stays Pending and the pods that share it never start. | ✅ | ❌ | – |
@@ -333,6 +345,7 @@ The run committed in [`results/faults`](results/faults) ([run 45381548969](https
 | pv-reserved-elsewhere | A claim names a PersistentVolume that is reserved for another claim, so it stays Pending with no event, and the database that mounts it never starts. | ✅ | ❌ | – |
 | pv-too-small | A claim asks for 5Gi from hand-made volumes of class manual, and the only such PersistentVolume holds 1Gi, so the claim stays Pending and the database that mounts it never starts. | ✅ | ❌ | – |
 | pvc-access-mode | A claim asks for ReadWriteMany from kind's default StorageClass, whose node-local provisioner supports only ReadWriteOnce. | ✅ | ❌ | – |
+| pvc-deleted-in-use | A clean-up Job deletes claim data while the database still uses it, then restarts the database; the new pod needs a claim that is being deleted, so it is never scheduled. | ✅ | ❌ | – |
 | pvc-lost | A claim copied from another cluster still carries its volumeName and bind annotation, and no such PersistentVolume exists here, so the claim is Lost and the database that mounts it is never scheduled. | ✅ | ❌ | – |
 | pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ☑️ | – |
 | pvc-selector-dynamic | Claim data has a selector, tier=fast, and asks StorageClass standard, whose provisioner does not provision for a claim with a selector, so the claim stays Pending. | ✅ | ❌ | – |
@@ -378,11 +391,15 @@ The run committed in [`results/faults`](results/faults) ([run 45381548969](https
 | service-selects-other-workload | A queue worker shares the label app=shop with the web server, and the Service selects on that label alone with a numeric targetPort; the worker's pod becomes an endpoint too, so a share of requests reach a pod that serves nothing on 8080. | ✅ | ❌ | – |
 | service-target-port-not-listening | A server listens on 8080 while its pod spec declares port 80 and its Service targets 80; with no readiness probe the pod is Ready, so the Service forwards clients to a port where nothing listens and they are refused. | ✅ | ❌ | – |
 | service-wrong-target-port | A Service sends traffic to port 80, but the container listens on 8080. | ✅ | ❌ | – |
+| shell-nothing-to-do | The toolbox Deployment runs busybox with no command; its default is sh, which with no terminal exits 0 at once, so the pod restarts for ever. | ✅ | ❌ | – |
+| shm-too-small | The trainer stages a 128 MiB batch in /dev/shm, and nothing is mounted there, so it is the runtime's 64 MiB and the write fails. | ✅ | ❌ | – |
 | spread-min-domains | The Deployment spreads two replicas over kubernetes.io/hostname with minDomains 3, and kind has one node, so the scheduler lets that node hold one replica and the second stays Pending. | ✅ | ❌ | – |
 | spread-zone-label-missing | The Deployment spreads its pods over topology.kubernetes.io/zone with whenUnsatisfiable DoNotSchedule, and kind's node has no zone label, so the scheduler rejects it and the pods stay Pending. | ✅ | ❌ | – |
 | statefulset-claim-quota | A ResourceQuota allows 100 MiB of storage and the StatefulSet's volumeClaimTemplate asks for 1 GiB, so its first claim, and so its first pod, is never created. | ✅ | ☑️ | – |
 | statefulset-first-pod-unready | A three-replica StatefulSet's first pod never passes its readiness probe, so the StatefulSet never creates the other two. | ✅ | ❌ | – |
 | statefulset-missing-service | A StatefulSet names a governing Service that does not exist, so its pods have no DNS names. | ✅ | ✅ | – |
+| statefulset-ondelete | A Job raises the cache size in StatefulSet cache, whose updateStrategy is OnDelete, so both pods keep the old setting until someone deletes them. | ✅ | ❌ | – |
+| statefulset-peer-dns | Each quorum member finds its peers by name before it becomes ready, and headless Service quorum publishes ready pods only, so no member ever resolves another. | ✅ | ❌ | – |
 | subdomain-no-headless-service | An Indexed Job's two workers set subdomain: workers and look each other up as train-0.workers and train-1.workers, but there is no headless Service named workers, so the names never resolve and each worker exits. | ✅ | ❌ | – |
 | subpath-key-missing | A container mounts config.yaml from its ConfigMap with subPath, but the ConfigMap's key is config.yml; the kubelet makes an empty directory in its place, and the app exits reading it. | ✅ | ❌ | – |
 | subpath-onto-file | A container mounts a ConfigMap key over /etc/group with subPath, but the key is not in the ConfigMap; the kubelet makes a directory in its place, and the runtime cannot mount a directory onto the image's file. | ✅ | ❌ | – |
@@ -396,9 +413,9 @@ The run committed in [`results/faults`](results/faults) ([run 45381548969](https
 
 k8sgpt reports what each of its analyzers sees: the symptom where kube-diagnose names the cause behind it. For the crash
 it said only that the last termination reason is Error (earlier runs added exit code 1), not that the log says
-DATABASE_URL is not set; for the liveness probe on the wrong port it said only that the last termination reason was
-Error, never that a probe kills the container, as in the 0.5.0 run (in the 0.4.0 and 0.6.0 runs it reported nothing,
-having looked while the container was running between restarts; k8sgpt-ai/k8sgpt#1941 proposes reporting the probe); for
+DATABASE_URL is not set; for the liveness probe on the wrong port it reported nothing this time, having looked while
+the container was running between restarts (in other runs it said only that the last termination reason was Error, never
+that a probe kills the container; k8sgpt-ai/k8sgpt#1941 proposes reporting the probe); for
 the node selector it quoted the scheduler's message, not which label no node has; and for the deny-all NetworkPolicy its
 default analyzers reported nothing (its NetworkPolicy analyzer is not on by default). The first run of this suite,
 before a fix, caught kube-diagnose missing 4 of the 23: containers that had just exited, which the kubelet had not yet
@@ -453,8 +470,8 @@ the back-off, which gave no finding.
 The 20 added for 0.14.0 were named first, with the exact rule and object, on their first run, but for one: the pod that
 runs as default while its permission is bound to another ServiceAccount had the right rule and object without the word
 serviceAccountName, because the API server writes default into a pod that names no ServiceAccount, and the cause had
-looked for the omission in the pod's own spec; it says now that a pod whose template names none runs as default. The ten
-Gateway API scenarios run with the API's CRDs installed and no controller, as the rules judge what the objects name;
+looked for the omission in the pod's own spec; it says now that a pod whose template names none runs as default. The
+Gateway API scenarios (twelve, with 0.15.0's two) run with the API's CRDs installed and no controller, as the rules judge what the objects name;
 k8sgpt's Gateway analyzers are not among its defaults, and it reported nothing for any of them.
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.

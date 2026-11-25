@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-volume-mounted-read-only"
   ],
-  "collectedAt": "2026-11-24 11:25 UTC",
+  "collectedAt": "2026-11-25 14:20 UTC",
   "findings": [
     {
       "rule": "KD138",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-mounted-read-only",
-            "name": "web-645896979d-jgwhz"
+            "name": "web-645896979d-hk4wq"
           },
           "what": "container web exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod web-645896979d-jgwhz -n kd-volume-mounted-read-only -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "command": "kubectl get pod web-645896979d-hk4wq -n kd-volume-mounted-read-only -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-mounted-read-only",
-            "name": "web-645896979d-jgwhz"
+            "name": "web-645896979d-hk4wq"
           },
           "what": "last lines of container web's log (run that exited)",
           "detail": "sh: can't create /data/started: Read-only file system",
-          "command": "kubectl logs web-645896979d-jgwhz -n kd-volume-mounted-read-only -c web --tail=20 --previous"
+          "command": "kubectl logs web-645896979d-hk4wq -n kd-volume-mounted-read-only -c web --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-mounted-read-only",
-            "name": "web-645896979d-jgwhz"
+            "name": "web-645896979d-hk4wq"
           },
           "what": "container web mounts volume data (emptyDir) at /data with readOnly: true",
-          "command": "kubectl get pod web-645896979d-jgwhz -n kd-volume-mounted-read-only -o jsonpath='{.spec.volumes[?(@.name==\"data\")]}'"
+          "command": "kubectl get pod web-645896979d-hk4wq -n kd-volume-mounted-read-only -o jsonpath='{.spec.volumes[?(@.name==\"data\")]}'"
         }
       ],
       "fix": "Remove readOnly: true from the mount of volume data at /data if the container is meant to write there, or point the app at a writable volume.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-volume-mounted-read-only",
-          "name": "web-645896979d-jgwhz"
+          "name": "web-645896979d-hk4wq"
         }
       ]
     }

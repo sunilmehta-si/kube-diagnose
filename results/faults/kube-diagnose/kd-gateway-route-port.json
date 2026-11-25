@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-gateway-route-port"
   ],
-  "collectedAt": "2026-11-24 11:17 UTC",
+  "collectedAt": "2026-11-25 14:13 UTC",
   "findings": [
     {
       "rule": "KD363",

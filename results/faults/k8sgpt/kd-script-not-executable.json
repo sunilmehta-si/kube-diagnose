@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-script-not-executable",
-              "Masked": "eDQ6fExaYShWenpYRFMtInNIaUNIP2hz"
+              "Masked": "UU1NYlhxMUQ7cER6bTM+JC5sKkBrWjw/"
             },
             {
               "Unmasked": "web",
-              "Masked": "fHtz"
+              "Masked": "MWVQ"
             }
           ]
         },
@@ -28,11 +28,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-script-not-executable",
-              "Masked": "NmR9anxaZW5HWW9nTyFRT3JTYzlZS3No"
+              "Masked": "X3MwRmJVLUI1QiphNFUmZlNCZE4wOHo3"
             },
             {
               "Unmasked": "web",
-              "Masked": "d2ok"
+              "Masked": "LzJE"
             }
           ]
         }
@@ -42,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-script-not-executable/web-fd58cb87d-6c8hj",
+      "name": "kd-script-not-executable/web-fd58cb87d-wlpqh",
       "error": [
         {
-          "Text": "the last termination reason is StartError container=web pod=web-fd58cb87d-6c8hj",
+          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/scripts/run.sh\": permission denied",
           "KubernetesDoc": "",
           "Sensitive": []
         }

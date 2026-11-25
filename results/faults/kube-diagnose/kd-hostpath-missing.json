@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hostpath-missing"
   ],
-  "collectedAt": "2026-11-24 11:17 UTC",
+  "collectedAt": "2026-11-25 14:14 UTC",
   "findings": [
     {
       "rule": "KD135",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostpath-missing",
-            "name": "agent-4k9xt"
+            "name": "agent-vhkn4"
           },
           "what": "event FailedMount (11 times)",
           "detail": "MountVolume.SetUp failed for volume \"state\" : hostPath type check failed, /var/lib/agent-state is not a directory, unable to determine its type: path \"/var/lib/agent-state\" does not exist",
-          "command": "kubectl get events -n kd-hostpath-missing --field-selector involvedObject.kind=Pod,involvedObject.name=agent-4k9xt"
+          "command": "kubectl get events -n kd-hostpath-missing --field-selector involvedObject.kind=Pod,involvedObject.name=agent-vhkn4"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostpath-missing",
-            "name": "agent-4k9xt"
+            "name": "agent-vhkn4"
           },
           "what": "volume state",
-          "command": "kubectl get pod agent-4k9xt -n kd-hostpath-missing -o jsonpath='{.spec.volumes[?(@.name==\"state\")]}'"
+          "command": "kubectl get pod agent-vhkn4 -n kd-hostpath-missing -o jsonpath='{.spec.volumes[?(@.name==\"state\")]}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-hostpath-missing",
-          "name": "agent-4k9xt"
+          "name": "agent-vhkn4"
         }
       ]
     }

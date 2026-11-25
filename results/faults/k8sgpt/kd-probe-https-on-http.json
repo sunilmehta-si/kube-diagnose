@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-https-on-http",
-              "Masked": "dFNSK1QrIzNkQTNaN1Q3LVg0UHlXaw=="
+              "Masked": "djYycCttUTZKMV4tenM5YnM1TWx7OQ=="
             },
             {
               "Unmasked": "web",
-              "Masked": "UXNm"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-probe-https-on-http/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-5d98948766\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-probe-https-on-http",
-              "Masked": "UWRqKC0qWngqMiZLNVdDXlU5YlZ3OA=="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "a1Rv"
+              "Masked": "JiQp"
             }
           ]
         }
@@ -42,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-https-on-http/web-5d98948766-vkx9n",
+      "name": "kd-probe-https-on-http/web-5d98948766-pnjj5",
       "error": [
         {
-          "Text": "Readiness probe failed: Get \"https://10.244.0.122:8080/\": http: server gave HTTP response to HTTPS client",
+          "Text": "Readiness probe failed: Get \"https://10.244.0.125:8080/\": http: server gave HTTP response to HTTPS client",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -100,16 +100,25 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 	if got, _ := text("kd-crashloop-missing-env"); !strings.Contains(got, "termination reason is Error") || strings.Contains(got, "DATABASE_URL") {
 		t.Errorf("crash: %s", got)
 	}
-	if got, _ := text("kd-liveness-wrong-port"); !strings.Contains(got, "the last termination reason is Error") || strings.Contains(strings.ToLower(got), "probe") {
-		t.Errorf("liveness: the README says k8sgpt gave only the termination reason, never the probe: %s", got)
+	// k8sgpt's answer for the liveness probe flips run to run: nothing, or the termination reason. The README says
+	// which the committed run gave; it never names the probe.
+	readme, _ := os.ReadFile("../../README.md")
+	flat := strings.Join(strings.Fields(string(readme)), " ")
+	switch got, n := text("kd-liveness-wrong-port"); {
+	case strings.Contains(strings.ToLower(got), "probe"):
+		t.Errorf("liveness: k8sgpt named the probe, and the README says it never does: %s", got)
+	case n == 0 && !strings.Contains(flat, "for the liveness probe on the wrong port it reported nothing this time"):
+		t.Error("liveness: k8sgpt reported nothing; the README should say so")
+	case n > 0 && (!strings.Contains(got, "the last termination reason is Error") || !strings.Contains(flat, "for the liveness probe on the wrong port it said only that the last termination reason")):
+		t.Errorf("liveness: the README should say k8sgpt gave only the termination reason: %s", got)
 	}
 	sel, _ := text("kd-node-selector")
 	if !strings.Contains(sel, "didn't match Pod's node affinity/selector") || strings.Contains(sel, "disktype") {
 		t.Errorf("node selector: %s", sel)
 	}
 	gateway, _ := filepath.Glob("../../results/faults/k8sgpt/kd-gateway-*.json")
-	if len(gateway) != 10 {
-		t.Errorf("the README says ten Gateway API scenarios; results hold %d", len(gateway))
+	if len(gateway) != 12 {
+		t.Errorf("the README says twelve Gateway API scenarios; results hold %d", len(gateway))
 	}
 	nss := []string{"kd-networkpolicy-deny-all"}
 	for _, f := range gateway {

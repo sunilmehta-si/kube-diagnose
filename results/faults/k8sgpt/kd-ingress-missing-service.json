@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-ingress-missing-service",
-              "Masked": "c21RZFgnezMrUUpjZVllaVltQS51cDB4aGM="
+              "Masked": "S2lpYV8jLkhUImJGJSRSK2UvIWh4WV9OJGM="
             },
             {
               "Unmasked": "web-api",
-              "Masked": "ayxRSHllZA=="
+              "Masked": "OWtYOyJHbQ=="
             }
           ]
         }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-spread-min-domains"
   ],
-  "collectedAt": "2026-11-24 11:25 UTC",
+  "collectedAt": "2026-11-25 14:20 UTC",
   "findings": [
     {
       "rule": "KD144",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-spread-min-domains",
-            "name": "web-bd5fc47c9-bnm2n"
+            "name": "web-bd5fc47c9-qpsnn"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",
-          "command": "kubectl get pod web-bd5fc47c9-bnm2n -n kd-spread-min-domains -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-bd5fc47c9-qpsnn -n kd-spread-min-domains -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-spread-min-domains",
-            "name": "web-bd5fc47c9-bnm2n"
+            "name": "web-bd5fc47c9-qpsnn"
           },
           "what": "pod scheduling constraints",
-          "command": "kubectl get pod web-bd5fc47c9-bnm2n -n kd-spread-min-domains -o jsonpath='{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}'"
+          "command": "kubectl get pod web-bd5fc47c9-qpsnn -n kd-spread-min-domains -o jsonpath='{.spec.topologySpreadConstraints}{\"\\n\"}{.spec.affinity}'"
         }
       ],
       "fix": "Lower minDomains to the number of kubernetes.io/hostname domains the nodes form (1), or drop it; or add nodes in more domains.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-spread-min-domains",
-          "name": "web-bd5fc47c9-bnm2n"
+          "name": "web-bd5fc47c9-qpsnn"
         }
       ]
     }

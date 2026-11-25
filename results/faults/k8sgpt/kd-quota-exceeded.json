@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-exceeded",
-              "Masked": "WU9wUDZiWFJENzlUIzQ6akA="
+              "Masked": "TFVsMF0/SlN7dmdNTk9YWUA="
             },
             {
               "Unmasked": "web",
-              "Masked": "V2wz"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-quota-exceeded/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-54b9bbc47f\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-quota-exceeded",
-              "Masked": "TyZ0OCV1Vjs6SEk4Lnc/Iig="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "Jipa"
+              "Masked": "SnRO"
             }
           ]
         }
@@ -45,7 +31,7 @@
       "name": "kd-quota-exceeded/web-54b9bbc47f",
       "error": [
         {
-          "Text": "pods \"web-54b9bbc47f-crglx\" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=1, limited: pods=1",
+          "Text": "pods \"web-54b9bbc47f-lpkv8\" is forbidden: exceeded quota: pod-limit, requested: pods=1, used: pods=1, limited: pods=1",
           "KubernetesDoc": "",
           "Sensitive": []
         }

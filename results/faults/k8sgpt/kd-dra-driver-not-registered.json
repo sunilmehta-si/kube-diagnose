@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dra-driver-not-registered/trainer",
+      "error": [
+        {
+          "Text": "Deployment kd-dra-driver-not-registered/trainer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dra-driver-not-registered",
+              "Masked": "Kmk/LUhFVzhLYlkyd3FaWG8zY3ZGKCNkWG54KA=="
+            },
+            {
+              "Unmasked": "trainer",
+              "Masked": "JEU5OVh1JQ=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

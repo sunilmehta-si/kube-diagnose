@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-namespace-label"
   ],
-  "collectedAt": "2026-11-24 11:20 UTC",
+  "collectedAt": "2026-11-25 14:16 UTC",
   "findings": [
     {
       "rule": "KD274",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-namespace-label",
-            "name": "client-5858c98f74-lk4x6"
+            "name": "client-5858c98f74-tg4dw"
           },
           "what": "container client exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod client-5858c98f74-lk4x6 -n kd-networkpolicy-namespace-label -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
+          "command": "kubectl get pod client-5858c98f74-tg4dw -n kd-networkpolicy-namespace-label -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-namespace-label",
-            "name": "client-5858c98f74-lk4x6"
+            "name": "client-5858c98f74-tg4dw"
           },
           "what": "last lines of container client's log (run that exited)",
-          "detail": "Connecting to web (10.96.255.120:80)\nwget: download timed out",
-          "command": "kubectl logs client-5858c98f74-lk4x6 -n kd-networkpolicy-namespace-label -c client --tail=20 --previous"
+          "detail": "Connecting to web (10.96.161.33:80)\nwget: download timed out",
+          "command": "kubectl logs client-5858c98f74-tg4dw -n kd-networkpolicy-namespace-label -c client --tail=20 --previous"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
             "kind": "Namespace",
             "name": "*"
           },
-          "what": "none of the 207 namespaces has labels name=kd-networkpolicy-namespace-label",
+          "what": "none of the 224 namespaces has labels name=kd-networkpolicy-namespace-label",
           "command": "kubectl get namespaces --show-labels"
         }
       ],
@@ -59,7 +59,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-namespace-label",
-          "name": "client-5858c98f74-lk4x6"
+          "name": "client-5858c98f74-tg4dw"
         }
       ]
     }

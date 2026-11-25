@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-cache-size-above-limit",
-              "Masked": "QU5FVCVac2ElVzNzI0w7TG11ZzZ5WiVOcA=="
+              "Masked": "Ny5VRVcpcWooOVhXNVksWVhdQj9UdSl2aw=="
             },
             {
               "Unmasked": "cache",
-              "Masked": "WmtecGw="
+              "Masked": "JiF5emQ="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-cache-size-above-limit/cache-7cfcf9d74d-4bdz2",
+      "name": "kd-cache-size-above-limit/cache-7cfcf9d74d-d4vpz",
       "error": [
         {
-          "Text": "the termination reason is OOMKilled exitCode=137 container=cache pod=cache-7cfcf9d74d-4bdz2",
+          "Text": "the termination reason is OOMKilled exitCode=137 container=cache pod=cache-7cfcf9d74d-d4vpz",
           "KubernetesDoc": "",
           "Sensitive": []
         }

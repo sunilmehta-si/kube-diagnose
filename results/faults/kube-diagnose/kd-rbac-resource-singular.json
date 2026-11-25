@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-resource-singular"
   ],
-  "collectedAt": "2026-11-24 11:23 UTC",
+  "collectedAt": "2026-11-25 14:18 UTC",
   "findings": [
     {
       "rule": "KD301",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-resource-singular",
-            "name": "config-watcher-64cf7557b8-fkmz7"
+            "name": "config-watcher-64cf7557b8-mjkmh"
           },
-          "what": "container watcher exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod config-watcher-64cf7557b8-fkmz7 -n kd-rbac-resource-singular -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+          "what": "container watcher exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod config-watcher-64cf7557b8-mjkmh -n kd-rbac-resource-singular -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-resource-singular",
-            "name": "config-watcher-64cf7557b8-fkmz7"
+            "name": "config-watcher-64cf7557b8-mjkmh"
           },
-          "what": "last lines of container watcher's log (current run)",
+          "what": "last lines of container watcher's log (run that exited)",
           "detail": "Error from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-resource-singular:app\" cannot list resource \"configmaps\" in API group \"\" in the namespace \"kd-rbac-resource-singular\"",
-          "command": "kubectl logs config-watcher-64cf7557b8-fkmz7 -n kd-rbac-resource-singular -c watcher --tail=20"
+          "command": "kubectl logs config-watcher-64cf7557b8-mjkmh -n kd-rbac-resource-singular -c watcher --tail=20 --previous"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-resource-singular",
-          "name": "config-watcher-64cf7557b8-fkmz7"
+          "name": "config-watcher-64cf7557b8-mjkmh"
         }
       ]
     }

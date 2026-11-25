@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rbac-resourcenames-list",
-              "Masked": "a30qMjhjZi1kKGlUR21Ncmg1a1pLZEElT2g="
+              "Masked": "LXE1RHIrZWx5Pl0wLjFkJ1ghLmIwQFl4djI="
             },
             {
               "Unmasked": "config-watcher",
-              "Masked": "PztGTzpxMio0Sk9fMVI="
+              "Masked": "NnFfYilTeihXX3JOVjw="
             }
           ]
         }
@@ -41,10 +41,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rbac-resourcenames-list/config-watcher-64cf7557b8-xjms7",
+      "name": "kd-rbac-resourcenames-list/config-watcher-64cf7557b8-hvgp5",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=watcher pod=config-watcher-64cf7557b8-xjms7",
+          "Text": "the last termination reason is Error container=watcher pod=config-watcher-64cf7557b8-hvgp5",
           "KubernetesDoc": "",
           "Sensitive": []
         }

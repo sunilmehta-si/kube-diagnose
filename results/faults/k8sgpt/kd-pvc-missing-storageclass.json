@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 4,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-missing-storageclass",
-              "Masked": "eUdvRHBFQHlad1MrSTJleSVtOD42T1NIaHZD"
+              "Masked": "VkQwREJYcXQ8N2kwdChzNXBwQUB2OzUnWjx2"
             },
             {
               "Unmasked": "web",
-              "Masked": "amV2"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-pvc-missing-storageclass/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-689b97894\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pvc-missing-storageclass",
-              "Masked": "OW04UF5hJWtAIXd4ejVIYTAhbnYweHRjKXxR"
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "PGMq"
+              "Masked": "XzVE"
             }
           ]
         }
@@ -55,7 +41,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pvc-missing-storageclass/web-689b97894-cdg8g",
+      "name": "kd-pvc-missing-storageclass/web-689b97894-n4rx5",
       "error": [
         {
           "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",

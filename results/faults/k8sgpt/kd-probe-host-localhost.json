@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-host-localhost",
-              "Masked": "fDtdTV5fUU5LLDk3UFJPRmJ4a19OTE8="
+              "Masked": "K1FZNG4/WS1QZ3gqaEo8UixjVndFbzU="
             },
             {
               "Unmasked": "web",
-              "Masked": "WiJe"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-probe-host-localhost/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-6558876bf4\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-probe-host-localhost",
-              "Masked": "MEUtImdPTUVPPGhbUEF1SXNwZjp0KVA="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "ZFpe"
+              "Masked": "e2NX"
             }
           ]
         }
@@ -42,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-host-localhost/web-6558876bf4-clz8x",
+      "name": "kd-probe-host-localhost/web-6558876bf4-4n7qq",
       "error": [
         {
           "Text": "Readiness probe failed: Get \"http://127.0.0.1:8080/\": dial tcp 127.0.0.1:8080: connect: connection refused",
