@@ -4044,6 +4044,16 @@ func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("%+v", r.Findings)
 	}
+	// The role exists as the other kind: the roleRef's kind is wrong.
+	s.ClusterRoles = append(s.ClusterRoles, "config-reader")
+	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "Role", "config-reader"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD227", "RoleBinding shop/read-config", "there is a ClusterRole config-reader, so the roleRef's kind is wrong")
+	if !strings.Contains(f.Fix, "with roleRef kind ClusterRole") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "ClusterRole", s.Roles[0].Metadata.Name
+	expect(t, only(t, Diagnose(s)), "KD227", "RoleBinding shop/read-config", "there is a Role "+s.Roles[0].Metadata.Name+", so the roleRef's kind is wrong")
 
 	// The binding is sound: a refusal is then a missing permission, which KD126 names from the API server's sentence.
 	s, _ = rbacSnapshot()
