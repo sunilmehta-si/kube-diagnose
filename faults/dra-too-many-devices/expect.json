@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-dra-too-many-devices",
+  "description": "The claim asks for four devices of gpu.example.com, and the driver offers two, so no node can satisfy it.",
+  "rule": "KD324",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "4 devices",
+      "four devices"
+    ],
+    [
+      "gpu.example.com"
+    ],
+    [
+      "is 2",
+      "2 on"
+    ]
+  ]
+}
