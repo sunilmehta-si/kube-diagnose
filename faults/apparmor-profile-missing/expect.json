@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-apparmor-profile-missing",
+  "description": "The pod runs under the Localhost AppArmor profile k8s-kd-faults-hardened, which no node has loaded, so its container cannot be created.",
+  "rule": "KD314",
+  "object": "Pod/web",
+  "keywords": [
+    [
+      "k8s-kd-faults-hardened",
+      "AppArmor"
+    ],
+    [
+      "AppArmor"
+    ],
+    [
+      "not loaded",
+      "cannot enforce"
+    ]
+  ]
+}
