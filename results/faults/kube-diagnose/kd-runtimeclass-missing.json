@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-runtimeclass-missing"
   ],
-  "collectedAt": "2026-11-25 14:19 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD183",

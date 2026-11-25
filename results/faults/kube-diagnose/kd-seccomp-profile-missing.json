@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-seccomp-profile-missing"
   ],
-  "collectedAt": "2026-11-25 14:19 UTC",
+  "collectedAt": "2026-11-25 16:12 UTC",
   "findings": [
     {
       "rule": "KD207",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-seccomp-profile-missing",
-            "name": "api-69c86f6c44-9blhc"
+            "name": "api-69c86f6c44-rjb7p"
           },
           "what": "container api did not start",
           "detail": "failed to create containerd container: cannot load seccomp profile \"/var/lib/kubelet/seccomp/profiles/kd-hardened.json\": open /var/lib/kubelet/seccomp/profiles/kd-hardened.json: no such file or directory",
-          "command": "kubectl get pod api-69c86f6c44-9blhc -n kd-seccomp-profile-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
+          "command": "kubectl get pod api-69c86f6c44-rjb7p -n kd-seccomp-profile-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-seccomp-profile-missing",
-            "name": "api-69c86f6c44-9blhc"
+            "name": "api-69c86f6c44-rjb7p"
           },
           "what": "the pod's and the container's seccompProfile",
-          "command": "kubectl get pod api-69c86f6c44-9blhc -n kd-seccomp-profile-missing -o jsonpath='{.spec.securityContext.seccompProfile}{\"\\n\"}{.spec.containers[?(@.name==\"api\")].securityContext.seccompProfile}'"
+          "command": "kubectl get pod api-69c86f6c44-rjb7p -n kd-seccomp-profile-missing -o jsonpath='{.spec.securityContext.seccompProfile}{\"\\n\"}{.spec.containers[?(@.name==\"api\")].securityContext.seccompProfile}'"
         }
       ],
       "fix": "Put the profile on every node that may run the pod, under the kubelet's seccomp directory (the Security Profiles Operator or a DaemonSet can install it), keep the pod to the nodes that have it, or use seccompProfile type RuntimeDefault.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-seccomp-profile-missing",
-          "name": "api-69c86f6c44-9blhc"
+          "name": "api-69c86f6c44-rjb7p"
         }
       ]
     }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-service-port"
   ],
-  "collectedAt": "2026-11-25 14:16 UTC",
+  "collectedAt": "2026-11-25 16:09 UTC",
   "findings": [
     {
       "rule": "KD127",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-service-port",
-            "name": "client-5858c98f74-2f9dl"
+            "name": "client-5858c98f74-vdhnb"
           },
           "what": "container client exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod client-5858c98f74-2f9dl -n kd-networkpolicy-service-port -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
+          "command": "kubectl get pod client-5858c98f74-vdhnb -n kd-networkpolicy-service-port -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-service-port",
-            "name": "client-5858c98f74-2f9dl"
+            "name": "client-5858c98f74-vdhnb"
           },
-          "what": "last lines of container client's log (run that exited)",
-          "detail": "Connecting to web (10.96.201.75:80)\nwget: download timed out",
-          "command": "kubectl logs client-5858c98f74-2f9dl -n kd-networkpolicy-service-port -c client --tail=20 --previous"
+          "what": "last lines of container client's log (current run)",
+          "detail": "Connecting to web (10.96.58.176:80)\nwget: download timed out",
+          "command": "kubectl logs client-5858c98f74-vdhnb -n kd-networkpolicy-service-port -c client --tail=20"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-service-port",
-          "name": "client-5858c98f74-2f9dl"
+          "name": "client-5858c98f74-vdhnb"
         }
       ]
     }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-apparmor-profile-missing"
   ],
-  "collectedAt": "2026-11-25 14:11 UTC",
+  "collectedAt": "2026-11-25 16:05 UTC",
   "findings": [
     {
       "rule": "KD314",

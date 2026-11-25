@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-seccomp-profile-missing",
-              "Masked": "dWpzQGc8NGY/I0VmLUEqeV9IdiNiL2JPUyI="
+              "Masked": "WXdhUS5aT3x7KnkoXkl0JVhvbFhQc3c9Ikc="
             },
             {
               "Unmasked": "api",
-              "Masked": "KEFW"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-seccomp-profile-missing/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-69c86f6c44\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-seccomp-profile-missing",
-              "Masked": "dE5HTnklUyFRUSY9aHUxdlNqWnx8V1k1OyU="
-            },
-            {
-              "Unmasked": "api",
-              "Masked": "IWpC"
+              "Masked": "RGkp"
             }
           ]
         }
@@ -42,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-seccomp-profile-missing/api-69c86f6c44-9blhc",
+      "name": "kd-seccomp-profile-missing/api-69c86f6c44-rjb7p",
       "error": [
         {
           "Text": "failed to create containerd container: cannot load seccomp profile \"/var/lib/kubelet/seccomp/profiles/kd-hardened.json\": open /var/lib/kubelet/seccomp/profiles/kd-hardened.json: no such file or directory",

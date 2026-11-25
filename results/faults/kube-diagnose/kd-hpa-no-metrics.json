@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hpa-no-metrics"
   ],
-  "collectedAt": "2026-11-25 14:14 UTC",
+  "collectedAt": "2026-11-25 16:07 UTC",
   "findings": [
     {
       "rule": "KD176",

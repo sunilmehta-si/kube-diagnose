@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-shm-too-small",
-              "Masked": "LWx5Tl95KGc0WThSKSY1Yg=="
+              "Masked": "Y2hMdjJTcm98KCV3VER6Qg=="
             },
             {
               "Unmasked": "trainer",
-              "Masked": "X3hhQD14NA=="
+              "Masked": "UCRsQTs0VA=="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-shm-too-small/trainer-75f5d88cf5-rrmcs",
+      "name": "kd-shm-too-small/trainer-75f5d88cf5-kfxmn",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=trainer pod=trainer-75f5d88cf5-rrmcs",
+          "Text": "the last termination reason is Error container=trainer pod=trainer-75f5d88cf5-kfxmn",
           "KubernetesDoc": "",
           "Sensitive": []
         }

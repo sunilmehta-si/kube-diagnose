@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-peer-dns"
   ],
-  "collectedAt": "2026-11-25 14:20 UTC",
+  "collectedAt": "2026-11-25 16:12 UTC",
   "findings": [
     {
       "rule": "KD373",
@@ -23,8 +23,8 @@
             "namespace": "kd-statefulset-peer-dns",
             "name": "quorum-0"
           },
-          "what": "container member exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod quorum-0 -n kd-statefulset-peer-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"member\")].state.terminated}'"
+          "what": "container member exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod quorum-0 -n kd-statefulset-peer-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"member\")].lastState.terminated}'"
         },
         {
           "object": {
@@ -32,9 +32,9 @@
             "namespace": "kd-statefulset-peer-dns",
             "name": "quorum-0"
           },
-          "what": "last lines of container member's log (current run)",
+          "what": "last lines of container member's log (run that exited)",
           "detail": "wget: bad address 'quorum-1.quorum:7000'\ncannot join the quorum without quorum-1",
-          "command": "kubectl logs quorum-0 -n kd-statefulset-peer-dns -c member --tail=20"
+          "command": "kubectl logs quorum-0 -n kd-statefulset-peer-dns -c member --tail=20 --previous"
         },
         {
           "object": {

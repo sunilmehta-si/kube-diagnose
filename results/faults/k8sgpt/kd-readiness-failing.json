@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 5,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-failing",
-              "Masked": "JSg6eDBwayVTb2xnT14pbEJHJGQ="
+              "Masked": "eHcyWWNqb3NDKiNnfV84VC58bmM="
             },
             {
               "Unmasked": "web",
-              "Masked": "b3o8"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-readiness-failing/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-ff6bfb896\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-readiness-failing",
-              "Masked": "VXVYLSlINFtWVm1NaF91ZHpfTW0="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "Q2dx"
+              "Masked": "Q0pJ"
             }
           ]
         }
@@ -45,7 +31,7 @@
       "name": "kd-readiness-failing/web",
       "error": [
         {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-ff6bfb896-5bgw4 Pod/web-ff6bfb896-r77j8], expected 2",
+          "Text": "Service has not ready endpoints, pods: [Pod/web-ff6bfb896-ggvrl Pod/web-ff6bfb896-m2kqg], expected 2",
           "KubernetesDoc": "",
           "Sensitive": []
         }
@@ -55,7 +41,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-readiness-failing/web-ff6bfb896-5bgw4",
+      "name": "kd-readiness-failing/web-ff6bfb896-ggvrl",
       "error": [
         {
           "Text": "Readiness probe failed: HTTP probe failed with statuscode: 404",
@@ -68,7 +54,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-readiness-failing/web-ff6bfb896-r77j8",
+      "name": "kd-readiness-failing/web-ff6bfb896-m2kqg",
       "error": [
         {
           "Text": "Readiness probe failed: HTTP probe failed with statuscode: 404",

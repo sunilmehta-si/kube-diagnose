@@ -8,24 +8,24 @@ that shows it to you. It never changes anything: every kubectl command it runs i
 
 ```text
 $ kubectl diagnose -n kd-liveness-wrong-port
-kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-25 14:15 UTC
-1 problem: 1 warning.
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-25 16:09 UTC
+1 problem: 1 critical.
 
-1. WARNING  Liveness probe kills the container  KD112
+1. CRITICAL  Liveness probe kills the container  KD112
    Deployment kd-liveness-wrong-port/web
    Cause: container web fails its liveness probe (GET / on port 9090, but the container declares
-          port 8080), so the kubelet restarts it (7 restarts); Deployment web has 1 of 1 replicas
+          port 8080), so the kubelet restarts it (6 restarts); Deployment web has 0 of 1 replicas
           ready
    Evidence:
-     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-b7nxz: event Unhealthy (7 times)
-         │ Liveness probe failed: Get "http://10.244.0.82:9090/": dial tcp 10.244.0.82:9090: connect: connection refused
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-b7nxz
-     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-b7nxz: event Killing (6 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-5bpfd: event Unhealthy (7 times)
+         │ Liveness probe failed: Get "http://10.244.0.78:9090/": dial tcp 10.244.0.78:9090: connect: connection refused
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-5bpfd
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-5bpfd: event Killing (6 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-b7nxz
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-5bpfd
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pod web-67fbcb44db-b7nxz
+   Affects: Pod web-67fbcb44db-5bpfd
 ```
 
 That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
@@ -187,13 +187,13 @@ count as false alarms. The workflow's summary shows the table for each run; `hac
 machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any kubeconfig context that is not
 kind-*.
 
-The run committed in [`results/faults`](results/faults) ([run 45630414949](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/45630414949),
+The run committed in [`results/faults`](results/faults) ([run 45650382555](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/45650382555),
 25 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
 
 | Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
 |---|---|---|---|---|
-| kube-diagnose | 218 of 218 (exact rule and object: 218) | 218 | 0 | 0 |
-| k8sgpt | 36 of 218 | 9 | 0 | 342 |
+| kube-diagnose | 219 of 219 (exact rule and object: 219) | 219 | 0 | 0 |
+| k8sgpt | 36 of 219 | 9 | 0 | 340 |
 | holmesgpt | not run | | | |
 
 | Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
@@ -231,6 +231,7 @@ The run committed in [`results/faults`](results/faults) ([run 45630414949](https
 | docker-socket-on-containerd | The pod mounts /var/run/docker.sock as a hostPath of type Socket, and kind's node runs containerd, not Docker, so the socket does not exist and the pod stays in ContainerCreating. | ✅ | ❌ | – |
 | downward-label-missing | APP_VERSION comes from the pod label app.kubernetes.io/version through the downward API, and the pods have no such label, so the variable is empty and the api exits. | ✅ | ❌ | – |
 | dra-claim-missing | The trainer claims its GPU through ResourceClaim train-gpu, which was never created, so the scheduler does not try the pod and it waits with no event. | ✅ | ❌ | – |
+| dra-claim-quota | ResourceQuota dra-claims allows no ResourceClaims in the namespace, so the claim for the trainer pod cannot be made from its template and the pod waits. | ✅ | ❌ | – |
 | dra-claim-template-missing | Each trainer pod is to get its claim from ResourceClaimTemplate single-gpu, which does not exist, so no claim is made and the pod waits. | ✅ | ❌ | – |
 | dra-device-class-missing | The claim made from template one-gpu asks for DeviceClass gpu.nvidia.com, which the cluster does not have, so the scheduler cannot pick a device. | ✅ | ❌ | – |
 | dra-driver-not-registered | The scheduler allocates a fpga.example.com device to the pod, and no kubelet plugin for that driver runs on the node, so the device is never prepared and the container never starts. | ✅ | ❌ | – |
@@ -422,9 +423,9 @@ The run committed in [`results/faults`](results/faults) ([run 45630414949](https
 
 k8sgpt reports what each of its analyzers sees: the symptom where kube-diagnose names the cause behind it. For the crash
 it said only that the last termination reason is Error (earlier runs added exit code 1), not that the log says
-DATABASE_URL is not set; for the liveness probe on the wrong port it reported nothing this time, having looked while
-the container was running between restarts (in other runs it said only that the last termination reason was Error, never
-that a probe kills the container; k8sgpt-ai/k8sgpt#1941 proposes reporting the probe); for
+DATABASE_URL is not set; for the liveness probe on the wrong port it said only that the last termination reason was
+Error, never that a probe kills the container (in some runs it reported nothing, having looked while the container was
+running between restarts; k8sgpt-ai/k8sgpt#1941 proposes reporting the probe); for
 the node selector it quoted the scheduler's message, not which label no node has; and for the deny-all NetworkPolicy its
 default analyzers reported nothing (its NetworkPolicy analyzer is not on by default). The first run of this suite,
 before a fix, caught kube-diagnose missing 4 of the 23: containers that had just exited, which the kubelet had not yet
@@ -482,16 +483,17 @@ serviceAccountName, because the API server writes default into a pod that names 
 looked for the omission in the pod's own spec; it says now that a pod whose template names none runs as default. The
 Gateway API scenarios (twelve, with 0.15.0's two) run with the API's CRDs installed and no controller, as the rules judge what the objects name;
 k8sgpt's Gateway analyzers are not among its defaults, and it reported nothing for any of them.
-The 17 added for 0.15.0 were named first, with the exact rule and object, on their first run. Two of them had first
+The 18 added for 0.15.0 were named first, with the exact rule and object, on their first run. Two of them had first
 stopped a run before any scenario was scored: their manifests still held a route from the template they were made from,
-which kubectl refused, and the suite's test now fails on such a placeholder. The seven device-claim scenarios run with
+which kubectl refused, and the suite's test now fails on such a placeholder. The eight device-claim scenarios run with
 no DRA driver: their DeviceClasses and ResourceSlices are made by hand, the scheduler allocates from those as it would
 from a driver's, and in one it does, leaving the device to a kubelet with no plugin for it. k8sgpt said of each that the
 Deployment had 0 of 1 replicas available; where the scheduler had tried the pod it also quoted its message (cannot
 allocate all claims for three, the missing device class for one), and for the claim and template that do not exist,
-which the scheduler never tries, and the missing plugin, it said nothing more. Replaying the run after redaction caught
-one more: --redact replaced busybox with a pseudonym, which hid the base image KD315 reads, and Docker Hub's official
-base images are kept now.
+which the scheduler never tries, the claim a quota refused and the missing plugin, it said nothing more. Replaying the
+runs after redaction caught two more: --redact replaced busybox with a pseudonym, which hid the base image KD315 reads,
+and Docker Hub's official base images are kept now; and it left the pod's name in a claim that a message named before it
+was made (POD-gpu-x7k2p), which is renamed with the pod now.
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.
 

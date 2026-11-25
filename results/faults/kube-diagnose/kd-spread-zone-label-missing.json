@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-spread-zone-label-missing"
   ],
-  "collectedAt": "2026-11-25 14:20 UTC",
+  "collectedAt": "2026-11-25 16:12 UTC",
   "findings": [
     {
       "rule": "KD245",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-spread-zone-label-missing",
-            "name": "web-5479544b58-btkbt"
+            "name": "web-5479544b58-bsf9q"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't match pod topology spread constraints (missing required label). preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod web-5479544b58-btkbt -n kd-spread-zone-label-missing -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-5479544b58-bsf9q -n kd-spread-zone-label-missing -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-spread-zone-label-missing",
-            "name": "web-5479544b58-btkbt"
+            "name": "web-5479544b58-bsf9q"
           },
           "what": "topologySpreadConstraints: topologyKey topology.kubernetes.io/zone, maxSkew 1",
-          "command": "kubectl get pod web-5479544b58-btkbt -n kd-spread-zone-label-missing -o jsonpath='{.spec.topologySpreadConstraints}'"
+          "command": "kubectl get pod web-5479544b58-bsf9q -n kd-spread-zone-label-missing -o jsonpath='{.spec.topologySpreadConstraints}'"
         },
         {
           "object": {
@@ -50,12 +50,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-spread-zone-label-missing",
-          "name": "web-5479544b58-btkbt"
+          "name": "web-5479544b58-bsf9q"
         },
         {
           "kind": "Pod",
           "namespace": "kd-spread-zone-label-missing",
-          "name": "web-5479544b58-cnnzh"
+          "name": "web-5479544b58-hhlxz"
         }
       ]
     }

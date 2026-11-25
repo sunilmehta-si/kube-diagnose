@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hostnetwork-port-taken"
   ],
-  "collectedAt": "2026-11-25 14:14 UTC",
+  "collectedAt": "2026-11-25 16:07 UTC",
   "findings": [
     {
       "rule": "KD122",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostnetwork-port-taken",
-            "name": "node-agent-68f6b4788b-ljlsc"
+            "name": "node-agent-68f6b4788b-j2qxp"
           },
-          "what": "container agent exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod node-agent-68f6b4788b-ljlsc -n kd-hostnetwork-port-taken -o jsonpath='{.status.containerStatuses[?(@.name==\"agent\")].state.terminated}'"
+          "what": "container agent exited with code 1 (Error), restarted 5 times",
+          "command": "kubectl get pod node-agent-68f6b4788b-j2qxp -n kd-hostnetwork-port-taken -o jsonpath='{.status.containerStatuses[?(@.name==\"agent\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostnetwork-port-taken",
-            "name": "node-agent-68f6b4788b-ljlsc"
+            "name": "node-agent-68f6b4788b-j2qxp"
           },
-          "what": "last lines of container agent's log (current run)",
+          "what": "last lines of container agent's log (run that exited)",
           "detail": "httpd: bind: Address already in use",
-          "command": "kubectl logs node-agent-68f6b4788b-ljlsc -n kd-hostnetwork-port-taken -c agent --tail=20"
+          "command": "kubectl logs node-agent-68f6b4788b-j2qxp -n kd-hostnetwork-port-taken -c agent --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-hostnetwork-port-taken",
-            "name": "node-agent-68f6b4788b-ljlsc"
+            "name": "node-agent-68f6b4788b-j2qxp"
           },
           "what": "the pod has hostNetwork: true",
-          "command": "kubectl get pod node-agent-68f6b4788b-ljlsc -n kd-hostnetwork-port-taken -o jsonpath='{.spec.hostNetwork}'"
+          "command": "kubectl get pod node-agent-68f6b4788b-j2qxp -n kd-hostnetwork-port-taken -o jsonpath='{.spec.hostNetwork}'"
         }
       ],
       "fix": "Listen on a port nothing on the node uses, or drop hostNetwork and reach the pod through a Service (or a hostPort, which the scheduler checks against the other pods' host ports).",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-hostnetwork-port-taken",
-          "name": "node-agent-68f6b4788b-ljlsc"
+          "name": "node-agent-68f6b4788b-j2qxp"
         }
       ]
     }

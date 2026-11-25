@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-dra-device-class-missing",
-              "Masked": "cFVNUl5mJGlOaUpTfTJkbSRMd3l8bnZzSFBO"
+              "Masked": "PScydnhyfSNWUzEpN0xeWWlXMzh9OCg1X3NO"
             },
             {
               "Unmasked": "trainer",
-              "Masked": "PkdmanlzXw=="
+              "Masked": "RzBMZEpiXw=="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-dra-device-class-missing/trainer-7845ff4f5b-8x5m9",
+      "name": "kd-dra-device-class-missing/trainer-7845ff4f5b-vlttz",
       "error": [
         {
           "Text": "0/1 nodes are available: request gpu: device class gpu.nvidia.com does not exist. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

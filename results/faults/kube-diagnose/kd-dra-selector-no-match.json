@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-selector-no-match"
   ],
-  "collectedAt": "2026-11-25 14:12 UTC",
+  "collectedAt": "2026-11-25 16:06 UTC",
   "findings": [
     {
       "rule": "KD325",
@@ -15,16 +15,16 @@
         "namespace": "kd-dra-selector-no-match",
         "name": "trainer"
       },
-      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-xqhvz-gpu-t2684 asks for devices of DeviceClass tpu.example.com that satisfy the selector device.attributes[\"tpu.example.com\"].model == \"v6e\", and the scheduler finds none it can allocate among the 2 devices on offer, most of them free: the selectors match no device the driver publishes (an attribute name or value that differs, or a domain the attribute is not under); Deployment trainer has 0 of 1 replicas ready",
+      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-cdjdh-gpu-vq7r8 asks for devices of DeviceClass tpu.example.com that satisfy the selector device.attributes[\"tpu.example.com\"].model == \"v6e\", and the scheduler finds none it can allocate among the 2 devices on offer, most of them free: the selectors match no device the driver publishes (an attribute name or value that differs, or a domain the attribute is not under); Deployment trainer has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "ResourceClaim",
             "namespace": "kd-dra-selector-no-match",
-            "name": "trainer-7845ff4f5b-xqhvz-gpu-t2684"
+            "name": "trainer-7845ff4f5b-cdjdh-gpu-vq7r8"
           },
-          "what": "ResourceClaim trainer-7845ff4f5b-xqhvz-gpu-t2684's device requests",
-          "command": "kubectl get resourceclaim trainer-7845ff4f5b-xqhvz-gpu-t2684 -n kd-dra-selector-no-match -o jsonpath='{.spec.devices.requests}'"
+          "what": "ResourceClaim trainer-7845ff4f5b-cdjdh-gpu-vq7r8's device requests",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-cdjdh-gpu-vq7r8 -n kd-dra-selector-no-match -o jsonpath='{.spec.devices.requests}'"
         },
         {
           "object": {
@@ -38,11 +38,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-selector-no-match",
-            "name": "trainer-7845ff4f5b-xqhvz"
+            "name": "trainer-7845ff4f5b-cdjdh"
           },
           "what": "event FailedScheduling",
           "detail": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get events -n kd-dra-selector-no-match --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-xqhvz"
+          "command": "kubectl get events -n kd-dra-selector-no-match --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-cdjdh"
         },
         {
           "object": {
@@ -58,7 +58,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dra-selector-no-match",
-          "name": "trainer-7845ff4f5b-xqhvz"
+          "name": "trainer-7845ff4f5b-cdjdh"
         }
       ]
     }

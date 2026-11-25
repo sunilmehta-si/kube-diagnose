@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-requires-limits",
-              "Masked": "djEnW0FpYi1DbnlNL20mcDFfXlczNm9E"
+              "Masked": "a2peN2x0QFMkMilzJXkyV2xEb2I+VFFp"
             },
             {
               "Unmasked": "web",
-              "Masked": "bTdl"
+              "Masked": "aXBa"
             }
           ]
         }
@@ -44,7 +44,7 @@
       "name": "kd-quota-requires-limits/web-6d754df847",
       "error": [
         {
-          "Text": "pods \"web-6d754df847-x9444\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "Text": "pods \"web-6d754df847-dh777\" is forbidden: failed quota: compute: must specify limits.memory for: web",
           "KubernetesDoc": "",
           "Sensitive": []
         }

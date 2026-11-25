@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-configmap-read-only"
   ],
-  "collectedAt": "2026-11-25 14:11 UTC",
+  "collectedAt": "2026-11-25 16:05 UTC",
   "findings": [
     {
       "rule": "KD138",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-read-only",
-            "name": "web-64487c79c4-gfmdf"
+            "name": "web-64487c79c4-gsqh7"
           },
           "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-64487c79c4-gfmdf -n kd-configmap-read-only -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+          "command": "kubectl get pod web-64487c79c4-gsqh7 -n kd-configmap-read-only -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-read-only",
-            "name": "web-64487c79c4-gfmdf"
+            "name": "web-64487c79c4-gsqh7"
           },
           "what": "last lines of container web's log (current run)",
           "detail": "sh: can't create /etc/app/app.conf: Read-only file system",
-          "command": "kubectl logs web-64487c79c4-gfmdf -n kd-configmap-read-only -c web --tail=20"
+          "command": "kubectl logs web-64487c79c4-gsqh7 -n kd-configmap-read-only -c web --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-configmap-read-only",
-            "name": "web-64487c79c4-gfmdf"
+            "name": "web-64487c79c4-gsqh7"
           },
           "what": "container web mounts volume config (ConfigMap app) at /etc/app",
-          "command": "kubectl get pod web-64487c79c4-gfmdf -n kd-configmap-read-only -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
+          "command": "kubectl get pod web-64487c79c4-gsqh7 -n kd-configmap-read-only -o jsonpath='{.spec.volumes[?(@.name==\"config\")]}'"
         }
       ],
       "fix": "Write to a writable volume instead: mount an emptyDir for the files the app changes, and copy what it needs from ConfigMap app into it with an init container.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-configmap-read-only",
-          "name": "web-64487c79c4-gfmdf"
+          "name": "web-64487c79c4-gsqh7"
         }
       ]
     }

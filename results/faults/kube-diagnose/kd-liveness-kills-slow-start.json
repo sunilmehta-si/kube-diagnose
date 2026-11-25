@@ -4,66 +4,66 @@
   "namespaces": [
     "kd-liveness-kills-slow-start"
   ],
-  "collectedAt": "2026-11-25 14:15 UTC",
+  "collectedAt": "2026-11-25 16:08 UTC",
   "findings": [
     {
       "rule": "KD306",
       "title": "Liveness probe kills the container before it has started",
-      "severity": "critical",
+      "severity": "warning",
       "object": {
         "kind": "Deployment",
         "namespace": "kd-liveness-kills-slow-start",
         "name": "model-server"
       },
-      "cause": "container server is killed by its liveness probe before it has started: every probe finds nothing listening on port 8080 (connection refused), the probe gives up after about 20s (initialDelaySeconds 5, then periodSeconds 5 x failureThreshold 3), there is no startupProbe, and each run ends after 48s with no error in its log, the last line still about starting: \"warming the cache\" (6 restarts); Deployment model-server has 0 of 1 replicas ready",
+      "cause": "container server is killed by its liveness probe before it has started: every probe finds nothing listening on port 8080 (connection refused), the probe gives up after about 20s (initialDelaySeconds 5, then periodSeconds 5 x failureThreshold 3), there is no startupProbe, and each run ends after 45s with no error in its log, the last line still about starting: \"loading model weights\" (6 restarts); Deployment model-server has 1 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-liveness-kills-slow-start",
-            "name": "model-server-76677bfd58-8jvt8"
+            "name": "model-server-76677bfd58-tl9q2"
           },
           "what": "event Unhealthy (21 times)",
-          "detail": "Liveness probe failed: dial tcp 10.244.0.81:8080: connect: connection refused",
-          "command": "kubectl get events -n kd-liveness-kills-slow-start --field-selector involvedObject.kind=Pod,involvedObject.name=model-server-76677bfd58-8jvt8"
+          "detail": "Liveness probe failed: dial tcp 10.244.0.77:8080: connect: connection refused",
+          "command": "kubectl get events -n kd-liveness-kills-slow-start --field-selector involvedObject.kind=Pod,involvedObject.name=model-server-76677bfd58-tl9q2"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-liveness-kills-slow-start",
-            "name": "model-server-76677bfd58-8jvt8"
+            "name": "model-server-76677bfd58-tl9q2"
           },
           "what": "event Killing (6 times)",
           "detail": "Container server failed liveness probe, will be restarted",
-          "command": "kubectl get events -n kd-liveness-kills-slow-start --field-selector involvedObject.kind=Pod,involvedObject.name=model-server-76677bfd58-8jvt8"
+          "command": "kubectl get events -n kd-liveness-kills-slow-start --field-selector involvedObject.kind=Pod,involvedObject.name=model-server-76677bfd58-tl9q2"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-liveness-kills-slow-start",
-            "name": "model-server-76677bfd58-8jvt8"
+            "name": "model-server-76677bfd58-tl9q2"
           },
           "what": "event Unhealthy (21 times)",
-          "detail": "Liveness probe failed: dial tcp 10.244.0.81:8080: connect: connection refused",
-          "command": "kubectl get events -n kd-liveness-kills-slow-start --field-selector involvedObject.kind=Pod,involvedObject.name=model-server-76677bfd58-8jvt8"
+          "detail": "Liveness probe failed: dial tcp 10.244.0.77:8080: connect: connection refused",
+          "command": "kubectl get events -n kd-liveness-kills-slow-start --field-selector involvedObject.kind=Pod,involvedObject.name=model-server-76677bfd58-tl9q2"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-liveness-kills-slow-start",
-            "name": "model-server-76677bfd58-8jvt8"
+            "name": "model-server-76677bfd58-tl9q2"
           },
           "what": "container server's liveness probe",
-          "command": "kubectl get pod model-server-76677bfd58-8jvt8 -n kd-liveness-kills-slow-start -o jsonpath='{.spec.containers[?(@.name==\"server\")].livenessProbe}'"
+          "command": "kubectl get pod model-server-76677bfd58-tl9q2 -n kd-liveness-kills-slow-start -o jsonpath='{.spec.containers[?(@.name==\"server\")].livenessProbe}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-liveness-kills-slow-start",
-            "name": "model-server-76677bfd58-8jvt8"
+            "name": "model-server-76677bfd58-tl9q2"
           },
-          "what": "the last run lasted 48s",
-          "command": "kubectl get pod model-server-76677bfd58-8jvt8 -n kd-liveness-kills-slow-start -o jsonpath='{.status.containerStatuses[?(@.name==\"server\")].lastState.terminated}'"
+          "what": "the last run lasted 45s",
+          "command": "kubectl get pod model-server-76677bfd58-tl9q2 -n kd-liveness-kills-slow-start -o jsonpath='{.status.containerStatuses[?(@.name==\"server\")].lastState.terminated}'"
         }
       ],
       "fix": "Add a startupProbe that checks port 8080 like the liveness probe, with failureThreshold x periodSeconds longer than the app takes to start (the liveness probe begins only once it passes), or make the app start faster. A longer initialDelaySeconds also works, but delays the first check of every start.",
@@ -71,7 +71,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-liveness-kills-slow-start",
-          "name": "model-server-76677bfd58-8jvt8"
+          "name": "model-server-76677bfd58-tl9q2"
         }
       ]
     }

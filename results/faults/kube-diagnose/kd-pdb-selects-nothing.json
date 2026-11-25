@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pdb-selects-nothing"
   ],
-  "collectedAt": "2026-11-25 14:17 UTC",
+  "collectedAt": "2026-11-25 16:10 UTC",
   "findings": [
     {
       "rule": "KD186",

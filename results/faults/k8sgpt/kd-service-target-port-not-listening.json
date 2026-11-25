@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-service-target-port-not-listening",
-              "Masked": "UWklazJtYyMiVkEzdXVKY0pYOkI/TjYkSjVwVjgyZnNHOkhy"
+              "Masked": "WjluYS5qRildZl9tXiJ3NVl3Wmp2IW8/MHpWIVhWd3VBX3FH"
             },
             {
               "Unmasked": "client",
-              "Masked": "fHFkTXJ2"
+              "Masked": "eG1kNWks"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-service-target-port-not-listening/client-5fb6f4d88d-sbp9g",
+      "name": "kd-service-target-port-not-listening/client-5fb6f4d88d-w6gsf",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=client pod=client-5fb6f4d88d-sbp9g",
+          "Text": "the last termination reason is Error container=client pod=client-5fb6f4d88d-w6gsf",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-access-mode",
-              "Masked": "VkdFQDVpcXA4OVhEYUQlZiVN"
+              "Masked": "M3o/JkVkMmprT0N4RCFBMzlb"
             },
             {
               "Unmasked": "web",
-              "Masked": "RHJT"
+              "Masked": "RChs"
             }
           ]
         }

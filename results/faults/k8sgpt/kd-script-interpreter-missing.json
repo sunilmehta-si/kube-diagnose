@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-script-interpreter-missing",
-              "Masked": "T3liSSlSViR2ZmxmQTsmTGotbV9vWlFVY18hOCs="
+              "Masked": "KUppaC5UMi0xOEkvQl1kOWF5OXp7SDA5RlJoSWg="
             },
             {
               "Unmasked": "web",
-              "Masked": "bjQw"
+              "Masked": "NW51"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-script-interpreter-missing/web-84b4ff95fc-8bw4x",
+      "name": "kd-script-interpreter-missing/web-84b4ff95fc-ppp6x",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=255 container=web pod=web-84b4ff95fc-8bw4x",
+          "Text": "the last termination reason is Error container=web pod=web-84b4ff95fc-ppp6x",
           "KubernetesDoc": "",
           "Sensitive": []
         }

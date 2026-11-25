@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readiness-initial-delay"
   ],
-  "collectedAt": "2026-11-25 14:18 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD211",
@@ -15,25 +15,25 @@
         "namespace": "kd-readiness-initial-delay",
         "name": "api"
       },
-      "cause": "container api has run for 10m21s and is not ready because its readiness probe waits initialDelaySeconds 900 (15m0s) before its first check, so the pod gets no traffic until then, after every start and restart; Deployment api has 0 of 1 replicas ready",
+      "cause": "container api has run for 8m36s and is not ready because its readiness probe waits initialDelaySeconds 900 (15m0s) before its first check, so the pod gets no traffic until then, after every start and restart; Deployment api has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-initial-delay",
-            "name": "api-868866fccb-xl8rj"
+            "name": "api-868866fccb-fx7kq"
           },
           "what": "container api's readiness probe has initialDelaySeconds 900",
-          "command": "kubectl get pod api-868866fccb-xl8rj -n kd-readiness-initial-delay -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
+          "command": "kubectl get pod api-868866fccb-fx7kq -n kd-readiness-initial-delay -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-initial-delay",
-            "name": "api-868866fccb-xl8rj"
+            "name": "api-868866fccb-fx7kq"
           },
-          "what": "container api started 10m21s ago and is not ready",
-          "command": "kubectl get pod api-868866fccb-xl8rj -n kd-readiness-initial-delay -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
+          "what": "container api started 8m36s ago and is not ready",
+          "command": "kubectl get pod api-868866fccb-fx7kq -n kd-readiness-initial-delay -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state}'"
         }
       ],
       "fix": "For an app that starts slowly, give it a startupProbe (it holds the other probes back only until the app is up) and a short readiness initialDelaySeconds.",
@@ -41,7 +41,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-readiness-initial-delay",
-          "name": "api-868866fccb-xl8rj"
+          "name": "api-868866fccb-fx7kq"
         }
       ]
     }

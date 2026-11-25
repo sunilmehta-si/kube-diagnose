@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-externalname-unresolved",
-              "Masked": "Un0+aEYzLCpQRnJ3XkBIJTNWL31pSWstb1s="
+              "Masked": "KUI2LVpqPTBXdkYhNU5QaEpTXSVjcWkoIzQ="
             },
             {
               "Unmasked": "api",
-              "Masked": "MjI8"
+              "Masked": "Jlpq"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-externalname-unresolved/api-fc8cdb868-6np5z",
+      "name": "kd-externalname-unresolved/api-fc8cdb868-zwwk9",
       "error": [
         {
-          "Text": "the last termination reason is Error container=api pod=api-fc8cdb868-6np5z",
+          "Text": "the last termination reason is Error container=api pod=api-fc8cdb868-zwwk9",
           "KubernetesDoc": "",
           "Sensitive": []
         }

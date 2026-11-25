@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-optional-envfrom-missing"
   ],
-  "collectedAt": "2026-11-25 14:16 UTC",
+  "collectedAt": "2026-11-25 16:09 UTC",
   "findings": [
     {
       "rule": "KD235",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-optional-envfrom-missing",
-            "name": "api-7dc995dd89-84hpt"
+            "name": "api-7dc995dd89-ftvz6"
           },
           "what": "container api exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod api-7dc995dd89-84hpt -n kd-optional-envfrom-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
+          "command": "kubectl get pod api-7dc995dd89-ftvz6 -n kd-optional-envfrom-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-optional-envfrom-missing",
-            "name": "api-7dc995dd89-84hpt"
+            "name": "api-7dc995dd89-ftvz6"
           },
           "what": "last lines of container api's log (run that exited)",
           "detail": "fatal: API_URL is not set",
-          "command": "kubectl logs api-7dc995dd89-84hpt -n kd-optional-envfrom-missing -c api --tail=20 --previous"
+          "command": "kubectl logs api-7dc995dd89-ftvz6 -n kd-optional-envfrom-missing -c api --tail=20 --previous"
         },
         {
           "object": {
@@ -49,10 +49,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-optional-envfrom-missing",
-            "name": "api-7dc995dd89-84hpt"
+            "name": "api-7dc995dd89-ftvz6"
           },
           "what": "container api takes envFrom ConfigMap api-env, optional",
-          "command": "kubectl get pod api-7dc995dd89-84hpt -n kd-optional-envfrom-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].envFrom}'"
+          "command": "kubectl get pod api-7dc995dd89-ftvz6 -n kd-optional-envfrom-missing -o jsonpath='{.spec.containers[?(@.name==\"api\")].envFrom}'"
         }
       ],
       "fix": "Create ConfigMap api-env with the variables the app needs (API_URL among them), or point envFrom at the one that holds them; drop optional: true if the app cannot run without it.",
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-optional-envfrom-missing",
-          "name": "api-7dc995dd89-84hpt"
+          "name": "api-7dc995dd89-ftvz6"
         }
       ]
     }

@@ -18,6 +18,19 @@
       "parentObject": ""
     },
     {
+      "kind": "StatefulSet",
+      "name": "kd-statefulset-claim-quota/db",
+      "error": [
+        {
+          "Text": "Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims \"data-db-0\" is forbidden: exceeded quota: storage, requested: requests.storage=1Gi, used: requests.storage=0, limited: requests.storage=100Mi",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Service",
       "name": "kd-statefulset-claim-quota/db",
       "error": [
@@ -27,26 +40,13 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "TC8+"
+              "Masked": "aCg8"
             },
             {
               "Unmasked": "db",
-              "Masked": "XyE="
+              "Masked": "WTg="
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "StatefulSet",
-      "name": "kd-statefulset-claim-quota/db",
-      "error": [
-        {
-          "Text": "Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims \"data-db-0\" is forbidden: exceeded quota: storage, requested: requests.storage=1Gi, used: requests.storage=0, limited: requests.storage=100Mi",
-          "KubernetesDoc": "",
-          "Sensitive": []
         }
       ],
       "details": "",

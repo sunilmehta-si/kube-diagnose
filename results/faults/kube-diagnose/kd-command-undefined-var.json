@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-command-undefined-var"
   ],
-  "collectedAt": "2026-11-25 14:11 UTC",
+  "collectedAt": "2026-11-25 16:05 UTC",
   "findings": [
     {
       "rule": "KD205",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-undefined-var",
-            "name": "worker-69b5d4bd7-f7blf"
+            "name": "worker-69b5d4bd7-62rzb"
           },
           "what": "container worker exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod worker-69b5d4bd7-f7blf -n kd-command-undefined-var -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
+          "command": "kubectl get pod worker-69b5d4bd7-62rzb -n kd-command-undefined-var -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-undefined-var",
-            "name": "worker-69b5d4bd7-f7blf"
+            "name": "worker-69b5d4bd7-62rzb"
           },
           "what": "last lines of container worker's log (current run)",
           "detail": "sleep: invalid number '$(SLEEP_SECONDS)'",
-          "command": "kubectl logs worker-69b5d4bd7-f7blf -n kd-command-undefined-var -c worker --tail=20"
+          "command": "kubectl logs worker-69b5d4bd7-62rzb -n kd-command-undefined-var -c worker --tail=20"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-undefined-var",
-            "name": "worker-69b5d4bd7-f7blf"
+            "name": "worker-69b5d4bd7-62rzb"
           },
           "what": "container worker's command refers to $(SLEEP_SECONDS), and its env and envFrom define no SLEEP_SECONDS",
-          "command": "kubectl get pod worker-69b5d4bd7-f7blf -n kd-command-undefined-var -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}{\"\\n\"}{.spec.containers[?(@.name==\"worker\")].env[*].name}'"
+          "command": "kubectl get pod worker-69b5d4bd7-62rzb -n kd-command-undefined-var -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}{\"\\n\"}{.spec.containers[?(@.name==\"worker\")].env[*].name}'"
         }
       ],
       "fix": "Define SLEEP_SECONDS in the container's env (or a ConfigMap in envFrom), or correct the name in the command. To pass a literal $(SLEEP_SECONDS), write $$(SLEEP_SECONDS).",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-command-undefined-var",
-          "name": "worker-69b5d4bd7-f7blf"
+          "name": "worker-69b5d4bd7-62rzb"
         }
       ]
     }

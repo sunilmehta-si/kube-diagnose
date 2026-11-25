@@ -5,28 +5,6 @@
   "problems": 3,
   "results": [
     {
-      "kind": "Deployment",
-      "name": "kd-rbac-resourcenames-list/config-watcher",
-      "error": [
-        {
-          "Text": "Deployment kd-rbac-resourcenames-list/config-watcher has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-rbac-resourcenames-list",
-              "Masked": "LXE1RHIrZWx5Pl0wLjFkJ1ghLmIwQFl4djI="
-            },
-            {
-              "Unmasked": "config-watcher",
-              "Masked": "NnFfYilTeihXX3JOVjw="
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "ConfigMap",
       "name": "kd-rbac-resourcenames-list/settings",
       "error": [
@@ -40,11 +18,33 @@
       "parentObject": ""
     },
     {
-      "kind": "Pod",
-      "name": "kd-rbac-resourcenames-list/config-watcher-64cf7557b8-hvgp5",
+      "kind": "Deployment",
+      "name": "kd-rbac-resourcenames-list/config-watcher",
       "error": [
         {
-          "Text": "the last termination reason is Error container=watcher pod=config-watcher-64cf7557b8-hvgp5",
+          "Text": "Deployment kd-rbac-resourcenames-list/config-watcher has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-rbac-resourcenames-list",
+              "Masked": "WU1bSllLTT5TJmFDK055LkpWUDw7RjFXKDY="
+            },
+            {
+              "Unmasked": "config-watcher",
+              "Masked": "UEpRaj8jZV1ncltzXyI="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rbac-resourcenames-list/config-watcher-64cf7557b8-6zpgn",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=watcher pod=config-watcher-64cf7557b8-6zpgn",
           "KubernetesDoc": "",
           "Sensitive": []
         }

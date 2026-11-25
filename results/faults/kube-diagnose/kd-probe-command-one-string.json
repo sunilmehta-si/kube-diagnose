@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-command-one-string"
   ],
-  "collectedAt": "2026-11-25 14:17 UTC",
+  "collectedAt": "2026-11-25 16:10 UTC",
   "findings": [
     {
       "rule": "KD120",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-command-one-string",
-            "name": "web-7ffb5945f5-rdlcm"
+            "name": "web-7ffb5945f5-g62tr"
           },
-          "what": "event Unhealthy (55 times)",
-          "detail": "(combined from similar events): Readiness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"2ee17e4b90323cb757d1519b1f6ece24a86a743158e44dd8b4c9a68c2f8f442d\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"cat /tmp/ready\": stat cat /tmp/ready: no such file or directory",
-          "command": "kubectl get events -n kd-probe-command-one-string --field-selector involvedObject.kind=Pod,involvedObject.name=web-7ffb5945f5-rdlcm"
+          "what": "event Unhealthy (56 times)",
+          "detail": "(combined from similar events): Readiness probe errored and resulted in unknown state: rpc error: code = Unknown desc = failed to exec in container: failed to start exec \"7679e2cebb4499c630297c132812287133884b69aba6d554f4203a3dcbdb723e\": OCI runtime exec failed: exec failed: unable to start container process: exec: \"cat /tmp/ready\": stat cat /tmp/ready: no such file or directory",
+          "command": "kubectl get events -n kd-probe-command-one-string --field-selector involvedObject.kind=Pod,involvedObject.name=web-7ffb5945f5-g62tr"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-command-one-string",
-            "name": "web-7ffb5945f5-rdlcm"
+            "name": "web-7ffb5945f5-g62tr"
           },
           "what": "container web is running but not ready",
-          "command": "kubectl get pod web-7ffb5945f5-rdlcm -n kd-probe-command-one-string -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+          "command": "kubectl get pod web-7ffb5945f5-g62tr -n kd-probe-command-one-string -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
         }
       ],
       "fix": "Write each word of the probe's command as its own item: command: [\"cat\", \"/tmp/ready\"]. If it needs a pipe, \u0026\u0026 or a variable, run it through a shell: [\"sh\", \"-c\", \"cat /tmp/ready\"].",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-command-one-string",
-          "name": "web-7ffb5945f5-rdlcm"
+          "name": "web-7ffb5945f5-g62tr"
         },
         {
           "kind": "Service",

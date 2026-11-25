@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-verb-missing"
   ],
-  "collectedAt": "2026-11-25 14:18 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD302",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-verb-missing",
-            "name": "config-watcher-64cf7557b8-wvsq4"
+            "name": "config-watcher-64cf7557b8-26bpq"
           },
           "what": "container watcher exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod config-watcher-64cf7557b8-wvsq4 -n kd-rbac-verb-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].lastState.terminated}'"
+          "command": "kubectl get pod config-watcher-64cf7557b8-26bpq -n kd-rbac-verb-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-verb-missing",
-            "name": "config-watcher-64cf7557b8-wvsq4"
+            "name": "config-watcher-64cf7557b8-26bpq"
           },
           "what": "last lines of container watcher's log (run that exited)",
-          "detail": "NAME               DATA   AGE\nkube-root-ca.crt   1      5m49s\nError from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-verb-missing:app\" cannot watch resource \"configmaps\" in API group \"\" in the namespace \"kd-rbac-verb-missing\"",
-          "command": "kubectl logs config-watcher-64cf7557b8-wvsq4 -n kd-rbac-verb-missing -c watcher --tail=20 --previous"
+          "detail": "NAME               DATA   AGE\nkube-root-ca.crt   1      5m40s\nError from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-verb-missing:app\" cannot watch resource \"configmaps\" in API group \"\" in the namespace \"kd-rbac-verb-missing\"",
+          "command": "kubectl logs config-watcher-64cf7557b8-26bpq -n kd-rbac-verb-missing -c watcher --tail=20 --previous"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-verb-missing",
-          "name": "config-watcher-64cf7557b8-wvsq4"
+          "name": "config-watcher-64cf7557b8-26bpq"
         }
       ]
     }

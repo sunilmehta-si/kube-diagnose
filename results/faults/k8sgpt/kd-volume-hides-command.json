@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-volume-hides-command",
-              "Masked": "bWY7RmNRWXVVUWg7bHoybkMlL3JfZ0Y="
+              "Masked": "Z2QlO1NCMSw7d0Vic2haYz1eYTtQY0M="
             },
             {
               "Unmasked": "api",
-              "Masked": "R1Y8"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-volume-hides-command/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-544f5fbdf4\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-volume-hides-command",
-              "Masked": "Ri9RelYwb2ttMWxRXld3cTJqOUtzcVc="
-            },
-            {
-              "Unmasked": "api",
-              "Masked": "Y1Fs"
+              "Masked": "Sk9T"
             }
           ]
         }
@@ -42,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-volume-hides-command/api-544f5fbdf4-tnzgt",
+      "name": "kd-volume-hides-command/api-544f5fbdf4-cd484",
       "error": [
         {
-          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/bin/sleep\": stat /bin/sleep: no such file or directory",
+          "Text": "the last termination reason is StartError container=api pod=api-544f5fbdf4-cd484",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-downward-label-missing",
-              "Masked": "aVNJOEVxMiVpV0tOKSlETUhmdCQoWWVXXg=="
+              "Masked": "RGhyKEElUiEyZSkrL1gvIVZCTjolTiROSQ=="
             },
             {
               "Unmasked": "api",
-              "Masked": "Tl5n"
+              "Masked": "dGI4"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-downward-label-missing/api-8668bb5f87-sfz8f",
+      "name": "kd-downward-label-missing/api-8668bb5f87-9pkmp",
       "error": [
         {
-          "Text": "the last termination reason is Error container=api pod=api-8668bb5f87-sfz8f",
+          "Text": "the termination reason is Error exitCode=1 container=api pod=api-8668bb5f87-9pkmp",
           "KubernetesDoc": "",
           "Sensitive": []
         }

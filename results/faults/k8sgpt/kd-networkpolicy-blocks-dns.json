@@ -5,19 +5,6 @@
   "problems": 2,
   "results": [
     {
-      "kind": "Pod",
-      "name": "kd-networkpolicy-blocks-dns/web-67d57f7c4d-smddk",
-      "error": [
-        {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-67d57f7c4d-smddk",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
-    },
-    {
       "kind": "Deployment",
       "name": "kd-networkpolicy-blocks-dns/web",
       "error": [
@@ -27,17 +14,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-blocks-dns",
-              "Masked": "cyNBTUw7aUlsWUR0LTMveGR2VCVOVmNbQ29x"
+              "Masked": "RyF3VyUoeXFTfU4leDhzJy5FaStSdldXJ0l1"
             },
             {
               "Unmasked": "web",
-              "Masked": "Jm09"
+              "Masked": "W0hT"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-networkpolicy-blocks-dns/web-67d57f7c4d-kjgbq",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-67d57f7c4d-kjgbq",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

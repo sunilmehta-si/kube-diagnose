@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-selector-dynamic",
-              "Masked": "MmFOUCF3SUNrZCg3I313RS1ya1ZubF8="
+              "Masked": "PyFpbjkwLnRGSClFK0NxRmM7PmRMUE4="
             },
             {
               "Unmasked": "cache",
-              "Masked": "YktwT0Y="
+              "Masked": "TUJZLkM="
             }
           ]
         }

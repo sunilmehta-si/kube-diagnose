@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-netpol-port-name-unknown"
   ],
-  "collectedAt": "2026-11-25 14:16 UTC",
+  "collectedAt": "2026-11-25 16:09 UTC",
   "findings": [
     {
       "rule": "KD268",
@@ -30,10 +30,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-netpol-port-name-unknown",
-            "name": "web-5cf8965884-gbblk"
+            "name": "web-5cf8965884-mtjzw"
           },
           "what": "the selected pods declare the named ports http (8080)",
-          "command": "kubectl get pod web-5cf8965884-gbblk -n kd-netpol-port-name-unknown -o jsonpath='{.spec.containers[*].ports}'"
+          "command": "kubectl get pod web-5cf8965884-mtjzw -n kd-netpol-port-name-unknown -o jsonpath='{.spec.containers[*].ports}'"
         }
       ],
       "fix": "Name the port in the rule as the pods do, or use the port number; or add name: web to the containers' port that should be reachable."

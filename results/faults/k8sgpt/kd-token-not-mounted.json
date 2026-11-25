@@ -5,19 +5,6 @@
   "problems": 3,
   "results": [
     {
-      "kind": "Pod",
-      "name": "kd-token-not-mounted/watcher-7975754ccb-ls7c7",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=watcher pod=watcher-7975754ccb-ls7c7",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/watcher"
-    },
-    {
       "kind": "Deployment",
       "name": "kd-token-not-mounted/watcher",
       "error": [
@@ -27,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-token-not-mounted",
-              "Masked": "d3dKX2FTfCRHKV19TDYvJXllPV0="
+              "Masked": "N1VyZDlmKjJlSiFEWEd5M2liUmg="
             },
             {
               "Unmasked": "watcher",
-              "Masked": "M3lybHdPbA=="
+              "Masked": "QXtjJkVfIQ=="
             }
           ]
         }
@@ -51,6 +38,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-token-not-mounted/watcher-7975754ccb-ksxrm",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=watcher pod=watcher-7975754ccb-ksxrm",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/watcher"
     }
   ]
 }

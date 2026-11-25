@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rwop-claim-in-use",
-              "Masked": "cnpxZG4iWDlrL1h6eS1DfFJldDc="
+              "Masked": "VTFAPW1AMkhqQntrX2tqclREei0="
             },
             {
               "Unmasked": "db",
-              "Masked": "c14="
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-rwop-claim-in-use/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-rwop-claim-in-use",
-              "Masked": "T2RWOVFOdysrTkJ0LUAzVUVXIyY="
-            },
-            {
-              "Unmasked": "db",
-              "Masked": "OHI="
+              "Masked": "I1k="
             }
           ]
         }
@@ -42,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rwop-claim-in-use/db-56f8666648-tc856",
+      "name": "kd-rwop-claim-in-use/db-56f8666648-l6prj",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) unavailable due to PersistentVolumeClaim with ReadWriteOncePod access mode already in-use by another pod. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",

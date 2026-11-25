@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-lost",
-              "Masked": "UylsTXlBP2NuSic="
+              "Masked": "LV0vPCpMe2giTkg="
             },
             {
               "Unmasked": "db",
-              "Masked": "cG0="
+              "Masked": "TWI="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pvc-lost/db-56f8666648-98v5c",
+      "name": "kd-pvc-lost/db-56f8666648-qt828",
       "error": [
         {
           "Text": "0/1 nodes are available: persistentvolumeclaim \"data\" bound to non-existent persistentvolume \"pvc-4c1d9a7e-2b6f-4e0a-9c3d-8f5a1b7e6d20\". not found",

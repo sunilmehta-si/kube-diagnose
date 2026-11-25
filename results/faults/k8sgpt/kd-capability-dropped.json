@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-capability-dropped",
-              "Masked": "KU1Qc0FAXmtFYl9iZEg7XiVRI2ph"
+              "Masked": "SD1lQF9aLWpIc1cxdWIxeUZqXThL"
             },
             {
               "Unmasked": "web",
-              "Masked": "KzV6"
+              "Masked": "cEQx"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-capability-dropped/web-5cb88d7c4b-qhj2f",
+      "name": "kd-capability-dropped/web-5cb88d7c4b-2jw2n",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-5cb88d7c4b-qhj2f",
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-5cb88d7c4b-2jw2n",
           "KubernetesDoc": "",
           "Sensitive": []
         }

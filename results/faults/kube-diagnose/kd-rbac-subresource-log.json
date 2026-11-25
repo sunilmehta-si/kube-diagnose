@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-subresource-log"
   ],
-  "collectedAt": "2026-11-25 14:18 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD307",
@@ -15,26 +15,26 @@
         "namespace": "kd-rbac-subresource-log",
         "name": "log-shipper"
       },
-      "cause": "container shipper exits because the API server refuses its ServiceAccount log-shipper: it may not get pods/log in namespace kd-rbac-subresource-log. Role pod-reader grants get, list on pods, and the request is for its log subresource, pods/log, which a rule grants only by that name (or \"pods/*\"): a rule that names pods covers the objects, not their subresources; its log says: \"pods \\\"web-b665dbb8b-gtb6j\\\" is forbidden: User \\\"system:serviceaccount:kd-rbac-subresource-log:log-shipper\\\" cannot get resource \\\"pods/log\\\" in API group \\\"\\\" in the namespace \\\"kd-rbac-subresource-log\\\"\"; Deployment log-shipper has 0 of 1 replicas ready",
+      "cause": "container shipper exits because the API server refuses its ServiceAccount log-shipper: it may not get pods/log in namespace kd-rbac-subresource-log. Role pod-reader grants get, list on pods, and the request is for its log subresource, pods/log, which a rule grants only by that name (or \"pods/*\"): a rule that names pods covers the objects, not their subresources; its log says: \"pods \\\"web-b665dbb8b-qhzbs\\\" is forbidden: User \\\"system:serviceaccount:kd-rbac-subresource-log:log-shipper\\\" cannot get resource \\\"pods/log\\\" in API group \\\"\\\" in the namespace \\\"kd-rbac-subresource-log\\\"\"; Deployment log-shipper has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-subresource-log",
-            "name": "log-shipper-fd8ccbccf-rzdk7"
+            "name": "log-shipper-fd8ccbccf-qpnxf"
           },
           "what": "container shipper exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod log-shipper-fd8ccbccf-rzdk7 -n kd-rbac-subresource-log -o jsonpath='{.status.containerStatuses[?(@.name==\"shipper\")].lastState.terminated}'"
+          "command": "kubectl get pod log-shipper-fd8ccbccf-qpnxf -n kd-rbac-subresource-log -o jsonpath='{.status.containerStatuses[?(@.name==\"shipper\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-subresource-log",
-            "name": "log-shipper-fd8ccbccf-rzdk7"
+            "name": "log-shipper-fd8ccbccf-qpnxf"
           },
-          "what": "last lines of container shipper's log (run that exited)",
-          "detail": "pods \"web-b665dbb8b-gtb6j\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-gtb6j\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-gtb6j\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-gtb6j\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-gtb6j\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\nerror: context deadline exceeded",
-          "command": "kubectl logs log-shipper-fd8ccbccf-rzdk7 -n kd-rbac-subresource-log -c shipper --tail=20 --previous"
+          "what": "last lines of container shipper's log (current run)",
+          "detail": "pods \"web-b665dbb8b-qhzbs\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-qhzbs\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-qhzbs\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-qhzbs\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\npods \"web-b665dbb8b-qhzbs\" is forbidden: User \"system:serviceaccount:kd-rbac-subresource-log:log-shipper\" cannot get resource \"pods/log\" in API group \"\" in the namespace \"kd-rbac-subresource-log\"\nerror: context deadline exceeded",
+          "command": "kubectl logs log-shipper-fd8ccbccf-qpnxf -n kd-rbac-subresource-log -c shipper --tail=20"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-subresource-log",
-          "name": "log-shipper-fd8ccbccf-rzdk7"
+          "name": "log-shipper-fd8ccbccf-qpnxf"
         }
       ]
     }

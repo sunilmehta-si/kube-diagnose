@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-ondelete"
   ],
-  "collectedAt": "2026-11-25 14:20 UTC",
+  "collectedAt": "2026-11-25 16:12 UTC",
   "findings": [
     {
       "rule": "KD294",

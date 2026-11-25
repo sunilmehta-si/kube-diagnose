@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-poststart-hook-fails"
   ],
-  "collectedAt": "2026-11-25 14:17 UTC",
+  "collectedAt": "2026-11-25 16:10 UTC",
   "findings": [
     {
       "rule": "KD116",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-poststart-hook-fails",
-            "name": "web-657885869b-lsgvf"
+            "name": "web-657885869b-wkt4h"
           },
-          "what": "event FailedPostStartHook (7 times)",
+          "what": "event FailedPostStartHook (6 times)",
           "detail": "PostStartHook failed",
-          "command": "kubectl get events -n kd-poststart-hook-fails --field-selector involvedObject.kind=Pod,involvedObject.name=web-657885869b-lsgvf"
+          "command": "kubectl get events -n kd-poststart-hook-fails --field-selector involvedObject.kind=Pod,involvedObject.name=web-657885869b-wkt4h"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-poststart-hook-fails",
-            "name": "web-657885869b-lsgvf"
+            "name": "web-657885869b-wkt4h"
           },
           "what": "container web's postStart hook",
-          "command": "kubectl get pod web-657885869b-lsgvf -n kd-poststart-hook-fails -o jsonpath='{.spec.containers[?(@.name==\"web\")].lifecycle.postStart}'"
+          "command": "kubectl get pod web-657885869b-wkt4h -n kd-poststart-hook-fails -o jsonpath='{.spec.containers[?(@.name==\"web\")].lifecycle.postStart}'"
         }
       ],
       "fix": "Fix the postStart hook's command or HTTP target so it succeeds, or remove the hook; the container cannot run while it fails.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-poststart-hook-fails",
-          "name": "web-657885869b-lsgvf"
+          "name": "web-657885869b-wkt4h"
         }
       ]
     }

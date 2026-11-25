@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-driver-not-registered"
   ],
-  "collectedAt": "2026-11-25 14:12 UTC",
+  "collectedAt": "2026-11-25 16:06 UTC",
   "findings": [
     {
       "rule": "KD326",
@@ -15,26 +15,26 @@
         "namespace": "kd-dra-driver-not-registered",
         "name": "trainer"
       },
-      "cause": "the pod is on node kd-faults-control-plane and ResourceClaim trainer-7845ff4f5b-lzpcr-gpu-q5zrb is allocated devices from DRA driver fpga.example.com, but the node's kubelet has no plugin for that driver registered, so it cannot prepare them and the containers never start; Deployment trainer has 0 of 1 replicas ready",
+      "cause": "the pod is on node kd-faults-control-plane and ResourceClaim trainer-7845ff4f5b-mwkzp-gpu-m5ftx is allocated devices from DRA driver fpga.example.com, but the node's kubelet has no plugin for that driver registered, so it cannot prepare them and the containers never start; Deployment trainer has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-driver-not-registered",
-            "name": "trainer-7845ff4f5b-lzpcr"
+            "name": "trainer-7845ff4f5b-mwkzp"
           },
-          "what": "event FailedPrepareDynamicResources (5 times)",
+          "what": "event FailedPrepareDynamicResources (4 times)",
           "detail": "Failed to prepare dynamic resources: prepare dynamic resources: DRA driver fpga.example.com is not registered",
-          "command": "kubectl get events -n kd-dra-driver-not-registered --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-lzpcr"
+          "command": "kubectl get events -n kd-dra-driver-not-registered --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-mwkzp"
         },
         {
           "object": {
             "kind": "ResourceClaim",
             "namespace": "kd-dra-driver-not-registered",
-            "name": "trainer-7845ff4f5b-lzpcr-gpu-q5zrb"
+            "name": "trainer-7845ff4f5b-mwkzp-gpu-m5ftx"
           },
-          "what": "ResourceClaim trainer-7845ff4f5b-lzpcr-gpu-q5zrb is allocated device fpga-0 of pool shared from driver fpga.example.com",
-          "command": "kubectl get resourceclaim trainer-7845ff4f5b-lzpcr-gpu-q5zrb -n kd-dra-driver-not-registered -o jsonpath='{.status.allocation.devices.results}'"
+          "what": "ResourceClaim trainer-7845ff4f5b-mwkzp-gpu-m5ftx is allocated device fpga-0 of pool shared from driver fpga.example.com",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-mwkzp-gpu-m5ftx -n kd-dra-driver-not-registered -o jsonpath='{.status.allocation.devices.results}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dra-driver-not-registered",
-          "name": "trainer-7845ff4f5b-lzpcr"
+          "name": "trainer-7845ff4f5b-mwkzp"
         }
       ]
     }

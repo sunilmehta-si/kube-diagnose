@@ -6,7 +6,7 @@
   "results": [
     {
       "kind": "Pod",
-      "name": "kd-pvc-deleted-in-use/db-59b76fcd56-fkbsv",
+      "name": "kd-pvc-deleted-in-use/db-f5fb7f9d-vfntl",
       "error": [
         {
           "Text": "0/1 nodes are available: persistentvolumeclaim \"data\" is being deleted. not found",

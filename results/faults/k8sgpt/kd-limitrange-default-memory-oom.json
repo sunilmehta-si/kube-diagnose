@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-limitrange-default-memory-oom",
-              "Masked": "L0MoX0ZEQzonSmdlbSxGVyx5RXI5VFJobUF1YVBpIl4="
+              "Masked": "UUVUMGNoNiV3YUpBPml5Z21AJFhiQ0wmPXF3YSkxcVM="
             },
             {
               "Unmasked": "worker",
-              "Masked": "NGI/QmNS"
+              "Masked": "bmtZbFZI"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-limitrange-default-memory-oom/worker-66df59b77f-mvplh",
+      "name": "kd-limitrange-default-memory-oom/worker-66df59b77f-knw5s",
       "error": [
         {
-          "Text": "the last termination reason is OOMKilled container=worker pod=worker-66df59b77f-mvplh",
+          "Text": "the termination reason is OOMKilled exitCode=137 container=worker pod=worker-66df59b77f-knw5s",
           "KubernetesDoc": "",
           "Sensitive": []
         }

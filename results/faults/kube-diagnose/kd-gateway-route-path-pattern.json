@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-gateway-route-path-pattern"
   ],
-  "collectedAt": "2026-11-25 14:13 UTC",
+  "collectedAt": "2026-11-25 16:07 UTC",
   "findings": [
     {
       "rule": "KD375",

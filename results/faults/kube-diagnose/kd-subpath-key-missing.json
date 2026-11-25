@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-subpath-key-missing"
   ],
-  "collectedAt": "2026-11-25 14:20 UTC",
+  "collectedAt": "2026-11-25 16:12 UTC",
   "findings": [
     {
       "rule": "KD234",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-subpath-key-missing",
-            "name": "app-78795587d8-6wtvr"
+            "name": "app-78795587d8-qn4cg"
           },
-          "what": "container app exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod app-78795587d8-6wtvr -n kd-subpath-key-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"app\")].state.terminated}'"
+          "what": "container app exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod app-78795587d8-qn4cg -n kd-subpath-key-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"app\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-subpath-key-missing",
-            "name": "app-78795587d8-6wtvr"
+            "name": "app-78795587d8-qn4cg"
           },
-          "what": "last lines of container app's log (current run)",
+          "what": "last lines of container app's log (run that exited)",
           "detail": "cat: read error: Is a directory",
-          "command": "kubectl logs app-78795587d8-6wtvr -n kd-subpath-key-missing -c app --tail=20"
+          "command": "kubectl logs app-78795587d8-qn4cg -n kd-subpath-key-missing -c app --tail=20 --previous"
         },
         {
           "object": {
@@ -49,10 +49,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-subpath-key-missing",
-            "name": "app-78795587d8-6wtvr"
+            "name": "app-78795587d8-qn4cg"
           },
           "what": "container app mounts volume config at /etc/app/config.yaml with subPath config.yaml",
-          "command": "kubectl get pod app-78795587d8-6wtvr -n kd-subpath-key-missing -o jsonpath='{.spec.containers[?(@.name==\"app\")].volumeMounts}'"
+          "command": "kubectl get pod app-78795587d8-qn4cg -n kd-subpath-key-missing -o jsonpath='{.spec.containers[?(@.name==\"app\")].volumeMounts}'"
         }
       ],
       "fix": "Make subPath name a key ConfigMap app-config has, or add key config.yaml to it; then delete the pod, because the directory the kubelet made stays until the pod is replaced (and a subPath mount never sees later updates to the ConfigMap).",
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-subpath-key-missing",
-          "name": "app-78795587d8-6wtvr"
+          "name": "app-78795587d8-qn4cg"
         }
       ]
     }

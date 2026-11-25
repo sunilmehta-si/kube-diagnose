@@ -122,8 +122,8 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 	}
 	// The device-claim scenarios: k8sgpt names the Deployment short of replicas, and nothing of the claim.
 	dra, _ := filepath.Glob("../../results/faults/k8sgpt/kd-dra-*.json")
-	if len(dra) != 7 {
-		t.Errorf("the README says seven device-claim scenarios; results hold %d", len(dra))
+	if len(dra) != 8 {
+		t.Errorf("the README says eight device-claim scenarios; results hold %d", len(dra))
 	}
 	scheduler := map[string]string{"kd-dra-no-driver": "cannot allocate all claims", "kd-dra-selector-no-match": "cannot allocate all claims",
 		"kd-dra-too-many-devices": "cannot allocate all claims", "kd-dra-device-class-missing": "device class gpu.nvidia.com does not exist"}

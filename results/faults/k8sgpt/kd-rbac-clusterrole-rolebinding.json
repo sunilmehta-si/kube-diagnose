@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rbac-clusterrole-rolebinding",
-              "Masked": "QHpmWHxdSTMxaFkpP2Q3QCU8X2lBW0dVblYiQmJvPQ=="
+              "Masked": "V20xfUBeakcoeTB2JG4heF92ZW41MkpvQy9aRm1JKQ=="
             },
             {
               "Unmasked": "node-inventory",
-              "Masked": "NUc0fTQtKUJFNUR2YnY="
+              "Masked": "bGgzWXxMVWkmcW1EZ18="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rbac-clusterrole-rolebinding/node-inventory-8797b59d-nl4gr",
+      "name": "kd-rbac-clusterrole-rolebinding/node-inventory-8797b59d-6kz6d",
       "error": [
         {
-          "Text": "the last termination reason is Error container=inventory pod=node-inventory-8797b59d-nl4gr",
+          "Text": "the last termination reason is Error container=inventory pod=node-inventory-8797b59d-6kz6d",
           "KubernetesDoc": "",
           "Sensitive": []
         }

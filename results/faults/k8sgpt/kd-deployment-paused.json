@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-deployment-paused",
-              "Masked": "YW5pdFVTa0AlSyNhKjJYaV9nZEg="
+              "Masked": "bWJZaF9uQylXbzlHZ0BoX0oxaGw="
             },
             {
               "Unmasked": "web",
-              "Masked": "Qi5r"
+              "Masked": "Jjdf"
             }
           ]
         }

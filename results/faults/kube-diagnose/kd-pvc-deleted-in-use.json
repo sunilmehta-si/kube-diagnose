@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-deleted-in-use"
   ],
-  "collectedAt": "2026-11-25 14:18 UTC",
+  "collectedAt": "2026-11-25 16:10 UTC",
   "findings": [
     {
       "rule": "KD254",
@@ -15,7 +15,7 @@
         "namespace": "kd-pvc-deleted-in-use",
         "name": "db"
       },
-      "cause": "the pod mounts PersistentVolumeClaim data, which was deleted 10m0s ago and is kept only while pod db-5dfdd6b46d-2ddc8 still uses it (the kubernetes.io/pvc-protection finalizer), so the scheduler will not place a new pod that needs it; when it stops, the claim goes; Deployment db has 1 of 1 replicas ready",
+      "cause": "the pod mounts PersistentVolumeClaim data, which was deleted 8m0s ago and is kept only while pod db-5dfdd6b46d-q7gpv still uses it (the kubernetes.io/pvc-protection finalizer), so the scheduler will not place a new pod that needs it; when it stops, the claim goes; Deployment db has 1 of 1 replicas ready",
       "evidence": [
         {
           "object": {
@@ -23,18 +23,18 @@
             "namespace": "kd-pvc-deleted-in-use",
             "name": "data"
           },
-          "what": "PersistentVolumeClaim data has a deletionTimestamp (2026-11-25T14:08:33Z) and finalizers kubernetes.io/pvc-protection",
+          "what": "PersistentVolumeClaim data has a deletionTimestamp (2026-11-25T16:03:03Z) and finalizers kubernetes.io/pvc-protection",
           "command": "kubectl get pvc data -n kd-pvc-deleted-in-use -o jsonpath='{.metadata.deletionTimestamp}{\" \"}{.metadata.finalizers}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-pvc-deleted-in-use",
-            "name": "db-59b76fcd56-fkbsv"
+            "name": "db-f5fb7f9d-vfntl"
           },
           "what": "event FailedScheduling (2 times)",
           "detail": "0/1 nodes are available: persistentvolumeclaim \"data\" is being deleted. not found",
-          "command": "kubectl get events -n kd-pvc-deleted-in-use --field-selector involvedObject.kind=Pod,involvedObject.name=db-59b76fcd56-fkbsv"
+          "command": "kubectl get events -n kd-pvc-deleted-in-use --field-selector involvedObject.kind=Pod,involvedObject.name=db-f5fb7f9d-vfntl"
         }
       ],
       "fix": "A deletion cannot be undone. To keep the data, set the claim's PersistentVolume to persistentVolumeReclaimPolicy: Retain before the last pod using data stops; then create the claim again (bound to that volume) and the pod can start. If the delete was meant, remove the pod's use of the claim.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pvc-deleted-in-use",
-          "name": "db-59b76fcd56-fkbsv"
+          "name": "db-f5fb7f9d-vfntl"
         }
       ]
     }

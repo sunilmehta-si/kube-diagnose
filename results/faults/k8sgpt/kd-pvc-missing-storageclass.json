@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-missing-storageclass",
-              "Masked": "VkQwREJYcXQ8N2kwdChzNXBwQUB2OzUnWjx2"
+              "Masked": "cE84UENIUEJnL05pP0AqWXZRdzBCRT5WUENr"
             },
             {
               "Unmasked": "web",
-              "Masked": "XzVE"
+              "Masked": "MGJZ"
             }
           ]
         }
@@ -41,7 +41,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pvc-missing-storageclass/web-689b97894-n4rx5",
+      "name": "kd-pvc-missing-storageclass/web-689b97894-v75zs",
       "error": [
         {
           "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",

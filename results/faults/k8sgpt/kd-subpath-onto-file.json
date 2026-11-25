@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-subpath-onto-file",
-              "Masked": "UjlPdkFJez0+ZUxXSnZkWEN0Ti4="
+              "Masked": "Skw4Jl5xKWorZz1jbkN3d1J3UUs="
             },
             {
               "Unmasked": "app",
-              "Masked": "Q25L"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-subpath-onto-file/app has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"app-56875bc89d\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-subpath-onto-file",
-              "Masked": "SzkwVncxencqLTJhPWJwTFloUlg="
-            },
-            {
-              "Unmasked": "app",
-              "Masked": "Vich"
+              "Masked": "bnk9"
             }
           ]
         }
@@ -42,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-subpath-onto-file/app-56875bc89d-jjwjb",
+      "name": "kd-subpath-onto-file/app-56875bc89d-7lsm5",
       "error": [
         {
-          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: error mounting \"/var/lib/kubelet/pods/e4d01a66-17ce-4ca7-b1ef-1c59f9269857/volume-subpaths/config/app/0\" to rootfs at \"/etc/group\": mount src=/var/lib/kubelet/pods/e4d01a66-17ce-4ca7-b1ef-1c59f9269857/volume-subpaths/config/app/0, dst=/etc/group, dstFd=/proc/thread-self/fd/14, flags=MS_RDONLY|MS_BIND|MS_REC: not a directory",
+          "Text": "the last termination reason is StartError container=app pod=app-56875bc89d-7lsm5",
           "KubernetesDoc": "",
           "Sensitive": []
         }

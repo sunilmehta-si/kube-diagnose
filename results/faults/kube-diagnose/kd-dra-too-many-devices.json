@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-too-many-devices"
   ],
-  "collectedAt": "2026-11-25 14:12 UTC",
+  "collectedAt": "2026-11-25 16:06 UTC",
   "findings": [
     {
       "rule": "KD324",
@@ -15,16 +15,16 @@
         "namespace": "kd-dra-too-many-devices",
         "name": "trainer"
       },
-      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-8kd47-gpu-czxw9 asks for 4 devices of DeviceClass gpu.example.com, and no node has that many: the most driver gpu.example.com publishes on one node is 2 (2 in all), and a claim's devices must all be usable on the node the pod runs on; Deployment trainer has 0 of 1 replicas ready",
+      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-8st6t-gpu-8r7zt asks for 4 devices of DeviceClass gpu.example.com, and no node has that many: the most driver gpu.example.com publishes on one node is 2 (2 in all), and a claim's devices must all be usable on the node the pod runs on; Deployment trainer has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "ResourceClaim",
             "namespace": "kd-dra-too-many-devices",
-            "name": "trainer-7845ff4f5b-8kd47-gpu-czxw9"
+            "name": "trainer-7845ff4f5b-8st6t-gpu-8r7zt"
           },
-          "what": "ResourceClaim trainer-7845ff4f5b-8kd47-gpu-czxw9's device requests",
-          "command": "kubectl get resourceclaim trainer-7845ff4f5b-8kd47-gpu-czxw9 -n kd-dra-too-many-devices -o jsonpath='{.spec.devices.requests}'"
+          "what": "ResourceClaim trainer-7845ff4f5b-8st6t-gpu-8r7zt's device requests",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-8st6t-gpu-8r7zt -n kd-dra-too-many-devices -o jsonpath='{.spec.devices.requests}'"
         },
         {
           "object": {
@@ -38,11 +38,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-too-many-devices",
-            "name": "trainer-7845ff4f5b-8kd47"
+            "name": "trainer-7845ff4f5b-8st6t"
           },
           "what": "event FailedScheduling",
           "detail": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get events -n kd-dra-too-many-devices --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-8kd47"
+          "command": "kubectl get events -n kd-dra-too-many-devices --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-8st6t"
         },
         {
           "object": {
@@ -58,7 +58,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dra-too-many-devices",
-          "name": "trainer-7845ff4f5b-8kd47"
+          "name": "trainer-7845ff4f5b-8st6t"
         }
       ]
     }

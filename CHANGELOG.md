@@ -4,6 +4,9 @@
 
 ## [0.15.0] - 2026-11-25
 
+- The fault suite's committed run (45650382555): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 219 of 219 faults and raises no false alarm; k8sgpt v0.4.41 names 36, 9 of them first.
+
 ### Added
 - Dynamic resource allocation (resource.k8s.io): where the cluster serves it, kube-diagnose reads ResourceClaims,
   ResourceClaimTemplates, DeviceClasses and ResourceSlices (of a slice, only its driver, nodes and device names; a
@@ -33,7 +36,8 @@
 - KD227 says when the role a binding names exists as the other kind: a Role bound as a ClusterRole, or the reverse.
 - `record --redact` keeps Docker Hub's official base images (busybox, ubuntu and the like), which name nothing of the
   cluster and which KD315 reads, and renames device claims, templates and slices; DeviceClass and driver names stay,
-  like a StorageClass's.
+  like a StorageClass's. A claim made for a pod from a template (POD-ENTRY-xxxxx) is renamed with its pod, also where
+  a message names it before it exists.
 
 ## [0.14.0] - 2026-11-24
 
