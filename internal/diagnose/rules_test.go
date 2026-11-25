@@ -5589,3 +5589,24 @@ func TestRoutePathIsAPatternItsMatchTypeComparesAsText(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestIngressPathIsAPatternItsPathTypeComparesAsText(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	s.Pods = []kube.Pod{pod("web", "")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	ing := ingress("shop", "web", 80, "")
+	ing.Spec.Rules[0].HTTP.Paths[0].Path, ing.Spec.Rules[0].HTTP.Paths[0].PathType = "/api/.*", "Prefix"
+	s.Ingresses = []kube.Ingress{ing}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD278", "Ingress shop/shop", "routes path /api/.* on shop.example.com with pathType Prefix, which compares paths as text")
+	if !strings.HasPrefix(f.Fix, "Use path /api with pathType Prefix") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// ImplementationSpecific may be a regular expression to the controller.
+	s.Ingresses[0].Spec.Rules[0].HTTP.Paths[0].PathType = "ImplementationSpecific"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
