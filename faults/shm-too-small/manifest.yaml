@@ -1,0 +1,28 @@
+# The trainer stages a 128 MiB batch in /dev/shm, and nothing is mounted there, so it is the runtime's 64 MiB and the write fails.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-shm-too-small
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trainer
+  namespace: kd-shm-too-small
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trainer
+  template:
+    metadata:
+      labels:
+        app: trainer
+    spec:
+      containers:
+        - name: trainer
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Stages a 128 MiB batch in shared memory, as a data loader does; nothing is mounted at /dev/shm, so it is
+          # the runtime's 64 MiB.
+          command: ["sh", "-c", "dd if=/dev/zero of=/dev/shm/batch bs=1M count=128 || exit 1; exec sleep 3600"]
