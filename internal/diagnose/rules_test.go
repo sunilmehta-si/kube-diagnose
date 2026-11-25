@@ -5475,3 +5475,36 @@ func TestPortInUseOnTheHostNetwork(t *testing.T) {
 	s.Logs[0].Lines = []string{"listen tcp 0.0.0.0:9100: bind: address already in use"}
 	expect(t, only(t, Diagnose(s)), "KD122", "Deployment shop/node-agent", "something on the node has 9100")
 }
+
+func TestSharedMemoryIsTooSmall(t *testing.T) {
+	s := snap()
+	deployment(s, "trainer", 1, 0)
+	p := pod("trainer-rs-a", "trainer")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"loading batch 1", "dd: error writing '/dev/shm/batch': No space left on device"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD313", "Deployment shop/trainer", "shared memory (/dev/shm) is full", "the container runtime's 64 MiB", "/dev/shm/batch")
+	if !strings.Contains(f.Fix, "emptyDir with medium: Memory at /dev/shm") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// PyTorch says it as a bus error in a DataLoader worker.
+	s.Logs[0].Lines = []string{"ERROR: Unexpected bus error encountered in worker. This might be caused by insufficient shared memory (shm)."}
+	expect(t, only(t, Diagnose(s)), "KD313", "Deployment shop/trainer", "insufficient shared memory")
+	// A memory volume at /dev/shm that is still too small: its sizeLimit.
+	s.Pods[0].Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "dshm", MountPath: "/dev/shm"}}
+	s.Pods[0].Spec.Volumes = []kube.Volume{{Name: "dshm", EmptyDir: &kube.EmptyDirVolumeSource{Medium: "Memory", SizeLimit: "256Mi"}}}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD313", "Deployment shop/trainer", "volume dshm is mounted there with sizeLimit 256Mi")
+	if !strings.Contains(f.Fix, "Raise volume dshm's sizeLimit") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Running out of disk elsewhere is not shared memory.
+	s.Logs[0].Lines = []string{"write /data/out.bin: no space left on device"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD313" {
+			t.Errorf("disk: %s", f.Cause)
+		}
+	}
+}
