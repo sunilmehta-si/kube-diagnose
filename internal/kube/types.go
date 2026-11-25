@@ -221,6 +221,14 @@ type SecurityContext struct {
 	RunAsGroup             *int64 `json:"runAsGroup,omitempty"`
 	// Capabilities adds to or drops from the Linux capabilities the runtime grants a container by default.
 	Capabilities *Capabilities `json:"capabilities,omitempty"`
+	// AppArmorProfile confines the container: RuntimeDefault, Unconfined, or Localhost with a profile loaded on the
+	// node.
+	AppArmorProfile *AppArmorProfile `json:"appArmorProfile,omitempty"`
+}
+
+type AppArmorProfile struct {
+	Type             string `json:"type"`
+	LocalhostProfile string `json:"localhostProfile,omitempty"`
 }
 
 // Capabilities lists Linux capabilities by name, without the CAP_ prefix; ALL names every one.
@@ -234,6 +242,8 @@ type PodSecurityContext struct {
 	RunAsUser  *int64 `json:"runAsUser,omitempty"`
 	RunAsGroup *int64 `json:"runAsGroup,omitempty"`
 	FSGroup    *int64 `json:"fsGroup,omitempty"`
+	// AppArmorProfile is every container's, unless a container sets its own.
+	AppArmorProfile *AppArmorProfile `json:"appArmorProfile,omitempty"`
 }
 
 // VolumeMount places a pod volume in a container's filesystem.

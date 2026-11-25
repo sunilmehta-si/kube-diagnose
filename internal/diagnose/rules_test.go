@@ -5620,3 +5620,27 @@ func TestIngressPathIsAPatternItsPathTypeComparesAsText(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestAppArmorProfileIsNotLoadedOnTheNode(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].SecurityContext = &kube.SecurityContext{AppArmorProfile: &kube.AppArmorProfile{Type: "Localhost", LocalhostProfile: "k8s-web"}}
+	waiting(&p, "CreateContainerError", `failed to create containerd container: failed to generate apparmor spec opts: apparmor profile not found k8s-web`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD314", "Deployment shop/web", "Localhost AppArmor profile k8s-web, which is not loaded on node node-1")
+	if !strings.Contains(f.Fix, "apparmor_parser") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The profile set for the whole pod.
+	s.Pods[0].Spec.Containers[0].SecurityContext = nil
+	s.Pods[0].Spec.SecurityContext = &kube.PodSecurityContext{AppArmorProfile: &kube.AppArmorProfile{Type: "Localhost", LocalhostProfile: "k8s-web"}}
+	expect(t, only(t, Diagnose(s)), "KD314", "Deployment shop/web", "profile k8s-web")
+	// A node without AppArmor: the kubelet rejects the pod.
+	q := pod("web-rs-b", "web")
+	q.Spec.SecurityContext = s.Pods[0].Spec.SecurityContext
+	q.Status = kube.PodStatus{Phase: "Failed", Reason: "AppArmor", Message: "Cannot enforce AppArmor: AppArmor is not enabled on the host"}
+	s.Pods = []kube.Pod{q}
+	expect(t, only(t, Diagnose(s)), "KD314", "Deployment shop/web", "asks for AppArmor profile Localhost k8s-web", "AppArmor is not enabled on the host")
+}

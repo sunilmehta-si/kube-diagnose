@@ -960,6 +960,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	if pr := subPathOntoFile(ix, p, cs.Name, msg, ev); pr != nil {
 		return pr
 	}
+	if pr := appArmorNotLoaded(p, cs, msg, ev); pr != nil {
+		return pr
+	}
 	if m := reSeccompProfile.FindStringSubmatch(msg); m != nil {
 		path := m[1]
 		cause := fmt.Sprintf("container %s uses the Localhost seccomp profile %s, which is not on node %s, so the container runtime cannot create the container", cs.Name, path, p.Spec.NodeName)

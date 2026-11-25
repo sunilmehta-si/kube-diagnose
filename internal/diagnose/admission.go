@@ -24,6 +24,22 @@ func nodeRejected(ix *index, p kube.Pod) *problem {
 		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.status.reason}{\"\\n\"}{.status.message}")}}
 	node := p.Spec.NodeName
 	switch {
+	case reason == "AppArmor":
+		// The kubelet refuses a pod that asks for AppArmor on a node where it is not enabled.
+		prof := "an AppArmor profile"
+		for _, c := range p.Spec.Containers {
+			if a := appArmorOf(p, c.Name); a != nil {
+				prof = "AppArmor profile " + a.Type
+				if a.LocalhostProfile != "" {
+					prof += " " + a.LocalhostProfile
+				}
+				ev = append(ev, appArmorEvidence(p, c.Name))
+				break
+			}
+		}
+		return newProblem(p, "", "KD314", "AppArmor profile is not loaded on the node", Critical,
+			fmt.Sprintf("the pod asks for %s, and %s cannot enforce it, so the kubelet rejects the pod: %s", prof, orNode(node), clip(msg, 200)),
+			"apparmor-host", appArmorFix+" A node without AppArmor (not enabled in its kernel) can run the pod only without a profile.", ev...)
 	case reason == "SysctlForbidden":
 		name := "a sysctl"
 		if m := reSysctl.FindStringSubmatch(msg); m != nil {
