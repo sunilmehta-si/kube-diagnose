@@ -5666,3 +5666,24 @@ func TestClaimIsBeingDeletedWhilePodsStillUseIt(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestProbeConnectsOverTCPToAUDPPort(t *testing.T) {
+	s := snap()
+	deployment(s, "dns", 1, 0)
+	p := pod("dns-rs-a", "dns")
+	notReady(&p)
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "dns", ContainerPort: 53, Protocol: "UDP"}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: named("dns")}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "dns-rs-a", "Unhealthy", "Readiness probe failed: dial tcp 10.244.0.7:53: connect: connection refused", 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD212", "Deployment shop/dns", "readiness probe (tcpSocket) checks port 53 (named dns), which the container declares for UDP only", "never becomes ready")
+	// The same port declared for TCP too: the probe may well reach something.
+	s.Pods[0].Spec.Containers[0].Ports = append(s.Pods[0].Spec.Containers[0].Ports, kube.ContainerPort{Name: "dns-tcp", ContainerPort: 53, Protocol: "TCP"})
+	s.Pods[0].Spec.Containers[0].ReadinessProbe.TCPSocket.Port = port(53)
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD212" {
+			t.Errorf("TCP too: %s", f.Cause)
+		}
+	}
+}

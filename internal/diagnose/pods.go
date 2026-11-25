@@ -1609,6 +1609,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := probeGRPC(ix, p, cs, k); pr != nil {
 			return pr
 		}
+		if pr := probeUDP(ix, p, cs, k); pr != nil {
+			return pr
+		}
 		if pr := probeLoopback(ix, p, cs, k); pr != nil {
 			return pr
 		}
@@ -1741,6 +1744,9 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := probeGRPC(ix, p, cs, "readiness"); pr != nil {
+		return pr
+	}
+	if pr := probeUDP(ix, p, cs, "readiness"); pr != nil {
 		return pr
 	}
 	if pr := probeLoopback(ix, p, cs, "readiness"); pr != nil {
