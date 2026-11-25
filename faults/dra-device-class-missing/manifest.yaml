@@ -1,0 +1,47 @@
+# The claim made from template one-gpu asks for DeviceClass gpu.nvidia.com, which the cluster does not have, so the scheduler cannot pick a device.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-dra-device-class-missing
+
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: one-gpu
+  namespace: kd-dra-device-class-missing
+spec:
+  spec:
+    devices:
+      requests:
+        - name: gpu
+          exactly:
+            deviceClassName: gpu.nvidia.com
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trainer
+  namespace: kd-dra-device-class-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trainer
+  template:
+    metadata:
+      labels:
+        app: trainer
+    spec:
+      # The claim made from one-gpu asks for class gpu.nvidia.com, which no driver here provides.
+      resourceClaims:
+        - name: gpu
+          resourceClaimTemplateName: one-gpu
+      containers:
+        - name: trainer
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "exec sleep 3600"]
+          resources:
+            claims:
+              - name: gpu
