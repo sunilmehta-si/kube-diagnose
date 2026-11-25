@@ -181,6 +181,8 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 			out = append(out, *f)
 		} else if f := sharedRWOClaim(ix, w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
+		} else if f := onDeleteWaits(w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
 		} else if f := minReadyHolds(w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
 		}
@@ -534,4 +536,42 @@ func webhookUnreachable(f *Finding, owner kube.Ref, m []string) {
 		fix = fmt.Sprintf("Bring the webhook back: Service %s in namespace %s and the pods behind it", svc, svcNS)
 	}
 	f.Fix = fmt.Sprintf("%s. If the webhook is gone for good, delete the ValidatingWebhookConfiguration or MutatingWebhookConfiguration that lists %s. A webhook that should not stop the cluster when it is down can set failurePolicy: Ignore, or leave this namespace out with a namespaceSelector.", fix, hook)
+}
+
+// onDeleteWaits finds a StatefulSet or DaemonSet with updateStrategy OnDelete whose template has changed and whose
+// pods still run the old one. OnDelete replaces a pod only when someone deletes it, so a new image or setting
+// reaches nothing, and nothing says so: no event, no condition, every pod ready.
+func onDeleteWaits(w kube.Workload) *Finding {
+	if w.Spec.UpdateStrategy.Type != "OnDelete" {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	var old, all int32
+	var ev Evidence
+	switch w.Kind {
+	case "StatefulSet":
+		if w.Status.UpdateRevision == "" || w.Status.UpdateRevision == w.Status.CurrentRevision {
+			return nil
+		}
+		all = w.Status.Replicas
+		old = all - w.Status.UpdatedReplicas
+		ev = Evidence{Object: w.Ref(), What: fmt.Sprintf("StatefulSet %s: current revision %s, update revision %s, %d of %d pods updated", name, w.Status.CurrentRevision, w.Status.UpdateRevision, w.Status.UpdatedReplicas, all),
+			Command: cmdGet("statefulset", ns, name, `{.spec.updateStrategy.type}{" "}{.status.currentRevision}{" "}{.status.updateRevision}{" "}{.status.updatedReplicas}/{.status.replicas}`)}
+	case "DaemonSet":
+		all = w.Status.DesiredNumberScheduled
+		old = all - w.Status.UpdatedNumberScheduled
+		ev = Evidence{Object: w.Ref(), What: fmt.Sprintf("DaemonSet %s: %d of %d pods run its current template", name, w.Status.UpdatedNumberScheduled, all),
+			Command: cmdGet("daemonset", ns, name, `{.spec.updateStrategy.type}{" "}{.status.updatedNumberScheduled}/{.status.desiredNumberScheduled}`)}
+	default:
+		return nil
+	}
+	if old <= 0 || all <= 0 {
+		return nil
+	}
+	kind := strings.ToLower(w.Kind)
+	return &Finding{Rule: "KD294", Title: "Template change waits for pods to be deleted (OnDelete)", Severity: Warning, Object: w.Ref(),
+		Cause: fmt.Sprintf("%s %s's pod template has changed, and %d of its %d pods still run the old one: its updateStrategy is OnDelete, which replaces a pod only when the pod is deleted, so the change reaches none of them until someone does",
+			w.Kind, name, old, all),
+		Evidence: []Evidence{ev},
+		Fix:      fmt.Sprintf("Delete the old pods one at a time (each comes back with the new template), or set updateStrategy type RollingUpdate on %s %s to have the controller do it: kubectl rollout status %s/%s then follows it.", w.Kind, name, kind, name)}
 }

@@ -1,0 +1,57 @@
+# DeviceClass accel.example.com exists, but no ResourceSlice offers a device from its driver, so the scheduler cannot allocate the claim on any node.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-dra-no-driver
+
+---
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: accel.example.com
+spec:
+  selectors:
+    - cel:
+        expression: device.driver == "accel.example.com"
+
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: one-gpu
+  namespace: kd-dra-no-driver
+spec:
+  spec:
+    devices:
+      requests:
+        - name: gpu
+          exactly:
+            deviceClassName: accel.example.com
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trainer
+  namespace: kd-dra-no-driver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trainer
+  template:
+    metadata:
+      labels:
+        app: trainer
+    spec:
+      # The class exists, but no driver publishes a device of it: no ResourceSlice names driver accel.example.com.
+      resourceClaims:
+        - name: gpu
+          resourceClaimTemplateName: one-gpu
+      containers:
+        - name: trainer
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "exec sleep 3600"]
+          resources:
+            claims:
+              - name: gpu

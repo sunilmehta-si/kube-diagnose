@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-sidecar-keeps-running"
   ],
-  "collectedAt": "2026-11-24 11:19 UTC",
+  "collectedAt": "2026-11-25 16:08 UTC",
   "findings": [
     {
       "rule": "KD292",
@@ -15,25 +15,25 @@
         "namespace": "kd-job-sidecar-keeps-running",
         "name": "report"
       },
-      "cause": "Job report's pod report-mhs8b has done its work (1 container main exited 0, 8m0s ago) but 1 container proxy is still running, so the pod never succeeds and the Job never completes",
+      "cause": "Job report's pod report-lf42l has done its work (1 container main exited 0, 6m0s ago) but 1 container proxy is still running, so the pod never succeeds and the Job never completes",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-sidecar-keeps-running",
-            "name": "report-mhs8b"
+            "name": "report-lf42l"
           },
-          "what": "container main exited 0 at 2026-11-24T11:10:59Z",
-          "command": "kubectl get pod report-mhs8b -n kd-job-sidecar-keeps-running -o jsonpath='{.status.containerStatuses[?(@.name==\"main\")].state}'"
+          "what": "container main exited 0 at 2026-11-25T16:02:31Z",
+          "command": "kubectl get pod report-lf42l -n kd-job-sidecar-keeps-running -o jsonpath='{.status.containerStatuses[?(@.name==\"main\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-job-sidecar-keeps-running",
-            "name": "report-mhs8b"
+            "name": "report-lf42l"
           },
           "what": "container proxy is still running, and the pod's phase is Running",
-          "command": "kubectl get pod report-mhs8b -n kd-job-sidecar-keeps-running -o jsonpath='{.status.containerStatuses[?(@.name==\"proxy\")].state}'"
+          "command": "kubectl get pod report-lf42l -n kd-job-sidecar-keeps-running -o jsonpath='{.status.containerStatuses[?(@.name==\"proxy\")].state}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-job-sidecar-keeps-running",
-          "name": "report-mhs8b"
+          "name": "report-lf42l"
         }
       ]
     }

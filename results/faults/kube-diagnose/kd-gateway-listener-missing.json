@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-gateway-listener-missing"
   ],
-  "collectedAt": "2026-11-24 11:16 UTC",
+  "collectedAt": "2026-11-25 16:07 UTC",
   "findings": [
     {
       "rule": "KD366",

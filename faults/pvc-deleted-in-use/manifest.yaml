@@ -1,0 +1,104 @@
+# A clean-up Job deletes claim data while the database still uses it, then restarts the database; the new pod needs a claim that is being deleted, so it is never scheduled.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pvc-deleted-in-use
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: data
+  namespace: kd-pvc-deleted-in-use
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 64Mi
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: kd-pvc-deleted-in-use
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "date >> /data/started; exec sleep 3600"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: data
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cleanup
+  namespace: kd-pvc-deleted-in-use
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cleanup
+  namespace: kd-pvc-deleted-in-use
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments"]
+    verbs: ["get", "list", "watch", "patch"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cleanup
+  namespace: kd-pvc-deleted-in-use
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cleanup
+subjects:
+  - kind: ServiceAccount
+    name: cleanup
+    namespace: kd-pvc-deleted-in-use
+
+---
+# A clean-up that deletes the claim while the database still runs, then a routine restart of the database.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: cleanup
+  namespace: kd-pvc-deleted-in-use
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      serviceAccountName: cleanup
+      restartPolicy: Never
+      initContainers:
+        - name: wait
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["wait", "--for=condition=Available", "deployment/db", "--timeout=120s"]
+        - name: delete-claim
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["delete", "pvc", "data", "--wait=false"]
+      containers:
+        - name: restart
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["rollout", "restart", "deployment/db"]

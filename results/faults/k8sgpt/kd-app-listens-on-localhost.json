@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-app-listens-on-localhost",
-              "Masked": "UmdbVmFDLEZPL05CeTRkZSVua0g7I2dWbnN6"
+              "Masked": "OSlAbXVYT1hRJDl5OU13NDpRPFRvNWtSUF5L"
             },
             {
               "Unmasked": "web",
-              "Masked": "aipv"
+              "Masked": "TWdp"
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-app-listens-on-localhost/web-966bc545f-xggt7",
+      "name": "kd-app-listens-on-localhost/web-966bc545f-5wjck",
       "error": [
         {
           "Text": "Readiness probe failed: Get \"http://10.244.0.5:8080/\": dial tcp 10.244.0.5:8080: connect: connection refused",

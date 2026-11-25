@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-probe-udp-port/log-receiver",
+      "error": [
+        {
+          "Text": "Deployment kd-probe-udp-port/log-receiver has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-udp-port",
+              "Masked": "d3Fmdnh7ZUssbyRBJDZJWSg="
+            },
+            {
+              "Unmasked": "log-receiver",
+              "Masked": "VXdOfSZmJFA6S24n"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-probe-udp-port/log-receiver-664d876767-hvhnl",
+      "error": [
+        {
+          "Text": "Readiness probe failed: dial tcp 10.244.0.123:5514: connect: connection refused",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/log-receiver"
+    }
+  ]
+}

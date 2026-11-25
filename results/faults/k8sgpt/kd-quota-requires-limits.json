@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 4,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-requires-limits",
-              "Masked": "UjNtWk1abVF9RDBIcVNCOGYnKmgkZ0JK"
+              "Masked": "a2peN2x0QFMkMilzJXkyV2xEb2I+VFFp"
             },
             {
               "Unmasked": "web",
-              "Masked": "Ky9P"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-quota-requires-limits/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-6d754df847\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-quota-requires-limits",
-              "Masked": "UExzQCRxVnJ3Y1E4I0tUO3R7X2h5amN9"
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "TSdV"
+              "Masked": "aXBa"
             }
           ]
         }
@@ -58,7 +44,7 @@
       "name": "kd-quota-requires-limits/web-6d754df847",
       "error": [
         {
-          "Text": "pods \"web-6d754df847-cdbdp\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "Text": "pods \"web-6d754df847-dh777\" is forbidden: failed quota: compute: must specify limits.memory for: web",
           "KubernetesDoc": "",
           "Sensitive": []
         }

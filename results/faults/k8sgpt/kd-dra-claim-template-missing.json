@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dra-claim-template-missing/trainer",
+      "error": [
+        {
+          "Text": "Deployment kd-dra-claim-template-missing/trainer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dra-claim-template-missing",
+              "Masked": "VHUxaVRxR1YlRVd1eUI1MGxLSj9GJEpUdXpJakE="
+            },
+            {
+              "Unmasked": "trainer",
+              "Masked": "Kkh1ZSt8Jg=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-shm-too-small"
+  ],
+  "collectedAt": "2026-11-25 16:12 UTC",
+  "findings": [
+    {
+      "rule": "KD313",
+      "title": "Shared memory (/dev/shm) is too small",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-shm-too-small",
+        "name": "trainer"
+      },
+      "cause": "container trainer exits because shared memory (/dev/shm) is full: nothing is mounted at /dev/shm, so it is the container runtime's 64 MiB; its log says: \"dd: error writing '/dev/shm/batch': No space left on device\"; Deployment trainer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-shm-too-small",
+            "name": "trainer-75f5d88cf5-kfxmn"
+          },
+          "what": "container trainer exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod trainer-75f5d88cf5-kfxmn -n kd-shm-too-small -o jsonpath='{.status.containerStatuses[?(@.name==\"trainer\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-shm-too-small",
+            "name": "trainer-75f5d88cf5-kfxmn"
+          },
+          "what": "last lines of container trainer's log (run that exited)",
+          "detail": "dd: error writing '/dev/shm/batch': No space left on device\n65+0 records in\n64+0 records out\n67108864 bytes (64.0MB) copied, 0.138402 seconds, 462.4MB/s",
+          "command": "kubectl logs trainer-75f5d88cf5-kfxmn -n kd-shm-too-small -c trainer --tail=20 --previous"
+        }
+      ],
+      "fix": "Mount an emptyDir with medium: Memory at /dev/shm, with a sizeLimit for what the app needs (it counts toward the container's memory limit), or have the app use less shared memory (fewer DataLoader workers, for one).",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-shm-too-small",
+          "name": "trainer-75f5d88cf5-kfxmn"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

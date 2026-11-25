@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-script-crlf-line-endings"
   ],
-  "collectedAt": "2026-11-24 11:24 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD309",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-crlf-line-endings",
-            "name": "worker-58f8845f4f-6ggmd"
+            "name": "worker-58f8845f4f-v8bbr"
           },
-          "what": "container worker exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod worker-58f8845f4f-6ggmd -n kd-script-crlf-line-endings -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+          "what": "container worker exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod worker-58f8845f4f-v8bbr -n kd-script-crlf-line-endings -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-crlf-line-endings",
-            "name": "worker-58f8845f4f-6ggmd"
+            "name": "worker-58f8845f4f-v8bbr"
           },
           "what": "last lines of container worker's log (run that exited)",
-          "detail": "starting the worker\n/scripts/start.sh: cd: line 3: can't cd to /tmp\r: No such file or directory\nsleep: invalid number '3600\r'",
-          "command": "kubectl logs worker-58f8845f4f-6ggmd -n kd-script-crlf-line-endings -c worker --tail=20 --previous"
+          "detail": "/scripts/start.sh: cd: line 3: can't cd to /tmp\r: No such file or directory\nstarting the worker\nsleep: invalid number '3600\r'",
+          "command": "kubectl logs worker-58f8845f4f-v8bbr -n kd-script-crlf-line-endings -c worker --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-crlf-line-endings",
-            "name": "worker-58f8845f4f-6ggmd"
+            "name": "worker-58f8845f4f-v8bbr"
           },
           "what": "container worker mounts volume scripts (ConfigMap worker-scripts) at /scripts",
-          "command": "kubectl get pod worker-58f8845f4f-6ggmd -n kd-script-crlf-line-endings -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
+          "command": "kubectl get pod worker-58f8845f4f-v8bbr -n kd-script-crlf-line-endings -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
         }
       ],
       "fix": "Save the script with Unix line endings (dos2unix, or `*.sh text eol=lf` in .gitattributes so a Windows checkout keeps them), then create ConfigMap worker-scripts again from the file.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-script-crlf-line-endings",
-          "name": "worker-58f8845f4f-6ggmd"
+          "name": "worker-58f8845f4f-v8bbr"
         }
       ]
     }

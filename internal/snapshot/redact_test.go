@@ -30,7 +30,11 @@ func TestRedactRemovesIdentifiersAndKeepsShape(t *testing.T) {
 		for _, p := range s.Pods {
 			secrets = append(secrets, p.Metadata.Name, p.Spec.NodeName)
 			for _, c := range p.Spec.Containers {
-				secrets = append(secrets, imageRepository(c.Image))
+				if repo := imageRepository(c.Image); kube.OfficialBaseImage(repo) == "" {
+					secrets = append(secrets, repo)
+				} else if !strings.Contains(text, repo) {
+					t.Errorf("%s: an official base image is public, and is kept: %s", filepath.Base(path), repo)
+				}
 			}
 		}
 		for _, sec := range secrets {
@@ -261,5 +265,43 @@ func TestRedactRenamesTheGatewayAPIsObjects(t *testing.T) {
 	// The route still names its Gateway and its listener, so the diagnosis of the redacted snapshot is the same.
 	if red.Routes[0].Spec.ParentRefs[0].Name != red.Gateways[0].Metadata.Name || red.Routes[0].Spec.ParentRefs[0].SectionName != "https" || red.Routes[0].Kind != "HTTPRoute" {
 		t.Errorf("route %+v, gateway %+v", red.Routes[0].Spec.ParentRefs, red.Gateways[0].Metadata)
+	}
+}
+
+func TestRedactRenamesDynamicResourceAllocationsObjects(t *testing.T) {
+	var p kube.Pod
+	p.Metadata = kube.ObjectMeta{Name: "trainer-0", Namespace: "ml"}
+	p.Spec.ResourceClaims = []kube.PodResourceClaim{{Name: "gpu", ResourceClaimName: "acme-a100-pair"}, {Name: "nic", ResourceClaimTemplateName: "acme-rdma"}}
+	var claim kube.ResourceClaim
+	claim.Metadata = kube.ObjectMeta{Name: "acme-a100-pair", Namespace: "ml"}
+	claim.Spec.Devices.Requests = []kube.DeviceRequest{{Name: "gpu", Exactly: &kube.ExactDeviceRequest{DeviceClassName: "gpu.nvidia.com", Count: 2}}}
+	var sl kube.ResourceSlice
+	sl.Metadata.Name = "gpu-node-17-gpu.nvidia.com-x2k9"
+	sl.Spec.Driver, sl.Spec.NodeName, sl.Spec.Pool.Name = "gpu.nvidia.com", "gpu-node-17", "gpu-node-17"
+	var e kube.Event
+	e.InvolvedObject.Kind, e.InvolvedObject.Namespace, e.InvolvedObject.Name = "Pod", "ml", "trainer-0"
+	e.Message = `PodResourceClaim nic: create ResourceClaim : resourceclaims.resource.k8s.io "trainer-0-nic-x7k2p" is forbidden: exceeded quota`
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"ml"}, Pods: []kube.Pod{p}, ResourceAllocationRead: true,
+		ResourceClaims: []kube.ResourceClaim{claim}, ResourceSlices: []kube.ResourceSlice{sl}, Events: []kube.Event{e}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(red)
+	for _, name := range []string{"acme-a100-pair", "acme-rdma", "gpu-node-17", "trainer-0"} {
+		if strings.Contains(string(b), name) {
+			t.Errorf("redacted snapshot still contains %q", name)
+		}
+	}
+	// A claim made for the pod from its template, named in a message: the pod's pseudonym, the entry, the suffix.
+	if want := red.Pods[0].Metadata.Name + "-nic-x7k2p"; !strings.Contains(red.Events[0].Message, want) {
+		t.Errorf("message %q lacks %q", red.Events[0].Message, want)
+	}
+	// The pod still names its claim, and the claim its class and the slice its driver, so the diagnosis is the same.
+	if red.Pods[0].Spec.ResourceClaims[0].ResourceClaimName != red.ResourceClaims[0].Metadata.Name || red.Pods[0].Spec.ResourceClaims[0].Name != "gpu" {
+		t.Errorf("pod %+v, claim %+v", red.Pods[0].Spec.ResourceClaims, red.ResourceClaims[0].Metadata)
+	}
+	if red.ResourceClaims[0].Spec.Devices.Requests[0].Exactly.DeviceClassName != "gpu.nvidia.com" || red.ResourceSlices[0].Spec.Driver != "gpu.nvidia.com" || !red.ResourceAllocationRead {
+		t.Errorf("claim %+v, slice %+v", red.ResourceClaims[0].Spec, red.ResourceSlices[0].Spec)
 	}
 }

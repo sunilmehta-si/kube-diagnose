@@ -27,11 +27,11 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "MTY3"
+              "Masked": "c2ss"
             },
             {
               "Unmasked": "web",
-              "Masked": "UWdl"
+              "Masked": "ZjpA"
             }
           ]
         }

@@ -1,0 +1,73 @@
+# The scheduler allocates a fpga.example.com device to the pod, and no kubelet plugin for that driver runs on the node, so the device is never prepared and the container never starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-dra-driver-not-registered
+
+---
+apiVersion: resource.k8s.io/v1
+kind: DeviceClass
+metadata:
+  name: fpga.example.com
+spec:
+  selectors:
+    - cel:
+        expression: device.driver == "fpga.example.com"
+
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceSlice
+metadata:
+  name: fpga-example-com-shared
+spec:
+  driver: fpga.example.com
+  pool:
+    name: shared
+    generation: 1
+    resourceSliceCount: 1
+  # Network-attached devices, usable from every node: no driver runs, so the slice is published by hand.
+  allNodes: true
+  devices:
+    - name: fpga-0
+
+---
+apiVersion: resource.k8s.io/v1
+kind: ResourceClaimTemplate
+metadata:
+  name: one-gpu
+  namespace: kd-dra-driver-not-registered
+spec:
+  spec:
+    devices:
+      requests:
+        - name: gpu
+          exactly:
+            deviceClassName: fpga.example.com
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trainer
+  namespace: kd-dra-driver-not-registered
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trainer
+  template:
+    metadata:
+      labels:
+        app: trainer
+    spec:
+      # The device is allocated, and no kubelet plugin for fpga.example.com runs on the node to prepare it.
+      resourceClaims:
+        - name: gpu
+          resourceClaimTemplateName: one-gpu
+      containers:
+        - name: trainer
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "exec sleep 3600"]
+          resources:
+            claims:
+              - name: gpu

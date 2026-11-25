@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dra-device-class-missing",
+  "description": "The claim made from template one-gpu asks for DeviceClass gpu.nvidia.com, which the cluster does not have, so the scheduler cannot pick a device.",
+  "rule": "KD322",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "gpu.nvidia.com"
+    ],
+    [
+      "DeviceClass"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}

@@ -1,0 +1,33 @@
+# The trainer claims its GPU through ResourceClaim train-gpu, which was never created, so the scheduler does not try the pod and it waits with no event.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-dra-claim-missing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trainer
+  namespace: kd-dra-claim-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trainer
+  template:
+    metadata:
+      labels:
+        app: trainer
+    spec:
+      # Claims ResourceClaim train-gpu, which nobody created.
+      resourceClaims:
+        - name: gpu
+          resourceClaimName: train-gpu
+      containers:
+        - name: trainer
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "exec sleep 3600"]
+          resources:
+            claims:
+              - name: gpu

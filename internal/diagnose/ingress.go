@@ -52,6 +52,9 @@ func ingressFindings(ix *index) []Finding {
 		if f := ingressClassMissing(ix, ing); f != nil {
 			out = append(out, *f)
 		}
+		if f := ingressPathPattern(ing); f != nil {
+			out = append(out, *f)
+		}
 		if f := ingressTLSSecret(ix, ing); f != nil {
 			out = append(out, *f)
 		} else if f := ingressHostWithoutTLS(ing); f != nil {
@@ -353,4 +356,36 @@ func ingressConflicts(ix *index) []Finding {
 			Fix:      "Give each host and path one Ingress: delete the stale rule, or change the host or path of one of them. For a canary, use the controller's canary feature rather than a second Ingress."})
 	}
 	return out
+}
+
+// ingressPathPattern finds an Ingress path written as a pattern, /api/* or /api/.*, with pathType Prefix or Exact,
+// which every controller compares as text: only a request for that literal path matches. ImplementationSpecific is
+// left alone, as a controller may read it as a regular expression (ingress-nginx does, with use-regex).
+func ingressPathPattern(ing kube.Ingress) *Finding {
+	for _, r := range ing.Spec.Rules {
+		if r.HTTP == nil {
+			continue
+		}
+		for _, p := range r.HTTP.Paths {
+			if p.PathType != "Prefix" && p.PathType != "Exact" || !rePathPattern.MatchString(p.Path) {
+				continue
+			}
+			host := r.Host
+			if host == "" {
+				host = "any host"
+			}
+			fix := "Use the path's literal prefix with pathType Prefix (/api matches /api and everything under it)"
+			if base := strings.TrimRight(strings.TrimSuffix(strings.TrimSuffix(p.Path, ".*"), "*"), "/"); base != "" && !rePathPattern.MatchString(base) {
+				fix = fmt.Sprintf("Use path %s with pathType Prefix, which matches it and everything under it", base)
+			}
+			fix += ", or pathType ImplementationSpecific with your controller's regular-expression support."
+			return &Finding{Rule: "KD278", Title: "Ingress path is a pattern that its pathType compares as text", Severity: Warning, Object: ing.Ref(),
+				Cause: fmt.Sprintf("Ingress %s routes path %s on %s with pathType %s, which compares paths as text, not as a pattern: only a request for exactly %s matches, so the requests meant for it get a 404 or go to another path",
+					ing.Metadata.Name, p.Path, host, p.PathType, p.Path),
+				Evidence: []Evidence{{Object: ing.Ref(), What: "the Ingress's paths and their pathType",
+					Command: cmdGet("ingress", ing.Metadata.Namespace, ing.Metadata.Name, `{range .spec.rules[*].http.paths[*]}{.path}{" "}{.pathType}{"\n"}{end}`)}},
+				Fix: fix}
+		}
+	}
+	return nil
 }

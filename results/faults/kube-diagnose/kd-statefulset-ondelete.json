@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-statefulset-ondelete"
+  ],
+  "collectedAt": "2026-11-25 16:12 UTC",
+  "findings": [
+    {
+      "rule": "KD294",
+      "title": "Template change waits for pods to be deleted (OnDelete)",
+      "severity": "warning",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-statefulset-ondelete",
+        "name": "cache"
+      },
+      "cause": "StatefulSet cache's pod template has changed, and 2 of its 2 pods still run the old one: its updateStrategy is OnDelete, which replaces a pod only when the pod is deleted, so the change reaches none of them until someone does",
+      "evidence": [
+        {
+          "object": {
+            "kind": "StatefulSet",
+            "namespace": "kd-statefulset-ondelete",
+            "name": "cache"
+          },
+          "what": "StatefulSet cache: current revision cache-856bc7c797, update revision cache-847dfc6486, 0 of 2 pods updated",
+          "command": "kubectl get statefulset cache -n kd-statefulset-ondelete -o jsonpath='{.spec.updateStrategy.type}{\" \"}{.status.currentRevision}{\" \"}{.status.updateRevision}{\" \"}{.status.updatedReplicas}/{.status.replicas}'"
+        }
+      ],
+      "fix": "Delete the old pods one at a time (each comes back with the new template), or set updateStrategy type RollingUpdate on StatefulSet cache to have the controller do it: kubectl rollout status statefulset/cache then follows it."
+    }
+  ],
+  "checked": {
+    "pods": 3,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

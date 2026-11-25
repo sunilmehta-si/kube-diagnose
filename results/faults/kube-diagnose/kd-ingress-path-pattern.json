@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-ingress-path-pattern"
+  ],
+  "collectedAt": "2026-11-25 16:08 UTC",
+  "findings": [
+    {
+      "rule": "KD278",
+      "title": "Ingress path is a pattern that its pathType compares as text",
+      "severity": "warning",
+      "object": {
+        "kind": "Ingress",
+        "namespace": "kd-ingress-path-pattern",
+        "name": "web"
+      },
+      "cause": "Ingress web routes path /api/* on shop.example.com with pathType Prefix, which compares paths as text, not as a pattern: only a request for exactly /api/* matches, so the requests meant for it get a 404 or go to another path",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Ingress",
+            "namespace": "kd-ingress-path-pattern",
+            "name": "web"
+          },
+          "what": "the Ingress's paths and their pathType",
+          "command": "kubectl get ingress web -n kd-ingress-path-pattern -o jsonpath='{range .spec.rules[*].http.paths[*]}{.path}{\" \"}{.pathType}{\"\\n\"}{end}'"
+        }
+      ],
+      "fix": "Use path /api with pathType Prefix, which matches it and everything under it, or pathType ImplementationSpecific with your controller's regular-expression support."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

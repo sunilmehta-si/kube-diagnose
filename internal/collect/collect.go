@@ -144,6 +144,7 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		func(g *snapshot.Snapshot) error {
 			return list(ctx, r, g, "referencegrants.gateway.networking.k8s.io", ns, scope, &s.ReferenceGrants)
 		},
+		func(g *snapshot.Snapshot) error { return resourceAllocation(ctx, r, g, s, ns, scope) },
 	}
 	// The reads are independent, each a kubectl process and one API request, so a few run at once. Every step
 	// writes its own field of the snapshot and collects its gaps apart, which are then added in the steps' order: the
@@ -225,6 +226,36 @@ func list[T any](ctx context.Context, r Runner, s *snapshot.Snapshot, resource, 
 	}
 	*out = append(*out, l.Items...)
 	return nil
+}
+
+// resourceAllocation reads dynamic resource allocation's objects: the DeviceClasses first, which tell whether the
+// cluster serves resource.k8s.io at all (before 1.32 it may not, and then there is nothing to read and nothing
+// missed), then the namespace's ResourceClaims and ResourceClaimTemplates and the cluster's ResourceSlices.
+func resourceAllocation(ctx context.Context, r Runner, g, s *snapshot.Snapshot, ns string, scope []string) error {
+	const classes = "deviceclasses.resource.k8s.io"
+	b, err := r.Run(ctx, "get", classes, "-o", "json")
+	switch {
+	case err != nil && ctx.Err() != nil:
+		return ctx.Err()
+	case err != nil && notServed(err):
+		return nil
+	case err != nil:
+		g.Gaps = append(g.Gaps, snapshot.Gap{Resource: classes, Error: firstLine(err.Error())})
+	default:
+		var l kube.List[kube.DeviceClass]
+		if err := json.Unmarshal(b, &l); err != nil {
+			return fmt.Errorf("kubectl get %s: unexpected output: %w", classes, err)
+		}
+		s.DeviceClasses = l.Items
+	}
+	s.ResourceAllocationRead = true
+	if err := list(ctx, r, g, "resourceclaims.resource.k8s.io", ns, scope, &s.ResourceClaims); err != nil {
+		return err
+	}
+	if err := list(ctx, r, g, "resourceclaimtemplates.resource.k8s.io", ns, scope, &s.ResourceClaimTemplates); err != nil {
+		return err
+	}
+	return list(ctx, r, g, "resourceslices.resource.k8s.io", "", nil, &s.ResourceSlices)
 }
 
 // notServed reports whether kubectl failed because the API server does not serve the resource at all: its CRD is

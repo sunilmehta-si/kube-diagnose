@@ -1,0 +1,35 @@
+# The syslog receiver listens on UDP port 5514, and its readiness probe checks that port with tcpSocket, so the probe is refused and the pod never becomes ready.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-probe-udp-port
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: log-receiver
+  namespace: kd-probe-udp-port
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: log-receiver
+  template:
+    metadata:
+      labels:
+        app: log-receiver
+    spec:
+      containers:
+        - name: receiver
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # A syslog receiver: it listens for UDP datagrams on 5514, and nothing on TCP.
+          command: ["sh", "-c", "while true; do nc -u -l -p 5514 > /dev/null 2>&1 || sleep 5; done"]
+          ports:
+            - name: syslog
+              containerPort: 5514
+              protocol: UDP
+          readinessProbe:
+            tcpSocket:
+              port: syslog
+            periodSeconds: 5

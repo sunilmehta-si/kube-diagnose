@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rolebinding-subject-missing"
   ],
-  "collectedAt": "2026-11-24 11:23 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD228",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rolebinding-subject-missing",
-            "name": "worker-7ff79c9999-rmp7m"
+            "name": "worker-7ff79c9999-ps565"
           },
-          "what": "container worker exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod worker-7ff79c9999-rmp7m -n kd-rolebinding-subject-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
+          "what": "container worker exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod worker-7ff79c9999-ps565 -n kd-rolebinding-subject-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rolebinding-subject-missing",
-            "name": "worker-7ff79c9999-rmp7m"
+            "name": "worker-7ff79c9999-ps565"
           },
           "what": "last lines of container worker's log (run that exited)",
           "detail": "Connecting to kubernetes.default.svc (10.96.0.1:443)\nwget: server returned error: HTTP/1.1 403 Forbidden",
-          "command": "kubectl logs worker-7ff79c9999-rmp7m -n kd-rolebinding-subject-missing -c worker --tail=20 --previous"
+          "command": "kubectl logs worker-7ff79c9999-ps565 -n kd-rolebinding-subject-missing -c worker --tail=20 --previous"
         },
         {
           "object": {
@@ -49,10 +49,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rolebinding-subject-missing",
-            "name": "worker-7ff79c9999-rmp7m"
+            "name": "worker-7ff79c9999-ps565"
           },
           "what": "the pod runs as ServiceAccount app",
-          "command": "kubectl get pod worker-7ff79c9999-rmp7m -n kd-rolebinding-subject-missing -o jsonpath='{.spec.serviceAccountName}'"
+          "command": "kubectl get pod worker-7ff79c9999-ps565 -n kd-rolebinding-subject-missing -o jsonpath='{.spec.serviceAccountName}'"
         }
       ],
       "fix": "Set the subject of RoleBinding read-config to ServiceAccount app (a binding's subjects can be edited), if that is who it was meant for; or run the pods as ServiceAccount apps after creating it.",
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rolebinding-subject-missing",
-          "name": "worker-7ff79c9999-rmp7m"
+          "name": "worker-7ff79c9999-ps565"
         }
       ]
     }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-memory-limit-no-unit",
-              "Masked": "QD5GNzQ9Il5qLXpHbD8wJGhNX2EpKEU="
+              "Masked": "UGE4ZWdibENZKnNBNE44eVQlcTBGN0o="
             },
             {
               "Unmasked": "api",
-              "Masked": "XlB5"
+              "Masked": "Mm4z"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-memory-limit-no-unit/api-6f9bcbd468-pfz4r",
+      "name": "kd-memory-limit-no-unit/api-6f9bcbd468-clkwn",
       "error": [
         {
-          "Text": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-tbsmc\" : write /var/lib/kubelet/pods/2f6c0c79-a87d-4c55-9a80-334c4b3d7ba9/volumes/kubernetes.io~projected/kube-api-access-tbsmc/..2026_11_24_11_19_16.70229310/token: no space left on device",
+          "Text": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-vgfdc\" : write /var/lib/kubelet/pods/3d520dde-fa6d-4837-8148-6cba5ab919ca/volumes/kubernetes.io~projected/kube-api-access-vgfdc/..2026_11_25_16_08_50.1671447070/ca.crt: no space left on device",
           "KubernetesDoc": "",
           "Sensitive": []
         }

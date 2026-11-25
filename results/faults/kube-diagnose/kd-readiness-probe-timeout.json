@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readiness-probe-timeout"
   ],
-  "collectedAt": "2026-11-24 11:23 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD120",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-probe-timeout",
-            "name": "web-84466c7679-fbdhx"
+            "name": "web-84466c7679-2hdmf"
           },
-          "what": "event Unhealthy (124 times)",
+          "what": "event Unhealthy (63 times)",
           "detail": "Readiness probe failed: command timed out: \"sh -c sleep 3; wget -q -O /dev/null http://127.0.0.1:8080/\" timed out after 1s",
-          "command": "kubectl get events -n kd-readiness-probe-timeout --field-selector involvedObject.kind=Pod,involvedObject.name=web-84466c7679-fbdhx"
+          "command": "kubectl get events -n kd-readiness-probe-timeout --field-selector involvedObject.kind=Pod,involvedObject.name=web-84466c7679-2hdmf"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-probe-timeout",
-            "name": "web-84466c7679-fbdhx"
+            "name": "web-84466c7679-2hdmf"
           },
           "what": "container web is running but not ready",
-          "command": "kubectl get pod web-84466c7679-fbdhx -n kd-readiness-probe-timeout -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+          "command": "kubectl get pod web-84466c7679-2hdmf -n kd-readiness-probe-timeout -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
         }
       ],
       "fix": "Raise the readiness probe's timeoutSeconds above how long the check takes (it is 1s), or make the health check cheaper: one that waits on a database or another service is slow whenever they are.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-readiness-probe-timeout",
-          "name": "web-84466c7679-fbdhx"
+          "name": "web-84466c7679-2hdmf"
         }
       ]
     }

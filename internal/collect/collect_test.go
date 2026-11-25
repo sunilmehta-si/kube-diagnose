@@ -2,7 +2,9 @@ package collect
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -159,6 +161,7 @@ func TestCollect(t *testing.T) {
 			t.Errorf("secrets must be read as key names only: %v", c)
 		}
 		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" && c[1] != "namespaces" && c[1] != "clusterroles.rbac.authorization.k8s.io" && c[1] != "gatewayclasses.gateway.networking.k8s.io" &&
+			c[1] != "deviceclasses.resource.k8s.io" && c[1] != "resourceslices.resource.k8s.io" &&
 			!(c[len(c)-2] == "-n" && c[len(c)-1] == "shop") {
 			t.Errorf("namespaced read not scoped to the namespace: %v", c)
 		}
@@ -384,6 +387,60 @@ func TestCollectReadsTheGatewayAPIWhenTheClusterServesIt(t *testing.T) {
 	f = &fake{errs: map[string]error{"get httproutes.gateway.networking.k8s.io": errors.New(`Error from server (Forbidden): httproutes.gateway.networking.k8s.io is forbidden`)}}
 	s, _ = Collect(context.Background(), f, Options{Namespace: "shop"})
 	if len(s.Gaps) != 1 || s.Gaps[0].Resource != "httproutes.gateway.networking.k8s.io" {
+		t.Errorf("gaps %+v", s.Gaps)
+	}
+}
+
+func TestCollectReadsDynamicResourceAllocationWhenTheClusterServesIt(t *testing.T) {
+	f := &fake{answers: map[string]string{
+		"get deviceclasses.resource.k8s.io":          `{"items":[{"metadata":{"name":"gpu.example.com"},"spec":{"selectors":[{"cel":{"expression":"device.driver == 'gpu.example.com'"}}]}}]}`,
+		"get resourceclaims.resource.k8s.io":         `{"items":[{"metadata":{"name":"train-gpu","namespace":"shop"},"spec":{"devices":{"requests":[{"name":"gpu","exactly":{"deviceClassName":"gpu.example.com","count":2}}]}}}]}`,
+		"get resourceclaimtemplates.resource.k8s.io": `{"items":[{"metadata":{"name":"one-gpu","namespace":"shop"},"spec":{"spec":{"devices":{"requests":[{"name":"gpu","deviceClassName":"gpu.example.com"}]}}}}]}`,
+		"get resourceslices.resource.k8s.io":         `{"items":[{"metadata":{"name":"node-1-gpu"},"spec":{"driver":"gpu.example.com","nodeName":"node-1","pool":{"name":"node-1"},"devices":[{"name":"gpu-0","attributes":{"model":{"string":"L4"}}}]}}]}`,
+	}}
+	s, err := Collect(context.Background(), f, Options{Namespace: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !s.ResourceAllocationRead || len(s.DeviceClasses) != 1 || len(s.ResourceSlices) != 1 || s.ResourceSlices[0].Spec.Devices[0].Name != "gpu-0" {
+		t.Errorf("read %v classes %+v slices %+v", s.ResourceAllocationRead, s.DeviceClasses, s.ResourceSlices)
+	}
+	// Of a slice, the driver, its nodes and the device names are kept, as the README says; not the attributes.
+	if b, _ := json.Marshal(s.ResourceSlices); strings.Contains(string(b), "attributes") || strings.Contains(string(b), "L4") {
+		t.Errorf("slice keeps more than it should: %s", b)
+	}
+	readme, _ := os.ReadFile("../../README.md")
+	if !strings.Contains(strings.Join(strings.Fields(string(readme)), " "), "ResourceSlices in the cluster, keeping of each slice its driver, nodes and device names") {
+		t.Error("README should say what is read of ResourceSlices")
+	}
+	// A v1 request and a v1beta1 one read alike.
+	if a := s.ResourceClaims[0].Spec.Devices.Requests[0].Alternatives(); len(a) != 1 || a[0].DeviceClassName != "gpu.example.com" || a[0].Count != 2 {
+		t.Errorf("claim %+v", a)
+	}
+	if a := s.ResourceClaimTemplates[0].Spec.Spec.Devices.Requests[0].Alternatives(); len(a) != 1 || a[0].DeviceClassName != "gpu.example.com" {
+		t.Errorf("template %+v", a)
+	}
+
+	// A cluster that does not serve the API: nothing read, no gap, and the snapshot says so.
+	notServed := errors.New(`kubectl: error: the server doesn't have a resource type "deviceclasses"`)
+	f = &fake{errs: map[string]error{"get deviceclasses.resource.k8s.io": notServed}}
+	s, err = Collect(context.Background(), f, Options{Namespace: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.ResourceAllocationRead || len(s.Gaps) != 0 {
+		t.Errorf("read %v gaps %+v", s.ResourceAllocationRead, s.Gaps)
+	}
+	for _, c := range f.calls {
+		if c[0] == "get" && strings.HasSuffix(c[1], ".resource.k8s.io") && c[1] != "deviceclasses.resource.k8s.io" {
+			t.Errorf("read %v from a cluster without the API", c)
+		}
+	}
+
+	// Served, but claims are forbidden: a gap.
+	f = &fake{errs: map[string]error{"get resourceclaims.resource.k8s.io": errors.New(`Error from server (Forbidden): resourceclaims.resource.k8s.io is forbidden`)}}
+	s, _ = Collect(context.Background(), f, Options{Namespace: "shop"})
+	if !s.ResourceAllocationRead || len(s.Gaps) != 1 || s.Gaps[0].Resource != "resourceclaims.resource.k8s.io" {
 		t.Errorf("gaps %+v", s.Gaps)
 	}
 }

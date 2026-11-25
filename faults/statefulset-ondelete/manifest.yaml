@@ -1,0 +1,99 @@
+# A Job raises the cache size in StatefulSet cache, whose updateStrategy is OnDelete, so both pods keep the old setting until someone deletes them.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-statefulset-ondelete
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: cache
+  namespace: kd-statefulset-ondelete
+spec:
+  clusterIP: None
+  selector:
+    app: cache
+  ports:
+    - port: 6379
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: cache
+  namespace: kd-statefulset-ondelete
+spec:
+  serviceName: cache
+  replicas: 2
+  # Pods are replaced with a new template only when they are deleted.
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: cache
+  template:
+    metadata:
+      labels:
+        app: cache
+    spec:
+      containers:
+        - name: cache
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo cache size $CACHE_SIZE; exec sleep 3600"]
+          env:
+            - name: CACHE_SIZE
+              value: "256"
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: tuner
+  namespace: kd-statefulset-ondelete
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: tuner
+  namespace: kd-statefulset-ondelete
+rules:
+  - apiGroups: ["apps"]
+    resources: ["statefulsets"]
+    verbs: ["get", "list", "watch", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: tuner
+  namespace: kd-statefulset-ondelete
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: tuner
+subjects:
+  - kind: ServiceAccount
+    name: tuner
+    namespace: kd-statefulset-ondelete
+
+---
+# Raises the cache size once both pods run, as a config change would; with OnDelete, no pod picks it up.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: tune
+  namespace: kd-statefulset-ondelete
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      serviceAccountName: tuner
+      restartPolicy: Never
+      initContainers:
+        - name: wait
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["wait", "--for=jsonpath={.status.readyReplicas}=2", "statefulset/cache", "--timeout=120s"]
+      containers:
+        - name: tune
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["set", "env", "statefulset/cache", "CACHE_SIZE=512"]

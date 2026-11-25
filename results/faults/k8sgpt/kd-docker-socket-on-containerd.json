@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-docker-socket-on-containerd",
-              "Masked": "VS93InhhWkBLd2FYaU4uaDNxJ185VmF3WWl9NEwt"
+              "Masked": "Yl5NLU5afEwrKitwWHR2WGthT0s7QXNLQVs0UWNk"
             },
             {
               "Unmasked": "image-builder",
-              "Masked": "d0RAKkIie2dWOT91VQ=="
+              "Masked": "OUxDP0EtKSprOEQ1IQ=="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-docker-socket-on-containerd/image-builder-86979f57d7-jv2pr",
+      "name": "kd-docker-socket-on-containerd/image-builder-86979f57d7-ghms4",
       "error": [
         {
           "Text": "MountVolume.SetUp failed for volume \"docker\" : hostPath type check failed, /var/run/docker.sock is not a socket file, unable to determine its type: path \"/var/run/docker.sock\" does not exist",

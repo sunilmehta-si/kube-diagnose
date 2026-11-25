@@ -48,6 +48,12 @@ func podProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 	}
+	if pr := draProblem(ix, p); pr != nil {
+		return pr
+	}
+	if pr := claimBeingDeleted(ix, p); pr != nil {
+		return pr
+	}
 	if c, ok := kube.FindCondition(p.Status.Conditions, "PodScheduled"); ok && c.Status == "False" {
 		if c.Reason == "SchedulingGated" {
 			return gated(ix, p)
@@ -957,6 +963,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	if pr := subPathOntoFile(ix, p, cs.Name, msg, ev); pr != nil {
 		return pr
 	}
+	if pr := appArmorNotLoaded(p, cs, msg, ev); pr != nil {
+		return pr
+	}
 	if m := reSeccompProfile.FindStringSubmatch(msg); m != nil {
 		path := m[1]
 		cause := fmt.Sprintf("container %s uses the Localhost seccomp profile %s, which is not on node %s, so the container runtime cannot create the container", cs.Name, path, p.Spec.NodeName)
@@ -1120,6 +1129,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := windowsLineEndings(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := shmTooSmall(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := undefinedVar(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -1228,6 +1240,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := subdomainProblem(ix, p, &cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := peerNotPublished(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := externalNameUnresolved(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -1237,6 +1252,11 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			"nosvc|"+svcNS+"/"+svc, fmt.Sprintf("Create Service %s in namespace %s (or deploy what it fronts), or correct the host name the app connects to in its configuration.", svc, svcNS),
 			append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
 				What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})...)
+	}
+	if t.ExitCode == 0 {
+		if pr := shellExits(p, cs, ev); pr != nil {
+			return pr
+		}
 	}
 	title, rule := "Container keeps crashing", "KD110"
 	what, kind := "exits", "container"
@@ -1594,6 +1614,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		if pr := probeGRPC(ix, p, cs, k); pr != nil {
 			return pr
 		}
+		if pr := probeUDP(ix, p, cs, k); pr != nil {
+			return pr
+		}
 		if pr := probeLoopback(ix, p, cs, k); pr != nil {
 			return pr
 		}
@@ -1726,6 +1749,9 @@ func probeProblem(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := probeGRPC(ix, p, cs, "readiness"); pr != nil {
+		return pr
+	}
+	if pr := probeUDP(ix, p, cs, "readiness"); pr != nil {
 		return pr
 	}
 	if pr := probeLoopback(ix, p, cs, "readiness"); pr != nil {

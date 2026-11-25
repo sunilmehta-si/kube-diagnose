@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-configmap-mounted-as-directory",
-              "Masked": "K09DQGVtUlR0Ym94OmslcVs1YiJzVipDOSFnLVclVnJC"
+              "Masked": "Qmt1NXZhJDdeKE1aRXcufTw4dlIkRlM+e2dDVSckfUA9"
             },
             {
               "Unmasked": "web",
-              "Masked": "cnIx"
+              "Masked": "SWNy"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-configmap-mounted-as-directory/web-6b84bbfc9-mbch9",
+      "name": "kd-configmap-mounted-as-directory/web-6b84bbfc9-48hwc",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-6b84bbfc9-mbch9",
+          "Text": "the termination reason is Error exitCode=1 container=web pod=web-6b84bbfc9-48hwc",
           "KubernetesDoc": "",
           "Sensitive": []
         }

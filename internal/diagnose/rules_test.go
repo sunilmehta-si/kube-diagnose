@@ -4044,6 +4044,16 @@ func TestRoleBindingGrantsARoleThatDoesNotExist(t *testing.T) {
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("%+v", r.Findings)
 	}
+	// The role exists as the other kind: the roleRef's kind is wrong.
+	s.ClusterRoles = append(s.ClusterRoles, "config-reader")
+	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "Role", "config-reader"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD227", "RoleBinding shop/read-config", "there is a ClusterRole config-reader, so the roleRef's kind is wrong")
+	if !strings.Contains(f.Fix, "with roleRef kind ClusterRole") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.RoleBindings[0].RoleRef.Kind, s.RoleBindings[0].RoleRef.Name = "ClusterRole", s.Roles[0].Metadata.Name
+	expect(t, only(t, Diagnose(s)), "KD227", "RoleBinding shop/read-config", "there is a Role "+s.Roles[0].Metadata.Name+", so the roleRef's kind is wrong")
 
 	// The binding is sound: a refusal is then a missing permission, which KD126 names from the API server's sentence.
 	s, _ = rbacSnapshot()
@@ -5474,4 +5484,256 @@ func TestPortInUseOnTheHostNetwork(t *testing.T) {
 	}
 	s.Logs[0].Lines = []string{"listen tcp 0.0.0.0:9100: bind: address already in use"}
 	expect(t, only(t, Diagnose(s)), "KD122", "Deployment shop/node-agent", "something on the node has 9100")
+}
+
+func TestSharedMemoryIsTooSmall(t *testing.T) {
+	s := snap()
+	deployment(s, "trainer", 1, 0)
+	p := pod("trainer-rs-a", "trainer")
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true,
+		Lines: []string{"loading batch 1", "dd: error writing '/dev/shm/batch': No space left on device"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD313", "Deployment shop/trainer", "shared memory (/dev/shm) is full", "the container runtime's 64 MiB", "/dev/shm/batch")
+	if !strings.Contains(f.Fix, "emptyDir with medium: Memory at /dev/shm") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// PyTorch says it as a bus error in a DataLoader worker.
+	s.Logs[0].Lines = []string{"ERROR: Unexpected bus error encountered in worker. This might be caused by insufficient shared memory (shm)."}
+	expect(t, only(t, Diagnose(s)), "KD313", "Deployment shop/trainer", "insufficient shared memory")
+	// A memory volume at /dev/shm that is still too small: its sizeLimit.
+	s.Pods[0].Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "dshm", MountPath: "/dev/shm"}}
+	s.Pods[0].Spec.Volumes = []kube.Volume{{Name: "dshm", EmptyDir: &kube.EmptyDirVolumeSource{Medium: "Memory", SizeLimit: "256Mi"}}}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD313", "Deployment shop/trainer", "volume dshm is mounted there with sizeLimit 256Mi")
+	if !strings.Contains(f.Fix, "Raise volume dshm's sizeLimit") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Running out of disk elsewhere is not shared memory.
+	s.Logs[0].Lines = []string{"write /data/out.bin: no space left on device"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD313" {
+			t.Errorf("disk: %s", f.Cause)
+		}
+	}
+}
+
+func TestStatefulSetsPeersHaveNoDNSRecordsUntilReady(t *testing.T) {
+	s := snap()
+	sts := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "quorum", Namespace: "shop"}}
+	two := int32(2)
+	sts.Spec.Replicas, sts.Spec.ServiceName, sts.Spec.PodManagementPolicy = &two, "quorum", "Parallel"
+	s.Workloads = []kube.Workload{sts}
+	p := pod("quorum-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "quorum", Controller: yes()}}
+	crashed(&p, 1, "Error", 3)
+	s.Pods = []kube.Pod{p}
+	svc := service("quorum", map[string]string{"app": "web"}, port(8080))
+	svc.Spec.ClusterIP, svc.Spec.Ports[0].Port = "None", 8080
+	s.Services = []kube.Service{svc}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"Server:\t\t10.96.0.10",
+		"** server can't find quorum-1.quorum.shop.svc.cluster.local: NXDOMAIN", "cannot reach peer quorum-1.quorum"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD373", "StatefulSet shop/quorum", "cannot resolve its peer quorum-1.quorum", "publishes a pod's DNS record only once the pod is ready")
+	if !strings.Contains(f.Fix, "publishNotReadyAddresses: true on Service quorum") || strings.Contains(f.Fix, "Parallel") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// OrderedReady: the peer is not even created.
+	s.Workloads[0].Spec.PodManagementPolicy = ""
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD373", "StatefulSet shop/quorum", "quorum-1 is not even created")
+	// The Service already publishes not-ready pods: the lookup fails for another reason.
+	s.Services[0].Spec.PublishNotReadyAddresses = true
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD373" {
+			t.Errorf("published: %s", f.Cause)
+		}
+	}
+}
+
+func TestRouteRuleGivesEveryBackendWeightZero(t *testing.T) {
+	s := gatewaySnapshot()
+	zero, one := int32(0), int32(1)
+	p := int32(80)
+	s.Services = append(s.Services, service("web-v2", map[string]string{"app": "web"}, named("http")))
+	s.EndpointSlices = append(s.EndpointSlices, slice("web-v2", 1))
+	r := &s.Routes[0].Spec.Rules[0]
+	r.BackendRefs[0].Weight = &zero
+	r.BackendRefs = append(r.BackendRefs, kube.BackendRef{Name: "web-v2", Port: &p, Weight: &zero})
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD374", "HTTPRoute shop/shop", "rule 1 of HTTPRoute shop sends traffic to web, web-v2, all with weight 0", "HTTP 500")
+	// One backend at 1, or with no weight (which means 1): traffic flows.
+	r.BackendRefs[1].Weight = &one
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	r.BackendRefs[1].Weight = nil
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestRoutePathIsAPatternItsMatchTypeComparesAsText(t *testing.T) {
+	s := gatewaySnapshot()
+	var m kube.RouteMatch
+	m.Path = &struct {
+		Type  string `json:"type,omitempty"`
+		Value string `json:"value,omitempty"`
+	}{"PathPrefix", "/api/*"}
+	s.Routes[0].Spec.Rules[0].Matches = []kube.RouteMatch{m}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD375", "HTTPRoute shop/shop", "matches path /api/* with type PathPrefix, which compares it as text", "404")
+	if !strings.HasPrefix(f.Fix, "Use path /api with type PathPrefix") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Routes[0].Spec.Rules[0].Matches[0].Path.Type, s.Routes[0].Spec.Rules[0].Matches[0].Path.Value = "Exact", "/v[0-9]+/orders"
+	expect(t, only(t, Diagnose(s)), "KD375", "HTTPRoute shop/shop", "path /v[0-9]+/orders with type Exact")
+	// A regular expression is meant as one, and a plain prefix is fine.
+	s.Routes[0].Spec.Rules[0].Matches[0].Path.Type = "RegularExpression"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	s.Routes[0].Spec.Rules[0].Matches[0].Path.Type, s.Routes[0].Spec.Rules[0].Matches[0].Path.Value = "PathPrefix", "/api"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestIngressPathIsAPatternItsPathTypeComparesAsText(t *testing.T) {
+	s := snap()
+	defaultIngressClass(s)
+	s.Pods = []kube.Pod{pod("web", "")}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web"}, named("http"))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("web", 1)}
+	ing := ingress("shop", "web", 80, "")
+	ing.Spec.Rules[0].HTTP.Paths[0].Path, ing.Spec.Rules[0].HTTP.Paths[0].PathType = "/api/.*", "Prefix"
+	s.Ingresses = []kube.Ingress{ing}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD278", "Ingress shop/shop", "routes path /api/.* on shop.example.com with pathType Prefix, which compares paths as text")
+	if !strings.HasPrefix(f.Fix, "Use path /api with pathType Prefix") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// ImplementationSpecific may be a regular expression to the controller.
+	s.Ingresses[0].Spec.Rules[0].HTTP.Paths[0].PathType = "ImplementationSpecific"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestAppArmorProfileIsNotLoadedOnTheNode(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].SecurityContext = &kube.SecurityContext{AppArmorProfile: &kube.AppArmorProfile{Type: "Localhost", LocalhostProfile: "k8s-web"}}
+	waiting(&p, "CreateContainerError", `failed to create containerd container: failed to generate apparmor spec opts: apparmor profile not found k8s-web`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD314", "Deployment shop/web", "Localhost AppArmor profile k8s-web, which is not loaded on node node-1")
+	if !strings.Contains(f.Fix, "apparmor_parser") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The profile set for the whole pod.
+	s.Pods[0].Spec.Containers[0].SecurityContext = nil
+	s.Pods[0].Spec.SecurityContext = &kube.PodSecurityContext{AppArmorProfile: &kube.AppArmorProfile{Type: "Localhost", LocalhostProfile: "k8s-web"}}
+	expect(t, only(t, Diagnose(s)), "KD314", "Deployment shop/web", "profile k8s-web")
+	// A node without AppArmor: the kubelet rejects the pod.
+	q := pod("web-rs-b", "web")
+	q.Spec.SecurityContext = s.Pods[0].Spec.SecurityContext
+	q.Status = kube.PodStatus{Phase: "Failed", Reason: "AppArmor", Message: "Cannot enforce AppArmor: AppArmor is not enabled on the host"}
+	s.Pods = []kube.Pod{q}
+	expect(t, only(t, Diagnose(s)), "KD314", "Deployment shop/web", "asks for AppArmor profile Localhost k8s-web", "AppArmor is not enabled on the host")
+}
+
+func TestClaimIsBeingDeletedWhilePodsStillUseIt(t *testing.T) {
+	s := snap()
+	deployment(s, "db", 1, 1)
+	old := pod("db-rs-old", "db")
+	old.Spec.Volumes = []kube.Volume{{Name: "data", PersistentVolumeClaim: &kube.PVCVolumeSource{ClaimName: "data"}}}
+	fresh := old
+	fresh.Metadata.Name, fresh.Spec.NodeName = "db-rs-new", ""
+	fresh.Status = kube.PodStatus{Phase: "Pending", Conditions: []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: `0/1 nodes are available: persistentvolumeclaim "data" is being deleted. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.`}}}
+	s.Pods = []kube.Pod{old, fresh}
+	var pvc kube.PersistentVolumeClaim
+	gone := t0.Add(-10 * time.Minute)
+	pvc.Metadata = kube.ObjectMeta{Name: "data", Namespace: "shop", DeletionTimestamp: &gone, Finalizers: []string{"kubernetes.io/pvc-protection"}}
+	pvc.Status.Phase = "Bound"
+	s.PVCs = []kube.PersistentVolumeClaim{pvc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD254", "Deployment shop/db", "PersistentVolumeClaim data, which was deleted 10m0s ago", "while pod db-rs-old still uses it", "when it stops, the claim goes")
+	if !strings.Contains(f.Fix, "persistentVolumeReclaimPolicy: Retain") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestProbeConnectsOverTCPToAUDPPort(t *testing.T) {
+	s := snap()
+	deployment(s, "dns", 1, 0)
+	p := pod("dns-rs-a", "dns")
+	notReady(&p)
+	p.Spec.Containers[0].Ports = []kube.ContainerPort{{Name: "dns", ContainerPort: 53, Protocol: "UDP"}}
+	p.Spec.Containers[0].ReadinessProbe = &kube.Probe{TCPSocket: &kube.TCPSocketAction{Port: named("dns")}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "dns-rs-a", "Unhealthy", "Readiness probe failed: dial tcp 10.244.0.7:53: connect: connection refused", 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD212", "Deployment shop/dns", "readiness probe (tcpSocket) checks port 53 (named dns), which the container declares for UDP only", "never becomes ready")
+	// The same port declared for TCP too: the probe may well reach something.
+	s.Pods[0].Spec.Containers[0].Ports = append(s.Pods[0].Spec.Containers[0].Ports, kube.ContainerPort{Name: "dns-tcp", ContainerPort: 53, Protocol: "TCP"})
+	s.Pods[0].Spec.Containers[0].ReadinessProbe.TCPSocket.Port = port(53)
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD212" {
+			t.Errorf("TCP too: %s", f.Cause)
+		}
+	}
+}
+
+func TestTemplateChangeWaitsForPodsToBeDeleted(t *testing.T) {
+	s := snap()
+	sts := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "cache", Namespace: "shop"}}
+	three := int32(3)
+	sts.Spec.Replicas = &three
+	sts.Spec.UpdateStrategy.Type = "OnDelete"
+	sts.Status.Replicas, sts.Status.ReadyReplicas, sts.Status.UpdatedReplicas = 3, 3, 1
+	sts.Status.CurrentRevision, sts.Status.UpdateRevision = "cache-6d5f", "cache-7b9c"
+	s.Workloads = []kube.Workload{sts}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD294", "StatefulSet shop/cache", "2 of its 3 pods still run the old one", "updateStrategy is OnDelete")
+	if !strings.Contains(f.Fix, "kubectl rollout status statefulset/cache") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Rolled out, or RollingUpdate: nothing waits on anyone.
+	s.Workloads[0].Status.CurrentRevision = "cache-7b9c"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// A DaemonSet on four nodes, one of them updated.
+	ds := kube.Workload{Kind: "DaemonSet", Metadata: kube.ObjectMeta{Name: "agent", Namespace: "shop"}}
+	ds.Spec.UpdateStrategy.Type = "OnDelete"
+	ds.Status.DesiredNumberScheduled, ds.Status.NumberReady, ds.Status.UpdatedNumberScheduled = 4, 4, 1
+	s.Workloads = []kube.Workload{ds}
+	expect(t, only(t, Diagnose(s)), "KD294", "DaemonSet shop/agent", "3 of its 4 pods still run the old one")
+}
+
+func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
+	s := snap()
+	deployment(s, "toolbox", 1, 0)
+	p := pod("toolbox-rs-a", "toolbox")
+	p.Spec.Containers[0].Image = "docker.io/library/ubuntu:26.04"
+	crashed(&p, 0, "Completed", 5)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD315", "Deployment shop/toolbox", "exits with code 0 as soon as it starts: it sets no command, and image ubuntu's default command is a shell")
+	if !strings.Contains(f.Fix, "sleep infinity") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Pods[0].Spec.Containers[0].Image, s.Pods[0].Spec.Containers[0].Command = "registry.example.com/tools:1", []string{"/bin/sh"}
+	expect(t, only(t, Diagnose(s)), "KD315", "Deployment shop/toolbox", "its command is a shell with no script")
+	// A shell with a script, or a terminal, is something else.
+	s.Pods[0].Spec.Containers[0].Args = []string{"-c", "echo done"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD315" {
+			t.Errorf("script: %s", f.Cause)
+		}
+	}
 }

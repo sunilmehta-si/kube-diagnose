@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"sort"
 	"strconv"
@@ -34,6 +35,8 @@ func gatewayFindings(ix *index) []Finding {
 		out = append(out, routeParentFindings(ix, rt)...)
 		out = append(out, routeBackendFindings(ix, rt)...)
 		out = append(out, routePortFindings(ix, rt)...)
+		out = append(out, routeZeroWeights(rt)...)
+		out = append(out, routePathPatterns(rt)...)
 		if f := backendNotGranted(ix, rt); f != nil {
 			out = append(out, *f)
 		}
@@ -604,6 +607,73 @@ func routeConflicts(ix *index) []Finding {
 			Evidence: []Evidence{{Object: ref, What: "the route's hostnames and matches", Command: cmdGet("httproute", ref.Namespace, ref.Name, "{.spec.hostnames}{\"\\n\"}{.spec.rules[*].matches}")},
 				{Object: kube.Ref{Kind: "HTTPRoute", Namespace: ref.Namespace, Name: "*"}, What: "the namespace's HTTPRoutes, oldest first", Command: "kubectl get httproutes -n " + ref.Namespace + " --sort-by=.metadata.creationTimestamp"}},
 			Fix: "Give the routes different hostnames or paths, or merge them; for a canary, send one rule to both Services with weights on its backendRefs."})
+	}
+	return out
+}
+
+// routeZeroWeights finds a route rule whose backends all have weight 0: the Gateway sends none of them a request
+// and answers every request the rule matches with an error (500 for an HTTPRoute). It is a canary or a cutover
+// left half done: the new backend added at 0, then the old one set to 0 too.
+func routeZeroWeights(rt kube.Route) []Finding {
+	var out []Finding
+	for i, r := range rt.Spec.Rules {
+		if len(r.BackendRefs) == 0 {
+			continue
+		}
+		var names []string
+		zero := true
+		for _, b := range r.BackendRefs {
+			zero = zero && b.Weight != nil && *b.Weight == 0
+			names = append(names, b.Name)
+		}
+		if !zero {
+			continue
+		}
+		answer := "an HTTP 500"
+		if rt.Kind == "GRPCRoute" {
+			answer = "an UNAVAILABLE error"
+		}
+		out = append(out, Finding{Rule: "KD374", Title: "Route rule gives every backend weight 0", Severity: Critical, Object: rt.Ref(),
+			Cause: fmt.Sprintf("rule %d of %s %s sends traffic to %s, all with weight 0, so the Gateway sends none of them a request and answers each request the rule matches with %s",
+				i+1, rt.Kind, rt.Metadata.Name, strings.Join(names, ", "), answer),
+			Evidence: []Evidence{routeEvidence(rt, fmt.Sprintf("rule %d's backendRefs and their weights", i+1), fmt.Sprintf("{.spec.rules[%d].backendRefs}", i))},
+			Fix:      fmt.Sprintf("Give at least one backend of rule %d a weight above 0 (leaving weight out means 1); to take a backend out of service, remove it from the rule.", i+1)})
+	}
+	return out
+}
+
+// rePathPattern finds glob and regular-expression syntax in a path: a *, or .* and the anchors and groups of a
+// regular expression.
+var rePathPattern = regexp.MustCompile(`\*|\(|\)|\$|\^|\[|\]|\{|\}|\\`)
+
+// routePathPatterns finds an HTTPRoute match whose path is a pattern, /api/* or /v[0-9]+/, under type PathPrefix or
+// Exact, which compare it as text: no request path is /api/*, so the match never matches, and requests meant for it
+// go to another rule or get a 404.
+func routePathPatterns(rt kube.Route) []Finding {
+	if rt.Kind != "HTTPRoute" {
+		return nil
+	}
+	var out []Finding
+	for i, r := range rt.Spec.Rules {
+		for j, m := range r.Matches {
+			if m.Path == nil || m.Path.Type == "RegularExpression" || !rePathPattern.MatchString(m.Path.Value) {
+				continue
+			}
+			typ := m.Path.Type
+			if typ == "" {
+				typ = "PathPrefix"
+			}
+			fix := "Use the path's literal prefix with type PathPrefix (/api matches /api and everything under it)"
+			if strings.HasSuffix(m.Path.Value, "/*") && !rePathPattern.MatchString(strings.TrimSuffix(m.Path.Value, "/*")) {
+				fix = fmt.Sprintf("Use path %s with type PathPrefix, which matches it and everything under it", strings.TrimSuffix(m.Path.Value, "/*"))
+			}
+			fix += ", or type RegularExpression if the Gateway's implementation supports it."
+			out = append(out, Finding{Rule: "KD375", Title: "Route path is a pattern that its match type compares as text", Severity: Warning, Object: rt.Ref(),
+				Cause: fmt.Sprintf("rule %d of HTTPRoute %s matches path %s with type %s, which compares it as text, not as a pattern: only a request for exactly %s matches, so the requests meant for the rule get a 404 or go to another rule",
+					i+1, rt.Metadata.Name, m.Path.Value, typ, m.Path.Value),
+				Evidence: []Evidence{routeEvidence(rt, fmt.Sprintf("rule %d's match %d", i+1, j+1), fmt.Sprintf("{.spec.rules[%d].matches[%d].path}", i, j))},
+				Fix:      fix})
+		}
 	}
 	return out
 }

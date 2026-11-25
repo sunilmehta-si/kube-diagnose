@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-ip-hardcoded"
   ],
-  "collectedAt": "2026-11-24 11:24 UTC",
+  "collectedAt": "2026-11-25 16:12 UTC",
   "findings": [
     {
       "rule": "KD361",
@@ -15,35 +15,35 @@
         "namespace": "kd-service-ip-hardcoded",
         "name": "api"
       },
-      "cause": "container api exits because its connection to 10.96.0.201 fails: the address is written into DB_HOST=10.96.0.201, and Service db, which DB_HOST names, has cluster IP 10.96.121.106, not 10.96.0.201; a Service gets a new cluster IP when it is created again, and its name stays; its log says: \"wget: download timed out\"; Deployment api has 0 of 1 replicas ready",
+      "cause": "container api exits because its connection to 10.96.0.201 fails: the address is written into DB_HOST=10.96.0.201, and Service db, which DB_HOST names, has cluster IP 10.96.19.163, not 10.96.0.201; a Service gets a new cluster IP when it is created again, and its name stays; its log says: \"wget: download timed out\"; Deployment api has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-ip-hardcoded",
-            "name": "api-55c5f8dc65-w8f9f"
+            "name": "api-55c5f8dc65-ns78l"
           },
-          "what": "container api exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod api-55c5f8dc65-w8f9f -n kd-service-ip-hardcoded -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
+          "what": "container api exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod api-55c5f8dc65-ns78l -n kd-service-ip-hardcoded -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-ip-hardcoded",
-            "name": "api-55c5f8dc65-w8f9f"
+            "name": "api-55c5f8dc65-ns78l"
           },
           "what": "last lines of container api's log (run that exited)",
           "detail": "connecting to the database at 10.96.0.201:5432\nConnecting to 10.96.0.201:5432 (10.96.0.201:5432)\nwget: download timed out",
-          "command": "kubectl logs api-55c5f8dc65-w8f9f -n kd-service-ip-hardcoded -c api --tail=20 --previous"
+          "command": "kubectl logs api-55c5f8dc65-ns78l -n kd-service-ip-hardcoded -c api --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-ip-hardcoded",
-            "name": "api-55c5f8dc65-w8f9f"
+            "name": "api-55c5f8dc65-ns78l"
           },
           "what": "container api has DB_HOST=10.96.0.201",
-          "command": "kubectl get pod api-55c5f8dc65-w8f9f -n kd-service-ip-hardcoded -o jsonpath='{.spec.containers[?(@.name==\"api\")].env}'"
+          "command": "kubectl get pod api-55c5f8dc65-ns78l -n kd-service-ip-hardcoded -o jsonpath='{.spec.containers[?(@.name==\"api\")].env}'"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
             "namespace": "kd-service-ip-hardcoded",
             "name": "db"
           },
-          "what": "Service db has cluster IP 10.96.121.106",
+          "what": "Service db has cluster IP 10.96.19.163",
           "command": "kubectl get service db -n kd-service-ip-hardcoded -o jsonpath='{.spec.clusterIP}'"
         }
       ],
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-service-ip-hardcoded",
-          "name": "api-55c5f8dc65-w8f9f"
+          "name": "api-55c5f8dc65-ns78l"
         }
       ]
     }

@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -325,6 +326,57 @@ func claimWaitsForBypass(ix *index, p kube.Pod) *problem {
 		return newProblem(p, "", "KD159", "Claim waits for a pod that bypasses the scheduler", Critical,
 			fmt.Sprintf("claim %s's StorageClass %s provisions a volume only once the scheduler places the pod that uses it, and the pod sets nodeName %s, which bypasses the scheduler, so the claim never binds and the pod never starts", claim, sc.Metadata.Name, p.Spec.NodeName),
 			"bypass|"+claim, "Remove nodeName from the pod template and use a nodeSelector on kubernetes.io/hostname instead, so the scheduler places the pod and the claim binds on that node.", ev...)
+	}
+	return nil
+}
+
+// claimBeingDeleted finds a pod the scheduler will not place because a PersistentVolumeClaim it mounts is being
+// deleted. A claim deleted while pods still use it stays, Terminating, until the last of them stops (the
+// kubernetes.io/pvc-protection finalizer); a new pod cannot use it in the meantime: a rollout restart, a rescheduled
+// replica. When the last old pod goes, the claim goes, and its volume with it if the reclaim policy is Delete.
+func claimBeingDeleted(ix *index, p kube.Pod) *problem {
+	if p.Spec.NodeName != "" || p.Status.Phase != "Pending" {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	for _, v := range p.Spec.Volumes {
+		if v.PersistentVolumeClaim == nil {
+			continue
+		}
+		pvc := ix.pvcs[nsName{ns, v.PersistentVolumeClaim.ClaimName}]
+		if pvc == nil || pvc.Metadata.DeletionTimestamp == nil {
+			continue
+		}
+		name := pvc.Metadata.Name
+		var users []string
+		for _, q := range ix.s.Pods {
+			if q.Metadata.Namespace != ns || q.Spec.NodeName == "" || q.Status.Phase == "Succeeded" || q.Status.Phase == "Failed" {
+				continue
+			}
+			for _, qv := range q.Spec.Volumes {
+				if qv.PersistentVolumeClaim != nil && qv.PersistentVolumeClaim.ClaimName == name {
+					users = append(users, q.Metadata.Name)
+				}
+			}
+		}
+		ago := ix.s.CollectedAt.Sub(*pvc.Metadata.DeletionTimestamp).Round(time.Minute)
+		cause := fmt.Sprintf("the pod mounts PersistentVolumeClaim %s, which was deleted %s ago and is kept only until the pods using it stop, so the scheduler will not place a new pod that needs it", name, ago)
+		if len(users) > 0 {
+			who, last := "pod "+users[0]+" still uses", "it"
+			if len(users) > 1 {
+				who, last = "pods "+strings.Join(users, ", ")+" still use", "the last of them"
+			}
+			cause = fmt.Sprintf("the pod mounts PersistentVolumeClaim %s, which was deleted %s ago and is kept only while %s it (the kubernetes.io/pvc-protection finalizer), so the scheduler will not place a new pod that needs it; when %s stops, the claim goes",
+				name, ago, who, last)
+		}
+		ev := []Evidence{{Object: pvc.Ref(), What: fmt.Sprintf("PersistentVolumeClaim %s has a deletionTimestamp (%s) and finalizers %s", name,
+			pvc.Metadata.DeletionTimestamp.UTC().Format(time.RFC3339), strings.Join(pvc.Metadata.Finalizers, ", ")),
+			Command: cmdGet("pvc", ns, name, `{.metadata.deletionTimestamp}{" "}{.metadata.finalizers}`)}}
+		if e, ok := schedulerEvent(ix, p, "is being deleted"); ok {
+			ev = append(ev, eventEvidence(p.Ref(), e))
+		}
+		fix := fmt.Sprintf("A deletion cannot be undone. To keep the data, set the claim's PersistentVolume to persistentVolumeReclaimPolicy: Retain before the last pod using %s stops; then create the claim again (bound to that volume) and the pod can start. If the delete was meant, remove the pod's use of the claim.", name)
+		return newProblem(p, "", "KD254", "Claim is being deleted while pods still use it", Critical, cause, "pvcdeleting|"+name, fix, ev...)
 	}
 	return nil
 }

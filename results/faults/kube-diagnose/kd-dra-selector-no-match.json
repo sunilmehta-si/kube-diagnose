@@ -1,0 +1,72 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-dra-selector-no-match"
+  ],
+  "collectedAt": "2026-11-25 16:06 UTC",
+  "findings": [
+    {
+      "rule": "KD325",
+      "title": "Claim's selectors match no device on offer",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-dra-selector-no-match",
+        "name": "trainer"
+      },
+      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-cdjdh-gpu-vq7r8 asks for devices of DeviceClass tpu.example.com that satisfy the selector device.attributes[\"tpu.example.com\"].model == \"v6e\", and the scheduler finds none it can allocate among the 2 devices on offer, most of them free: the selectors match no device the driver publishes (an attribute name or value that differs, or a domain the attribute is not under); Deployment trainer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ResourceClaim",
+            "namespace": "kd-dra-selector-no-match",
+            "name": "trainer-7845ff4f5b-cdjdh-gpu-vq7r8"
+          },
+          "what": "ResourceClaim trainer-7845ff4f5b-cdjdh-gpu-vq7r8's device requests",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-cdjdh-gpu-vq7r8 -n kd-dra-selector-no-match -o jsonpath='{.spec.devices.requests}'"
+        },
+        {
+          "object": {
+            "kind": "DeviceClass",
+            "name": "tpu.example.com"
+          },
+          "what": "DeviceClass tpu.example.com's selectors",
+          "command": "kubectl get deviceclass tpu.example.com -o jsonpath='{.spec.selectors}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dra-selector-no-match",
+            "name": "trainer-7845ff4f5b-cdjdh"
+          },
+          "what": "event FailedScheduling",
+          "detail": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get events -n kd-dra-selector-no-match --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-cdjdh"
+        },
+        {
+          "object": {
+            "kind": "ResourceSlice",
+            "name": "*"
+          },
+          "what": "the devices on offer and their attributes",
+          "command": "kubectl get resourceslices --field-selector spec.driver=tpu.example.com -o yaml"
+        }
+      ],
+      "fix": "Compare the selectors with the attributes in the driver's ResourceSlices (kubectl get resourceslices -o yaml) and correct the expression; a driver's attributes are under its own domain, as device.attributes[\"\u003cdriver\u003e\"].\u003cname\u003e.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-dra-selector-no-match",
+          "name": "trainer-7845ff4f5b-cdjdh"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

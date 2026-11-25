@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-gateway-parent-missing"
   ],
-  "collectedAt": "2026-11-24 11:17 UTC",
+  "collectedAt": "2026-11-25 16:07 UTC",
   "findings": [
     {
       "rule": "KD364",

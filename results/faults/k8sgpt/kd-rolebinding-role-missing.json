@@ -14,17 +14,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rolebinding-role-missing",
-              "Masked": "ZDxZQWomSW5aNF9hQ3EyN1FkJUF6VjF9O3o3"
+              "Masked": "QVY8eXR5MS1DODhKXUA7Xm1jRDJNZSFLQVoo"
             },
             {
               "Unmasked": "worker",
-              "Masked": "Yk9PLGlE"
+              "Masked": "KlIxaDZZ"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-rolebinding-role-missing/worker-7ccbf678cc-4ltpx",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=worker pod=worker-7ccbf678cc-4ltpx",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/worker"
     },
     {
       "kind": "ConfigMap",
@@ -38,19 +51,6 @@
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-rolebinding-role-missing/worker-7ccbf678cc-z2g2s",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=worker pod=worker-7ccbf678cc-z2g2s",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/worker"
     }
   ]
 }

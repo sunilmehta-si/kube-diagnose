@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-ingress-host-without-tls"
   ],
-  "collectedAt": "2026-11-24 11:18 UTC",
+  "collectedAt": "2026-11-25 16:08 UTC",
   "findings": [
     {
       "rule": "KD272",

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-blocks-service"
   ],
-  "collectedAt": "2026-11-24 11:20 UTC",
+  "collectedAt": "2026-11-25 16:09 UTC",
   "findings": [
     {
       "rule": "KD127",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-service",
-            "name": "web-6b85fb4bb8-fm5vv"
+            "name": "web-6b85fb4bb8-sclqj"
           },
           "what": "container web exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod web-6b85fb4bb8-fm5vv -n kd-networkpolicy-blocks-service -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "command": "kubectl get pod web-6b85fb4bb8-sclqj -n kd-networkpolicy-blocks-service -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-blocks-service",
-            "name": "web-6b85fb4bb8-fm5vv"
+            "name": "web-6b85fb4bb8-sclqj"
           },
-          "what": "last lines of container web's log (run that exited)",
-          "detail": "Connecting to db (10.96.41.181:80)\nwget: download timed out",
-          "command": "kubectl logs web-6b85fb4bb8-fm5vv -n kd-networkpolicy-blocks-service -c web --tail=20 --previous"
+          "what": "last lines of container web's log (current run)",
+          "detail": "Connecting to db (10.96.185.87:80)\nwget: download timed out",
+          "command": "kubectl logs web-6b85fb4bb8-sclqj -n kd-networkpolicy-blocks-service -c web --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-blocks-service",
-          "name": "web-6b85fb4bb8-fm5vv"
+          "name": "web-6b85fb4bb8-sclqj"
         }
       ]
     }

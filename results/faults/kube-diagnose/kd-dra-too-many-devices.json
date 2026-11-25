@@ -1,0 +1,72 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-dra-too-many-devices"
+  ],
+  "collectedAt": "2026-11-25 16:06 UTC",
+  "findings": [
+    {
+      "rule": "KD324",
+      "title": "Claim asks for more devices than any node has",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-dra-too-many-devices",
+        "name": "trainer"
+      },
+      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-8st6t-gpu-8r7zt asks for 4 devices of DeviceClass gpu.example.com, and no node has that many: the most driver gpu.example.com publishes on one node is 2 (2 in all), and a claim's devices must all be usable on the node the pod runs on; Deployment trainer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ResourceClaim",
+            "namespace": "kd-dra-too-many-devices",
+            "name": "trainer-7845ff4f5b-8st6t-gpu-8r7zt"
+          },
+          "what": "ResourceClaim trainer-7845ff4f5b-8st6t-gpu-8r7zt's device requests",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-8st6t-gpu-8r7zt -n kd-dra-too-many-devices -o jsonpath='{.spec.devices.requests}'"
+        },
+        {
+          "object": {
+            "kind": "DeviceClass",
+            "name": "gpu.example.com"
+          },
+          "what": "DeviceClass gpu.example.com's selectors",
+          "command": "kubectl get deviceclass gpu.example.com -o jsonpath='{.spec.selectors}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dra-too-many-devices",
+            "name": "trainer-7845ff4f5b-8st6t"
+          },
+          "what": "event FailedScheduling",
+          "detail": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get events -n kd-dra-too-many-devices --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-8st6t"
+        },
+        {
+          "object": {
+            "kind": "ResourceSlice",
+            "name": "*"
+          },
+          "what": "2 devices in all, at most 2 on one node",
+          "command": "kubectl get resourceslices --field-selector spec.driver=gpu.example.com"
+        }
+      ],
+      "fix": "Ask for at most 2 devices in request gpu, or split the work over more pods that each claim fewer devices.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-dra-too-many-devices",
+          "name": "trainer-7845ff4f5b-8st6t"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

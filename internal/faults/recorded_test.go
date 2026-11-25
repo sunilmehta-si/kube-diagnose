@@ -100,16 +100,44 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 	if got, _ := text("kd-crashloop-missing-env"); !strings.Contains(got, "termination reason is Error") || strings.Contains(got, "DATABASE_URL") {
 		t.Errorf("crash: %s", got)
 	}
-	if got, _ := text("kd-liveness-wrong-port"); !strings.Contains(got, "the last termination reason is Error") || strings.Contains(strings.ToLower(got), "probe") {
-		t.Errorf("liveness: the README says k8sgpt gave only the termination reason, never the probe: %s", got)
+	// k8sgpt's answer for the liveness probe flips run to run: nothing, or the termination reason. The README says
+	// which the committed run gave; it never names the probe.
+	readme, _ := os.ReadFile("../../README.md")
+	flat := strings.Join(strings.Fields(string(readme)), " ")
+	switch got, n := text("kd-liveness-wrong-port"); {
+	case strings.Contains(strings.ToLower(got), "probe"):
+		t.Errorf("liveness: k8sgpt named the probe, and the README says it never does: %s", got)
+	case n == 0 && !strings.Contains(flat, "for the liveness probe on the wrong port it reported nothing this time"):
+		t.Error("liveness: k8sgpt reported nothing; the README should say so")
+	case n > 0 && (!strings.Contains(got, "the last termination reason is Error") || !strings.Contains(flat, "for the liveness probe on the wrong port it said only that the last termination reason")):
+		t.Errorf("liveness: the README should say k8sgpt gave only the termination reason: %s", got)
 	}
 	sel, _ := text("kd-node-selector")
 	if !strings.Contains(sel, "didn't match Pod's node affinity/selector") || strings.Contains(sel, "disktype") {
 		t.Errorf("node selector: %s", sel)
 	}
 	gateway, _ := filepath.Glob("../../results/faults/k8sgpt/kd-gateway-*.json")
-	if len(gateway) != 10 {
-		t.Errorf("the README says ten Gateway API scenarios; results hold %d", len(gateway))
+	if len(gateway) != 12 {
+		t.Errorf("the README says twelve Gateway API scenarios; results hold %d", len(gateway))
+	}
+	// The device-claim scenarios: k8sgpt names the Deployment short of replicas, and nothing of the claim.
+	dra, _ := filepath.Glob("../../results/faults/k8sgpt/kd-dra-*.json")
+	if len(dra) != 8 {
+		t.Errorf("the README says eight device-claim scenarios; results hold %d", len(dra))
+	}
+	scheduler := map[string]string{"kd-dra-no-driver": "cannot allocate all claims", "kd-dra-selector-no-match": "cannot allocate all claims",
+		"kd-dra-too-many-devices": "cannot allocate all claims", "kd-dra-device-class-missing": "device class gpu.nvidia.com does not exist"}
+	for _, f := range dra {
+		ns := strings.TrimSuffix(filepath.Base(f), ".json")
+		got, n := text(ns)
+		if !strings.Contains(got, "has 1 replicas but 0 are available") {
+			t.Errorf("%s: the README says k8sgpt gave 0 of 1 replicas available: %s", ns, got)
+		}
+		if want, ok := scheduler[ns]; ok && (n != 2 || !strings.Contains(got, want)) {
+			t.Errorf("%s: the README says k8sgpt quoted the scheduler's %q: %s", ns, want, got)
+		} else if !ok && n != 1 {
+			t.Errorf("%s: the README says k8sgpt said nothing more: %s", ns, got)
+		}
 	}
 	nss := []string{"kd-networkpolicy-deny-all"}
 	for _, f := range gateway {

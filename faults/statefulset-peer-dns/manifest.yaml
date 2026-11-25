@@ -1,0 +1,62 @@
+# Each quorum member finds its peers by name before it becomes ready, and headless Service quorum publishes ready pods only, so no member ever resolves another.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-statefulset-peer-dns
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: quorum
+  namespace: kd-statefulset-peer-dns
+spec:
+  clusterIP: None
+  selector:
+    app: quorum
+  ports:
+    - name: peer
+      port: 7000
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: quorum
+  namespace: kd-statefulset-peer-dns
+spec:
+  serviceName: quorum
+  podManagementPolicy: Parallel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: quorum
+  template:
+    metadata:
+      labels:
+        app: quorum
+    spec:
+      containers:
+        - name: member
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          # Each member listens on 7000, then finds its peers by name before it joins; it is ready only once joined.
+          command:
+            - sh
+            - -c
+            - |
+              httpd -p 7000 -h /tmp
+              for i in 0 1 2; do
+                [ "quorum-$i" = "$(hostname)" ] && continue
+                out=$(wget -q -T 3 -O /dev/null http://quorum-$i.quorum:7000/ 2>&1) || case "$out" in
+                  *"bad address"*) echo "$out"; echo "cannot join the quorum without quorum-$i"; exit 1;;
+                esac
+              done
+              touch /tmp/joined
+              exec sleep 3600
+          ports:
+            - name: peer
+              containerPort: 7000
+          readinessProbe:
+            exec:
+              command: ["test", "-f", "/tmp/joined"]
+            periodSeconds: 5

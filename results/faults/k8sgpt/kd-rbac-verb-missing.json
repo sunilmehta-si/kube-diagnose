@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rbac-verb-missing",
-              "Masked": "bDcqMm9uWUlaMCFdZWonI0BtMyc="
+              "Masked": "TDFMTiEyMFleMD5KJVcxcSgoX28="
             },
             {
               "Unmasked": "config-watcher",
-              "Masked": "RC0qNWcoQ0wmN10mcSY="
+              "Masked": "PCxNX15RdXxmbztMPzU="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rbac-verb-missing/config-watcher-64cf7557b8-ldrsp",
+      "name": "kd-rbac-verb-missing/config-watcher-64cf7557b8-26bpq",
       "error": [
         {
-          "Text": "the last termination reason is Error container=watcher pod=config-watcher-64cf7557b8-ldrsp",
+          "Text": "the last termination reason is Error container=watcher pod=config-watcher-64cf7557b8-26bpq",
           "KubernetesDoc": "",
           "Sensitive": []
         }

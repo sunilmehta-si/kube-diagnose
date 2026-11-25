@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-dra-claim-template-missing"
+  ],
+  "collectedAt": "2026-11-25 16:06 UTC",
+  "findings": [
+    {
+      "rule": "KD321",
+      "title": "Pod's ResourceClaimTemplate does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-dra-claim-template-missing",
+        "name": "trainer"
+      },
+      "cause": "the pod's resourceClaims entry gpu names ResourceClaimTemplate single-gpu, which does not exist in namespace kd-dra-claim-template-missing: no claim is made for the pod, and the scheduler waits for one; Deployment trainer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dra-claim-template-missing",
+            "name": "trainer-77c4d99c54-v7zjt"
+          },
+          "what": "pod claims gpu through ResourceClaimTemplate single-gpu",
+          "command": "kubectl get pod trainer-77c4d99c54-v7zjt -n kd-dra-claim-template-missing -o jsonpath='{.spec.resourceClaims}{\"\\n\"}{.status.resourceClaimStatuses}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dra-claim-template-missing",
+            "name": "trainer-77c4d99c54-v7zjt"
+          },
+          "what": "event FailedResourceClaimCreation (16 times)",
+          "detail": "PodResourceClaim gpu: resource claim template \"single-gpu\": resourceclaimtemplate.resource.k8s.io \"single-gpu\" not found",
+          "command": "kubectl get events -n kd-dra-claim-template-missing --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-77c4d99c54-v7zjt"
+        },
+        {
+          "object": {
+            "kind": "ResourceClaimTemplate",
+            "namespace": "kd-dra-claim-template-missing",
+            "name": "single-gpu"
+          },
+          "what": "there is no ResourceClaimTemplate single-gpu in namespace kd-dra-claim-template-missing",
+          "command": "kubectl get resourceclaimtemplate single-gpu -n kd-dra-claim-template-missing"
+        }
+      ],
+      "fix": "Create ResourceClaimTemplate single-gpu in namespace kd-dra-claim-template-missing (a template lives in the namespace of the pods that use it), or correct the name in the pod template.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-dra-claim-template-missing",
+          "name": "trainer-77c4d99c54-v7zjt"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

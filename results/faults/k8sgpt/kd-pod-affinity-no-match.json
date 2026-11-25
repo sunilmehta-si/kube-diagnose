@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pod-affinity-no-match",
-              "Masked": "OVNwano0R09zZldjW0EqN1ZrIz9uTmFe"
+              "Masked": "fDM/MUNLWSoyYk8wSUsoXj5MNXRDLTNK"
             },
             {
               "Unmasked": "web",
-              "Masked": "IV92"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-pod-affinity-no-match/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-9ff68f68b\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pod-affinity-no-match",
-              "Masked": "KmR1YWF8MCouZn16c0hwV2k+UTRZPyM5"
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "PiY8"
+              "Masked": "clBb"
             }
           ]
         }
@@ -42,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pod-affinity-no-match/web-9ff68f68b-cgqmz",
+      "name": "kd-pod-affinity-no-match/web-9ff68f68b-h8mtm",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) didn't match pod affinity rules. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

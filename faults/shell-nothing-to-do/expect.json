@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-shell-nothing-to-do",
+  "description": "The toolbox Deployment runs busybox with no command; its default is sh, which with no terminal exits 0 at once, so the pod restarts for ever.",
+  "rule": "KD315",
+  "object": "Deployment/toolbox",
+  "keywords": [
+    [
+      "shell"
+    ],
+    [
+      "busybox"
+    ],
+    [
+      "code 0"
+    ]
+  ]
+}

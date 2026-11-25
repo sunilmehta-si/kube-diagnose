@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dra-claim-quota",
+  "description": "ResourceQuota dra-claims allows no ResourceClaims in the namespace, so the claim for the trainer pod cannot be made from its template and the pod waits.",
+  "rule": "KD330",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "dra-claims"
+    ],
+    [
+      "ResourceQuota"
+    ],
+    [
+      "ResourceClaim"
+    ]
+  ]
+}

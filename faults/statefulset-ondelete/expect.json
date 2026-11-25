@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-statefulset-ondelete",
+  "description": "A Job raises the cache size in StatefulSet cache, whose updateStrategy is OnDelete, so both pods keep the old setting until someone deletes them.",
+  "rule": "KD294",
+  "object": "StatefulSet/cache",
+  "keywords": [
+    [
+      "OnDelete"
+    ],
+    [
+      "old one"
+    ],
+    [
+      "deleted"
+    ]
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-route-zero-weights",
+  "description": "HTTPRoute shop sends its traffic to storefront and storefront-v2, both with weight 0, so the Gateway answers every request with a 500.",
+  "rule": "KD374",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "weight 0"
+    ],
+    [
+      "storefront"
+    ],
+    [
+      "500"
+    ]
+  ]
+}

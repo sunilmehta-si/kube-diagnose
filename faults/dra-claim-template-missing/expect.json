@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dra-claim-template-missing",
+  "description": "Each trainer pod is to get its claim from ResourceClaimTemplate single-gpu, which does not exist, so no claim is made and the pod waits.",
+  "rule": "KD321",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "single-gpu"
+    ],
+    [
+      "ResourceClaimTemplate"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}

@@ -1,0 +1,22 @@
+# The pod runs under the Localhost AppArmor profile k8s-kd-faults-hardened, which no node has loaded, so its container cannot be created.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-apparmor-profile-missing
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: web
+  namespace: kd-apparmor-profile-missing
+spec:
+  securityContext:
+    # A hardening profile the nodes were meant to have loaded; nothing loaded it.
+    appArmorProfile:
+      type: Localhost
+      localhostProfile: k8s-kd-faults-hardened
+  containers:
+    - name: web
+      image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+      command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]

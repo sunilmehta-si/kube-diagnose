@@ -1,0 +1,64 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-dra-driver-not-registered"
+  ],
+  "collectedAt": "2026-11-25 16:06 UTC",
+  "findings": [
+    {
+      "rule": "KD326",
+      "title": "Node's kubelet has no plugin for the claim's driver",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-dra-driver-not-registered",
+        "name": "trainer"
+      },
+      "cause": "the pod is on node kd-faults-control-plane and ResourceClaim trainer-7845ff4f5b-mwkzp-gpu-m5ftx is allocated devices from DRA driver fpga.example.com, but the node's kubelet has no plugin for that driver registered, so it cannot prepare them and the containers never start; Deployment trainer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dra-driver-not-registered",
+            "name": "trainer-7845ff4f5b-mwkzp"
+          },
+          "what": "event FailedPrepareDynamicResources (4 times)",
+          "detail": "Failed to prepare dynamic resources: prepare dynamic resources: DRA driver fpga.example.com is not registered",
+          "command": "kubectl get events -n kd-dra-driver-not-registered --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-mwkzp"
+        },
+        {
+          "object": {
+            "kind": "ResourceClaim",
+            "namespace": "kd-dra-driver-not-registered",
+            "name": "trainer-7845ff4f5b-mwkzp-gpu-m5ftx"
+          },
+          "what": "ResourceClaim trainer-7845ff4f5b-mwkzp-gpu-m5ftx is allocated device fpga-0 of pool shared from driver fpga.example.com",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-mwkzp-gpu-m5ftx -n kd-dra-driver-not-registered -o jsonpath='{.status.allocation.devices.results}'"
+        },
+        {
+          "object": {
+            "kind": "ResourceSlice",
+            "name": "*"
+          },
+          "what": "driver fpga.example.com's slices, which offered the devices",
+          "command": "kubectl get resourceslices --field-selector spec.driver=fpga.example.com"
+        }
+      ],
+      "fix": "Run driver fpga.example.com's kubelet plugin on node kd-faults-control-plane (it is usually a DaemonSet: check that it has a pod there, and its logs for why it did not register). A ResourceSlice that offers devices on nodes without the plugin (allNodes, or a node selector) lets the scheduler place pods where nothing can prepare them.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-dra-driver-not-registered",
+          "name": "trainer-7845ff4f5b-mwkzp"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

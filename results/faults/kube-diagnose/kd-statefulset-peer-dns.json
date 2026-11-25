@@ -1,0 +1,80 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-statefulset-peer-dns"
+  ],
+  "collectedAt": "2026-11-25 16:12 UTC",
+  "findings": [
+    {
+      "rule": "KD373",
+      "title": "StatefulSet's peers have no DNS records until they are ready",
+      "severity": "critical",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-statefulset-peer-dns",
+        "name": "quorum"
+      },
+      "cause": "container member exits because it cannot resolve its peer quorum-1.quorum: headless Service quorum publishes a pod's DNS record only once the pod is ready, and the peers become ready only after they find each other, so they wait on each other for ever; its log says: \"wget: bad address 'quorum-1.quorum:7000'\"; StatefulSet quorum has 0 of 3 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-statefulset-peer-dns",
+            "name": "quorum-0"
+          },
+          "what": "container member exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod quorum-0 -n kd-statefulset-peer-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"member\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-statefulset-peer-dns",
+            "name": "quorum-0"
+          },
+          "what": "last lines of container member's log (run that exited)",
+          "detail": "wget: bad address 'quorum-1.quorum:7000'\ncannot join the quorum without quorum-1",
+          "command": "kubectl logs quorum-0 -n kd-statefulset-peer-dns -c member --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-statefulset-peer-dns",
+            "name": "quorum"
+          },
+          "what": "headless Service quorum, the StatefulSet's serviceName, publishes ready pods only",
+          "command": "kubectl get service quorum -n kd-statefulset-peer-dns -o jsonpath='{.spec.clusterIP}{\" \"}{.spec.publishNotReadyAddresses}'"
+        }
+      ],
+      "fix": "Set publishNotReadyAddresses: true on Service quorum, so each pod's name resolves as soon as it has an address (the usual setting for the Service of a database or consensus cluster's peers); keep a separate Service for clients that should reach ready pods only.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-statefulset-peer-dns",
+          "name": "quorum-0"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-statefulset-peer-dns",
+          "name": "quorum-1"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-statefulset-peer-dns",
+          "name": "quorum-2"
+        },
+        {
+          "kind": "Service",
+          "namespace": "kd-statefulset-peer-dns",
+          "name": "quorum"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 3,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

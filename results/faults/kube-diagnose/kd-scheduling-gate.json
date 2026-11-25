@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-scheduling-gate"
   ],
-  "collectedAt": "2026-11-24 11:24 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD146",
@@ -15,16 +15,16 @@
         "namespace": "kd-scheduling-gate",
         "name": "web"
       },
-      "cause": "the pod has waited 13m0s behind scheduling gate example.com/quota-check: the scheduler does not look at a pod until every gate is removed, and whatever set this one has not removed it; Deployment web has 0 of 1 replicas ready",
+      "cause": "the pod has waited 9m0s behind scheduling gate example.com/quota-check: the scheduler does not look at a pod until every gate is removed, and whatever set this one has not removed it; Deployment web has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-scheduling-gate",
-            "name": "web-65f8ddb774-v8dkc"
+            "name": "web-65f8ddb774-w65pl"
           },
           "what": "pod is not scheduled: SchedulingGated, with gates example.com/quota-check",
-          "command": "kubectl get pod web-65f8ddb774-v8dkc -n kd-scheduling-gate -o jsonpath='{.spec.schedulingGates}{\"\\n\"}{.status.conditions[?(@.type==\"PodScheduled\")]}'"
+          "command": "kubectl get pod web-65f8ddb774-w65pl -n kd-scheduling-gate -o jsonpath='{.spec.schedulingGates}{\"\\n\"}{.status.conditions[?(@.type==\"PodScheduled\")]}'"
         }
       ],
       "fix": "Find the controller that owns gate example.com/quota-check and why it has not released the pod (it may not be running). If nothing owns the gate, remove schedulingGates from the pod template.",
@@ -32,7 +32,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-scheduling-gate",
-          "name": "web-65f8ddb774-v8dkc"
+          "name": "web-65f8ddb774-w65pl"
         }
       ]
     }

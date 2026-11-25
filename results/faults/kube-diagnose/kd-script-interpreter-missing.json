@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-script-interpreter-missing"
   ],
-  "collectedAt": "2026-11-24 11:24 UTC",
+  "collectedAt": "2026-11-25 16:11 UTC",
   "findings": [
     {
       "rule": "KD222",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-interpreter-missing",
-            "name": "web-84b4ff95fc-65xmq"
+            "name": "web-84b4ff95fc-ppp6x"
           },
-          "what": "container web exited with code 255 (Error), restarted 7 times",
-          "command": "kubectl get pod web-84b4ff95fc-65xmq -n kd-script-interpreter-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 255 (Error), restarted 6 times",
+          "command": "kubectl get pod web-84b4ff95fc-ppp6x -n kd-script-interpreter-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-interpreter-missing",
-            "name": "web-84b4ff95fc-65xmq"
+            "name": "web-84b4ff95fc-ppp6x"
           },
           "what": "last lines of container web's log (run that exited)",
           "detail": "exec /scripts/run.sh: no such file or directory",
-          "command": "kubectl logs web-84b4ff95fc-65xmq -n kd-script-interpreter-missing -c web --tail=20 --previous"
+          "command": "kubectl logs web-84b4ff95fc-ppp6x -n kd-script-interpreter-missing -c web --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-interpreter-missing",
-            "name": "web-84b4ff95fc-65xmq"
+            "name": "web-84b4ff95fc-ppp6x"
           },
           "what": "container web mounts volume scripts (ConfigMap scripts) at /scripts",
-          "command": "kubectl get pod web-84b4ff95fc-65xmq -n kd-script-interpreter-missing -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
+          "command": "kubectl get pod web-84b4ff95fc-ppp6x -n kd-script-interpreter-missing -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-script-interpreter-missing",
-          "name": "web-84b4ff95fc-65xmq"
+          "name": "web-84b4ff95fc-ppp6x"
         }
       ]
     }

@@ -18,6 +18,7 @@ func TestTheSuiteLoadsAndEveryScenarioIsWellFormed(t *testing.T) {
 	}
 	healthy := 0
 	pinned := regexp.MustCompile(`image: (\S+)`)
+	placeholder := regexp.MustCompile(`\{[A-Z_]+\}`)
 	for _, s := range ss {
 		if s.Healthy() {
 			healthy++
@@ -35,6 +36,10 @@ func TestTheSuiteLoadsAndEveryScenarioIsWellFormed(t *testing.T) {
 		}
 		if !strings.Contains(string(m), "namespace: "+s.Namespace) || !strings.Contains(string(m), "name: "+s.Namespace) {
 			t.Errorf("%s: manifest does not create and use namespace %s", s.Name, s.Namespace)
+		}
+		// A template's placeholder left in a manifest makes kubectl apply fail, and stops the whole run.
+		if p := placeholder.FindString(string(m)); p != "" {
+			t.Errorf("%s: manifest holds the placeholder %s", s.Name, p)
 		}
 		for _, img := range pinned.FindAllStringSubmatch(string(m), -1) {
 			// Working images are pinned by digest; a broken reference is the fault itself and names this project.

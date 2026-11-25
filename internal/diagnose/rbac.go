@@ -3,6 +3,7 @@ package diagnose
 import (
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -115,7 +116,7 @@ func subjectNames(b kube.RoleBinding) string {
 	return strings.Join(out, ", ")
 }
 
-func roleMissingText(b kube.RoleBinding, have []string) (cause, fix string) {
+func roleMissingText(ix *index, b kube.RoleBinding, have []string) (cause, fix string) {
 	ns, role := b.Metadata.Namespace, b.RoleRef.Name
 	where := "in namespace " + ns
 	exist := "the namespace has no Roles"
@@ -130,6 +131,24 @@ func roleMissingText(b kube.RoleBinding, have []string) (cause, fix string) {
 		cause += " (" + exist + ")"
 	}
 	fix = fmt.Sprintf("Create %s %s, or bind the %s that was meant: a binding's roleRef cannot be changed, so delete RoleBinding %s and create it again with the right name.", b.RoleRef.Kind, role, b.RoleRef.Kind, b.Metadata.Name)
+	// The role exists, as the other kind: the binding names its kind wrong.
+	other := ""
+	switch b.RoleRef.Kind {
+	case "Role":
+		if slices.Contains(ix.s.ClusterRoles, role) {
+			other = "ClusterRole"
+		}
+	case "ClusterRole":
+		for _, r := range ix.s.Roles {
+			if r.Metadata.Namespace == ns && r.Metadata.Name == role {
+				other = "Role"
+			}
+		}
+	}
+	if other != "" {
+		cause += fmt.Sprintf("; there is a %s %s, so the roleRef's kind is wrong", other, role)
+		fix = fmt.Sprintf("Bind %s %s: a binding's roleRef cannot be changed, so delete RoleBinding %s and create it again with roleRef kind %s.", other, role, b.Metadata.Name, other)
+	}
 	return cause, fix
 }
 
@@ -145,7 +164,7 @@ func rbacFindings(ix *index) []Finding {
 	for _, b := range ix.s.RoleBindings {
 		ns := b.Metadata.Namespace
 		if missing, have := roleMissing(ix, b); missing {
-			cause, fix := roleMissingText(b, have)
+			cause, fix := roleMissingText(ix, b, have)
 			kind := strings.ToLower(b.RoleRef.Kind) + "s"
 			out = append(out, Finding{Rule: "KD227", Title: "RoleBinding grants a Role that does not exist", Severity: Warning, Object: b.Ref(), Cause: cause, Fix: fix,
 				Evidence: []Evidence{bindingEvidence(b), {Object: kube.Ref{Kind: b.RoleRef.Kind, Namespace: ns, Name: b.RoleRef.Name},
@@ -220,7 +239,7 @@ func rbacBroken(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, 
 		}
 		named = true
 		if missing, have := roleMissing(ix, b); missing {
-			cause, fix := roleMissingText(b, have)
+			cause, fix := roleMissingText(ix, b, have)
 			return newProblem(p, cs.Name, "KD227", "RoleBinding grants a Role that does not exist", Critical,
 				fmt.Sprintf("container %s exits because the API server refuses its ServiceAccount %s: %s; its log says: %q", cs.Name, sa, cause, clip(line, 200)),
 				"rbacrole|"+b.Metadata.Name, fix, append(ev, bindingEvidence(b))...)

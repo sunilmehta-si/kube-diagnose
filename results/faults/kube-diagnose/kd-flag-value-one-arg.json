@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-flag-value-one-arg"
   ],
-  "collectedAt": "2026-11-24 11:16 UTC",
+  "collectedAt": "2026-11-25 16:07 UTC",
   "findings": [
     {
       "rule": "KD221",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-flag-value-one-arg",
-            "name": "web-5769d4bf87-7xcns"
+            "name": "web-5769d4bf87-g8g7g"
           },
-          "what": "container web exited with code 2 (Error), restarted 6 times",
-          "command": "kubectl get pod web-5769d4bf87-7xcns -n kd-flag-value-one-arg -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 2 (Error), restarted 5 times",
+          "command": "kubectl get pod web-5769d4bf87-g8g7g -n kd-flag-value-one-arg -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-flag-value-one-arg",
-            "name": "web-5769d4bf87-7xcns"
+            "name": "web-5769d4bf87-g8g7g"
           },
           "what": "last lines of container web's log (run that exited)",
           "detail": "Error: unknown flag: --port 8080\nUsage: server [--port N] [--root DIR]",
-          "command": "kubectl logs web-5769d4bf87-7xcns -n kd-flag-value-one-arg -c web --tail=20 --previous"
+          "command": "kubectl logs web-5769d4bf87-g8g7g -n kd-flag-value-one-arg -c web --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-flag-value-one-arg",
-            "name": "web-5769d4bf87-7xcns"
+            "name": "web-5769d4bf87-g8g7g"
           },
           "what": "container web's args holds \"--port 8080\" as one item",
-          "command": "kubectl get pod web-5769d4bf87-7xcns -n kd-flag-value-one-arg -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}'"
+          "command": "kubectl get pod web-5769d4bf87-g8g7g -n kd-flag-value-one-arg -o jsonpath='{.spec.containers[?(@.name==\"web\")].command}{\" \"}{.spec.containers[?(@.name==\"web\")].args}'"
         }
       ],
       "fix": "Write the flag and its value as two items: \"--port\", \"8080\" (or one item \"--port=8080\"). Each item of command and args is passed to the program as one argument, and no shell splits it at spaces.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-flag-value-one-arg",
-          "name": "web-5769d4bf87-7xcns"
+          "name": "web-5769d4bf87-g8g7g"
         }
       ]
     }

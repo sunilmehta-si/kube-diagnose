@@ -221,6 +221,14 @@ type SecurityContext struct {
 	RunAsGroup             *int64 `json:"runAsGroup,omitempty"`
 	// Capabilities adds to or drops from the Linux capabilities the runtime grants a container by default.
 	Capabilities *Capabilities `json:"capabilities,omitempty"`
+	// AppArmorProfile confines the container: RuntimeDefault, Unconfined, or Localhost with a profile loaded on the
+	// node.
+	AppArmorProfile *AppArmorProfile `json:"appArmorProfile,omitempty"`
+}
+
+type AppArmorProfile struct {
+	Type             string `json:"type"`
+	LocalhostProfile string `json:"localhostProfile,omitempty"`
 }
 
 // Capabilities lists Linux capabilities by name, without the CAP_ prefix; ALL names every one.
@@ -234,6 +242,8 @@ type PodSecurityContext struct {
 	RunAsUser  *int64 `json:"runAsUser,omitempty"`
 	RunAsGroup *int64 `json:"runAsGroup,omitempty"`
 	FSGroup    *int64 `json:"fsGroup,omitempty"`
+	// AppArmorProfile is every container's, unless a container sets its own.
+	AppArmorProfile *AppArmorProfile `json:"appArmorProfile,omitempty"`
 }
 
 // VolumeMount places a pod volume in a container's filesystem.
@@ -245,11 +255,14 @@ type VolumeMount struct {
 }
 
 type Container struct {
-	Name            string           `json:"name"`
-	Image           string           `json:"image"`
-	ImagePullPolicy string           `json:"imagePullPolicy,omitempty"`
-	Command         []string         `json:"command,omitempty"`
-	Args            []string         `json:"args,omitempty"`
+	Name            string   `json:"name"`
+	Image           string   `json:"image"`
+	ImagePullPolicy string   `json:"imagePullPolicy,omitempty"`
+	Command         []string `json:"command,omitempty"`
+	Args            []string `json:"args,omitempty"`
+	// Stdin and TTY keep a shell open, as kubectl run -it does.
+	Stdin           bool             `json:"stdin,omitempty"`
+	TTY             bool             `json:"tty,omitempty"`
 	Ports           []ContainerPort  `json:"ports,omitempty"`
 	Env             []EnvVar         `json:"env,omitempty"`
 	EnvFrom         []EnvFromSource  `json:"envFrom,omitempty"`
@@ -385,6 +398,16 @@ type PodSpec struct {
 	Subdomain string `json:"subdomain,omitempty"`
 	// ActiveDeadlineSeconds is how long the kubelet lets the pod run, from its start, before it stops it.
 	ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+	// ResourceClaims are the devices the pod asks for through dynamic resource allocation: each names a
+	// ResourceClaim, or a ResourceClaimTemplate from which a claim is made for the pod.
+	ResourceClaims []PodResourceClaim `json:"resourceClaims,omitempty"`
+}
+
+// PodResourceClaim is one entry of a pod's resourceClaims: exactly one of the two names is set.
+type PodResourceClaim struct {
+	Name                      string `json:"name"`
+	ResourceClaimName         string `json:"resourceClaimName,omitempty"`
+	ResourceClaimTemplateName string `json:"resourceClaimTemplateName,omitempty"`
 }
 
 type PodReadinessGate struct {
@@ -439,6 +462,11 @@ type PodStatus struct {
 	StartTime             *time.Time        `json:"startTime,omitempty"`
 	// PodIP is the pod's address, which a probe without host connects to.
 	PodIP string `json:"podIP,omitempty"`
+	// ResourceClaimStatuses name the claims made for the pod from its ResourceClaimTemplates.
+	ResourceClaimStatuses []struct {
+		Name              string `json:"name"`
+		ResourceClaimName string `json:"resourceClaimName,omitempty"`
+	} `json:"resourceClaimStatuses,omitempty"`
 }
 
 type Pod struct {
@@ -635,6 +663,9 @@ type Service struct {
 		Ports        []ServicePort     `json:"ports,omitempty"`
 		ClusterIP    string            `json:"clusterIP,omitempty"`
 		ExternalName string            `json:"externalName,omitempty"`
+		// PublishNotReadyAddresses gives pods DNS records before they are ready, which peers that find each other by
+		// name while they start need.
+		PublishNotReadyAddresses bool `json:"publishNotReadyAddresses,omitempty"`
 	} `json:"spec"`
 	Status struct {
 		LoadBalancer struct {
@@ -751,6 +782,11 @@ type WorkloadStatus struct {
 	NumberReady            int32       `json:"numberReady,omitempty"`
 	NumberUnavailable      int32       `json:"numberUnavailable,omitempty"`
 	Conditions             []Condition `json:"conditions,omitempty"`
+	// A StatefulSet's revisions: its pods are of currentRevision until each is replaced by one of updateRevision.
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	UpdateRevision  string `json:"updateRevision,omitempty"`
+	// UpdatedNumberScheduled counts a DaemonSet's pods of its current template.
+	UpdatedNumberScheduled int32 `json:"updatedNumberScheduled,omitempty"`
 }
 
 // Workload is a Deployment, ReplicaSet, StatefulSet or DaemonSet: the parts they share.
@@ -769,6 +805,11 @@ type Workload struct {
 		Paused bool `json:"paused,omitempty"`
 		// PodManagementPolicy is a StatefulSet's: OrderedReady (the default) creates pod n only once pod n-1 is ready.
 		PodManagementPolicy string `json:"podManagementPolicy,omitempty"`
+		// UpdateStrategy is a StatefulSet's or DaemonSet's: RollingUpdate (the default) or OnDelete, which replaces
+		// a pod with the new template only when the pod is deleted.
+		UpdateStrategy struct {
+			Type string `json:"type,omitempty"`
+		} `json:"updateStrategy,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
 }
@@ -1174,6 +1215,8 @@ type BackendRef struct {
 	Namespace string `json:"namespace,omitempty"`
 	Name      string `json:"name"`
 	Port      *int32 `json:"port,omitempty"`
+	// Weight is the share of the rule's requests this backend gets, among the rule's backends; 1 when unset.
+	Weight *int32 `json:"weight,omitempty"`
 }
 
 // Route is an HTTPRoute or a GRPCRoute: the two share what is read of them. Kind is set by the collector.
@@ -1225,4 +1268,140 @@ type ReferenceGrant struct {
 			Name  string `json:"name,omitempty"`
 		} `json:"to"`
 	} `json:"spec"`
+}
+
+// Dynamic resource allocation (resource.k8s.io): a pod asks for devices, a GPU for one, through a ResourceClaim;
+// each request names a DeviceClass, and the scheduler picks devices for it from those a driver publishes in
+// ResourceSlices. The fields read are those of resource.k8s.io/v1; v1beta1 put a request's class, count and
+// selectors on the request itself, and those are read too.
+
+// DeviceSelector is a CEL expression a device must satisfy.
+type DeviceSelector struct {
+	CEL *struct {
+		Expression string `json:"expression"`
+	} `json:"cel,omitempty"`
+}
+
+// ExactDeviceRequest asks for devices of one class: count of them (ExactCount, the default), or All.
+type ExactDeviceRequest struct {
+	DeviceClassName string           `json:"deviceClassName,omitempty"`
+	AllocationMode  string           `json:"allocationMode,omitempty"`
+	Count           int64            `json:"count,omitempty"`
+	Selectors       []DeviceSelector `json:"selectors,omitempty"`
+}
+
+// DeviceRequest is one request of a claim: exactly one kind of device, or the first of a list that can be had.
+type DeviceRequest struct {
+	Name           string              `json:"name"`
+	Exactly        *ExactDeviceRequest `json:"exactly,omitempty"`
+	FirstAvailable []struct {
+		Name string `json:"name"`
+		ExactDeviceRequest
+	} `json:"firstAvailable,omitempty"`
+	// v1beta1 kept these on the request.
+	ExactDeviceRequest
+}
+
+// Alternatives returns what the request asks for: one choice, or each of its firstAvailable choices in order.
+func (r DeviceRequest) Alternatives() []ExactDeviceRequest {
+	if r.Exactly != nil {
+		return []ExactDeviceRequest{*r.Exactly}
+	}
+	if len(r.FirstAvailable) > 0 {
+		out := make([]ExactDeviceRequest, len(r.FirstAvailable))
+		for i, a := range r.FirstAvailable {
+			out[i] = a.ExactDeviceRequest
+		}
+		return out
+	}
+	return []ExactDeviceRequest{r.ExactDeviceRequest}
+}
+
+type ResourceClaimSpec struct {
+	Devices struct {
+		Requests []DeviceRequest `json:"requests,omitempty"`
+	} `json:"devices"`
+}
+
+// ResourceClaim is a request for devices, made by hand or from a pod's ResourceClaimTemplate.
+type ResourceClaim struct {
+	Metadata ObjectMeta        `json:"metadata"`
+	Spec     ResourceClaimSpec `json:"spec"`
+	Status   struct {
+		// Allocation is set once the scheduler has picked the devices: one result per device.
+		Allocation *struct {
+			Devices struct {
+				Results []struct {
+					Request string `json:"request"`
+					Driver  string `json:"driver"`
+					Pool    string `json:"pool"`
+					Device  string `json:"device"`
+				} `json:"results,omitempty"`
+			} `json:"devices"`
+		} `json:"allocation,omitempty"`
+		ReservedFor []struct {
+			Resource string `json:"resource"`
+			Name     string `json:"name"`
+		} `json:"reservedFor,omitempty"`
+	} `json:"status"`
+}
+
+func (c ResourceClaim) Ref() Ref {
+	return Ref{Kind: "ResourceClaim", Namespace: c.Metadata.Namespace, Name: c.Metadata.Name}
+}
+
+// ResourceClaimTemplate is the claim made for each pod that names it.
+type ResourceClaimTemplate struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Spec ResourceClaimSpec `json:"spec"`
+	} `json:"spec"`
+}
+
+func (t ResourceClaimTemplate) Ref() Ref {
+	return Ref{Kind: "ResourceClaimTemplate", Namespace: t.Metadata.Namespace, Name: t.Metadata.Name}
+}
+
+// DeviceClass is a kind of device a request can name; its selectors pick the devices of that kind, usually by
+// driver.
+type DeviceClass struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Selectors []DeviceSelector `json:"selectors,omitempty"`
+	} `json:"spec"`
+}
+
+// ResourceSlice is a driver's list of the devices in one pool, on one node or on the nodes its selector picks. Of
+// each device only the name is kept.
+type ResourceSlice struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		Driver       string          `json:"driver"`
+		NodeName     string          `json:"nodeName,omitempty"`
+		NodeSelector json.RawMessage `json:"nodeSelector,omitempty"`
+		AllNodes     bool            `json:"allNodes,omitempty"`
+		Pool         struct {
+			Name string `json:"name"`
+		} `json:"pool"`
+		Devices []struct {
+			Name string `json:"name"`
+		} `json:"devices,omitempty"`
+	} `json:"spec"`
+}
+
+// BaseImages are the official images whose default command is a shell: busybox's and alpine's sh, the
+// distributions' bash. Their names are public, so redaction keeps them.
+var BaseImages = map[string]bool{"busybox": true, "alpine": true, "ubuntu": true, "debian": true, "centos": true, "fedora": true,
+	"rockylinux": true, "almalinux": true, "amazonlinux": true, "archlinux": true, "oraclelinux": true, "photon": true}
+
+// OfficialBaseImage returns the base image a repository names, when it is one of Docker Hub's official base images
+// (busybox, docker.io/library/busybox), and "" otherwise.
+func OfficialBaseImage(repo string) string {
+	for _, p := range []string{"docker.io/library/", "index.docker.io/library/", "library/"} {
+		repo = strings.TrimPrefix(repo, p)
+	}
+	if BaseImages[repo] {
+		return repo
+	}
+	return ""
 }

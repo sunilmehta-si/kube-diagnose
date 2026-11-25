@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-route-zero-weights"
+  ],
+  "collectedAt": "2026-11-25 16:07 UTC",
+  "findings": [
+    {
+      "rule": "KD374",
+      "title": "Route rule gives every backend weight 0",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-route-zero-weights",
+        "name": "shop"
+      },
+      "cause": "rule 1 of HTTPRoute shop sends traffic to storefront, storefront-v2, all with weight 0, so the Gateway sends none of them a request and answers each request the rule matches with an HTTP 500",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-zero-weights",
+            "name": "shop"
+          },
+          "what": "rule 1's backendRefs and their weights",
+          "command": "kubectl get httproute shop -n kd-gateway-route-zero-weights -o jsonpath='{.spec.rules[0].backendRefs}'"
+        }
+      ],
+      "fix": "Give at least one backend of rule 1 a weight above 0 (leaving weight out means 1); to take a backend out of service, remove it from the rule."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 2,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

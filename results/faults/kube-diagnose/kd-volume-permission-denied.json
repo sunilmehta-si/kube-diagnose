@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-volume-permission-denied"
   ],
-  "collectedAt": "2026-11-24 11:25 UTC",
+  "collectedAt": "2026-11-25 16:13 UTC",
   "findings": [
     {
       "rule": "KD137",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-permission-denied",
-            "name": "web-6577bc675f-c469f"
+            "name": "web-6577bc675f-w9n9x"
           },
-          "what": "container web exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod web-6577bc675f-c469f -n kd-volume-permission-denied -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+          "what": "container web exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod web-6577bc675f-w9n9x -n kd-volume-permission-denied -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-permission-denied",
-            "name": "web-6577bc675f-c469f"
+            "name": "web-6577bc675f-w9n9x"
           },
           "what": "last lines of container web's log (run that exited)",
           "detail": "touch: /data/ready: Permission denied",
-          "command": "kubectl logs web-6577bc675f-c469f -n kd-volume-permission-denied -c web --tail=20 --previous"
+          "command": "kubectl logs web-6577bc675f-w9n9x -n kd-volume-permission-denied -c web --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-volume-permission-denied",
-            "name": "web-6577bc675f-c469f"
+            "name": "web-6577bc675f-w9n9x"
           },
           "what": "container web mounts volume state (hostPath /var/lib/kd-volume-permission-denied) at /data",
-          "command": "kubectl get pod web-6577bc675f-c469f -n kd-volume-permission-denied -o jsonpath='{.spec.volumes[?(@.name==\"state\")]}'"
+          "command": "kubectl get pod web-6577bc675f-w9n9x -n kd-volume-permission-denied -o jsonpath='{.spec.volumes[?(@.name==\"state\")]}'"
         }
       ],
       "fix": "Give /var/lib/kd-volume-permission-denied on the node to user 1000, or chown it from an init container that runs as root, or run the container as the directory's owner. fsGroup does not apply to hostPath volumes.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-volume-permission-denied",
-          "name": "web-6577bc675f-c469f"
+          "name": "web-6577bc675f-w9n9x"
         }
       ]
     }

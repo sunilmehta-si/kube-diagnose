@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-route-path-pattern",
+  "description": "HTTPRoute shop matches path /api/* with type PathPrefix, which compares it as text, so no request under /api matches.",
+  "rule": "KD375",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "/api/*"
+    ],
+    [
+      "PathPrefix"
+    ],
+    [
+      "as text"
+    ]
+  ]
+}

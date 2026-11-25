@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-statefulset-peer-dns",
+  "description": "Each quorum member finds its peers by name before it becomes ready, and headless Service quorum publishes ready pods only, so no member ever resolves another.",
+  "rule": "KD373",
+  "object": "StatefulSet/quorum",
+  "keywords": [
+    [
+      "quorum-"
+    ],
+    [
+      "publish"
+    ],
+    [
+      "ready"
+    ]
+  ]
+}

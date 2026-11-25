@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 4,
+  "problems": 3,
   "results": [
     {
       "kind": "PersistentVolumeClaim",
@@ -27,25 +27,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pv-too-small",
-              "Masked": "cD4wd1clQzlIak9wZHtz"
+              "Masked": "PltPTD4iZCNsek5jI2VC"
             },
             {
               "Unmasked": "db",
-              "Masked": "KWc="
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-pv-too-small/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pv-too-small",
-              "Masked": "OVdmRFMqTGgpWXM/WkJH"
-            },
-            {
-              "Unmasked": "db",
-              "Masked": "X1E="
+              "Masked": "OFs="
             }
           ]
         }
@@ -55,7 +41,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pv-too-small/db-56f8666648-9lsqf",
+      "name": "kd-pv-too-small/db-56f8666648-hslfj",
       "error": [
         {
           "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-dra-too-many-devices/trainer",
+      "error": [
+        {
+          "Text": "Deployment kd-dra-too-many-devices/trainer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-dra-too-many-devices",
+              "Masked": "Szl1NGdHQS9mdzwiJDlUTFJeQjlpYXY="
+            },
+            {
+              "Unmasked": "trainer",
+              "Masked": "ViQ/eiR6dg=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-dra-too-many-devices/trainer-7845ff4f5b-8st6t",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/trainer"
+    }
+  ]
+}

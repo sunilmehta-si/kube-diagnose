@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dra-selector-no-match",
+  "description": "The claim selects devices whose model attribute is v6e, and the driver offers two v5e devices, so its selector matches none.",
+  "rule": "KD325",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "v6e"
+    ],
+    [
+      "selector"
+    ],
+    [
+      "match"
+    ]
+  ]
+}

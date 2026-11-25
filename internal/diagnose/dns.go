@@ -455,3 +455,46 @@ func externalNameUnresolved(ix *index, p kube.Pod, cs kube.ContainerStatus, line
 	}
 	return nil
 }
+
+// rePeerHost matches a StatefulSet pod's DNS name, NAME-N.SERVICE, with whatever follows.
+var rePeerHost = regexp.MustCompile(`^([a-z0-9-]+)-(\d+)\.([a-z0-9-]+)(?:\.|$)`)
+
+// peerNotPublished finds a StatefulSet's pod that exits because it cannot resolve a peer's DNS name, while the
+// governing Service publishes only ready pods: a peer gets its record once it is ready, and it is ready only once the
+// cluster has formed, so pods that look each other up while they start wait for each other for ever.
+func peerNotPublished(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	o, ok := p.Metadata.Controller()
+	if !ok || o.Kind != "StatefulSet" {
+		return nil
+	}
+	ns := p.Metadata.Namespace
+	sts := ix.workloads[kube.Ref{Kind: "StatefulSet", Namespace: ns, Name: o.Name}]
+	host, line := unresolvedHost(lines)
+	m := rePeerHost.FindStringSubmatch(strings.ToLower(host))
+	if sts == nil || m == nil || m[1] != o.Name || m[3] != sts.Spec.ServiceName {
+		return nil
+	}
+	var svc *kube.Service
+	for i := range ix.s.Services {
+		if s := &ix.s.Services[i]; s.Metadata.Namespace == ns && s.Metadata.Name == m[3] {
+			svc = s
+		}
+	}
+	if svc == nil || svc.Spec.ClusterIP != "None" || svc.Spec.PublishNotReadyAddresses {
+		return nil // no headless Service is KD182's, and one that publishes every pod is not this
+	}
+	peer := m[1] + "-" + m[2]
+	cause := fmt.Sprintf("container %s exits because it cannot resolve its peer %s: headless Service %s publishes a pod's DNS record only once the pod is ready, and the peers become ready only after they find each other, so they wait on each other for ever; its log says: %q",
+		cs.Name, host, svc.Metadata.Name, clip(line, 200))
+	if sts.Spec.PodManagementPolicy != "Parallel" {
+		cause += fmt.Sprintf("; with podManagementPolicy OrderedReady, %s is not even created until the pods before it are ready", peer)
+	}
+	ev = append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: ns, Name: svc.Metadata.Name},
+		What:    fmt.Sprintf("headless Service %s, the StatefulSet's serviceName, publishes ready pods only", svc.Metadata.Name),
+		Command: cmdGet("service", ns, svc.Metadata.Name, `{.spec.clusterIP}{" "}{.spec.publishNotReadyAddresses}`)})
+	fix := fmt.Sprintf("Set publishNotReadyAddresses: true on Service %s, so each pod's name resolves as soon as it has an address (the usual setting for the Service of a database or consensus cluster's peers); keep a separate Service for clients that should reach ready pods only.", svc.Metadata.Name)
+	if sts.Spec.PodManagementPolicy != "Parallel" {
+		fix += " Add podManagementPolicy: Parallel to the StatefulSet as well, so every peer is created at once."
+	}
+	return newProblem(p, cs.Name, "KD373", "StatefulSet's peers have no DNS records until they are ready", Critical, cause, "peerdns|"+svc.Metadata.Name, fix, ev...)
+}

@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 
@@ -16,7 +17,7 @@ import (
 
 // Redact returns a copy of the snapshot that can be shared: every namespace, object, node and container name is
 // replaced by a pseudonym wherever it appears (fields, event messages, conditions), image repositories are
-// replaced (tags are kept), IP addresses are replaced, the context name is dropped, and container logs are removed.
+// replaced (tags are kept; Docker Hub's official base images, busybox or ubuntu, are kept whole), IP addresses are replaced, the context name is dropped, and container logs are removed.
 // Pseudonyms are keyed by a random secret that is not kept, so they cannot be reversed, and a name maps to the same
 // pseudonym throughout one snapshot, so the diagnosis of the redacted snapshot is the diagnosis of the original.
 func Redact(s *Snapshot) (*Snapshot, error) {
@@ -61,8 +62,15 @@ type redactor struct {
 	key    []byte
 	names  map[string]string // name -> pseudonym
 	images map[string]string // image repository -> pseudonym
+	// kept are the official base images, left as they are, tag and digest too: a name inside one (a volume called
+	// docker, in docker.io/library/busybox; a pod index label 1, in tag 1.37.0) must not be replaced there.
+	kept   []string
 	ips    map[string]string
 	nameRe *regexp.Regexp
+	// claimPrefixes maps POD-ENTRY, the start of a claim made from a template for a pod (POD-ENTRY-xxxxx), to the
+	// pod's pseudonym and the entry: such a claim may be named in a message before it exists, or after it is gone.
+	claimPrefixes map[string]string
+	claimRe       *regexp.Regexp
 	// svcRe finds a name in a cluster DNS name, service.namespace.svc, where a dot comes before it.
 	svcRe *regexp.Regexp
 }
@@ -126,7 +134,12 @@ var reGeneratedSuffix = regexp.MustCompile(`^[a-z0-9]{1,5}$`)
 
 func (r *redactor) addImage(image string) {
 	repo := imageRepository(image)
-	if repo != "" {
+	// An official base image names nothing of the cluster's, and a diagnosis reads it (KD315).
+	if repo != "" && kube.OfficialBaseImage(repo) != "" && !slices.Contains(r.kept, image) {
+		r.kept = append(r.kept, image)
+		sort.Slice(r.kept, func(i, j int) bool { return len(r.kept[i]) > len(r.kept[j]) })
+	}
+	if repo != "" && kube.OfficialBaseImage(repo) == "" {
 		if _, ok := r.images[repo]; !ok {
 			r.images[repo] = "registry.invalid/" + r.pseudonym("image", repo)
 		}
@@ -321,6 +334,38 @@ func (r *redactor) collect(s *Snapshot) {
 			}
 		}
 	}
+	// Dynamic resource allocation: claims and templates are named, as is a pod's reference to one that may not
+	// exist. The name a pod gives a claim in its own spec (gpu) is left, as are DeviceClass and driver names: like a
+	// StorageClass's, they name a kind of device, not something of the cluster's.
+	for _, p := range s.Pods {
+		for _, c := range p.Spec.ResourceClaims {
+			r.addName("claim", c.ResourceClaimName)
+			r.addName("claimtpl", c.ResourceClaimTemplateName)
+			if c.ResourceClaimTemplateName != "" && p.Metadata.Name != "" {
+				if r.claimPrefixes == nil {
+					r.claimPrefixes = map[string]string{}
+				}
+				r.claimPrefixes[p.Metadata.Name+"-"+c.Name] = r.names[p.Metadata.Name] + "-" + c.Name
+			}
+		}
+		for _, c := range p.Status.ResourceClaimStatuses {
+			r.addName("claim", c.ResourceClaimName)
+		}
+	}
+	for _, x := range s.ResourceClaims {
+		r.addName("claim", x.Metadata.Name)
+		for _, o := range x.Metadata.OwnerReferences {
+			r.addName("owner", o.Name)
+		}
+	}
+	for _, x := range s.ResourceClaimTemplates {
+		r.addName("claimtpl", x.Metadata.Name)
+	}
+	for _, x := range s.ResourceSlices {
+		r.addName("rslice", x.Metadata.Name)
+		r.addName("node", x.Spec.NodeName)
+		r.addName("pool", x.Spec.Pool.Name)
+	}
 	for _, x := range s.HPAs {
 		r.addName("hpa", x.Metadata.Name)
 		r.addName("target", x.Spec.ScaleTargetRef.Name)
@@ -415,6 +460,14 @@ func (r *redactor) gatherLabels(v any, inLabels bool) {
 // build compiles one pattern that matches any collected name as a whole token, longest first, so that "web-rs-a"
 // is replaced as a whole before "web".
 func (r *redactor) build() {
+	if len(r.claimPrefixes) > 0 {
+		var ps []string
+		for p := range r.claimPrefixes {
+			ps = append(ps, regexp.QuoteMeta(p))
+		}
+		sort.Slice(ps, func(i, j int) bool { return len(ps[i]) > len(ps[j]) || len(ps[i]) == len(ps[j]) && ps[i] < ps[j] })
+		r.claimRe = regexp.MustCompile(`(` + strings.Join(ps, "|") + `)-([a-z0-9]{5})\b`)
+	}
 	if len(r.names) == 0 {
 		return
 	}
@@ -458,6 +511,17 @@ func (r *redactor) text(s string) string {
 	if r.nameRe == nil {
 		return s
 	}
+	// A claim made for a pod from a template keeps the pod's pseudonym, the entry and the generated suffix.
+	if r.claimRe != nil {
+		s = r.claimRe.ReplaceAllStringFunc(s, func(m string) string {
+			sub := r.claimRe.FindStringSubmatch(m)
+			return r.claimPrefixes[sub[1]] + "-" + sub[2]
+		})
+	}
+	// Kept image repositories are set aside while names are replaced, then put back.
+	for i, image := range r.kept {
+		s = strings.ReplaceAll(s, image, keptToken(i))
+	}
 	// A match consumes its delimiters, so run until nothing changes to catch adjacent names.
 	for i := 0; i < 4; i++ {
 		next := r.nameRe.ReplaceAllStringFunc(s, func(m string) string {
@@ -469,11 +533,19 @@ func (r *redactor) text(s string) string {
 		}
 		s = next
 	}
-	return r.svcRe.ReplaceAllStringFunc(s, func(m string) string {
+	s = r.svcRe.ReplaceAllStringFunc(s, func(m string) string {
 		sub := r.svcRe.FindStringSubmatch(m)
 		return sub[1] + r.names[sub[2]] + sub[3]
 	})
+	for i, image := range r.kept {
+		s = strings.ReplaceAll(s, keptToken(i), image)
+	}
+	return s
 }
+
+// keptToken stands in for a kept image while names are replaced: control characters only, which no name or label
+// value holds.
+func keptToken(i int) string { return "\x00" + strings.Repeat("\x01", i+1) + "\x00" }
 
 func (r *redactor) walk(v any) any {
 	switch x := v.(type) {

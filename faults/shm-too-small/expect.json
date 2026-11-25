@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-shm-too-small",
+  "description": "The trainer stages a 128 MiB batch in /dev/shm, and nothing is mounted there, so it is the runtime's 64 MiB and the write fails.",
+  "rule": "KD313",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "/dev/shm"
+    ],
+    [
+      "64 MiB"
+    ],
+    [
+      "shared memory"
+    ]
+  ]
+}

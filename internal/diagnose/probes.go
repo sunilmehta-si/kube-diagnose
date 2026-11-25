@@ -396,3 +396,54 @@ func killedWhileStarting(ix *index, p kube.Pod, cs kube.ContainerStatus, c kube.
 		append(ev, eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, "liveness"),
 			Evidence{Object: p.Ref(), What: fmt.Sprintf("the last run lasted %.0fs", ran), Command: cmdContainerState(p, cs.Name, "lastState.terminated")})...)
 }
+
+// probeUDP finds an HTTP or TCP probe aimed at a port the container declares for UDP only: a DNS server's 53, a
+// syslog or StatsD receiver. Probes connect over TCP, where nothing listens, so the probe is refused for ever.
+func probeUDP(ix *index, p kube.Pod, cs kube.ContainerStatus, kind string) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	pr := probeOf(c, kind)
+	if pr == nil {
+		return nil
+	}
+	var port kube.IntOrString
+	how := "tcpSocket"
+	switch {
+	case pr.TCPSocket != nil:
+		port = pr.TCPSocket.Port
+	case pr.HTTPGet != nil:
+		port, how = pr.HTTPGet.Port, "httpGet"
+	default:
+		return nil
+	}
+	var udp *kube.ContainerPort
+	tcp := false
+	for i, cp := range c.Ports {
+		if port.IsName && cp.Name != port.Str || !port.IsName && cp.ContainerPort != port.Int {
+			continue
+		}
+		if cp.Protocol == "UDP" {
+			udp = &c.Ports[i]
+		} else if cp.Protocol == "" || cp.Protocol == "TCP" {
+			tcp = true
+		}
+	}
+	if udp == nil || tcp {
+		return nil
+	}
+	e, ok := probeEvent(ix, p, cs.Name, kind, reAnyProbeFailure)
+	if !ok {
+		return nil
+	}
+	named := ""
+	if port.IsName {
+		named = fmt.Sprintf(" (named %s)", port.Str)
+	}
+	return newProblem(p, cs.Name, "KD212", "Probe connects over TCP to a UDP port", Critical,
+		fmt.Sprintf("container %s's %s probe (%s) checks port %d%s, which the container declares for UDP only: probes connect over TCP, where nothing listens on that port, so the probe fails, %s",
+			cs.Name, kind, how, udp.ContainerPort, named, probeEffect(kind, cs.RestartCount)),
+		"udp|"+kind+"|"+strconv.Itoa(int(udp.ContainerPort)),
+		fmt.Sprintf("Probe a TCP port the app serves (a health or metrics endpoint), or use an exec probe that sends a real query (a DNS server: nslookup or dig against 127.0.0.1); a probe cannot check UDP port %d.", udp.ContainerPort),
+		eventEvidence(p.Ref(), e), probeSpecEvidence(p, cs.Name, kind),
+		Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's ports", cs.Name),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].ports}`, cs.Name))})
+}

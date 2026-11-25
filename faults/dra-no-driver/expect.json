@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dra-no-driver",
+  "description": "DeviceClass accel.example.com exists, but no ResourceSlice offers a device from its driver, so the scheduler cannot allocate the claim on any node.",
+  "rule": "KD323",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "accel.example.com"
+    ],
+    [
+      "ResourceSlice"
+    ],
+    [
+      "driver"
+    ]
+  ]
+}

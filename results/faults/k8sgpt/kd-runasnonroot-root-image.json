@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-runasnonroot-root-image",
-              "Masked": "THFraSl2bGVRS0BHPkEjeSJXamtRSyo3bX0="
+              "Masked": "W2pnSSpnUioxUT5XNnpNZlp8QHdVY0ooLyw="
             },
             {
               "Unmasked": "web",
-              "Masked": "Ml5D"
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-runasnonroot-root-image/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-67f8d9fc9\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-runasnonroot-root-image",
-              "Masked": "ZEJyOj1BKFYzVTQhenlLL0JAaHN8VzRDUUQ="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "LEJH"
+              "Masked": "fSs8"
             }
           ]
         }
@@ -42,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-runasnonroot-root-image/web-67f8d9fc9-x5hbw",
+      "name": "kd-runasnonroot-root-image/web-67f8d9fc9-25lc6",
       "error": [
         {
-          "Text": "container has runAsNonRoot and image will run as root (pod: \"web-67f8d9fc9-x5hbw_kd-runasnonroot-root-image(4b3d42f5-c241-4ff9-be2d-739296f0f6f2)\", container: web)",
+          "Text": "container has runAsNonRoot and image will run as root (pod: \"web-67f8d9fc9-25lc6_kd-runasnonroot-root-image(d3bd75a8-685f-4a25-afc5-bfd9ef8c1a23)\", container: web)",
           "KubernetesDoc": "",
           "Sensitive": []
         }

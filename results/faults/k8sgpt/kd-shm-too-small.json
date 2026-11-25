@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-shm-too-small/trainer",
+      "error": [
+        {
+          "Text": "Deployment kd-shm-too-small/trainer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-shm-too-small",
+              "Masked": "Y2hMdjJTcm98KCV3VER6Qg=="
+            },
+            {
+              "Unmasked": "trainer",
+              "Masked": "UCRsQTs0VA=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-shm-too-small/trainer-75f5d88cf5-kfxmn",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=trainer pod=trainer-75f5d88cf5-kfxmn",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/trainer"
+    }
+  ]
+}

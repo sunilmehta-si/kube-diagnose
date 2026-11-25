@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-claim-quota"
   ],
-  "collectedAt": "2026-11-24 11:25 UTC",
+  "collectedAt": "2026-11-25 16:12 UTC",
   "findings": [
     {
       "rule": "KD170",
@@ -23,7 +23,7 @@
             "namespace": "kd-statefulset-claim-quota",
             "name": "db"
           },
-          "what": "event FailedCreate (18 times)",
+          "what": "event FailedCreate (17 times)",
           "detail": "Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims \"data-db-0\" is forbidden: exceeded quota: storage, requested: requests.storage=1Gi, used: requests.storage=0, limited: requests.storage=100Mi",
           "command": "kubectl get events -n kd-statefulset-claim-quota --field-selector involvedObject.kind=StatefulSet,involvedObject.name=db"
         },

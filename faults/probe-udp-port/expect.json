@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-probe-udp-port",
+  "description": "The syslog receiver listens on UDP port 5514, and its readiness probe checks that port with tcpSocket, so the probe is refused and the pod never becomes ready.",
+  "rule": "KD212",
+  "object": "Deployment/log-receiver",
+  "keywords": [
+    [
+      "UDP"
+    ],
+    [
+      "5514"
+    ],
+    [
+      "TCP"
+    ]
+  ]
+}

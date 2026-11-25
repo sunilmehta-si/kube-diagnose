@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 1,
   "results": [
     {
       "kind": "Deployment",
@@ -14,25 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-selector-dynamic",
-              "Masked": "PUIxWFEqQ0REdSRaTmRmRzsjaCtJVnk="
+              "Masked": "PyFpbjkwLnRGSClFK0NxRmM7PmRMUE4="
             },
             {
               "Unmasked": "cache",
-              "Masked": "a1JSJ08="
-            }
-          ]
-        },
-        {
-          "Text": "Deployment kd-pvc-selector-dynamic/cache has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"cache-65d9d4b888\" has timed out progressing.",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pvc-selector-dynamic",
-              "Masked": "WjRHU2JTLTkidXMhYiRpeEdMfURjI2Q="
-            },
-            {
-              "Unmasked": "cache",
-              "Masked": "fSo5Mmw="
+              "Masked": "TUJZLkM="
             }
           ]
         }
