@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -91,6 +92,9 @@ func draProblem(ix *index, p kube.Pod) *problem {
 		if pr := claimTemplateMissing(ix, p, r); pr != nil {
 			return pr
 		}
+		if pr := deviceClassMissing(ix, p, r); pr != nil {
+			return pr
+		}
 	}
 	return nil
 }
@@ -130,4 +134,85 @@ func claimTemplateMissing(ix *index, p kube.Pod, r podClaimRef) *problem {
 		What: fmt.Sprintf("there is no ResourceClaimTemplate %s in namespace %s", name, ns), Command: cmdGet("resourceclaimtemplate", ns, name, "")})
 	fix := fmt.Sprintf("Create ResourceClaimTemplate %s in namespace %s (a template lives in the namespace of the pods that use it), or correct the name in the pod template.", name, ns)
 	return newProblem(p, "", "KD321", "Pod's ResourceClaimTemplate does not exist", Critical, cause, "noclaimtpl|"+name, fix, ev...)
+}
+
+// source names the object that holds what the claim asks for: the claim, or the template it is still to be made
+// from.
+func (r podClaimRef) source() kube.Ref {
+	if r.claim != nil {
+		return r.claim.Ref()
+	}
+	return r.template.Ref()
+}
+
+func (r podClaimRef) allocated() bool {
+	return r.claim != nil && r.claim.Status.Allocation != nil
+}
+
+func requestsEvidence(r podClaimRef) Evidence {
+	src := r.source()
+	return Evidence{Object: src, What: fmt.Sprintf("%s %s's device requests", src.Kind, src.Name),
+		Command: cmdGet(strings.ToLower(src.Kind), src.Namespace, src.Name, map[string]string{
+			"ResourceClaim": `{.spec.devices.requests}`, "ResourceClaimTemplate": `{.spec.spec.devices.requests}`}[src.Kind])}
+}
+
+func (ix *index) deviceClass(name string) *kube.DeviceClass {
+	for i := range ix.s.DeviceClasses {
+		if c := &ix.s.DeviceClasses[i]; c.Metadata.Name == name {
+			return c
+		}
+	}
+	return nil
+}
+
+// schedulerEvent returns the newest FailedScheduling event of the pod whose message has the text.
+func schedulerEvent(ix *index, p kube.Pod, text string) (kube.Event, bool) {
+	for _, e := range ix.eventsFor(p.Ref(), "FailedScheduling") {
+		if strings.Contains(e.Message, text) {
+			return e, true
+		}
+	}
+	return kube.Event{}, false
+}
+
+// deviceClassMissing finds a claim with a request whose DeviceClass does not exist (each of its choices, for a
+// firstAvailable request). The scheduler cannot pick devices for it, and says so in its event.
+func deviceClassMissing(ix *index, p kube.Pod, r podClaimRef) *problem {
+	spec := r.spec()
+	if spec == nil || r.allocated() || p.Spec.NodeName != "" || !ix.draRead("deviceclasses") {
+		return nil
+	}
+	for _, req := range spec.Devices.Requests {
+		var missing []string
+		alts := req.Alternatives()
+		for _, a := range alts {
+			if a.DeviceClassName != "" && ix.deviceClass(a.DeviceClassName) == nil {
+				missing = append(missing, a.DeviceClassName)
+			}
+		}
+		if len(missing) == 0 || len(missing) < len(alts) {
+			continue
+		}
+		src := r.source()
+		classes := strings.Join(missing, ", ")
+		var names []string
+		for _, c := range ix.s.DeviceClasses {
+			names = append(names, c.Metadata.Name)
+		}
+		cause := fmt.Sprintf("request %s of %s %s asks for devices of DeviceClass %s, which does not exist, so the scheduler cannot pick devices for it", req.Name, src.Kind, src.Name, classes)
+		if len(names) > 0 {
+			cause += fmt.Sprintf(" (the cluster's classes: %s)", strings.Join(names, ", "))
+		} else {
+			cause += "; the cluster has no DeviceClass at all, so no DRA driver is installed"
+		}
+		ev := []Evidence{requestsEvidence(r)}
+		if e, ok := schedulerEvent(ix, p, "does not exist"); ok {
+			ev = append(ev, eventEvidence(p.Ref(), e))
+		}
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "DeviceClass", Name: missing[0]}, What: "DeviceClasses of the cluster",
+			Command: "kubectl get deviceclasses"})
+		fix := fmt.Sprintf("Name a DeviceClass the cluster has in request %s of %s %s, or install the DRA driver that provides class %s (a driver's Helm chart usually creates its classes).", req.Name, src.Kind, src.Name, classes)
+		return newProblem(p, "", "KD322", "Claim asks for a DeviceClass that does not exist", Critical, cause, "noclass|"+classes, fix, ev...)
+	}
+	return nil
 }

@@ -109,3 +109,35 @@ func TestPodsResourceClaimTemplateDoesNotExist(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestClaimAsksForADeviceClassThatDoesNotExist(t *testing.T) {
+	s := draSnapshot()
+	unscheduledPod(s)
+	s.ResourceClaims[0].Spec.Devices.Requests[0].Exactly.DeviceClassName = "gpu.nvidia.com"
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedScheduling", "0/1 nodes are available: request gpu: device class gpu.nvidia.com does not exist. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.", 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD322", "Deployment shop/trainer", "request gpu of ResourceClaim train-gpu asks for devices of DeviceClass gpu.nvidia.com, which does not exist", "the cluster's classes: gpu.example.com")
+	if len(f.Evidence) != 3 || !strings.Contains(f.Fix, "install the DRA driver that provides class gpu.nvidia.com") {
+		t.Errorf("evidence %+v fix %s", f.Evidence, f.Fix)
+	}
+	// No class at all: no driver is installed.
+	s.DeviceClasses = nil
+	expect(t, only(t, Diagnose(s)), "KD322", "Deployment shop/trainer", "no DRA driver is installed")
+	// A firstAvailable request with one class that exists can still be met.
+	s = draSnapshot()
+	unscheduledPod(s)
+	req := &s.ResourceClaims[0].Spec.Devices.Requests[0]
+	req.Exactly = nil
+	req.FirstAvailable = append(req.FirstAvailable, struct {
+		Name string `json:"name"`
+		kube.ExactDeviceRequest
+	}{"big", kube.ExactDeviceRequest{DeviceClassName: "gpu.nvidia.com"}}, struct {
+		Name string `json:"name"`
+		kube.ExactDeviceRequest
+	}{"small", kube.ExactDeviceRequest{DeviceClassName: "gpu.example.com"}})
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD322" {
+			t.Errorf("one choice exists: %s", f.Cause)
+		}
+	}
+}
