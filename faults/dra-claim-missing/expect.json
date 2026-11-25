@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dra-claim-missing",
+  "description": "The trainer claims its GPU through ResourceClaim train-gpu, which was never created, so the scheduler does not try the pod and it waits with no event.",
+  "rule": "KD320",
+  "object": "Deployment/trainer",
+  "keywords": [
+    [
+      "train-gpu"
+    ],
+    [
+      "ResourceClaim"
+    ],
+    [
+      "does not exist"
+    ]
+  ]
+}
