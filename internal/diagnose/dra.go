@@ -5,6 +5,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 )
@@ -92,6 +93,9 @@ func draProblem(ix *index, p kube.Pod) *problem {
 			return pr
 		}
 		if pr := claimTemplateMissing(ix, p, r); pr != nil {
+			return pr
+		}
+		if pr := claimDeleting(ix, p, r); pr != nil {
 			return pr
 		}
 		if pr := deviceClassMissing(ix, p, r); pr != nil {
@@ -438,4 +442,30 @@ func (ix *index) deviceHolders(drivers []string, self *kube.ResourceClaim) []str
 		}
 	}
 	return out
+}
+
+// claimDeleting finds a pod that is not yet placed and uses a ResourceClaim that is being deleted: the scheduler
+// leaves it out of its queue, as for a claim that does not exist, and the claim stays until the pods it is reserved
+// for release it.
+func claimDeleting(ix *index, p kube.Pod, r podClaimRef) *problem {
+	if r.claim == nil || r.claim.Metadata.DeletionTimestamp == nil || p.Spec.NodeName != "" {
+		return nil
+	}
+	c := r.claim
+	ns, name := c.Metadata.Namespace, c.Metadata.Name
+	var users []string
+	for _, u := range c.Status.ReservedFor {
+		if u.Name != p.Metadata.Name {
+			users = append(users, u.Name)
+		}
+	}
+	ago := ix.s.CollectedAt.Sub(*c.Metadata.DeletionTimestamp).Round(time.Minute)
+	cause := fmt.Sprintf("the pod uses ResourceClaim %s, which was deleted %s ago: the scheduler does not try a pod whose claim is being deleted, so the pod waits with no event", name, ago)
+	if len(users) > 0 {
+		cause += fmt.Sprintf("; the claim stays until %s, which it is reserved for, %s", strings.Join(users, ", "), map[bool]string{true: "stops", false: "stop"}[len(users) == 1])
+	}
+	fix := fmt.Sprintf("Create a new claim for the pod (a ResourceClaimTemplate gives each pod its own) once %s is gone, or recreate the pod after it is: a deleted claim cannot be taken back.", name)
+	return newProblem(p, "", "KD328", "Pod's ResourceClaim is being deleted", Critical, cause, "claimdeleting|"+name, fix,
+		Evidence{Object: c.Ref(), What: fmt.Sprintf("ResourceClaim %s has a deletionTimestamp (%s) and finalizers %s", name, c.Metadata.DeletionTimestamp.UTC().Format(time.RFC3339), strings.Join(c.Metadata.Finalizers, ", ")),
+			Command: cmdGet("resourceclaim", ns, name, `{.metadata.deletionTimestamp}{" "}{.metadata.finalizers}{" "}{.status.reservedFor}`)})
 }

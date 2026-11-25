@@ -3,6 +3,7 @@ package diagnose
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sunilmehta-si/kube-diagnose/internal/kube"
 	"github.com/sunilmehta-si/kube-diagnose/internal/snapshot"
@@ -272,4 +273,18 @@ func TestNodesKubeletHasNoPluginForTheClaimsDriver(t *testing.T) {
 	if len(f.Evidence) != 3 || !strings.Contains(f.Evidence[1].What, "device gpu-0 of pool node-1") || !strings.Contains(f.Fix, "kubelet plugin on node node-1") {
 		t.Errorf("evidence %+v fix %s", f.Evidence, f.Fix)
 	}
+}
+
+func TestPodsResourceClaimIsBeingDeleted(t *testing.T) {
+	s := draSnapshot()
+	unscheduledPod(s)
+	gone := t0.Add(-5 * time.Minute)
+	c := &s.ResourceClaims[0]
+	c.Metadata.DeletionTimestamp, c.Metadata.Finalizers = &gone, []string{"resource.kubernetes.io/delete-protection"}
+	c.Status.ReservedFor = append(c.Status.ReservedFor, struct {
+		Resource string `json:"resource"`
+		Name     string `json:"name"`
+	}{"pods", "trainer-0"})
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD328", "Deployment shop/trainer", "ResourceClaim train-gpu, which was deleted 5m0s ago", "until trainer-0, which it is reserved for, stops")
 }
