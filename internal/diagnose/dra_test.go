@@ -318,3 +318,23 @@ func TestSharedClaimsDevicesAreOnANodeThePodCannotUse(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD329", "Deployment shop/trainer", "shares ResourceClaim train-gpu, whose devices are already allocated on a node this pod cannot be placed on", "in use by trainer-1 on node node-1")
 }
+
+func TestPodsClaimCannotBeMadeFromItsTemplate(t *testing.T) {
+	s := draSnapshot()
+	unscheduledPod(s)
+	s.Pods[0].Spec.ResourceClaims = []kube.PodResourceClaim{{Name: "gpu", ResourceClaimTemplateName: "one-gpu"}}
+	s.ResourceClaims = nil
+	var tpl kube.ResourceClaimTemplate
+	tpl.Metadata = kube.ObjectMeta{Name: "one-gpu", Namespace: "shop"}
+	tpl.Spec.Spec.Devices.Requests = []kube.DeviceRequest{{Name: "gpu", Exactly: &kube.ExactDeviceRequest{DeviceClassName: "gpu.example.com"}}}
+	s.ResourceClaimTemplates = []kube.ResourceClaimTemplate{tpl}
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedResourceClaimCreation", `PodResourceClaim gpu: create ResourceClaim : resourceclaims.resource.k8s.io "trainer-1-gpu-x7k2p" is forbidden: exceeded quota: dra-claims, requested: count/resourceclaims.resource.k8s.io=1, used: count/resourceclaims.resource.k8s.io=0, limited: count/resourceclaims.resource.k8s.io=0`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD330", "Deployment shop/trainer", "cannot be made from ResourceClaimTemplate one-gpu: ResourceQuota dra-claims allows no more ResourceClaims")
+	if !strings.Contains(f.Fix, "Raise ResourceQuota dra-claims's count/resourceclaims.resource.k8s.io") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Another refusal is quoted as it is.
+	s.Events[0].Message = "PodResourceClaim gpu: create ResourceClaim : admission webhook denied the request"
+	expect(t, only(t, Diagnose(s)), "KD330", "Deployment shop/trainer", "the resource claim controller says: PodResourceClaim gpu: create ResourceClaim : admission webhook denied the request")
+}

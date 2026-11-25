@@ -98,6 +98,9 @@ func draProblem(ix *index, p kube.Pod) *problem {
 		if pr := claimDeleting(ix, p, r); pr != nil {
 			return pr
 		}
+		if pr := claimNotMade(ix, p, r); pr != nil {
+			return pr
+		}
 		if pr := deviceClassMissing(ix, p, r); pr != nil {
 			return pr
 		}
@@ -502,4 +505,31 @@ func claimElsewhere(ix *index, p kube.Pod, r podClaimRef) *problem {
 		eventEvidence(p.Ref(), e),
 		Evidence{Object: c.Ref(), What: fmt.Sprintf("ResourceClaim %s's allocation and the pods it is reserved for", c.Metadata.Name),
 			Command: cmdGet("resourceclaim", c.Metadata.Namespace, c.Metadata.Name, `{.status.allocation.nodeSelector}{"\n"}{.status.reservedFor}`)})
+}
+
+var reQuotaExceeded = regexp.MustCompile(`exceeded quota: ([^,\s]+)`)
+
+// claimNotMade finds a pod whose claim the resource claim controller fails to make from a template that exists: a
+// ResourceQuota on claims is the usual cause. The scheduler waits for the claim, and the reason is only in the
+// controller's event on the pod.
+func claimNotMade(ix *index, p kube.Pod, r podClaimRef) *problem {
+	if r.template == nil || r.claim != nil || p.Spec.NodeName != "" {
+		return nil
+	}
+	evs := ix.eventsFor(p.Ref(), "FailedResourceClaimCreation")
+	if len(evs) == 0 {
+		return nil
+	}
+	e := evs[0]
+	tpl := r.template.Metadata.Name
+	cause := fmt.Sprintf("the claim for the pod's resourceClaims entry %s cannot be made from ResourceClaimTemplate %s, so the scheduler waits for it; the resource claim controller says: %s", r.entry.Name, tpl, clip(e.Message, 240))
+	fix := "Fix what the controller's event reports; the claim is made, and the pod scheduled, as soon as it can be."
+	ev := []Evidence{eventEvidence(p.Ref(), e)}
+	if m := reQuotaExceeded.FindStringSubmatch(e.Message); m != nil {
+		cause = fmt.Sprintf("the claim for the pod's resourceClaims entry %s cannot be made from ResourceClaimTemplate %s: ResourceQuota %s allows no more ResourceClaims in the namespace, so the claim is refused and the scheduler waits for it", r.entry.Name, tpl, m[1])
+		fix = fmt.Sprintf("Raise ResourceQuota %s's count/resourceclaims.resource.k8s.io (or its device class's requests), or delete claims nothing uses any more; each pod of a template makes a claim of its own.", m[1])
+		ev = append(ev, Evidence{Object: kube.Ref{Kind: "ResourceQuota", Namespace: p.Metadata.Namespace, Name: m[1]}, What: fmt.Sprintf("ResourceQuota %s's limits and use", m[1]),
+			Command: cmdGet("resourcequota", p.Metadata.Namespace, m[1], `{.spec.hard}{"\n"}{.status.used}`)})
+	}
+	return newProblem(p, "", "KD330", "Pod's claim cannot be made from its template", Critical, cause, "claimnotmade|"+tpl, fix, ev...)
 }
