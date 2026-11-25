@@ -88,6 +88,9 @@ func draProblem(ix *index, p kube.Pod) *problem {
 		if pr := claimMissing(ix, p, r); pr != nil {
 			return pr
 		}
+		if pr := claimTemplateMissing(ix, p, r); pr != nil {
+			return pr
+		}
 	}
 	return nil
 }
@@ -107,4 +110,24 @@ func claimMissing(ix *index, p kube.Pod, r podClaimRef) *problem {
 			Command: cmdGet("pod", ns, p.Metadata.Name, `{.spec.resourceClaims}`)},
 		Evidence{Object: kube.Ref{Kind: "ResourceClaim", Namespace: ns, Name: name}, What: fmt.Sprintf("there is no ResourceClaim %s in namespace %s", name, ns),
 			Command: cmdGet("resourceclaim", ns, name, "")})
+}
+
+// claimTemplateMissing finds a pod whose resourceClaims names a ResourceClaimTemplate that does not exist: the
+// resource claim controller cannot make the pod's claim, and the scheduler waits for that claim.
+func claimTemplateMissing(ix *index, p kube.Pod, r podClaimRef) *problem {
+	if r.entry.ResourceClaimTemplateName == "" || r.template != nil || r.claim != nil || p.Spec.NodeName != "" || !ix.draRead("resourceclaimtemplates") {
+		return nil
+	}
+	ns, name := p.Metadata.Namespace, r.entry.ResourceClaimTemplateName
+	cause := fmt.Sprintf("the pod's resourceClaims entry %s names ResourceClaimTemplate %s, which does not exist in namespace %s: no claim is made for the pod, and the scheduler waits for one",
+		r.entry.Name, name, ns)
+	ev := []Evidence{{Object: p.Ref(), What: fmt.Sprintf("pod claims %s through ResourceClaimTemplate %s", r.entry.Name, name),
+		Command: cmdGet("pod", ns, p.Metadata.Name, `{.spec.resourceClaims}{"\n"}{.status.resourceClaimStatuses}`)}}
+	if evs := ix.eventsFor(p.Ref(), "FailedResourceClaimCreation"); len(evs) > 0 {
+		ev = append(ev, eventEvidence(p.Ref(), evs[0]))
+	}
+	ev = append(ev, Evidence{Object: kube.Ref{Kind: "ResourceClaimTemplate", Namespace: ns, Name: name},
+		What: fmt.Sprintf("there is no ResourceClaimTemplate %s in namespace %s", name, ns), Command: cmdGet("resourceclaimtemplate", ns, name, "")})
+	fix := fmt.Sprintf("Create ResourceClaimTemplate %s in namespace %s (a template lives in the namespace of the pods that use it), or correct the name in the pod template.", name, ns)
+	return newProblem(p, "", "KD321", "Pod's ResourceClaimTemplate does not exist", Critical, cause, "noclaimtpl|"+name, fix, ev...)
 }

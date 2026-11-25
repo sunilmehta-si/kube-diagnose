@@ -82,3 +82,30 @@ func TestPodsResourceClaimDoesNotExist(t *testing.T) {
 		}
 	}
 }
+
+func TestPodsResourceClaimTemplateDoesNotExist(t *testing.T) {
+	s := draSnapshot()
+	unscheduledPod(s)
+	s.Pods[0].Spec.ResourceClaims = []kube.PodResourceClaim{{Name: "gpu", ResourceClaimTemplateName: "one-gpu"}}
+	s.ResourceClaims = nil
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedResourceClaimCreation", `PodResourceClaim gpu: resource claim template "one-gpu": resourceclaimtemplate.resource.k8s.io "one-gpu" not found`, 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD321", "Deployment shop/trainer", "names ResourceClaimTemplate one-gpu, which does not exist in namespace shop", "no claim is made for the pod")
+	if len(f.Evidence) != 3 || !strings.Contains(f.Evidence[1].Detail+f.Evidence[1].What, "not found") {
+		t.Errorf("evidence %+v", f.Evidence)
+	}
+	// With the template there, its claim made: nothing to report.
+	var tpl kube.ResourceClaimTemplate
+	tpl.Metadata = kube.ObjectMeta{Name: "one-gpu", Namespace: "shop"}
+	tpl.Spec.Spec.Devices.Requests = []kube.DeviceRequest{{Name: "gpu", Exactly: &kube.ExactDeviceRequest{DeviceClassName: "gpu.example.com"}}}
+	s = draSnapshot()
+	s.Pods[0].Spec.ResourceClaims = []kube.PodResourceClaim{{Name: "gpu", ResourceClaimTemplateName: "one-gpu"}}
+	s.Pods[0].Status.ResourceClaimStatuses = append(s.Pods[0].Status.ResourceClaimStatuses, struct {
+		Name              string `json:"name"`
+		ResourceClaimName string `json:"resourceClaimName,omitempty"`
+	}{"gpu", "train-gpu"})
+	s.ResourceClaimTemplates = []kube.ResourceClaimTemplate{tpl}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
