@@ -1253,6 +1253,11 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: svcNS, Name: svc},
 				What: fmt.Sprintf("there is no Service %s in namespace %s", svc, svcNS), Command: cmdGet("service", svcNS, svc, "")})...)
 	}
+	if t.ExitCode == 0 {
+		if pr := shellExits(p, cs, ev); pr != nil {
+			return pr
+		}
+	}
 	title, rule := "Container keeps crashing", "KD110"
 	what, kind := "exits", "container"
 	sidecar := p.IsSidecar(cs.Name)

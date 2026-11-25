@@ -62,3 +62,41 @@ func windowsLineEndings(p kube.Pod, cs kube.ContainerStatus, lines []string, ev 
 	return newProblem(p, cs.Name, "KD309", "Script has Windows line endings", Critical, cause,
 		"crlf|"+script, fix+".", ev...)
 }
+
+// baseImages are images whose default command is a shell: busybox's and alpine's sh, the distributions' bash.
+var baseImages = map[string]bool{"busybox": true, "alpine": true, "ubuntu": true, "debian": true, "centos": true, "fedora": true,
+	"rockylinux": true, "almalinux": true, "amazonlinux": true, "archlinux": true, "oraclelinux": true, "photon": true}
+
+var shells = map[string]bool{"sh": true, "bash": true, "ash": true, "zsh": true, "/bin/sh": true, "/bin/bash": true, "/bin/ash": true, "/usr/bin/bash": true}
+
+// shellExits finds a container that keeps exiting with code 0 because what it runs is an interactive shell with
+// nothing to do: a base image run without a command (its default is sh or bash), or command sh with no script.
+// Without a terminal and stdin, the shell reads end of input at once and exits, and the kubelet restarts it.
+func shellExits(p kube.Pod, cs kube.ContainerStatus, ev []Evidence) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	if c.Stdin || c.TTY {
+		return nil
+	}
+	repo := c.Image
+	if i := strings.IndexAny(repo, "@"); i >= 0 {
+		repo = repo[:i]
+	}
+	if i := strings.LastIndex(repo, ":"); i > strings.LastIndex(repo, "/") {
+		repo = repo[:i]
+	}
+	base := repo[strings.LastIndex(repo, "/")+1:]
+	var what string
+	switch {
+	case len(c.Command) == 0 && len(c.Args) == 0 && baseImages[base]:
+		what = fmt.Sprintf("it sets no command, and image %s's default command is a shell", base)
+	case len(c.Command) == 1 && shells[c.Command[0]] && len(c.Args) == 0, len(c.Command) == 0 && len(c.Args) == 1 && shells[c.Args[0]]:
+		what = "its command is a shell with no script to run"
+	default:
+		return nil
+	}
+	cause := fmt.Sprintf("container %s exits with code 0 as soon as it starts: %s, and a shell with no terminal and no input has nothing to do, so it exits at once and the kubelet restarts it", cs.Name, what)
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's image, command and args", cs.Name),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].image}{" "}{.spec.containers[?(@.name=="%s")].command}{" "}{.spec.containers[?(@.name=="%s")].args}`, cs.Name, cs.Name, cs.Name))})
+	fix := "Give the container the command it is meant to run; to keep a debugging container alive, run sleep infinity (or set stdin: true and tty: true), and use kubectl debug or kubectl run -it for an interactive shell."
+	return newProblem(p, cs.Name, "KD315", "Container runs a shell with nothing to do", Critical, cause, "shell|"+cs.Name, fix, ev...)
+}

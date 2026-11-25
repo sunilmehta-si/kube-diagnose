@@ -5714,3 +5714,26 @@ func TestTemplateChangeWaitsForPodsToBeDeleted(t *testing.T) {
 	s.Workloads = []kube.Workload{ds}
 	expect(t, only(t, Diagnose(s)), "KD294", "DaemonSet shop/agent", "3 of its 4 pods still run the old one")
 }
+
+func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
+	s := snap()
+	deployment(s, "toolbox", 1, 0)
+	p := pod("toolbox-rs-a", "toolbox")
+	p.Spec.Containers[0].Image = "docker.io/library/ubuntu:26.04"
+	crashed(&p, 0, "Completed", 5)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD315", "Deployment shop/toolbox", "exits with code 0 as soon as it starts: it sets no command, and image ubuntu's default command is a shell")
+	if !strings.Contains(f.Fix, "sleep infinity") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Pods[0].Spec.Containers[0].Image, s.Pods[0].Spec.Containers[0].Command = "registry.example.com/tools:1", []string{"/bin/sh"}
+	expect(t, only(t, Diagnose(s)), "KD315", "Deployment shop/toolbox", "its command is a shell with no script")
+	// A shell with a script, or a terminal, is something else.
+	s.Pods[0].Spec.Containers[0].Args = []string{"-c", "echo done"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD315" {
+			t.Errorf("script: %s", f.Cause)
+		}
+	}
+}
