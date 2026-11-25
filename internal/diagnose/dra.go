@@ -329,6 +329,55 @@ func deviceShortage(ix *index, p kube.Pod, r podClaimRef) *problem {
 			fix := fmt.Sprintf("Ask for at most %d devices in request %s, or split the work over more pods that each claim fewer devices.", most, req.Name)
 			return newProblem(p, "", "KD324", "Claim asks for more devices than any node has", Critical, cause, "toomany|"+a.DeviceClassName, fix, ev...)
 		}
+		filters := ix.attributeSelectors(a)
+		e, failed := schedulerEvent(ix, p, "cannot allocate all claims")
+		if total > 0 && len(filters) > 0 && failed && total-ix.devicesInUse(drivers, r.claim) >= int(count) {
+			cause := fmt.Sprintf("request %s of %s %s asks for devices of DeviceClass %s that satisfy the selector %s, and the scheduler finds none it can allocate among the %d devices on offer, most of them free: the selectors match no device the driver publishes (an attribute name or value that differs, or a domain the attribute is not under)",
+				req.Name, src.Kind, src.Name, a.DeviceClassName, quoteAll(filters), total)
+			ev = append(ev[:len(ev)-1], eventEvidence(p.Ref(), e), Evidence{Object: kube.Ref{Kind: "ResourceSlice", Name: "*"},
+				What: "the devices on offer and their attributes", Command: sliceCmd + " -o yaml"})
+			fix := "Compare the selectors with the attributes in the driver's ResourceSlices (kubectl get resourceslices -o yaml) and correct the expression; a driver's attributes are under its own domain, as device.attributes[\"<driver>\"].<name>."
+			return newProblem(p, "", "KD325", "Claim's selectors match no device on offer", Critical, cause, "noselected|"+a.DeviceClassName, fix, ev...)
+		}
 	}
 	return nil
+}
+
+var reDriverOnly = regexp.MustCompile(`^\s*device\.driver\s*==\s*["'][^"']+["']\s*$`)
+
+// attributeSelectors returns the request's and its class's CEL expressions that pick devices by more than their
+// driver.
+func (ix *index) attributeSelectors(a kube.ExactDeviceRequest) []string {
+	sels := append([]kube.DeviceSelector(nil), a.Selectors...)
+	if c := ix.deviceClass(a.DeviceClassName); c != nil {
+		sels = append(sels, c.Spec.Selectors...)
+	}
+	var out []string
+	for _, s := range sels {
+		if s.CEL != nil && !reDriverOnly.MatchString(s.CEL.Expression) {
+			out = append(out, strings.TrimSpace(s.CEL.Expression))
+		}
+	}
+	return out
+}
+
+// devicesInUse counts the devices of the drivers that claims other than this one hold.
+func (ix *index) devicesInUse(drivers []string, self *kube.ResourceClaim) int {
+	n := 0
+	for i := range ix.s.ResourceClaims {
+		c := &ix.s.ResourceClaims[i]
+		if c == self || c.Status.Allocation == nil {
+			continue
+		}
+		for _, res := range c.Status.Allocation.Devices.Results {
+			if len(drivers) == 0 || slices.Contains(drivers, res.Driver) {
+				n++
+			}
+		}
+	}
+	return n
+}
+
+func quoteAll(l []string) string {
+	return strings.Join(l, " and the selector ")
 }

@@ -194,3 +194,51 @@ func TestClaimAsksForMoreDevicesThanAnyNodeHas(t *testing.T) {
 		}
 	}
 }
+
+func TestClaimsSelectorsMatchNoDeviceOnOffer(t *testing.T) {
+	s := draSnapshot()
+	unscheduledPod(s)
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedScheduling", "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.", 0)}
+	s.ResourceClaims[0].Spec.Devices.Requests[0].Exactly.Selectors = []kube.DeviceSelector{celSelector(`device.attributes["gpu.example.com"].model == "H200"`)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD325", "Deployment shop/trainer", `that satisfy the selector device.attributes["gpu.example.com"].model == "H200", and`, "among the 2 devices on offer")
+	if !strings.Contains(f.Fix, `device.attributes["<driver>"]`) || !strings.HasSuffix(f.Evidence[len(f.Evidence)-1].Command, "-o yaml") {
+		t.Errorf("fix %s evidence %+v", f.Fix, f.Evidence)
+	}
+	// Both devices are held by other claims: they are taken, not unmatched.
+	var other kube.ResourceClaim
+	other.Metadata = kube.ObjectMeta{Name: "eval-gpu", Namespace: "shop"}
+	other.Status.Allocation = &struct {
+		Devices struct {
+			Results []struct {
+				Request string `json:"request"`
+				Driver  string `json:"driver"`
+				Pool    string `json:"pool"`
+				Device  string `json:"device"`
+			} `json:"results,omitempty"`
+		} `json:"devices"`
+	}{}
+	for _, d := range []string{"gpu-0", "gpu-1"} {
+		other.Status.Allocation.Devices.Results = append(other.Status.Allocation.Devices.Results, struct {
+			Request string `json:"request"`
+			Driver  string `json:"driver"`
+			Pool    string `json:"pool"`
+			Device  string `json:"device"`
+		}{"gpu", "gpu.example.com", "node-1", d})
+	}
+	s.ResourceClaims = append(s.ResourceClaims, other)
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD325" {
+			t.Errorf("devices taken: %s", f.Cause)
+		}
+	}
+	// A class that picks by driver only, and no selector on the request: nothing to blame.
+	s = draSnapshot()
+	unscheduledPod(s)
+	s.Events = []kube.Event{event("Pod", "trainer-1", "FailedScheduling", "0/1 nodes are available: 1 cannot allocate all claims.", 0)}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD325" {
+			t.Errorf("no selector: %s", f.Cause)
+		}
+	}
+}
