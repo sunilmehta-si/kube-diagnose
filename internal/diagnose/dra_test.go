@@ -227,10 +227,10 @@ func TestClaimsSelectorsMatchNoDeviceOnOffer(t *testing.T) {
 		}{"gpu", "gpu.example.com", "node-1", d})
 	}
 	s.ResourceClaims = append(s.ResourceClaims, other)
-	for _, f := range Diagnose(s).Findings {
-		if f.Rule == "KD325" {
-			t.Errorf("devices taken: %s", f.Cause)
-		}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD327", "Deployment shop/trainer", "asks for 1 device of DeviceClass gpu.example.com, and 2 of the 2 on offer are allocated to other claims (shop/eval-gpu)")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "delete a claim nothing needs any more") {
+		t.Errorf("severity %v fix %s", f.Severity, f.Fix)
 	}
 	// A class that picks by driver only, and no selector on the request: nothing to blame.
 	s = draSnapshot()

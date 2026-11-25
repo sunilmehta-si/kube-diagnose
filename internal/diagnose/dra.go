@@ -329,9 +329,23 @@ func deviceShortage(ix *index, p kube.Pod, r podClaimRef) *problem {
 			fix := fmt.Sprintf("Ask for at most %d devices in request %s, or split the work over more pods that each claim fewer devices.", most, req.Name)
 			return newProblem(p, "", "KD324", "Claim asks for more devices than any node has", Critical, cause, "toomany|"+a.DeviceClassName, fix, ev...)
 		}
-		filters := ix.attributeSelectors(a)
 		e, failed := schedulerEvent(ix, p, "cannot allocate all claims")
-		if total > 0 && len(filters) > 0 && failed && total-ix.devicesInUse(drivers, r.claim) >= int(count) {
+		if holders := ix.deviceHolders(drivers, r.claim); failed && total > 0 && total-len(holders) < int(count) {
+			names := make([]string, 0, len(holders))
+			for _, h := range holders {
+				if !slices.Contains(names, h) {
+					names = append(names, h)
+				}
+			}
+			cause := fmt.Sprintf("request %s of %s %s asks for %d %s of DeviceClass %s, and %d of the %d on offer are allocated to other claims (%s), so the scheduler cannot allocate it until they are released",
+				req.Name, src.Kind, src.Name, count, map[bool]string{true: "device", false: "devices"}[count == 1], a.DeviceClassName, len(holders), total, strings.Join(names, ", "))
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "ResourceClaim", Namespace: p.Metadata.Namespace, Name: "*"}, What: "the claims and the devices allocated to them",
+				Command: "kubectl get resourceclaims -A -o custom-columns=NAMESPACE:.metadata.namespace,NAME:.metadata.name,DEVICES:.status.allocation.devices.results[*].device,USERS:.status.reservedFor[*].name"})
+			fix := "Wait for the pods holding the devices to finish (a claim made from a template is released with its pod), delete a claim nothing needs any more (an allocated claim keeps its devices while it exists), or add capacity."
+			return newProblem(p, "", "KD327", "Every device of the class is allocated to other claims", Warning, cause, "inuse|"+a.DeviceClassName, fix, ev...)
+		}
+		filters := ix.attributeSelectors(a)
+		if total > 0 && len(filters) > 0 && failed && total-len(ix.deviceHolders(drivers, r.claim)) >= int(count) {
 			cause := fmt.Sprintf("request %s of %s %s asks for devices of DeviceClass %s that satisfy the selector %s, and the scheduler finds none it can allocate among the %d devices on offer, most of them free: the selectors match no device the driver publishes (an attribute name or value that differs, or a domain the attribute is not under)",
 				req.Name, src.Kind, src.Name, a.DeviceClassName, quoteAll(filters), total)
 			ev = append(ev[:len(ev)-1], eventEvidence(p.Ref(), e), Evidence{Object: kube.Ref{Kind: "ResourceSlice", Name: "*"},
@@ -359,23 +373,6 @@ func (ix *index) attributeSelectors(a kube.ExactDeviceRequest) []string {
 		}
 	}
 	return out
-}
-
-// devicesInUse counts the devices of the drivers that claims other than this one hold.
-func (ix *index) devicesInUse(drivers []string, self *kube.ResourceClaim) int {
-	n := 0
-	for i := range ix.s.ResourceClaims {
-		c := &ix.s.ResourceClaims[i]
-		if c == self || c.Status.Allocation == nil {
-			continue
-		}
-		for _, res := range c.Status.Allocation.Devices.Results {
-			if len(drivers) == 0 || slices.Contains(drivers, res.Driver) {
-				n++
-			}
-		}
-	}
-	return n
 }
 
 func quoteAll(l []string) string {
@@ -424,4 +421,21 @@ func driverNotRegistered(ix *index, p kube.Pod, refs []podClaimRef) *problem {
 		return newProblem(p, "", "KD326", "Node's kubelet has no plugin for the claim's driver", Critical, cause, "notregistered|"+driver, fix, ev...)
 	}
 	return nil
+}
+
+// deviceHolders returns, for each device of the drivers that a claim other than this one holds, that claim's name.
+func (ix *index) deviceHolders(drivers []string, self *kube.ResourceClaim) []string {
+	var out []string
+	for i := range ix.s.ResourceClaims {
+		c := &ix.s.ResourceClaims[i]
+		if c == self || c.Status.Allocation == nil {
+			continue
+		}
+		for _, res := range c.Status.Allocation.Devices.Results {
+			if len(drivers) == 0 || slices.Contains(drivers, res.Driver) {
+				out = append(out, c.Metadata.Namespace+"/"+c.Metadata.Name)
+			}
+		}
+	}
+	return out
 }
