@@ -263,3 +263,34 @@ func TestRedactRenamesTheGatewayAPIsObjects(t *testing.T) {
 		t.Errorf("route %+v, gateway %+v", red.Routes[0].Spec.ParentRefs, red.Gateways[0].Metadata)
 	}
 }
+
+func TestRedactRenamesDynamicResourceAllocationsObjects(t *testing.T) {
+	var p kube.Pod
+	p.Metadata = kube.ObjectMeta{Name: "trainer-0", Namespace: "ml"}
+	p.Spec.ResourceClaims = []kube.PodResourceClaim{{Name: "gpu", ResourceClaimName: "acme-a100-pair"}, {Name: "nic", ResourceClaimTemplateName: "acme-rdma"}}
+	var claim kube.ResourceClaim
+	claim.Metadata = kube.ObjectMeta{Name: "acme-a100-pair", Namespace: "ml"}
+	claim.Spec.Devices.Requests = []kube.DeviceRequest{{Name: "gpu", Exactly: &kube.ExactDeviceRequest{DeviceClassName: "gpu.nvidia.com", Count: 2}}}
+	var sl kube.ResourceSlice
+	sl.Metadata.Name = "gpu-node-17-gpu.nvidia.com-x2k9"
+	sl.Spec.Driver, sl.Spec.NodeName, sl.Spec.Pool.Name = "gpu.nvidia.com", "gpu-node-17", "gpu-node-17"
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"ml"}, Pods: []kube.Pod{p}, ResourceAllocationRead: true,
+		ResourceClaims: []kube.ResourceClaim{claim}, ResourceSlices: []kube.ResourceSlice{sl}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	b, _ := json.Marshal(red)
+	for _, name := range []string{"acme-a100-pair", "acme-rdma", "gpu-node-17", "trainer-0"} {
+		if strings.Contains(string(b), name) {
+			t.Errorf("redacted snapshot still contains %q", name)
+		}
+	}
+	// The pod still names its claim, and the claim its class and the slice its driver, so the diagnosis is the same.
+	if red.Pods[0].Spec.ResourceClaims[0].ResourceClaimName != red.ResourceClaims[0].Metadata.Name || red.Pods[0].Spec.ResourceClaims[0].Name != "gpu" {
+		t.Errorf("pod %+v, claim %+v", red.Pods[0].Spec.ResourceClaims, red.ResourceClaims[0].Metadata)
+	}
+	if red.ResourceClaims[0].Spec.Devices.Requests[0].Exactly.DeviceClassName != "gpu.nvidia.com" || red.ResourceSlices[0].Spec.Driver != "gpu.nvidia.com" || !red.ResourceAllocationRead {
+		t.Errorf("claim %+v, slice %+v", red.ResourceClaims[0].Spec, red.ResourceSlices[0].Spec)
+	}
+}

@@ -321,6 +321,32 @@ func (r *redactor) collect(s *Snapshot) {
 			}
 		}
 	}
+	// Dynamic resource allocation: claims and templates are named, as is a pod's reference to one that may not
+	// exist. The name a pod gives a claim in its own spec (gpu) is left, as are DeviceClass and driver names: like a
+	// StorageClass's, they name a kind of device, not something of the cluster's.
+	for _, p := range s.Pods {
+		for _, c := range p.Spec.ResourceClaims {
+			r.addName("claim", c.ResourceClaimName)
+			r.addName("claimtpl", c.ResourceClaimTemplateName)
+		}
+		for _, c := range p.Status.ResourceClaimStatuses {
+			r.addName("claim", c.ResourceClaimName)
+		}
+	}
+	for _, x := range s.ResourceClaims {
+		r.addName("claim", x.Metadata.Name)
+		for _, o := range x.Metadata.OwnerReferences {
+			r.addName("owner", o.Name)
+		}
+	}
+	for _, x := range s.ResourceClaimTemplates {
+		r.addName("claimtpl", x.Metadata.Name)
+	}
+	for _, x := range s.ResourceSlices {
+		r.addName("rslice", x.Metadata.Name)
+		r.addName("node", x.Spec.NodeName)
+		r.addName("pool", x.Spec.Pool.Name)
+	}
 	for _, x := range s.HPAs {
 		r.addName("hpa", x.Metadata.Name)
 		r.addName("target", x.Spec.ScaleTargetRef.Name)
