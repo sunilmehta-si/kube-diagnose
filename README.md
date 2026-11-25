@@ -145,7 +145,10 @@ HorizontalPodAutoscalers, PodDisruptionBudgets, claims, NetworkPolicies, Resourc
 RoleBindings, ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses, PersistentVolumes,
 namespaces (their names and labels) and ClusterRoles (their names) in the cluster, and to read pod logs. Where the
 cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes and ReferenceGrants in the namespace
-and GatewayClasses in the cluster; a cluster without it is no gap. With less, it diagnoses from the rest and lists what it could not read.
+and GatewayClasses in the cluster; a cluster without it is no gap. Where it serves dynamic resource allocation
+(resource.k8s.io), it reads ResourceClaims and ResourceClaimTemplates in the namespace and DeviceClasses and
+ResourceSlices in the cluster, keeping of each slice its driver, nodes and device names. With less, it diagnoses from
+the rest and lists what it could not read.
 
 A snapshot holds object names, labels, event messages and log lines (never Secret or ConfigMap values) and is
 written readable by you only; treat it like the cluster data it came from. To share one in an issue, record it with

@@ -2,7 +2,9 @@ package collect
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -402,6 +404,14 @@ func TestCollectReadsDynamicResourceAllocationWhenTheClusterServesIt(t *testing.
 	}
 	if !s.ResourceAllocationRead || len(s.DeviceClasses) != 1 || len(s.ResourceSlices) != 1 || s.ResourceSlices[0].Spec.Devices[0].Name != "gpu-0" {
 		t.Errorf("read %v classes %+v slices %+v", s.ResourceAllocationRead, s.DeviceClasses, s.ResourceSlices)
+	}
+	// Of a slice, the driver, its nodes and the device names are kept, as the README says; not the attributes.
+	if b, _ := json.Marshal(s.ResourceSlices); strings.Contains(string(b), "attributes") || strings.Contains(string(b), "L4") {
+		t.Errorf("slice keeps more than it should: %s", b)
+	}
+	readme, _ := os.ReadFile("../../README.md")
+	if !strings.Contains(strings.Join(strings.Fields(string(readme)), " "), "ResourceSlices in the cluster, keeping of each slice its driver, nodes and device names") {
+		t.Error("README should say what is read of ResourceSlices")
 	}
 	// A v1 request and a v1beta1 one read alike.
 	if a := s.ResourceClaims[0].Spec.Devices.Requests[0].Alternatives(); len(a) != 1 || a[0].DeviceClassName != "gpu.example.com" || a[0].Count != 2 {
