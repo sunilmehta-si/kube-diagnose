@@ -55,9 +55,10 @@ func rulesDoc() string {
 	b.WriteString("(`make docs`).\n\nThe tens digit says where the problem is: x00-x29 pulling the image and running the container, ")
 	b.WriteString("x30-x39 its configuration and volumes, x40-x49 scheduling, x50-x59 storage, x60-x69 Services and ")
 	b.WriteString("networking, x70-x79 creating pods, x80-x89 workloads and x90-x99 nodes. KD2xx continues an area once its KD1xx ")
-	b.WriteString("numbers are used up, and two areas ran past their ten there: KD270-KD274 are Services and networking, and ")
-	b.WriteString("KD290-KD292 are workloads. KD3xx continues an area whose KD2xx numbers are used up: KD300 and on are ")
-	b.WriteString("running the container, and KD360 and on Services and networking.\n\n| Rule | Title | Severity | Detects | Evidence |\n|---|---|---|---|---|\n")
+	b.WriteString("numbers are used up, and two areas ran past their ten there: KD270-KD274 and KD278 are Services and ")
+	b.WriteString("networking, and KD290-KD294 are workloads. KD3xx continues an area whose KD2xx numbers are used up: KD300 ")
+	b.WriteString("and on are running the container, and KD360 and on Services and networking. KD320-KD329 are an area of ")
+	b.WriteString("their own: a pod's device claims (dynamic resource allocation), from the claim to the node's driver.\n\n| Rule | Title | Severity | Detects | Evidence |\n|---|---|---|---|---|\n")
 	ids := make([]string, 0, len(Rules))
 	for _, r := range Rules {
 		ids = append(ids, r.ID)
