@@ -67,6 +67,10 @@ type redactor struct {
 	kept   []string
 	ips    map[string]string
 	nameRe *regexp.Regexp
+	// claimPrefixes maps POD-ENTRY, the start of a claim made from a template for a pod (POD-ENTRY-xxxxx), to the
+	// pod's pseudonym and the entry: such a claim may be named in a message before it exists, or after it is gone.
+	claimPrefixes map[string]string
+	claimRe       *regexp.Regexp
 	// svcRe finds a name in a cluster DNS name, service.namespace.svc, where a dot comes before it.
 	svcRe *regexp.Regexp
 }
@@ -337,6 +341,12 @@ func (r *redactor) collect(s *Snapshot) {
 		for _, c := range p.Spec.ResourceClaims {
 			r.addName("claim", c.ResourceClaimName)
 			r.addName("claimtpl", c.ResourceClaimTemplateName)
+			if c.ResourceClaimTemplateName != "" && p.Metadata.Name != "" {
+				if r.claimPrefixes == nil {
+					r.claimPrefixes = map[string]string{}
+				}
+				r.claimPrefixes[p.Metadata.Name+"-"+c.Name] = r.names[p.Metadata.Name] + "-" + c.Name
+			}
 		}
 		for _, c := range p.Status.ResourceClaimStatuses {
 			r.addName("claim", c.ResourceClaimName)
@@ -450,6 +460,14 @@ func (r *redactor) gatherLabels(v any, inLabels bool) {
 // build compiles one pattern that matches any collected name as a whole token, longest first, so that "web-rs-a"
 // is replaced as a whole before "web".
 func (r *redactor) build() {
+	if len(r.claimPrefixes) > 0 {
+		var ps []string
+		for p := range r.claimPrefixes {
+			ps = append(ps, regexp.QuoteMeta(p))
+		}
+		sort.Slice(ps, func(i, j int) bool { return len(ps[i]) > len(ps[j]) || len(ps[i]) == len(ps[j]) && ps[i] < ps[j] })
+		r.claimRe = regexp.MustCompile(`(` + strings.Join(ps, "|") + `)-([a-z0-9]{5})\b`)
+	}
 	if len(r.names) == 0 {
 		return
 	}
@@ -492,6 +510,13 @@ func (r *redactor) text(s string) string {
 	})
 	if r.nameRe == nil {
 		return s
+	}
+	// A claim made for a pod from a template keeps the pod's pseudonym, the entry and the generated suffix.
+	if r.claimRe != nil {
+		s = r.claimRe.ReplaceAllStringFunc(s, func(m string) string {
+			sub := r.claimRe.FindStringSubmatch(m)
+			return r.claimPrefixes[sub[1]] + "-" + sub[2]
+		})
 	}
 	// Kept image repositories are set aside while names are replaced, then put back.
 	for i, image := range r.kept {

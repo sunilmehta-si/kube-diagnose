@@ -278,8 +278,11 @@ func TestRedactRenamesDynamicResourceAllocationsObjects(t *testing.T) {
 	var sl kube.ResourceSlice
 	sl.Metadata.Name = "gpu-node-17-gpu.nvidia.com-x2k9"
 	sl.Spec.Driver, sl.Spec.NodeName, sl.Spec.Pool.Name = "gpu.nvidia.com", "gpu-node-17", "gpu-node-17"
+	var e kube.Event
+	e.InvolvedObject.Kind, e.InvolvedObject.Namespace, e.InvolvedObject.Name = "Pod", "ml", "trainer-0"
+	e.Message = `PodResourceClaim nic: create ResourceClaim : resourceclaims.resource.k8s.io "trainer-0-nic-x7k2p" is forbidden: exceeded quota`
 	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"ml"}, Pods: []kube.Pod{p}, ResourceAllocationRead: true,
-		ResourceClaims: []kube.ResourceClaim{claim}, ResourceSlices: []kube.ResourceSlice{sl}}
+		ResourceClaims: []kube.ResourceClaim{claim}, ResourceSlices: []kube.ResourceSlice{sl}, Events: []kube.Event{e}}
 	red, err := redactWithKey(s, []byte("k"))
 	if err != nil {
 		t.Fatal(err)
@@ -289,6 +292,10 @@ func TestRedactRenamesDynamicResourceAllocationsObjects(t *testing.T) {
 		if strings.Contains(string(b), name) {
 			t.Errorf("redacted snapshot still contains %q", name)
 		}
+	}
+	// A claim made for the pod from its template, named in a message: the pod's pseudonym, the entry, the suffix.
+	if want := red.Pods[0].Metadata.Name + "-nic-x7k2p"; !strings.Contains(red.Events[0].Message, want) {
+		t.Errorf("message %q lacks %q", red.Events[0].Message, want)
 	}
 	// The pod still names its claim, and the claim its class and the slice its driver, so the diagnosis is the same.
 	if red.Pods[0].Spec.ResourceClaims[0].ResourceClaimName != red.ResourceClaims[0].Metadata.Name || red.Pods[0].Spec.ResourceClaims[0].Name != "gpu" {
