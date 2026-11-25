@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-ingress-path-pattern",
+  "description": "Ingress web routes /api/* with pathType Prefix, which compares it as text, so no request under /api matches.",
+  "rule": "KD278",
+  "object": "Ingress/web",
+  "keywords": [
+    [
+      "/api/*"
+    ],
+    [
+      "pathType Prefix"
+    ],
+    [
+      "as text"
+    ]
+  ]
+}
