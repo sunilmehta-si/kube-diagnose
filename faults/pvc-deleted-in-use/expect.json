@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-pvc-deleted-in-use",
+  "description": "A clean-up Job deletes claim data while the database still uses it, then restarts the database; the new pod needs a claim that is being deleted, so it is never scheduled.",
+  "rule": "KD254",
+  "object": "Deployment/db",
+  "keywords": [
+    [
+      "claim data",
+      "PersistentVolumeClaim data"
+    ],
+    [
+      "deleted"
+    ],
+    [
+      "still uses",
+      "pvc-protection"
+    ]
+  ]
+}
