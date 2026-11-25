@@ -106,6 +106,9 @@ func draProblem(ix *index, p kube.Pod) *problem {
 		if pr := deviceShortage(ix, p, r); pr != nil {
 			return pr
 		}
+		if pr := claimElsewhere(ix, p, r); pr != nil {
+			return pr
+		}
 	}
 	return driverNotRegistered(ix, p, refs)
 }
@@ -468,4 +471,35 @@ func claimDeleting(ix *index, p kube.Pod, r podClaimRef) *problem {
 	return newProblem(p, "", "KD328", "Pod's ResourceClaim is being deleted", Critical, cause, "claimdeleting|"+name, fix,
 		Evidence{Object: c.Ref(), What: fmt.Sprintf("ResourceClaim %s has a deletionTimestamp (%s) and finalizers %s", name, c.Metadata.DeletionTimestamp.UTC().Format(time.RFC3339), strings.Join(c.Metadata.Finalizers, ", ")),
 			Command: cmdGet("resourceclaim", ns, name, `{.metadata.deletionTimestamp}{" "}{.metadata.finalizers}{" "}{.status.reservedFor}`)})
+}
+
+// claimElsewhere finds a pod sharing a ResourceClaim whose devices are already allocated on a node this pod cannot
+// run on: a shared claim's devices stay where the first pod's put them, so every pod that shares it must fit on
+// that node, and the scheduler says "resourceclaim not available on the node" for the others.
+func claimElsewhere(ix *index, p kube.Pod, r podClaimRef) *problem {
+	if !r.allocated() || p.Spec.NodeName != "" {
+		return nil
+	}
+	e, ok := schedulerEvent(ix, p, "resourceclaim not available on the node")
+	if !ok {
+		return nil
+	}
+	c := r.claim
+	var on []string
+	for _, u := range c.Status.ReservedFor {
+		for _, q := range ix.s.Pods {
+			if q.Metadata.Namespace == c.Metadata.Namespace && q.Metadata.Name == u.Name && q.Spec.NodeName != "" {
+				on = append(on, fmt.Sprintf("%s on node %s", q.Metadata.Name, q.Spec.NodeName))
+			}
+		}
+	}
+	cause := fmt.Sprintf("the pod shares ResourceClaim %s, whose devices are already allocated on a node this pod cannot be placed on: a claim's devices stay where they were allocated, so every pod that shares it must fit on that node", c.Metadata.Name)
+	if len(on) > 0 {
+		cause += fmt.Sprintf(" (the claim is in use by %s)", strings.Join(on, ", "))
+	}
+	fix := "Let the pod run on that node (its node selector, affinity, taints and free resources there), or give it a claim of its own through a ResourceClaimTemplate if it does not need the very same devices."
+	return newProblem(p, "", "KD329", "Shared claim's devices are on a node the pod cannot use", Critical, cause, "claimelsewhere|"+c.Metadata.Name, fix,
+		eventEvidence(p.Ref(), e),
+		Evidence{Object: c.Ref(), What: fmt.Sprintf("ResourceClaim %s's allocation and the pods it is reserved for", c.Metadata.Name),
+			Command: cmdGet("resourceclaim", c.Metadata.Namespace, c.Metadata.Name, `{.status.allocation.nodeSelector}{"\n"}{.status.reservedFor}`)})
 }

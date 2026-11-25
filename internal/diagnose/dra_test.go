@@ -288,3 +288,33 @@ func TestPodsResourceClaimIsBeingDeleted(t *testing.T) {
 	f := only(t, Diagnose(s))
 	expect(t, f, "KD328", "Deployment shop/trainer", "ResourceClaim train-gpu, which was deleted 5m0s ago", "until trainer-0, which it is reserved for, stops")
 }
+
+func TestSharedClaimsDevicesAreOnANodeThePodCannotUse(t *testing.T) {
+	s := draSnapshot()
+	s.Nodes = append(s.Nodes, node("node-2", "8", "32Gi"))
+	first := s.Pods[0]
+	second := pod("trainer-2", "trainer")
+	second.Spec.ResourceClaims = first.Spec.ResourceClaims
+	second.Spec.NodeName = ""
+	second.Spec.NodeSelector = map[string]string{"kubernetes.io/hostname": "node-2"}
+	second.Status = kube.PodStatus{Phase: "Pending"}
+	s.Pods = append(s.Pods, second)
+	c := &s.ResourceClaims[0]
+	c.Status.Allocation = &struct {
+		Devices struct {
+			Results []struct {
+				Request string `json:"request"`
+				Driver  string `json:"driver"`
+				Pool    string `json:"pool"`
+				Device  string `json:"device"`
+			} `json:"results,omitempty"`
+		} `json:"devices"`
+	}{}
+	c.Status.ReservedFor = append(c.Status.ReservedFor, struct {
+		Resource string `json:"resource"`
+		Name     string `json:"name"`
+	}{"pods", "trainer-1"})
+	s.Events = []kube.Event{event("Pod", "trainer-2", "FailedScheduling", "0/2 nodes are available: 1 node(s) didn't match Pod's node affinity/selector, 1 resourceclaim not available on the node.", 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD329", "Deployment shop/trainer", "shares ResourceClaim train-gpu, whose devices are already allocated on a node this pod cannot be placed on", "in use by trainer-1 on node node-1")
+}
