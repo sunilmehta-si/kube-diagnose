@@ -5687,3 +5687,30 @@ func TestProbeConnectsOverTCPToAUDPPort(t *testing.T) {
 		}
 	}
 }
+
+func TestTemplateChangeWaitsForPodsToBeDeleted(t *testing.T) {
+	s := snap()
+	sts := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "cache", Namespace: "shop"}}
+	three := int32(3)
+	sts.Spec.Replicas = &three
+	sts.Spec.UpdateStrategy.Type = "OnDelete"
+	sts.Status.Replicas, sts.Status.ReadyReplicas, sts.Status.UpdatedReplicas = 3, 3, 1
+	sts.Status.CurrentRevision, sts.Status.UpdateRevision = "cache-6d5f", "cache-7b9c"
+	s.Workloads = []kube.Workload{sts}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD294", "StatefulSet shop/cache", "2 of its 3 pods still run the old one", "updateStrategy is OnDelete")
+	if !strings.Contains(f.Fix, "kubectl rollout status statefulset/cache") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Rolled out, or RollingUpdate: nothing waits on anyone.
+	s.Workloads[0].Status.CurrentRevision = "cache-7b9c"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// A DaemonSet on four nodes, one of them updated.
+	ds := kube.Workload{Kind: "DaemonSet", Metadata: kube.ObjectMeta{Name: "agent", Namespace: "shop"}}
+	ds.Spec.UpdateStrategy.Type = "OnDelete"
+	ds.Status.DesiredNumberScheduled, ds.Status.NumberReady, ds.Status.UpdatedNumberScheduled = 4, 4, 1
+	s.Workloads = []kube.Workload{ds}
+	expect(t, only(t, Diagnose(s)), "KD294", "DaemonSet shop/agent", "3 of its 4 pods still run the old one")
+}

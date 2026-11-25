@@ -779,6 +779,11 @@ type WorkloadStatus struct {
 	NumberReady            int32       `json:"numberReady,omitempty"`
 	NumberUnavailable      int32       `json:"numberUnavailable,omitempty"`
 	Conditions             []Condition `json:"conditions,omitempty"`
+	// A StatefulSet's revisions: its pods are of currentRevision until each is replaced by one of updateRevision.
+	CurrentRevision string `json:"currentRevision,omitempty"`
+	UpdateRevision  string `json:"updateRevision,omitempty"`
+	// UpdatedNumberScheduled counts a DaemonSet's pods of its current template.
+	UpdatedNumberScheduled int32 `json:"updatedNumberScheduled,omitempty"`
 }
 
 // Workload is a Deployment, ReplicaSet, StatefulSet or DaemonSet: the parts they share.
@@ -797,6 +802,11 @@ type Workload struct {
 		Paused bool `json:"paused,omitempty"`
 		// PodManagementPolicy is a StatefulSet's: OrderedReady (the default) creates pod n only once pod n-1 is ready.
 		PodManagementPolicy string `json:"podManagementPolicy,omitempty"`
+		// UpdateStrategy is a StatefulSet's or DaemonSet's: RollingUpdate (the default) or OnDelete, which replaces
+		// a pod with the new template only when the pod is deleted.
+		UpdateStrategy struct {
+			Type string `json:"type,omitempty"`
+		} `json:"updateStrategy,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
 }
