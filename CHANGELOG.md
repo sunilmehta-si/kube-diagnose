@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-11-25
+
+### Added
+- Dynamic resource allocation (resource.k8s.io): where the cluster serves it, kube-diagnose reads ResourceClaims,
+  ResourceClaimTemplates, DeviceClasses and ResourceSlices (of a slice, only its driver, nodes and device names; a
+  cluster without the API is no gap), and 11 rules follow a pod's device claims from the claim to the node's driver: a
+  ResourceClaim (KD320) or ResourceClaimTemplate (KD321) that does not exist, which the scheduler never even tries; a
+  claim that is being deleted (KD328) or that cannot be made from its template, a ResourceQuota on claims for one
+  (KD330); a request for a DeviceClass that does not exist (KD322); a class no driver offers a device of (KD323); more
+  devices than any node has (KD324); CEL selectors that match none of the devices on offer (KD325); every device held
+  by other claims, which are named (KD327); a shared claim allocated on a node the pod cannot use (KD329); and a node
+  whose kubelet has no plugin for the driver of the devices allocated (KD326).
+- 10 more rules, 221 in all (`docs/rules.md`):
+  - the running container: /dev/shm full, the runtime's 64 MiB unless a memory volume is mounted there (KD313); a
+    Localhost AppArmor profile the node has not loaded, or a node that cannot enforce AppArmor (KD314); a base image
+    run with no command, or command sh alone, whose shell exits 0 at once (KD315); an HTTP or TCP probe aimed at a
+    port declared for UDP only (KD212);
+  - storage: a claim deleted while pods still use it, which keeps a new pod that needs it from being scheduled
+    (KD254);
+  - Services and networking: StatefulSet peers that look each other up while they start, behind a Service that
+    publishes ready pods only (KD373); a route rule whose backends all have weight 0 (KD374); a route (KD375) or
+    Ingress (KD278) path written as a pattern, /api/*, that PathPrefix or Prefix compares as text;
+  - workloads: a StatefulSet or DaemonSet with updateStrategy OnDelete, whose template change reaches no pod (KD294).
+- 18 fault scenarios, 219 broken namespaces in all, one for each new rule kind can show. The device-claim scenarios
+  need no driver: their DeviceClasses and ResourceSlices are made by hand. The suite's test fails on a template
+  placeholder left in a manifest.
+
+### Changed
+- KD227 says when the role a binding names exists as the other kind: a Role bound as a ClusterRole, or the reverse.
+- `record --redact` keeps Docker Hub's official base images (busybox, ubuntu and the like), which name nothing of the
+  cluster and which KD315 reads, and renames device claims, templates and slices; DeviceClass and driver names stay,
+  like a StorageClass's.
+
 ## [0.14.0] - 2026-11-24
 
 - The fault suite's committed run (45381548969): kube-diagnose names the root cause in its first finding, with the
