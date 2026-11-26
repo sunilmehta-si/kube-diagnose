@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-statefulset-partition",
+  "description": "A Job raises the cache size in StatefulSet cache, whose rolling update has partition 2, left from a canary, so neither of its two pods gets the change.",
+  "rule": "KD296",
+  "object": "StatefulSet/cache",
+  "keywords": [
+    [
+      "partition"
+    ],
+    [
+      "reaches no pod"
+    ],
+    [
+      "cache"
+    ]
+  ]
+}

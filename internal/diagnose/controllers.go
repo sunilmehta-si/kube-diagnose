@@ -25,6 +25,10 @@ var (
 	reWebhkCall     = regexp.MustCompile(`failed calling webhook "([^"]+)": (?:failed to call webhook: )?(.*)$`)
 	reWebhkService  = regexp.MustCompile(`"https://([a-z0-9-]+)\.([a-z0-9-]+)\.svc(?::\d+)?[^"]*"`)
 	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
+	// The API server's own CEL admission: "ValidatingAdmissionPolicy 'p' with binding 'b' denied request: <message>".
+	// System-critical priority is limited to namespaces with a ResourceQuota that names it (kube-system's, by default).
+	reCriticalPriority = regexp.MustCompile(`insufficient quota to match these scopes: \[\{PriorityClass In \[([^\]]+)\]\}\]`)
+	reVAP              = regexp.MustCompile(`ValidatingAdmissionPolicy '([^']+)' with binding '([^']+)' denied request: (.*)$`)
 )
 
 // controllerFindings reads why a controller cannot create its pods, from its FailedCreate events: quota,
@@ -77,6 +81,22 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		claim = m[1]
 	}
 	switch {
+	case reCriticalPriority.MatchString(msg):
+		classes := reCriticalPriority.FindStringSubmatch(msg)[1]
+		pc := ""
+		if w := ix.workloads[src]; w != nil {
+			pc = w.Spec.Template.Spec.PriorityClassName
+		} else if j := ix.jobs[src]; j != nil {
+			pc = j.Spec.Template.Spec.PriorityClassName
+		}
+		if pc == "" {
+			pc = strings.Fields(classes)[0]
+		}
+		f.Rule, f.Title = "KD380", "System-critical priority is not allowed in the namespace"
+		f.Cause = fmt.Sprintf("%s cannot create pods: they use PriorityClass %s, and the API server admits a pod with a system-critical priority (%s) only in a namespace with a ResourceQuota that names that class, as kube-system has; %s has none", owner, pc, classes, ns)
+		f.Evidence = append(f.Evidence, Evidence{Object: owner, What: fmt.Sprintf("the pod template's priorityClassName is %s", pc),
+			Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{.spec.template.spec.priorityClassName}`)})
+		f.Fix = fmt.Sprintf("Remove priorityClassName %s (it is for cluster add-ons that must not be evicted, often copied from a kube-system manifest) or use a PriorityClass of your own. If the workload truly is critical, add a ResourceQuota in %s whose scopeSelector names PriorityClass %s.", pc, ns, pc)
 	case reQuota.MatchString(msg):
 		m := reQuota.FindStringSubmatch(msg)
 		f.Rule, f.Title = "KD170", "ResourceQuota is exhausted"
@@ -133,6 +153,17 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Namespace", Name: ns}, What: "namespace PodSecurity labels",
 			Command: "kubectl get namespace " + ns + " --show-labels"})
 		f.Fix = "Change the pod spec to meet the level (the message lists each violation), or relax the namespace's pod-security.kubernetes.io/enforce label if that is intended."
+	case reVAP.MatchString(msg):
+		m := reVAP.FindStringSubmatch(msg)
+		policy, binding, why := m[1], m[2], strings.TrimSpace(m[3])
+		f.Rule, f.Title = "KD279", "ValidatingAdmissionPolicy rejects the pods"
+		f.Cause = fmt.Sprintf("%s cannot create pods: ValidatingAdmissionPolicy %s, through binding %s, denies them: %s", owner, policy, binding, clip(why, 200))
+		f.Evidence = append(f.Evidence,
+			Evidence{Object: kube.Ref{Kind: "ValidatingAdmissionPolicy", Name: policy}, What: fmt.Sprintf("policy %s's validations", policy),
+				Command: cmdGet("validatingadmissionpolicy", "", policy, `{.spec.validations}`)},
+			Evidence{Object: kube.Ref{Kind: "ValidatingAdmissionPolicyBinding", Name: binding}, What: fmt.Sprintf("binding %s: what it applies the policy to, and how", binding),
+				Command: cmdGet("validatingadmissionpolicybinding", "", binding, `{.spec.matchResources}{"\n"}{.spec.validationActions}`)})
+		f.Fix = fmt.Sprintf("Change the pod template to pass the policy (its message says what it checks), or, if %s should not apply here, narrow binding %s's matchResources; validationActions Warn or Audit report without denying.", owner, binding)
 	case reWebhkCall.MatchString(msg):
 		webhookUnreachable(&f, owner, reWebhkCall.FindStringSubmatch(msg))
 	case reWebhk.MatchString(msg):
@@ -182,6 +213,10 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		} else if f := sharedRWOClaim(ix, w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
 		} else if f := onDeleteWaits(w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
+		} else if f := partitionHolds(w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
+		} else if f := deadlineTooShort(w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
 		} else if f := minReadyHolds(w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
@@ -574,4 +609,79 @@ func onDeleteWaits(w kube.Workload) *Finding {
 			w.Kind, name, old, all),
 		Evidence: []Evidence{ev},
 		Fix:      fmt.Sprintf("Delete the old pods one at a time (each comes back with the new template), or set updateStrategy type RollingUpdate on %s %s to have the controller do it: kubectl rollout status %s/%s then follows it.", w.Kind, name, kind, name)}
+}
+
+// partitionHolds finds a StatefulSet whose rolling update stops at its partition: only pods with an ordinal at or
+// above it get the new template, and pods below keep the old one for as long as the partition stays. A partition is
+// how a canary is staged; one left behind holds every later change back from those pods, and one at or above the
+// replica count lets the change reach none.
+func partitionHolds(w kube.Workload) *Finding {
+	ru := w.Spec.UpdateStrategy.RollingUpdate
+	if w.Kind != "StatefulSet" || w.Spec.UpdateStrategy.Type == "OnDelete" || ru == nil || ru.Partition == nil || *ru.Partition <= 0 {
+		return nil
+	}
+	if w.Status.UpdateRevision == "" || w.Status.UpdateRevision == w.Status.CurrentRevision {
+		return nil
+	}
+	part, all := *ru.Partition, w.Desired()
+	old := all - w.Status.UpdatedReplicas
+	if old <= 0 {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	held := fmt.Sprintf("pods %s-0 to %s-%d", name, name, min(part, all)-1)
+	if min(part, all) == 1 {
+		held = fmt.Sprintf("pod %s-0", name)
+	}
+	cause := fmt.Sprintf("StatefulSet %s's pod template has changed, and %d of its %d pods still run the old one: its rolling update has partition %d, so only pods with an ordinal of %d or more get the new template, and %s keep the old one", name, old, all, part, part, held)
+	if part >= all {
+		cause = fmt.Sprintf("StatefulSet %s's pod template has changed, and none of its %d pods runs it: its rolling update has partition %d, at or above its replica count, so the update reaches no pod", name, all, part)
+	}
+	return &Finding{Rule: "KD296", Title: "StatefulSet update stops at its partition", Severity: Warning, Object: w.Ref(),
+		Cause: cause,
+		Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("StatefulSet %s: partition %d, current revision %s, update revision %s, %d of %d pods updated", name, part, w.Status.CurrentRevision, w.Status.UpdateRevision, w.Status.UpdatedReplicas, all),
+			Command: cmdGet("statefulset", ns, name, `{.spec.updateStrategy}{" "}{.status.currentRevision}{" "}{.status.updateRevision}{" "}{.status.updatedReplicas}/{.status.replicas}`)}},
+		Fix: fmt.Sprintf("Lower the partition to roll the change out further (0 updates every pod), once the pods above it look healthy; kubectl rollout status statefulset/%s follows it.", name)}
+}
+
+// deadlineTooShort finds a Deployment whose progressDeadlineSeconds is shorter than its new pods can take to count as
+// available: the readiness probe's initialDelaySeconds (or the startup probe's, which runs first) plus
+// minReadySeconds. Every rollout then makes no progress for longer than the deadline and is reported as failed
+// (ProgressDeadlineExceeded, and kubectl rollout status fails a pipeline), though the pods come up fine.
+func deadlineTooShort(w kube.Workload) *Finding {
+	d := w.Spec.ProgressDeadlineSeconds
+	if w.Kind != "Deployment" || d == nil {
+		return nil
+	}
+	need, why := int32(0), ""
+	for _, c := range w.Spec.Template.Spec.Containers {
+		delay, kind := int32(0), ""
+		if c.StartupProbe != nil {
+			delay, kind = c.StartupProbe.InitialDelaySeconds, "startup"
+		}
+		if c.ReadinessProbe != nil && c.ReadinessProbe.InitialDelaySeconds > delay {
+			delay, kind = c.ReadinessProbe.InitialDelaySeconds, "readiness"
+		}
+		if delay > need {
+			need, why = delay, fmt.Sprintf("container %s's %s probe waits initialDelaySeconds %d", c.Name, kind, delay)
+		}
+	}
+	if m := w.Spec.MinReadySeconds; m > 0 {
+		need += m
+		if why != "" {
+			why += fmt.Sprintf(", then minReadySeconds %d", m)
+		} else {
+			why = fmt.Sprintf("minReadySeconds is %d", m)
+		}
+	}
+	if need == 0 || *d >= need {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	return &Finding{Rule: "KD295", Title: "Rollout deadline is shorter than a pod takes to become available", Severity: Warning, Object: w.Ref(),
+		Cause: fmt.Sprintf("Deployment %s's progressDeadlineSeconds is %d, and a new pod cannot count as available in under %ds (%s), so every rollout goes %ds without progress and is reported as failed (ProgressDeadlineExceeded), and kubectl rollout status fails, though the pods come up fine",
+			name, *d, need, why, *d),
+		Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("Deployment %s: progressDeadlineSeconds %d, minReadySeconds %d, and its probes' initial delays", name, *d, w.Spec.MinReadySeconds),
+			Command: cmdGet("deployment", ns, name, `{.spec.progressDeadlineSeconds}{" "}{.spec.minReadySeconds}{"\n"}{range .spec.template.spec.containers[*]}{.name}{" "}{.readinessProbe.initialDelaySeconds}{" "}{.startupProbe.initialDelaySeconds}{"\n"}{end}`)}},
+		Fix: fmt.Sprintf("Raise progressDeadlineSeconds well above %ds (the default is 600), or shorten the probe's initialDelaySeconds: a startup probe lets a slow start finish without a long fixed delay.", need)}
 }

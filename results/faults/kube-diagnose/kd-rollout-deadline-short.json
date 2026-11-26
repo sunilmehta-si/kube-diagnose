@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-rollout-deadline-short"
+  ],
+  "collectedAt": "2026-11-26 05:54 UTC",
+  "findings": [
+    {
+      "rule": "KD295",
+      "title": "Rollout deadline is shorter than a pod takes to become available",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-rollout-deadline-short",
+        "name": "api"
+      },
+      "cause": "Deployment api's progressDeadlineSeconds is 10, and a new pod cannot count as available in under 30s (container api's readiness probe waits initialDelaySeconds 30), so every rollout goes 10s without progress and is reported as failed (ProgressDeadlineExceeded), and kubectl rollout status fails, though the pods come up fine",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-rollout-deadline-short",
+            "name": "api"
+          },
+          "what": "Deployment api: progressDeadlineSeconds 10, minReadySeconds 0, and its probes' initial delays",
+          "command": "kubectl get deployment api -n kd-rollout-deadline-short -o jsonpath='{.spec.progressDeadlineSeconds}{\" \"}{.spec.minReadySeconds}{\"\\n\"}{range .spec.template.spec.containers[*]}{.name}{\" \"}{.readinessProbe.initialDelaySeconds}{\" \"}{.startupProbe.initialDelaySeconds}{\"\\n\"}{end}'"
+        }
+      ],
+      "fix": "Raise progressDeadlineSeconds well above 30s (the default is 600), or shorten the probe's initialDelaySeconds: a startup probe lets a slow start finish without a long fixed delay."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

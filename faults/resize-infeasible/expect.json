@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-resize-infeasible",
+  "description": "A Job resizes the running batch pod in place to 64 CPUs, more than its node has, and the API server refuses the resize, so the Job fails.",
+  "rule": "KD247",
+  "object": "Job/resize",
+  "keywords": [
+    [
+      "refused the in-place resize"
+    ],
+    [
+      "allocatable"
+    ],
+    [
+      "64000"
+    ]
+  ]
+}

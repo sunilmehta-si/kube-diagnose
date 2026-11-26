@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-service-selects-deployment-labels",
+  "description": "Service api selects app=api, the labels on Deployment api itself, while its pods carry app=api-server, so the Service selects no pod.",
+  "rule": "KD160",
+  "object": "Service/api",
+  "keywords": [
+    [
+      "app=api"
+    ],
+    [
+      "own labels"
+    ],
+    [
+      "api-server"
+    ]
+  ]
+}

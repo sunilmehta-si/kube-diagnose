@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rbac-all-namespaces",
-              "Masked": "Yl5NZEBvKTQ7Qi1EZF8/UlNxS3lLaA=="
+              "Masked": "b1tHSSUwSF4wbno/UHZXKmh3YyRfSA=="
             },
             {
               "Unmasked": "pod-dashboard",
-              "Masked": "Tiw4XzdjeXBneERefA=="
+              "Masked": "aEFjPk8pVnpvP3VYfA=="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rbac-all-namespaces/pod-dashboard-746cf4d754-s226d",
+      "name": "kd-rbac-all-namespaces/pod-dashboard-746cf4d754-9pkb6",
       "error": [
         {
-          "Text": "the last termination reason is Error container=dashboard pod=pod-dashboard-746cf4d754-s226d",
+          "Text": "the termination reason is Error exitCode=1 container=dashboard pod=pod-dashboard-746cf4d754-9pkb6",
           "KubernetesDoc": "",
           "Sensitive": []
         }

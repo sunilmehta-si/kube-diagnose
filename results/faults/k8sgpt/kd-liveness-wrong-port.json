@@ -5,19 +5,6 @@
   "problems": 2,
   "results": [
     {
-      "kind": "Pod",
-      "name": "kd-liveness-wrong-port/web-67fbcb44db-5bpfd",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=web pod=web-67fbcb44db-5bpfd",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
-    },
-    {
       "kind": "Deployment",
       "name": "kd-liveness-wrong-port/web",
       "error": [
@@ -27,17 +14,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-liveness-wrong-port",
-              "Masked": "MnRzeGlQMGNDJylbSjcoUWxGPmQ3QQ=="
+              "Masked": "ayFrJHRDXmZ4Ql9CRTZsTjVpMS5WLQ=="
             },
             {
               "Unmasked": "web",
-              "Masked": "dSZw"
+              "Masked": "N14s"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-liveness-wrong-port/web-67fbcb44db-56ch2",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-67fbcb44db-56ch2",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

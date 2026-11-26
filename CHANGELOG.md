@@ -2,6 +2,39 @@
 
 ## [Unreleased]
 
+## [0.16.0] - 2026-11-26
+
+- The fault suite's committed run (45763138488): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 229 of 229 faults and raises no false alarm; k8sgpt v0.4.41 names 37, 10 of them first.
+
+### Added
+- 7 rules, 228 in all (`docs/rules.md`):
+  - creating pods: a ValidatingAdmissionPolicy, the API server's own CEL admission, that denies a controller's pods,
+    naming the policy, its binding and the expression or message (KD279); system-critical priority outside
+    kube-system, refused by the quota admission in words that read like an exhausted quota (KD380);
+  - running the container: an app that calls the API server with a projected token minted for another audience,
+    refused with 401, which reads like RBAC and is not (KD316);
+  - scheduling: an in-place resize the node cannot hold at all, which leaves the pod at its old size (KD247);
+  - workloads: a StatefulSet whose rolling update stops at its partition (KD296); a Deployment whose
+    progressDeadlineSeconds is shorter than its pods take to become available (KD295); a CronJob whose runs fail while
+    failedJobsHistoryLimit 0 deletes each failed Job and its logs (KD297).
+- RuntimeClasses are read: their handler, and the nodeSelector and tolerations they merge into the pods that use them.
+- 10 fault scenarios, 229 broken namespaces in all: one for each new rule but KD380, and one each for KD123's,
+  KD141's, KD112's and KD160's new causes below. KD380 is tested on the recorded message: kind's API server, as
+  configured, admits system-critical priority in any namespace, while clusters that limit it to kube-system (GKE
+  does) refuse it with that message.
+
+### Changed
+- KD123 says when an egress policy lets port 53 out only to kube-dns by podSelector, which without a namespaceSelector
+  names pods of its own namespace.
+- KD141 names the RuntimeClass whose scheduling.nodeSelector, merged into the pod, no node has.
+- KD140 says when the nodes are at the kubelet's pod limit (Too many pods), not short of a resource the pod requests.
+- KD112 says when a sidecar's startup probe holds back the containers after it, which never start.
+- KD160 says when a Service's selector matches a workload's own labels, which its pods never get.
+- KD247 also explains an in-place resize the API server refuses at once (Kubernetes 1.35 and later), in the client that
+  asked for it.
+- `record --redact` keeps a CronJob's runs named for it (its pseudonym and the run's scheduled-time suffix).
+
 ## [0.15.0] - 2026-11-25
 
 - The fault suite's committed run (45650382555): kube-diagnose names the root cause in its first finding, with the

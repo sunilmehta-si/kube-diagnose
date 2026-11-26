@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-selects-deployment-labels"
+  ],
+  "collectedAt": "2026-11-26 05:55 UTC",
+  "findings": [
+    {
+      "rule": "KD160",
+      "title": "Service selects no pods",
+      "severity": "critical",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-selects-deployment-labels",
+        "name": "api"
+      },
+      "cause": "Service api selects pods with app=api, and no pod in namespace kd-service-selects-deployment-labels has those labels: app=api matches Deployment api's own labels (under its metadata), which its pods do not get; its pods carry app=api-server",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-selects-deployment-labels",
+            "name": "api"
+          },
+          "what": "Service selects pods with app=api",
+          "command": "kubectl get service api -n kd-service-selects-deployment-labels -o jsonpath='{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "Deployment",
+            "namespace": "kd-service-selects-deployment-labels",
+            "name": "api"
+          },
+          "what": "Deployment api's own labels match the selector; its pod template's labels are app=api-server",
+          "command": "kubectl get deployment api -n kd-service-selects-deployment-labels -o jsonpath='{.metadata.labels}{\"\\n\"}{.spec.template.metadata.labels}'"
+        }
+      ],
+      "fix": "Select the pods by their template's labels (app=api-server), or add app=api to Deployment api's spec.template.metadata.labels: only those labels reach the pods."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

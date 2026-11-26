@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-run-as-unknown-uid",
-              "Masked": "L2dmQl4uTzgsa2ZFOkQ5XilOT09k"
+              "Masked": "eVBqPjNDTT1SWX00QnkxTnlvVnU7"
             },
             {
               "Unmasked": "reporter",
-              "Masked": "U3kmJE8lNWI="
+              "Masked": "NTQ+cFcmNT4="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-run-as-unknown-uid/reporter-78c5b4fbf-4kw4w",
+      "name": "kd-run-as-unknown-uid/reporter-78c5b4fbf-727z9",
       "error": [
         {
-          "Text": "the last termination reason is Error container=reporter pod=reporter-78c5b4fbf-4kw4w",
+          "Text": "the last termination reason is Error container=reporter pod=reporter-78c5b4fbf-727z9",
           "KubernetesDoc": "",
           "Sensitive": []
         }

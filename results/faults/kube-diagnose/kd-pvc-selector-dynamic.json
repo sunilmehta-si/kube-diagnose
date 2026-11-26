@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-selector-dynamic"
   ],
-  "collectedAt": "2026-11-25 16:11 UTC",
+  "collectedAt": "2026-11-26 05:53 UTC",
   "findings": [
     {
       "rule": "KD253",
@@ -46,7 +46,14 @@
           "command": "kubectl get events -n kd-pvc-selector-dynamic --field-selector involvedObject.kind=PersistentVolumeClaim,involvedObject.name=data"
         }
       ],
-      "fix": "Remove the selector to have the class provision a volume (a claim's selector cannot be changed: recreate the claim), or create a PersistentVolume with those labels and the claim's storageClassName for it to bind to."
+      "fix": "Remove the selector to have the class provision a volume (a claim's selector cannot be changed: recreate the claim), or create a PersistentVolume with those labels and the claim's storageClassName for it to bind to.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pvc-selector-dynamic",
+          "name": "cache-65d9d4b888-q56xs"
+        }
+      ]
     }
   ],
   "checked": {

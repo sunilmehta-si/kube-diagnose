@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-downward-label-missing"
   ],
-  "collectedAt": "2026-11-25 16:06 UTC",
+  "collectedAt": "2026-11-26 05:46 UTC",
   "findings": [
     {
       "rule": "KD236",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-downward-label-missing",
-            "name": "api-8668bb5f87-9pkmp"
+            "name": "api-8668bb5f87-bh97g"
           },
           "what": "container api exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod api-8668bb5f87-9pkmp -n kd-downward-label-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].state.terminated}'"
+          "command": "kubectl get pod api-8668bb5f87-bh97g -n kd-downward-label-missing -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-downward-label-missing",
-            "name": "api-8668bb5f87-9pkmp"
+            "name": "api-8668bb5f87-bh97g"
           },
-          "what": "last lines of container api's log (current run)",
+          "what": "last lines of container api's log (run that exited)",
           "detail": "APP_VERSION is empty: cannot tag the metrics",
-          "command": "kubectl logs api-8668bb5f87-9pkmp -n kd-downward-label-missing -c api --tail=20"
+          "command": "kubectl logs api-8668bb5f87-bh97g -n kd-downward-label-missing -c api --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-downward-label-missing",
-            "name": "api-8668bb5f87-9pkmp"
+            "name": "api-8668bb5f87-bh97g"
           },
           "what": "APP_VERSION comes from metadata.labels['app.kubernetes.io/version']; the pod's labels are app, pod-template-hash",
-          "command": "kubectl get pod api-8668bb5f87-9pkmp -n kd-downward-label-missing -o jsonpath='{.metadata.labels}'"
+          "command": "kubectl get pod api-8668bb5f87-bh97g -n kd-downward-label-missing -o jsonpath='{.metadata.labels}'"
         }
       ],
       "fix": "Add label app.kubernetes.io/version to the pod template's metadata (spec.template.metadata.labels of the workload), or point APP_VERSION at a label the pods have.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-downward-label-missing",
-          "name": "api-8668bb5f87-9pkmp"
+          "name": "api-8668bb5f87-bh97g"
         }
       ]
     }

@@ -1,0 +1,26 @@
+# CronJob backup fails every run, and its failedJobsHistoryLimit is 0, so each failed Job and its pod are deleted at once and no log is left to read.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-cronjob-failures-deleted
+
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+  namespace: kd-cronjob-failures-deleted
+spec:
+  schedule: "* * * * *"
+  # Set to keep the namespace tidy; it also deletes every failed run before anyone can read it.
+  failedJobsHistoryLimit: 0
+  jobTemplate:
+    spec:
+      backoffLimit: 0
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+            - name: backup
+              image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+              command: ["sh", "-c", "echo 'backup target backup.example.invalid is unreachable' >&2; exit 1"]

@@ -1295,6 +1295,19 @@ func TestNetworkPolicyBlocksDNS(t *testing.T) {
 	if f := Diagnose(s).Findings[0]; f.Rule == "KD123" {
 		t.Errorf("DNS is allowed: %s", f.Cause)
 	}
+
+	// Port 53 allowed to the DNS pods by podSelector alone: that names pods of shop, not kube-system's.
+	s.NetworkPolicies[0].Spec.Egress[1].To = []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"k8s-app": "kube-dns"}}}}
+	f = Diagnose(s).Findings[0]
+	expect(t, f, "KD123", "Deployment shop/web", "allows port 53 only to pods matching k8s-app=kube-dns", "picks pods of namespace shop alone, while cluster DNS runs in kube-system")
+	if !strings.Contains(f.Fix, "kubernetes.io/metadata.name: kube-system") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// With the namespaceSelector beside it, DNS gets out.
+	s.NetworkPolicies[0].Spec.Egress[1].To[0].NamespaceSelector = &kube.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": "kube-system"}}
+	if f := Diagnose(s).Findings[0]; f.Rule == "KD123" {
+		t.Errorf("DNS is allowed to kube-system: %s", f.Cause)
+	}
 }
 
 func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
@@ -4358,6 +4371,24 @@ func TestAdmissionWebhookCannotBeReached(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD173", "Deployment shop/web")
 }
 
+func TestValidatingAdmissionPolicyRejectsThePods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: pods "web-rs-x2k4p" is forbidden: ValidatingAdmissionPolicy 'require-team-label' with binding 'require-team-label-everywhere' denied request: every pod needs a team label`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD279", "Deployment shop/web", "ValidatingAdmissionPolicy require-team-label, through binding require-team-label-everywhere, denies them: every pod needs a team label")
+	if len(f.Evidence) != 3 || !strings.Contains(f.Fix, "narrow binding require-team-label-everywhere's matchResources") {
+		t.Errorf("evidence %+v fix %s", f.Evidence, f.Fix)
+	}
+	// A policy without a message says which expression failed.
+	s.Events[0].Message = `Error creating: pods "web-rs-x2k4p" is forbidden: ValidatingAdmissionPolicy 'require-team-label' with binding 'b' denied request: failed expression: has(object.metadata.labels.team)`
+	expect(t, only(t, Diagnose(s)), "KD279", "Deployment shop/web", "failed expression: has(object.metadata.labels.team)")
+}
+
 // TestContainerCaughtJustAfterFinishing is a Deployment's container whose process ends with code 0 each time, as the
 // fault suite recorded it between an exit and the kubelet's back-off: state terminated, reason Completed, five
 // restarts. It used to yield no finding at all.
@@ -5735,5 +5766,208 @@ func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
 		if f.Rule == "KD315" {
 			t.Errorf("script: %s", f.Cause)
 		}
+	}
+}
+
+func TestInPlaceResizeCannotFitTheNode(t *testing.T) {
+	s := snap()
+	deployment(s, "batch", 1, 1)
+	p := pod("batch-rs-a", "batch")
+	p.Status.Conditions = append(p.Status.Conditions, kube.Condition{Type: "PodResizePending", Status: "True", Reason: "Infeasible",
+		Message: "Node didn't have enough capacity: cpu, requested: 64000, capacity: 8000"})
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD247", "Deployment shop/batch", "node node-1 cannot hold the new size at all", "requested: 64000, capacity: 8000")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "a resize never moves a pod") {
+		t.Errorf("severity %v fix %s", f.Severity, f.Fix)
+	}
+	// The API server refuses such a resize at once (1.35 and later): the client that asked exits with its message.
+	q := pod("resize-x7k2p", "")
+	q.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "resize", Controller: yes()}}
+	crashed(&q, 1, "Error", 0)
+	q.Status.Phase = "Failed"
+	s.Jobs = []kube.Job{{Metadata: kube.ObjectMeta{Name: "resize", Namespace: "shop"}}}
+	s.Pods = append(s.Pods, q)
+	s.Logs = []snapshot.Log{{Pod: q.Ref(), Container: "web", Previous: true,
+		Lines: []string{`Error from server (Forbidden): pods "batch-rs-a" is forbidden: node didn't have enough allocatable resources: cpu, requested: 64000, allocatable: 4000`}}}
+	var refused *Finding
+	for i, f := range Diagnose(s).Findings {
+		if f.Object.Kind == "Job" {
+			refused = &Diagnose(s).Findings[i]
+		}
+	}
+	if refused == nil {
+		t.Fatal("no finding for the Job that asked for the resize")
+	}
+	expect(t, *refused, "KD247", "Job shop/resize", "refused the in-place resize it asked for", "has 4000m cpu allocatable, and the resize asks for 64000m")
+	s.Pods, s.Logs, s.Jobs = s.Pods[:1], nil, nil
+
+	// Deferred: the node may have room later, and the kubelet retries.
+	s.Pods[0].Status.Conditions[2].Reason = "Deferred"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestStatefulSetUpdateStopsAtItsPartition(t *testing.T) {
+	s := snap()
+	sts := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "kafka", Namespace: "shop"}}
+	three, part := int32(3), int32(2)
+	sts.Spec.Replicas = &three
+	sts.Spec.UpdateStrategy.RollingUpdate = &struct {
+		Partition *int32 `json:"partition,omitempty"`
+	}{&part}
+	sts.Status.Replicas, sts.Status.ReadyReplicas, sts.Status.UpdatedReplicas = 3, 3, 1
+	sts.Status.CurrentRevision, sts.Status.UpdateRevision = "kafka-6d5f", "kafka-7b9c"
+	s.Workloads = []kube.Workload{sts}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD296", "StatefulSet shop/kafka", "2 of its 3 pods still run the old one", "partition 2", "pods kafka-0 to kafka-1 keep the old one")
+	// A partition at the replica count lets the change reach no pod.
+	part = 3
+	s.Workloads[0].Status.UpdatedReplicas = 0
+	expect(t, only(t, Diagnose(s)), "KD296", "StatefulSet shop/kafka", "none of its 3 pods runs it", "reaches no pod")
+	// Rolled out as far as the partition allows and no further change: nothing to say.
+	s.Workloads[0].Status.CurrentRevision = "kafka-7b9c"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestRolloutDeadlineIsShorterThanAPodTakesToBecomeAvailable(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 2, 2)
+	d := &s.Workloads[0]
+	ten := int32(10)
+	d.Spec.ProgressDeadlineSeconds = &ten
+	d.Spec.Template.Spec.Containers = []kube.Container{{Name: "api", ReadinessProbe: &kube.Probe{InitialDelaySeconds: 30}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD295", "Deployment shop/api", "progressDeadlineSeconds is 10", "cannot count as available in under 30s", "container api's readiness probe waits initialDelaySeconds 30")
+	// minReadySeconds adds to the wait.
+	d.Spec.MinReadySeconds = 15
+	ninety := int32(40)
+	d.Spec.ProgressDeadlineSeconds = &ninety
+	expect(t, only(t, Diagnose(s)), "KD295", "Deployment shop/api", "under 45s", "then minReadySeconds 15")
+	// The default deadline, or one long enough, says nothing.
+	d.Spec.ProgressDeadlineSeconds = nil
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
+
+func TestNodeSelectorFromARuntimeClass(t *testing.T) {
+	s := snap()
+	deployment(s, "sandboxed", 1, 0)
+	p := pod("sandboxed-rs-a", "sandboxed")
+	p.Spec.NodeName = ""
+	p.Spec.RuntimeClassName = "gvisor"
+	p.Spec.NodeSelector = map[string]string{"sandbox.example.com/runtime": "gvisor"}
+	p.Status = kube.PodStatus{Phase: "Pending", Conditions: []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."}}}
+	s.Pods = []kube.Pod{p}
+	var rc kube.RuntimeClass
+	rc.Metadata.Name, rc.Handler = "gvisor", "runsc"
+	rc.Scheduling = &struct {
+		NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+		Tolerations  []kube.Toleration `json:"tolerations,omitempty"`
+	}{NodeSelector: map[string]string{"sandbox.example.com/runtime": "gvisor"}}
+	s.RuntimeClasses = []kube.RuntimeClass{rc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD141", "Deployment shop/sandboxed", "sandbox.example.com/runtime=gvisor comes from RuntimeClass gvisor (handler runsc)", "not from the pod's own template")
+	if !strings.Contains(f.Fix, "Label the nodes that have the runsc runtime handler") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Without the RuntimeClass on record, the selector is the pod's own.
+	s.RuntimeClasses = nil
+	f = only(t, Diagnose(s))
+	if strings.Contains(f.Cause, "RuntimeClass") {
+		t.Errorf("cause: %s", f.Cause)
+	}
+}
+
+func TestNoNodeCanTakeAnotherPod(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.NodeName = ""
+	p.Status = kube.PodStatus{Phase: "Pending", Conditions: []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 Too many pods. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod."}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD140", "Deployment shop/web", "no node can take another pod: 1 node already runs as many pods as its kubelet allows", "pod limits: node-1 110")
+	if strings.Contains(f.Fix, "request") || !strings.Contains(f.Fix, "maxPods") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestSidecarsStartupProbeHoldsTheAppBack(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "proxy", RestartPolicy: "Always", StartupProbe: &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/ready", Port: port(15021)}}}}
+	p.Status.Phase = "Pending"
+	started := false
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "proxy", Started: &started, RestartCount: 3, State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0}},
+		LastTerminationState: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 137, Reason: "Error"}}}}
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "PodInitializing"}}}}
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "True"}, {Type: "Initialized", Status: "False"}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web-rs-a", "Unhealthy", `Startup probe failed: Get "http://10.244.0.9:15021/ready": dial tcp 10.244.0.9:15021: connect: connection refused`, 0),
+		event("Pod", "web-rs-a", "Killing", "Container proxy failed startup probe, will be restarted", 0)}
+	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web", "container proxy fails its startup probe", "it is a sidecar", "so container web never starts")
+}
+
+func TestContainerCallsTheAPIServerWithATokenForAnotherAudience(t *testing.T) {
+	s := snap()
+	deployment(s, "sync", 1, 0)
+	p := pod("sync-rs-a", "sync")
+	crashed(&p, 1, "Error", 3)
+	src := kube.ProjectedSource{ServiceAccountToken: &struct {
+		Audience string `json:"audience,omitempty"`
+		Path     string `json:"path"`
+	}{"vault", "vault-token"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "vault-token", Projected: &kube.ProjectedVolumeSource{Sources: []kube.ProjectedSource{src}}}}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "vault-token", MountPath: "/var/run/secrets/tokens"}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"listing pods", "wget: server returned error: HTTP/1.1 401 Unauthorized"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD316", "Deployment shop/sync", "refuses its token (401 Unauthorized, not a missing permission)", "the token at /var/run/secrets/tokens/vault-token", "minted for audience vault")
+	// A 403 is a missing permission, not this.
+	s.Logs[0].Lines = []string{`pods is forbidden: User "system:serviceaccount:shop:sync" cannot list resource "pods" in API group "" in the namespace "shop"`}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD316" {
+			t.Errorf("403: %s", f.Cause)
+		}
+	}
+}
+
+func TestServiceSelectsTheDeploymentsLabelsNotItsPods(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 1)
+	s.Workloads[0].Metadata.Labels = map[string]string{"app": "api"}
+	s.Workloads[0].Spec.Template.Metadata.Labels = map[string]string{"app": "api-server"}
+	p := pod("api-rs-a", "api")
+	p.Metadata.Labels = map[string]string{"app": "api-server"}
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("api", map[string]string{"app": "api"}, port(8080))}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD160", "Service shop/api", "app=api matches Deployment api's own labels (under its metadata), which its pods do not get; its pods carry app=api-server")
+	if !strings.Contains(f.Fix, "spec.template.metadata.labels: only those labels reach the pods") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestSystemCriticalPriorityIsNotAllowedInTheNamespace(t *testing.T) {
+	s := snap()
+	deployment(s, "agent", 1, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+		s.Workloads[i].Spec.Template.Spec.PriorityClassName = "system-node-critical"
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "agent-rs", "FailedCreate",
+		`Error creating: pods "agent-rs-x2k4p" is forbidden: insufficient quota to match these scopes: [{PriorityClass In [system-node-critical system-cluster-critical]}]`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD380", "Deployment shop/agent", "they use PriorityClass system-node-critical", "only in a namespace with a ResourceQuota that names that class, as kube-system has; shop has none")
+	if !strings.Contains(f.Fix, "copied from a kube-system manifest") || !strings.Contains(f.Fix, "scopeSelector names PriorityClass system-node-critical") {
+		t.Errorf("fix: %s", f.Fix)
 	}
 }

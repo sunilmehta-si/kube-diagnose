@@ -14,30 +14,17 @@
           "Sensitive": [
             {
               "Unmasked": "kd-limitrange-default-below-request",
-              "Masked": "RF9WOSV6aEolbDlzezt3NnlwcTpBZzkhVXclZCJLaFVtTXE="
+              "Masked": "bDxZR3VCWkxYeUJyPyZkPEwtdkBPaixvXyRpRGY2ZXMreXY="
             },
             {
               "Unmasked": "web",
-              "Masked": "ZFoj"
+              "Masked": "STNQ"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "ReplicaSet",
-      "name": "kd-limitrange-default-below-request/web-6c8ddf67c6",
-      "error": [
-        {
-          "Text": "Pod \"web-6c8ddf67c6-hdbpb\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     },
     {
       "kind": "ConfigMap",
@@ -51,6 +38,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-limitrange-default-below-request/web-6c8ddf67c6",
+      "error": [
+        {
+          "Text": "Pod \"web-6c8ddf67c6-n6szp\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-command-undefined-var",
-              "Masked": "X1giakZoM0RbVSI9c1lLK2lQbCcpTlA9"
+              "Masked": "b3JIJEZzKEZqajhJaSNkQGV0V30iLUlj"
             },
             {
               "Unmasked": "worker",
-              "Masked": "QTdSQy15"
+              "Masked": "QWE0fEVJ"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-command-undefined-var/worker-69b5d4bd7-62rzb",
+      "name": "kd-command-undefined-var/worker-69b5d4bd7-5j455",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=worker pod=worker-69b5d4bd7-62rzb",
+          "Text": "the termination reason is Error exitCode=1 container=worker pod=worker-69b5d4bd7-5j455",
           "KubernetesDoc": "",
           "Sensitive": []
         }

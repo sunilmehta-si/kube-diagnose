@@ -1,0 +1,57 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-runtimeclass-node-selector/scanner",
+      "error": [
+        {
+          "Text": "Deployment kd-runtimeclass-node-selector/scanner has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-runtimeclass-node-selector",
+              "Masked": "RWNaa3FeaTRoNzYnJGRrRmEzM1hVekB0ZEBecEE="
+            },
+            {
+              "Unmasked": "scanner",
+              "Masked": "by1DJHliWQ=="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-runtimeclass-node-selector/scanner has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"scanner-6bd9474d68\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-runtimeclass-node-selector",
+              "Masked": "RjlwSi1AIVNddUUoeFl7LWImSURRUE5qPjl5Vio="
+            },
+            {
+              "Unmasked": "scanner",
+              "Masked": "MlM8ek5YKg=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-runtimeclass-node-selector/scanner-6bd9474d68-nb6fq",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/scanner"
+    }
+  ]
+}

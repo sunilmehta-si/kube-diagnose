@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-command-one-string"
   ],
-  "collectedAt": "2026-11-25 16:05 UTC",
+  "collectedAt": "2026-11-26 05:45 UTC",
   "findings": [
     {
       "rule": "KD201",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-one-string",
-            "name": "worker-66444d4765-6n85g"
+            "name": "worker-66444d4765-7w2m6"
           },
           "what": "container worker did not start",
           "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"sleep 3600\": executable file not found in $PATH",
-          "command": "kubectl get pod worker-66444d4765-6n85g -n kd-command-one-string -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state}'"
+          "command": "kubectl get pod worker-66444d4765-7w2m6 -n kd-command-one-string -o jsonpath='{.status.containerStatuses[?(@.name==\"worker\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-command-one-string",
-            "name": "worker-66444d4765-6n85g"
+            "name": "worker-66444d4765-7w2m6"
           },
           "what": "container worker's command is \"sleep 3600\", one string",
-          "command": "kubectl get pod worker-66444d4765-6n85g -n kd-command-one-string -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}'"
+          "command": "kubectl get pod worker-66444d4765-7w2m6 -n kd-command-one-string -o jsonpath='{.spec.containers[?(@.name==\"worker\")].command}'"
         }
       ],
       "fix": "Write the command as a list with one item per word: [\"sleep\", \"3600\"] instead of [\"sleep 3600\"].",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-command-one-string",
-          "name": "worker-66444d4765-6n85g"
+          "name": "worker-66444d4765-7w2m6"
         }
       ]
     }

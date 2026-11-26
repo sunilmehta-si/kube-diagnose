@@ -195,7 +195,10 @@ func TestFileMissingFromAProjectedVolume(t *testing.T) {
 
 	// A ServiceAccount token source adds files the spec does not list: no claim about what is missing.
 	s = snap()
-	volumePod(s, projected(cm, kube.ProjectedSource{ServiceAccountToken: &struct{}{}}), "/etc/app", false,
+	volumePod(s, projected(cm, kube.ProjectedSource{ServiceAccountToken: &struct {
+		Audience string `json:"audience,omitempty"`
+		Path     string `json:"path"`
+	}{Path: "token"}}), "/etc/app", false,
 		"cat: can't open '/etc/app/config.yaml': No such file or directory")
 	s.ConfigMaps = []kube.KeySet{keys("shop", "app", "config.yml")}
 	expect(t, only(t, Diagnose(s)), "KD110", "Deployment shop/web")

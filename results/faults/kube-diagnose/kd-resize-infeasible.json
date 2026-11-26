@@ -1,0 +1,75 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-resize-infeasible"
+  ],
+  "collectedAt": "2026-11-26 05:54 UTC",
+  "findings": [
+    {
+      "rule": "KD247",
+      "title": "In-place resize cannot fit the node",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-resize-infeasible",
+        "name": "resize"
+      },
+      "cause": "container resize exits because the API server refused the in-place resize it asked for: pod batch's node has 4000m cpu allocatable, and the resize asks for 64000m; a resize never moves a pod to a bigger node; its log says: \"Error from server (Forbidden): pods \\\"batch\\\" is forbidden: node didn't have enough allocatable resources: cpu, requested: 64000, allocatable: 4000\"",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-resize-infeasible",
+            "name": "resize-4jl9h"
+          },
+          "what": "container resize exited with code 1 (Error)",
+          "command": "kubectl get pod resize-4jl9h -n kd-resize-infeasible -o jsonpath='{.status.containerStatuses[?(@.name==\"resize\")].state.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-resize-infeasible",
+            "name": "resize-4jl9h"
+          },
+          "what": "last lines of container resize's log (current run)",
+          "detail": "Error from server (Forbidden): pods \"batch\" is forbidden: node didn't have enough allocatable resources: cpu, requested: 64000, allocatable: 4000",
+          "command": "kubectl logs resize-4jl9h -n kd-resize-infeasible -c resize --tail=20"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-resize-infeasible",
+            "name": "batch"
+          },
+          "what": "pod batch's requests and its node",
+          "command": "kubectl get pod batch -n kd-resize-infeasible -o jsonpath='{.spec.nodeName}{\" \"}{.spec.containers[*].resources}'"
+        }
+      ],
+      "fix": "Ask for no more cpu than pod batch's node can hold, or recreate the pod with the new requests so the scheduler places it on a node with room.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-resize-infeasible",
+          "name": "resize-4jl9h"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-resize-infeasible",
+          "name": "resize-frqlk"
+        },
+        {
+          "kind": "Pod",
+          "namespace": "kd-resize-infeasible",
+          "name": "resize-ws84l"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 4,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-shell-nothing-to-do"
   ],
-  "collectedAt": "2026-11-25 16:12 UTC",
+  "collectedAt": "2026-11-26 05:55 UTC",
   "findings": [
     {
       "rule": "KD315",
@@ -21,19 +21,19 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-shell-nothing-to-do",
-            "name": "toolbox-68b5fc954-7zfg6"
+            "name": "toolbox-68b5fc954-k8m58"
           },
-          "what": "container toolbox exited with code 0 (Completed), restarted 6 times",
-          "command": "kubectl get pod toolbox-68b5fc954-7zfg6 -n kd-shell-nothing-to-do -o jsonpath='{.status.containerStatuses[?(@.name==\"toolbox\")].lastState.terminated}'"
+          "what": "container toolbox exited with code 0 (Completed), restarted 7 times",
+          "command": "kubectl get pod toolbox-68b5fc954-k8m58 -n kd-shell-nothing-to-do -o jsonpath='{.status.containerStatuses[?(@.name==\"toolbox\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-shell-nothing-to-do",
-            "name": "toolbox-68b5fc954-7zfg6"
+            "name": "toolbox-68b5fc954-k8m58"
           },
           "what": "container toolbox's image, command and args",
-          "command": "kubectl get pod toolbox-68b5fc954-7zfg6 -n kd-shell-nothing-to-do -o jsonpath='{.spec.containers[?(@.name==\"toolbox\")].image}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].command}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].args}'"
+          "command": "kubectl get pod toolbox-68b5fc954-k8m58 -n kd-shell-nothing-to-do -o jsonpath='{.spec.containers[?(@.name==\"toolbox\")].image}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].command}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].args}'"
         }
       ],
       "fix": "Give the container the command it is meant to run; to keep a debugging container alive, run sleep infinity (or set stdin: true and tty: true), and use kubectl debug or kubectl run -it for an interactive shell.",
@@ -41,7 +41,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-shell-nothing-to-do",
-          "name": "toolbox-68b5fc954-7zfg6"
+          "name": "toolbox-68b5fc954-k8m58"
         }
       ]
     }

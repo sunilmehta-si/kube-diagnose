@@ -114,6 +114,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	if p.Status.Phase == "Running" {
+		if pr := resizeInfeasible(p); pr != nil {
+			return pr
+		}
 		if pr := subdomainProblem(ix, p, nil, nil, nil); pr != nil {
 			return pr
 		}
@@ -1225,6 +1228,12 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := policyBlocksService(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := resizeRefused(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := tokenForAnotherAudience(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := tokenNotMounted(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -1654,6 +1663,9 @@ func livenessKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := killedWhileStarting(ix, p, cs, c, ev); pr != nil {
 		return pr
 	}
+	if blocked := sidecarBlocks(p, cs.Name, kind); blocked != "" {
+		cause += fmt.Sprintf("; it is a sidecar (an init container with restartPolicy: Always), and the containers after it start only once its startup probe passes, so %s never %s", blocked, map[bool]string{true: "starts", false: "start"}[!strings.Contains(blocked, ",")])
+	}
 	return newProblem(p, cs.Name, "KD112", "Liveness probe kills the container", Critical, cause, "probe|"+describeProbe(c, probe), fix, ev...)
 }
 
@@ -1973,4 +1985,27 @@ func memoryIn(s string) (where, setting string, size float64, ok bool) {
 		return "the command line", m[0], n * (1 << 20), true
 	}
 	return "", "", 0, false
+}
+
+// sidecarBlocks names the containers that wait for a sidecar whose startup probe has not passed: the init containers
+// after it and every app container. The kubelet starts them only once each sidecar before them has started.
+func sidecarBlocks(p kube.Pod, sidecar, kind string) string {
+	if kind != "startup" || !p.IsSidecar(sidecar) {
+		return ""
+	}
+	var waiting []string
+	after := false
+	for _, c := range p.Spec.InitContainers {
+		if after {
+			waiting = append(waiting, c.Name)
+		}
+		after = after || c.Name == sidecar
+	}
+	for _, c := range p.Spec.Containers {
+		waiting = append(waiting, c.Name)
+	}
+	if len(waiting) == 0 {
+		return ""
+	}
+	return "container " + strings.Join(waiting, ", ")
 }

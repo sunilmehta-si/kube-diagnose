@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-init-never-finishes"
   ],
-  "collectedAt": "2026-11-25 16:08 UTC",
+  "collectedAt": "2026-11-26 05:49 UTC",
   "findings": [
     {
       "rule": "KD119",
@@ -15,26 +15,26 @@
         "namespace": "kd-init-never-finishes",
         "name": "web"
       },
-      "cause": "init container wait-for-db has run for 6m0s without finishing, so the pod's app containers have not started; its log says: \"waiting for db:5432\"; it waits for db, and there is no Service db in namespace kd-init-never-finishes; Deployment web has 0 of 1 replicas ready",
+      "cause": "init container wait-for-db has run for 8m0s without finishing, so the pod's app containers have not started; its log says: \"waiting for db:5432\"; it waits for db, and there is no Service db in namespace kd-init-never-finishes; Deployment web has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-never-finishes",
-            "name": "web-658bdbddd-b2slq"
+            "name": "web-658bdbddd-6n4rk"
           },
-          "what": "init container wait-for-db has been running since 2026-11-25T16:02:35Z",
-          "command": "kubectl get pod web-658bdbddd-b2slq -n kd-init-never-finishes -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state}'"
+          "what": "init container wait-for-db has been running since 2026-11-26T05:42:07Z",
+          "command": "kubectl get pod web-658bdbddd-6n4rk -n kd-init-never-finishes -o jsonpath='{.status.initContainerStatuses[?(@.name==\"wait-for-db\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-init-never-finishes",
-            "name": "web-658bdbddd-b2slq"
+            "name": "web-658bdbddd-6n4rk"
           },
           "what": "last lines of container wait-for-db's log (current run)",
           "detail": "wget: bad address 'db:5432'\nwaiting for db:5432\nwget: bad address 'db:5432'\nwaiting for db:5432\nwget: bad address 'db:5432'\nwaiting for db:5432",
-          "command": "kubectl logs web-658bdbddd-b2slq -n kd-init-never-finishes -c wait-for-db --tail=20"
+          "command": "kubectl logs web-658bdbddd-6n4rk -n kd-init-never-finishes -c wait-for-db --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-init-never-finishes",
-          "name": "web-658bdbddd-b2slq"
+          "name": "web-658bdbddd-6n4rk"
         }
       ]
     }

@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-dra-no-driver",
-              "Masked": "aV4rbkZaNF9mdXckVVpTXw=="
+              "Masked": "Til3JlNVbEJ5U0EpXjk+MQ=="
             },
             {
               "Unmasked": "trainer",
-              "Masked": "SCJlQFB5Xw=="
+              "Masked": "Jl9tMlFeQQ=="
             }
           ]
         }
@@ -28,7 +28,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-dra-no-driver/trainer-7845ff4f5b-892fb",
+      "name": "kd-dra-no-driver/trainer-7845ff4f5b-shj8d",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

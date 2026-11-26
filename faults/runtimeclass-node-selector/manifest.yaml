@@ -1,0 +1,39 @@
+# The scanner runs under RuntimeClass kd-faults-sandboxed, whose scheduling.nodeSelector sandbox.example.com/runtime=gvisor is merged into its pods, and no node has that label.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-runtimeclass-node-selector
+
+---
+# A sandboxed runtime's class: pods that use it run only on nodes labelled for it, and no node of the cluster is.
+apiVersion: node.k8s.io/v1
+kind: RuntimeClass
+metadata:
+  name: kd-faults-sandboxed
+handler: runc
+scheduling:
+  nodeSelector:
+    sandbox.example.com/runtime: gvisor
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: scanner
+  namespace: kd-runtimeclass-node-selector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: scanner
+  template:
+    metadata:
+      labels:
+        app: scanner
+    spec:
+      # Untrusted uploads are scanned in a sandbox; the template itself sets no nodeSelector.
+      runtimeClassName: kd-faults-sandboxed
+      containers:
+        - name: scanner
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "exec sleep 3600"]

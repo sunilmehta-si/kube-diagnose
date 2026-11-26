@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-cronjob-failures-deleted"
+  ],
+  "collectedAt": "2026-11-26 05:46 UTC",
+  "findings": [
+    {
+      "rule": "KD297",
+      "title": "CronJob's runs fail, and their Jobs are deleted at once",
+      "severity": "critical",
+      "object": {
+        "kind": "CronJob",
+        "namespace": "kd-cronjob-failures-deleted",
+        "name": "backup"
+      },
+      "cause": "CronJob backup's runs fail: its last 5 runs failed (backup-29927866, backup-29927865, backup-29927864, backup-29927863, backup-29927862), and it has never completed a run. Its failedJobsHistoryLimit is 0, so the controller deletes each failed Job and its pods as soon as it sees it, and there is no pod or log left to say why",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-cronjob-failures-deleted",
+            "name": "backup-29927866"
+          },
+          "what": "event BackoffLimitExceeded",
+          "detail": "Job has reached the specified backoff limit",
+          "command": "kubectl get events -n kd-cronjob-failures-deleted --field-selector involvedObject.kind=Job,involvedObject.name=backup-29927866"
+        },
+        {
+          "object": {
+            "kind": "CronJob",
+            "namespace": "kd-cronjob-failures-deleted",
+            "name": "backup"
+          },
+          "what": "CronJob backup keeps no failed Job (failedJobsHistoryLimit: 0)",
+          "command": "kubectl get cronjob backup -n kd-cronjob-failures-deleted -o jsonpath='{.spec.failedJobsHistoryLimit}{\" \"}{.status}'"
+        }
+      ],
+      "fix": "Set failedJobsHistoryLimit to 1 or more so the next failed run's Job and pods stay to be read (kubectl logs job/\u003cname\u003e), or start a run by hand to watch it: kubectl create job --from=cronjob/backup backup-debug -n kd-cronjob-failures-deleted."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -1,0 +1,36 @@
+# Deployment api allows a rollout 10 seconds without progress, and its readiness probe waits 30 before its first check, so every rollout is reported as failed though the pod comes up fine.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-rollout-deadline-short
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kd-rollout-deadline-short
+spec:
+  replicas: 1
+  # Copied from a template for a fast service; this one's readiness probe waits 30 seconds before its first check.
+  progressDeadlineSeconds: 10
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "mkdir -p /www && echo ok > /www/index.html && exec httpd -f -p 8080 -h /www"]
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5

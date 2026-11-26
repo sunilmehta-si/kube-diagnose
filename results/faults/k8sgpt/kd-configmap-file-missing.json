@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-configmap-file-missing",
-              "Masked": "NkYlVUUkWSQ9eSlkWCZ2Oz5jPEM+MkQwMg=="
+              "Masked": "OGgjbE9xZzBZZH0iM2ZEJWl0fGw9KWU+MQ=="
             },
             {
               "Unmasked": "web",
-              "Masked": "X21x"
+              "Masked": "UVlw"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-configmap-file-missing/web-8545878979-2drcs",
+      "name": "kd-configmap-file-missing/web-8545878979-frq44",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=web pod=web-8545878979-2drcs",
+          "Text": "the last termination reason is Error container=web pod=web-8545878979-frq44",
           "KubernetesDoc": "",
           "Sensitive": []
         }

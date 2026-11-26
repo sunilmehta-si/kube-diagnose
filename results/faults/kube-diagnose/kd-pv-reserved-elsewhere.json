@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pv-reserved-elsewhere"
   ],
-  "collectedAt": "2026-11-25 16:10 UTC",
+  "collectedAt": "2026-11-26 05:53 UTC",
   "findings": [
     {
       "rule": "KD157",
@@ -49,7 +49,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pv-reserved-elsewhere",
-          "name": "db-56f8666648-r6rmh"
+          "name": "db-56f8666648-n2485"
         }
       ]
     }

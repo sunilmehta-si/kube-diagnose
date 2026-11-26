@@ -190,3 +190,55 @@ func TestCronJobRunsPileUp(t *testing.T) {
 		t.Errorf("one active run: %v", r.Findings)
 	}
 }
+
+func TestCronJobsRunsFailAndTheirJobsAreDeletedAtOnce(t *testing.T) {
+	s := snap()
+	cj := cronJob("backup", "Allow")
+	zero := int32(0)
+	cj.Spec.FailedJobsHistoryLimit = &zero
+	s.CronJobs = []kube.CronJob{cj}
+	s.Events = []kube.Event{
+		event("CronJob", "backup", "SawCompletedJob", "Saw completed job: backup-29003, condition: Failed", time.Minute),
+		event("CronJob", "backup", "SuccessfulDelete", "Deleted job backup-29003", time.Minute),
+		event("CronJob", "backup", "SawCompletedJob", "Saw completed job: backup-29002, condition: Failed", 6*time.Minute),
+	}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD297", "CronJob shop/backup", "its last 2 runs failed (backup-29003, backup-29002)", "never completed a run", "failedJobsHistoryLimit is 0")
+	if !strings.Contains(f.Fix, "kubectl create job --from=cronjob/backup backup-debug -n shop") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The latest run completed: the failures are behind it.
+	s.Events = append([]kube.Event{event("CronJob", "backup", "SawCompletedJob", "Saw completed job: backup-29004, condition: Complete", 0)}, s.Events...)
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+	// With the default limit the failed Job stays, and KD180 reads it.
+	s.Events = s.Events[1:]
+	s.CronJobs[0].Spec.FailedJobsHistoryLimit = nil
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD297" {
+			t.Errorf("default limit: %s", f.Cause)
+		}
+	}
+}
+
+func TestCronJobFailuresSeenOnlyInTheDeletedJobsEvents(t *testing.T) {
+	// What a cluster records: no SawCompletedJob, the controller's SuccessfulDelete, and each failed Job's own
+	// BackoffLimitExceeded, which outlives the Job.
+	s := snap()
+	cj := cronJob("backup", "Allow")
+	zero := int32(0)
+	cj.Spec.FailedJobsHistoryLimit = &zero
+	s.CronJobs = []kube.CronJob{cj}
+	s.Events = []kube.Event{
+		event("Job", "backup-29927834", "BackoffLimitExceeded", "Job has reached the specified backoff limit", time.Minute),
+		event("CronJob", "backup", "SuccessfulDelete", "Deleted job backup-29927834", time.Minute),
+		event("Job", "backup-29927833", "BackoffLimitExceeded", "Job has reached the specified backoff limit", 2*time.Minute),
+		event("Job", "backup-other-1", "BackoffLimitExceeded", "Job has reached the specified backoff limit", 2*time.Minute),
+	}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD297", "CronJob shop/backup", "its last 2 runs failed (backup-29927834, backup-29927833)")
+	if f.Evidence[0].Object.Kind != "Job" || f.Evidence[0].Object.Name != "backup-29927834" {
+		t.Errorf("evidence %+v", f.Evidence[0])
+	}
+}

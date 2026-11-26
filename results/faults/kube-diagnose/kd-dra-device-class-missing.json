@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-device-class-missing"
   ],
-  "collectedAt": "2026-11-25 16:06 UTC",
+  "collectedAt": "2026-11-26 05:47 UTC",
   "findings": [
     {
       "rule": "KD322",
@@ -15,26 +15,26 @@
         "namespace": "kd-dra-device-class-missing",
         "name": "trainer"
       },
-      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-vlttz-gpu-zzbqq asks for devices of DeviceClass gpu.nvidia.com, which does not exist, so the scheduler cannot pick devices for it (the cluster's classes: accel.example.com, fpga.example.com, gpu.example.com, tpu.example.com); Deployment trainer has 0 of 1 replicas ready",
+      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-xrv9t-gpu-clt6p asks for devices of DeviceClass gpu.nvidia.com, which does not exist, so the scheduler cannot pick devices for it (the cluster's classes: accel.example.com, fpga.example.com, gpu.example.com, tpu.example.com); Deployment trainer has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "ResourceClaim",
             "namespace": "kd-dra-device-class-missing",
-            "name": "trainer-7845ff4f5b-vlttz-gpu-zzbqq"
+            "name": "trainer-7845ff4f5b-xrv9t-gpu-clt6p"
           },
-          "what": "ResourceClaim trainer-7845ff4f5b-vlttz-gpu-zzbqq's device requests",
-          "command": "kubectl get resourceclaim trainer-7845ff4f5b-vlttz-gpu-zzbqq -n kd-dra-device-class-missing -o jsonpath='{.spec.devices.requests}'"
+          "what": "ResourceClaim trainer-7845ff4f5b-xrv9t-gpu-clt6p's device requests",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-xrv9t-gpu-clt6p -n kd-dra-device-class-missing -o jsonpath='{.spec.devices.requests}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-device-class-missing",
-            "name": "trainer-7845ff4f5b-vlttz"
+            "name": "trainer-7845ff4f5b-xrv9t"
           },
           "what": "event FailedScheduling",
           "detail": "0/1 nodes are available: request gpu: device class gpu.nvidia.com does not exist. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get events -n kd-dra-device-class-missing --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-vlttz"
+          "command": "kubectl get events -n kd-dra-device-class-missing --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-xrv9t"
         },
         {
           "object": {
@@ -45,12 +45,12 @@
           "command": "kubectl get deviceclasses"
         }
       ],
-      "fix": "Name a DeviceClass the cluster has in request gpu of ResourceClaim trainer-7845ff4f5b-vlttz-gpu-zzbqq, or install the DRA driver that provides class gpu.nvidia.com (a driver's Helm chart usually creates its classes).",
+      "fix": "Name a DeviceClass the cluster has in request gpu of ResourceClaim trainer-7845ff4f5b-xrv9t-gpu-clt6p, or install the DRA driver that provides class gpu.nvidia.com (a driver's Helm chart usually creates its classes).",
       "affects": [
         {
           "kind": "Pod",
           "namespace": "kd-dra-device-class-missing",
-          "name": "trainer-7845ff4f5b-vlttz"
+          "name": "trainer-7845ff4f5b-xrv9t"
         }
       ]
     }

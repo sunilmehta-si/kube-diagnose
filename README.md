@@ -8,24 +8,24 @@ that shows it to you. It never changes anything: every kubectl command it runs i
 
 ```text
 $ kubectl diagnose -n kd-liveness-wrong-port
-kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-25 16:09 UTC
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-26 05:50 UTC
 1 problem: 1 critical.
 
 1. CRITICAL  Liveness probe kills the container  KD112
    Deployment kd-liveness-wrong-port/web
    Cause: container web fails its liveness probe (GET / on port 9090, but the container declares
-          port 8080), so the kubelet restarts it (6 restarts); Deployment web has 0 of 1 replicas
+          port 8080), so the kubelet restarts it (7 restarts); Deployment web has 0 of 1 replicas
           ready
    Evidence:
-     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-5bpfd: event Unhealthy (7 times)
-         │ Liveness probe failed: Get "http://10.244.0.78:9090/": dial tcp 10.244.0.78:9090: connect: connection refused
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-5bpfd
-     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-5bpfd: event Killing (6 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-56ch2: event Unhealthy (8 times)
+         │ Liveness probe failed: Get "http://10.244.0.82:9090/": dial tcp 10.244.0.82:9090: connect: connection refused
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-56ch2
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-56ch2: event Killing (6 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-5bpfd
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-56ch2
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pod web-67fbcb44db-5bpfd
+   Affects: Pod web-67fbcb44db-56ch2
 ```
 
 That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
@@ -45,10 +45,10 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
   that refuses anything but `get`, `logs`, `version` and two `config` reads, and the tests hold every command the
   tool prints as evidence to the same allowlist. Secrets are read as key names only, through a kubectl template, so
   their values never reach the process.
-- **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 219 ways on
+- **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 229 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 221 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
+It knows 228 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
 no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or of the
 wrong type, commands written as one string, a flag and its value written as one argument, flags written under command
 where args is meant, scripts whose interpreter the image does not have or that were saved with Windows line endings,
@@ -71,54 +71,59 @@ a ServiceAccount that does not exist (or a Role bound as a ClusterRole), the IP 
 Service's name, the optional key or pod label whose absence left a variable unset, the file its init container wrote
 where it mounts the volume elsewhere, the key file whose mode lets others read it, the user ID its image's /etc/passwd
 lacks, the ConfigMap mounted as a directory where it reads a file, the /dev/shm it filled (the runtime's 64 MiB), the
-StatefulSet peers it could not resolve because their Service publishes ready pods only, or the token automounting turned
-off), out-of-memory kills (a memory-backed emptyDir, a LimitRange's default limit and the app's own memory setting above
-the limit among them), probes on the wrong port or over TCP to a UDP port, speaking HTTPS to plain HTTP, checking a host
-other than the pod, refused because the app listens on localhost only, gRPC probes on a port that does not speak gRPC or
-lacks the health service, liveness probes that kill the app before it has started, probes that time out, preStop hooks
-that outlast the grace period, readiness probes held back by a long initialDelaySeconds, naming a port the container
-does not have or running a command the image does not have or one written as a single string (a failed HTTP probe's
-status, 404 or 401 say, is explained), init containers that never finish (sidecars are told apart, and one that waits
-for its own pod's Service is named), readiness gates nobody sets, failing lifecycle hooks, runAsNonRoot with a root
-image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys, subPaths that name a key the volume
-does not have, pods whose device claims (dynamic resource allocation) name a ResourceClaim, template or DeviceClass that
-does not exist or is being deleted, ask for more devices than a node has, for devices no driver offers, that other
-claims hold or that their selectors match none of, share a claim allocated on another node, or wait on a node with no
-plugin for the driver, pods no node can take (with the request and the largest node's capacity, a cpu request missing
-its m, or the spread rule, a spread over a node label no node has or with more minDomains than the nodes form, pod
-affinity to pods that do not exist, node affinity no node meets, host port, volume zone, scheduling gate, missing
-scheduler or ReadWriteOncePod claim another pod holds that stops them), pods the kubelet rejects for a sysctl it forbids
-or a resource the node lacks, or, when spec.nodeName skips the scheduler, for the node's labels or a host port another
-pod holds, pods for another operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network
-plugin cannot set up, hostPath volumes the node does not have (the Docker socket on a containerd node among them), pods
-bound by nodeName to a node that does not exist or past the scheduler their claim waits for, pods stuck terminating,
-volumes still attached to another node, claims for StorageClasses that do not exist, access modes they cannot provide or
-a named volume they cannot bind to, claims that no hand-made PersistentVolume fits (too small, other access modes,
-taken, or Released), claims that have lost their volume or carry a selector their provisioner refuses, claims deleted
-while pods still use them, Services and Ingresses that send traffic nowhere, Services with no selector and no endpoints
-(or an EndpointSlice missing the label that links it), headless Services that map a port nothing maps, Service ports
-whose protocol the pods do not serve, Services that also select another workload's pods, pod subdomains no headless
-Service serves, ExternalName Services set to an IP address, Ingresses that claim one host and path for different
-Services, Ingress TLS Secrets that are missing, Ingress hosts their TLS does not cover or paths written as patterns
-their pathType compares as text, Gateway API routes that send traffic to a Service or port that does not exist or to
-another namespace that grants them nothing, are attached to no Gateway, to one or a listener that does not exist, to
-listeners that do not admit them or serve none of their hostnames, tie with an older route for a hostname and path, give
-every backend weight 0 or write a path as a pattern (/api/*) that PathPrefix compares as text, Gateways whose
-GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that never get an address,
-StatefulSets without their headless Service, NetworkPolicies that shut a Service off, cut pods off from the API server,
-allow the Service's port where the pods' port is meant, allow a Service's cluster IP by ipBlock, allow a port name the
-pods do not declare, select no pods or select namespaces by a label none has, exhausted quotas, quotas on a limit the
-pods do not set, a LimitRange default below the container's request, LimitRange, PriorityClass, RuntimeClass,
-ServiceAccount, Pod Security and webhook rejections, admission webhooks that cannot be reached, Deployments left paused
-or holding ready pods unavailable with a long minReadySeconds, HPAs that cannot scale, name their target with an
+API server's 401 for a projected token minted for another audience, the StatefulSet peers it could not resolve because
+their Service publishes ready pods only, or the token automounting turned off), out-of-memory kills (a memory-backed
+emptyDir, a LimitRange's default limit and the app's own memory setting above the limit among them), probes on the wrong
+port or over TCP to a UDP port, speaking HTTPS to plain HTTP, checking a host other than the pod, refused because the
+app listens on localhost only, gRPC probes on a port that does not speak gRPC or lacks the health service, liveness
+probes that kill the app before it has started, sidecars whose startup probe holds back the containers after them,
+probes that time out, preStop hooks that outlast the grace period, readiness probes held back by a long
+initialDelaySeconds, naming a port the container does not have or running a command the image does not have or one
+written as a single string (a failed HTTP probe's status, 404 or 401 say, is explained), init containers that never
+finish (sidecars are told apart, and one that waits for its own pod's Service is named), readiness gates nobody sets,
+failing lifecycle hooks, runAsNonRoot with a root image, writes to a read-only root filesystem, missing ConfigMaps,
+Secrets and keys, subPaths that name a key the volume does not have, pods whose device claims (dynamic resource
+allocation) name a ResourceClaim, template or DeviceClass that does not exist or is being deleted, ask for more devices
+than a node has, for devices no driver offers, that other claims hold or that their selectors match none of, share a
+claim allocated on another node, or wait on a node with no plugin for the driver, pods resized in place beyond what
+their node can hold, pods no node can take (nodes at the kubelet's pod limit among them, with the request and the
+largest node's capacity, a cpu request missing its m, or the spread rule, a spread over a node label no node has or with
+more minDomains than the nodes form, pod affinity to pods that do not exist, node affinity no node meets, a
+RuntimeClass's nodeSelector no node has, host port, volume zone, scheduling gate, missing scheduler or ReadWriteOncePod
+claim another pod holds that stops them), pods the kubelet rejects for a sysctl it forbids or a resource the node lacks,
+or, when spec.nodeName skips the scheduler, for the node's labels or a host port another pod holds, pods for another
+operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network plugin cannot set up, hostPath
+volumes the node does not have (the Docker socket on a containerd node among them), pods bound by nodeName to a node
+that does not exist or past the scheduler their claim waits for, pods stuck terminating, volumes still attached to
+another node, claims for StorageClasses that do not exist, access modes they cannot provide or a named volume they
+cannot bind to, claims that no hand-made PersistentVolume fits (too small, other access modes, taken, or Released),
+claims that have lost their volume or carry a selector their provisioner refuses, claims deleted while pods still use
+them, Services and Ingresses that send traffic nowhere (a Service selecting a Deployment's own labels, not its pods',
+among them), Services with no selector and no endpoints (or an EndpointSlice missing the label that links it), headless
+Services that map a port nothing maps, Service ports whose protocol the pods do not serve, Services that also select
+another workload's pods, pod subdomains no headless Service serves, ExternalName Services set to an IP address,
+Ingresses that claim one host and path for different Services, Ingress TLS Secrets that are missing, Ingress hosts their
+TLS does not cover or paths written as patterns their pathType compares as text, Gateway API routes that send traffic to
+a Service or port that does not exist or to another namespace that grants them nothing, are attached to no Gateway, to
+one or a listener that does not exist, to listeners that do not admit them or serve none of their hostnames, tie with an
+older route for a hostname and path, give every backend weight 0 or write a path as a pattern (/api/*) that PathPrefix
+compares as text, Gateways whose GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that
+never get an address, StatefulSets without their headless Service, NetworkPolicies that shut a Service off, let DNS out
+only to kube-dns pods of their own namespace, cut pods off from the API server, allow the Service's port where the pods'
+port is meant, allow a Service's cluster IP by ipBlock, allow a port name the pods do not declare, select no pods or
+select namespaces by a label none has, exhausted quotas, quotas on a limit the pods do not set, a LimitRange default
+below the container's request, LimitRange, PriorityClass, RuntimeClass, ServiceAccount, Pod Security, webhook and
+ValidatingAdmissionPolicy rejections, system-critical priority outside kube-system, admission webhooks that cannot be
+reached, Deployments whose progress deadline is shorter than their pods take to become available, Deployments left
+paused or holding ready pods unavailable with a long minReadySeconds, HPAs that cannot scale, name their target with an
 apiVersion the cluster does not serve, are switched off by a target at 0 replicas or share their pods with another HPA,
 PodDisruptionBudgets that block drains, select nothing or overlap, evictions (an emptyDir past its sizeLimit among
 them), failed Jobs and CronJobs (a podFailurePolicy that failed the Job at once and a Job cut off by its
 activeDeadlineSeconds are named), replicas sharing a ReadWriteOnce claim, CronJobs that skip runs, are suspended,
 replace each run before it finishes pile up runs, are scheduled for a date that never comes or miss every start for a
-startingDeadlineSeconds too short, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy
-leaves a template change on no pod, Jobs with parallelism 0 or held open by a sidecar that never exits, and nodes that
-are not ready.
+startingDeadlineSeconds too short, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy,
+or a StatefulSet partition, leaves a template change on no pod, CronJobs whose failed runs are deleted at once, Jobs
+with parallelism 0 or held open by a sidecar that never exits, and nodes that are not ready.
 
 ## Install
 
@@ -151,11 +156,11 @@ kube-diagnose rules KD14               # a range: KD14 is scheduling (docs/rules
 
 It needs permission to `get` and `list` pods, events, Services, EndpointSlices, Ingresses, workloads, Jobs, CronJobs,
 HorizontalPodAutoscalers, PodDisruptionBudgets, claims, NetworkPolicies, ResourceQuotas, ServiceAccounts, Roles,
-RoleBindings, ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses, PersistentVolumes,
-namespaces (their names and labels) and ClusterRoles (their names) in the cluster, and to read pod logs. Where the
-cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes and ReferenceGrants in the namespace
-and GatewayClasses in the cluster; a cluster without it is no gap. Where it serves dynamic resource allocation
-(resource.k8s.io), it reads ResourceClaims and ResourceClaimTemplates in the namespace and DeviceClasses and
+RoleBindings, ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses, RuntimeClasses,
+PersistentVolumes, namespaces (their names and labels) and ClusterRoles (their names) in the cluster, and to read pod
+logs. Where the cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes and ReferenceGrants in
+the namespace and GatewayClasses in the cluster; a cluster without it is no gap. Where it serves dynamic resource
+allocation (resource.k8s.io), it reads ResourceClaims and ResourceClaimTemplates in the namespace and DeviceClasses and
 ResourceSlices in the cluster, keeping of each slice its driver, nodes and device names. With less, it diagnoses from
 the rest and lists what it could not read.
 
@@ -167,7 +172,7 @@ shows are lost with the logs).
 
 ## The fault suite
 
-[`faults/`](faults) holds 219 broken namespaces and one healthy one. Each broken one is a manifest that breaks it in a
+[`faults/`](faults) holds 229 broken namespaces and one healthy one. Each broken one is a manifest that breaks it in a
 known way (an image tag that does not exist, a liveness probe on the wrong port, a Service selector that matches no
 pod, a claim for a StorageClass that does not exist, a quota that is used up, an image built for another CPU
 architecture, and more) and an `expect.json` with the words that name its root cause. On every push,
@@ -187,17 +192,18 @@ count as false alarms. The workflow's summary shows the table for each run; `hac
 machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any kubeconfig context that is not
 kind-*.
 
-The run committed in [`results/faults`](results/faults) ([run 45650382555](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/45650382555),
-25 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
+The run committed in [`results/faults`](results/faults) ([run 45763138488](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/45763138488),
+26 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
 
 | Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
 |---|---|---|---|---|
-| kube-diagnose | 219 of 219 (exact rule and object: 219) | 219 | 0 | 0 |
-| k8sgpt | 36 of 219 | 9 | 0 | 340 |
+| kube-diagnose | 229 of 229 (exact rule and object: 229) | 229 | 0 | 0 |
+| k8sgpt | 37 of 229 | 10 | 0 | 368 |
 | holmesgpt | not run | | | |
 
 | Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
 |---|---|---|---|---|
+| admission-policy-denies | ValidatingAdmissionPolicy kd-faults-require-team-label, bound to the namespace, denies every pod without a team label, and the web pods have none, so none is created. | ✅ | ✅ | – |
 | app-listens-on-localhost | A web server is started with -p 127.0.0.1:8080, as on a laptop; in a pod that address is reachable only from the pod itself, so the kubelet's readiness probe is refused and the pod never becomes ready. | ✅ | ❌ | – |
 | apparmor-profile-missing | The pod runs under the Localhost AppArmor profile k8s-kd-faults-hardened, which no node has loaded, so its container cannot be created. | ✅ | ❌ | – |
 | bad-image-tag | A Deployment's image tag does not exist. | ✅ | ☑️ | – |
@@ -215,6 +221,7 @@ The run committed in [`results/faults`](results/faults) ([run 45650382555](https
 | cpu-request-no-millicores | A Deployment asks for cpu: 500, meaning half a core; without the m suffix it is 500 cores, which no node has, so the pod is never scheduled. | ✅ | ❌ | – |
 | crashloop-missing-env | The app exits because an environment variable it needs is not set. | ✅ | ❌ | – |
 | cronjob-fails | A CronJob runs every minute and every run fails because BACKUP_TARGET is not set. | ✅ | ❌ | – |
+| cronjob-failures-deleted | CronJob backup fails every run, and its failedJobsHistoryLimit is 0, so each failed Job and its pod are deleted at once and no log is left to read. | ✅ | ❌ | – |
 | cronjob-forbid-overlap | A CronJob runs every minute with concurrencyPolicy Forbid, and its first run never ends, so every later run is skipped. | ✅ | ❌ | – |
 | cronjob-misses-starts | A CronJob runs every minute with startingDeadlineSeconds: 0, meant as no deadline; the controller always acts a moment after the scheduled time, so every run is missed (MissSchedule) and no Job ever starts. | ✅ | ❌ | – |
 | cronjob-never-due | A CronJob is scheduled for midnight on 30 February; the API accepts the schedule, and the controller finds no next run and never starts a Job. | ✅ | ❌ | – |
@@ -286,7 +293,7 @@ The run committed in [`results/faults`](results/faults) ([run 45650382555](https
 | init-never-finishes | An init container waits for a database Service that does not exist, so the app never starts and nothing reports an error. | ✅ | ❌ | – |
 | init-waits-for-own-service | An init container waits until Service web answers, but the only pods behind that Service are this Deployment's own, which cannot serve until the init container exits: each waits for the other and the workload never starts. | ✅ | ❌ | – |
 | insufficient-cpu | A pod requests more CPU than any node has. | ✅ | ☑️ | – |
-| job-active-deadline | A Job has activeDeadlineSeconds: 30 and its work takes longer, so the Job controller ends its running pod at 30 seconds and fails the Job; no pod is left and nothing crashed. | ✅ | ✅ | – |
+| job-active-deadline | A Job has activeDeadlineSeconds: 30 and its work takes longer, so the Job controller ends its running pod at 30 seconds and fails the Job; no pod is left and nothing crashed. | ✅ | ☑️ | – |
 | job-backoff | A Job's container fails until the Job hits its backoff limit. | ✅ | ❌ | – |
 | job-parallelism-zero | A Job sets parallelism 0, so it starts no pods and never completes, and nothing reports an error. | ✅ | ❌ | – |
 | job-pod-failure-policy | A migration Job allows six retries, but its podFailurePolicy fails the Job on exit code 3, which the migrator returns when its lock table is busy; the first busy lock fails the whole Job at once, without a retry. | ✅ | ❌ | – |
@@ -312,6 +319,7 @@ The run committed in [`results/faults`](results/faults) ([run 45650382555](https
 | networkpolicy-blocks-dns | An egress NetworkPolicy allows the app to reach only its database, which also blocks DNS, so the app cannot resolve the database's name and exits. | ✅ | ❌ | – |
 | networkpolicy-blocks-service | An egress NetworkPolicy lets the app resolve names but reach nothing else, so its connection to the db Service times out and it exits. | ✅ | ❌ | – |
 | networkpolicy-deny-all | A default-deny NetworkPolicy shuts off a Service's pods. | ✅ | ❌ | – |
+| networkpolicy-dns-pod-selector | The web pods' egress policy allows port 53 to pods labelled k8s-app: kube-dns with no namespaceSelector, which names pods of this namespace, not kube-system's, so no lookup gets out. | ✅ | ❌ | – |
 | networkpolicy-namespace-label | A NetworkPolicy admits traffic to the web pods only from namespaces labelled name=<namespace>, a label no namespace has (namespaces carry kubernetes.io/metadata.name), so the client in the same namespace is dropped. | ✅ | ❌ | – |
 | networkpolicy-selects-nothing | A NetworkPolicy meant for the web pods selects app=webapp, a label no pod has, so it restricts nothing. | ✅ | ❌ | – |
 | networkpolicy-service-cluster-ip | An egress NetworkPolicy allows the client to reach the web Service by its cluster IP in an ipBlock; policies are checked after the Service forwards the connection, against the web pod's IP, so it is dropped. | ✅ | ❌ | – |
@@ -359,7 +367,7 @@ The run committed in [`results/faults`](results/faults) ([run 45650382555](https
 | pvc-lost | A claim copied from another cluster still carries its volumeName and bind annotation, and no such PersistentVolume exists here, so the claim is Lost and the database that mounts it is never scheduled. | ✅ | ❌ | – |
 | pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ☑️ | – |
 | pvc-selector-dynamic | Claim data has a selector, tier=fast, and asks StorageClass standard, whose provisioner does not provision for a claim with a selector, so the claim stays Pending. | ✅ | ❌ | – |
-| quota-exceeded | A ResourceQuota allows one pod and the Deployment wants three. | ✅ | ☑️ | – |
+| quota-exceeded | A ResourceQuota allows one pod and the Deployment wants three. | ✅ | ✅ | – |
 | quota-requires-limits | A ResourceQuota limits limits.memory in the namespace and a Deployment sets requests only, so the API server refuses its pods for having no memory limit, though the quota is unused. | ✅ | ☑️ | – |
 | rbac-all-namespaces | Role pod-reader, bound by a RoleBinding, lets the app list and watch pods in its own namespace, and the app watches the pods of all namespaces, a request at the cluster scope that only a ClusterRoleBinding grants. | ✅ | ❌ | – |
 | rbac-clusterrole-rolebinding | ClusterRole node-reader, which allows reading nodes, is bound with a RoleBinding, which grants its rules only within the namespace; nodes belong to no namespace, so the API server refuses the tool. | ✅ | ❌ | – |
@@ -375,12 +383,15 @@ The run committed in [`results/faults`](results/faults) ([run 45650382555](https
 | readiness-initial-delay | A web server is up in a second, but its readiness probe waits initialDelaySeconds: 900 before its first check, set for a slow start; the pod stays not ready and gets no traffic for fifteen minutes after every start. | ✅ | ❌ | – |
 | readiness-probe-timeout | The readiness probe runs a health check that takes about three seconds, and it gives up after its default timeoutSeconds of 1, so the pod never becomes ready. | ✅ | ☑️ | – |
 | readonly-root-filesystem | A container with a read-only root filesystem creates a directory in it at start and exits. | ✅ | ❌ | – |
+| resize-infeasible | A Job resizes the running batch pod in place to 64 CPUs, more than its node has, and the API server refuses the resize, so the Job fails. | ✅ | ❌ | – |
 | rolebinding-role-missing | A RoleBinding grants Role config-reader to the app ServiceAccount, but the Role in the namespace is named configmap-reader, so the binding grants nothing and the API server answers the worker with 403. | ✅ | ❌ | – |
 | rolebinding-subject-missing | A RoleBinding grants its Role to ServiceAccount apps, which does not exist; the worker runs as app, which no binding names, so the API server answers it with 403. | ✅ | ❌ | – |
+| rollout-deadline-short | Deployment api allows a rollout 10 seconds without progress, and its readiness probe waits 30 before its first check, so every rollout is reported as failed though the pod comes up fine. | ✅ | ❌ | – |
 | run-as-unknown-uid | The pod runs as user 10001, which busybox has no /etc/passwd entry for, and the app looks up its user name and exits. | ✅ | ❌ | – |
 | runasnonroot-root-image | The pod requires a non-root user and the image runs as root, so the container is never created. | ✅ | ☑️ | – |
 | runtimeclass-handler-missing | A Deployment runs with RuntimeClass kd-nvidia, whose handler nvidia exists on GPU nodes only; the kind node's containerd has no such runtime, so the pod's sandbox is never created. | ✅ | ☑️ | – |
 | runtimeclass-missing | A Deployment's pods name a RuntimeClass the cluster does not have, so admission rejects every pod and none is created. | ✅ | ☑️ | – |
+| runtimeclass-node-selector | The scanner runs under RuntimeClass kd-faults-sandboxed, whose scheduling.nodeSelector sandbox.example.com/runtime=gvisor is merged into its pods, and no node has that label. | ✅ | ❌ | – |
 | rwo-claim-shared | A Deployment scaled to two replicas mounts one ReadWriteOnce claim for uploads; on kind's single node both start, but on a cluster with more nodes the replica placed elsewhere cannot attach the volume (Multi-Attach) and never starts. | ✅ | ❌ | – |
 | rwop-claim-in-use | Two replicas mount one ReadWriteOncePod claim: the first runs, and the scheduler keeps the second Pending because only one pod may use the claim. | ✅ | ❌ | – |
 | scheduling-gate | A Deployment's pods carry a scheduling gate that no controller removes, so they stay Pending with no events and no error. | ✅ | ❌ | – |
@@ -398,23 +409,27 @@ The run committed in [`results/faults`](results/faults) ([run 45650382555](https
 | service-protocol-mismatch | A log collector listens for syslog on 5140/UDP, and its Service lists port 5140 without a protocol, which means TCP; Kubernetes forwards only TCP for it, so the UDP messages senders send to the Service never arrive. | ✅ | ❌ | – |
 | service-refused | An app connects to Service db, whose Deployment is scaled to 0, so the connection is refused and the app exits. | ✅ | ❌ | – |
 | service-selector-mismatch | A Service selects app=web while its pods are labelled app=webapp. | ✅ | ✅ | – |
+| service-selects-deployment-labels | Service api selects app=api, the labels on Deployment api itself, while its pods carry app=api-server, so the Service selects no pod. | ✅ | ❌ | – |
 | service-selects-other-workload | A queue worker shares the label app=shop with the web server, and the Service selects on that label alone with a numeric targetPort; the worker's pod becomes an endpoint too, so a share of requests reach a pod that serves nothing on 8080. | ✅ | ❌ | – |
 | service-target-port-not-listening | A server listens on 8080 while its pod spec declares port 80 and its Service targets 80; with no readiness probe the pod is Ready, so the Service forwards clients to a port where nothing listens and they are refused. | ✅ | ❌ | – |
 | service-wrong-target-port | A Service sends traffic to port 80, but the container listens on 8080. | ✅ | ❌ | – |
 | shell-nothing-to-do | The toolbox Deployment runs busybox with no command; its default is sh, which with no terminal exits 0 at once, so the pod restarts for ever. | ✅ | ❌ | – |
 | shm-too-small | The trainer stages a 128 MiB batch in /dev/shm, and nothing is mounted there, so it is the runtime's 64 MiB and the write fails. | ✅ | ❌ | – |
+| sidecar-startup-probe | The proxy sidecar's startup probe checks port 15021, which it never opens, so the kubelet keeps restarting it and the web container, which starts only after the sidecar has, never starts. | ✅ | ❌ | – |
 | spread-min-domains | The Deployment spreads two replicas over kubernetes.io/hostname with minDomains 3, and kind has one node, so the scheduler lets that node hold one replica and the second stays Pending. | ✅ | ❌ | – |
 | spread-zone-label-missing | The Deployment spreads its pods over topology.kubernetes.io/zone with whenUnsatisfiable DoNotSchedule, and kind's node has no zone label, so the scheduler rejects it and the pods stay Pending. | ✅ | ❌ | – |
 | statefulset-claim-quota | A ResourceQuota allows 100 MiB of storage and the StatefulSet's volumeClaimTemplate asks for 1 GiB, so its first claim, and so its first pod, is never created. | ✅ | ☑️ | – |
 | statefulset-first-pod-unready | A three-replica StatefulSet's first pod never passes its readiness probe, so the StatefulSet never creates the other two. | ✅ | ❌ | – |
 | statefulset-missing-service | A StatefulSet names a governing Service that does not exist, so its pods have no DNS names. | ✅ | ✅ | – |
 | statefulset-ondelete | A Job raises the cache size in StatefulSet cache, whose updateStrategy is OnDelete, so both pods keep the old setting until someone deletes them. | ✅ | ❌ | – |
+| statefulset-partition | A Job raises the cache size in StatefulSet cache, whose rolling update has partition 2, left from a canary, so neither of its two pods gets the change. | ✅ | ❌ | – |
 | statefulset-peer-dns | Each quorum member finds its peers by name before it becomes ready, and headless Service quorum publishes ready pods only, so no member ever resolves another. | ✅ | ❌ | – |
 | subdomain-no-headless-service | An Indexed Job's two workers set subdomain: workers and look each other up as train-0.workers and train-1.workers, but there is no headless Service named workers, so the names never resolve and each worker exits. | ✅ | ❌ | – |
 | subpath-key-missing | A container mounts config.yaml from its ConfigMap with subPath, but the ConfigMap's key is config.yml; the kubelet makes an empty directory in its place, and the app exits reading it. | ✅ | ❌ | – |
 | subpath-onto-file | A container mounts a ConfigMap key over /etc/group with subPath, but the key is not in the ConfigMap; the kubelet makes a directory in its place, and the runtime cannot mount a directory onto the image's file. | ✅ | ❌ | – |
 | sysctl-forbidden | A Redis pod sets the sysctl net.core.somaxconn, which the kubelet does not allow by default, so it rejects the pod with SysctlForbidden and the pod never runs. | ✅ | ❌ | – |
 | token-not-mounted | A controller reads its ServiceAccount token at start, but its ServiceAccount turns token automounting off, so the token is never mounted and the container exits. | ✅ | ❌ | – |
+| token-wrong-audience | The sync pod calls the API server with the ServiceAccount token it projects for Vault (audience vault), and the API server refuses it with 401 Unauthorized. | ✅ | ❌ | – |
 | volume-hides-command | A scratch volume is mounted at /bin, the directory that holds the container's command; the empty volume replaces everything the image has there, so /bin/sleep no longer exists and the container cannot start. | ✅ | ❌ | – |
 | volume-mounted-read-only | A container writes to a volume its mount sets readOnly: true, so it exits with read-only file system. | ✅ | ❌ | – |
 | volume-permission-denied | A container that runs as user 1000 writes to a hostPath directory the kubelet created for root, so it exits with permission denied. | ✅ | ❌ | – |
@@ -494,6 +509,14 @@ which the scheduler never tries, the claim a quota refused and the missing plugi
 runs after redaction caught two more: --redact replaced busybox with a pseudonym, which hid the base image KD315 reads,
 and Docker Hub's official base images are kept now; and it left the pod's name in a claim that a message named before it
 was made (POD-gpu-x7k2p), which is renamed with the pod now.
+The 10 added for 0.16.0 caught four things on their first runs. A ValidatingAdmissionPolicy created with the Deployment
+it should deny let the first pod through, as a new policy takes a moment to apply; the scenario now scales the
+Deployment up once it is in force. kind's API server admits system-critical priority in any namespace, so KD380 is
+tested on the message clusters that limit it give, and has no scenario. The CronJob controller sent no SawCompletedJob
+for the runs it deleted; KD297 reads each failed run from the Job's own BackoffLimitExceeded event, which outlives the
+Job, and redaction keeps a run named for its CronJob. And the API server now refuses an in-place resize the node cannot
+hold outright, so the pod is never left with a pending one; KD247 explains the refusal in the client that asked. Before
+that, the resize scenario's own Job lacked get on pods/resize, which kube-diagnose named (KD307).
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.
 

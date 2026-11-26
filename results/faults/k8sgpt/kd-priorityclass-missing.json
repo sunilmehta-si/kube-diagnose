@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-priorityclass-missing",
-              "Masked": "bjRoanVoKGJATVd7QEFPNi11USFYPHA0"
+              "Masked": "NG4pZy1KO2dWNVkyOj5LdW1yZmVOX090"
             },
             {
               "Unmasked": "web",
-              "Masked": "I3Qt"
+              "Masked": "eTFf"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-priorityclass-missing/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-55fb7dbd6f\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-priorityclass-missing",
+              "Masked": "I25NWlRSUklkeGNbTXFrN3hMS1toNFFw"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "NnUm"
             }
           ]
         }

@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-statefulset-partition"
+  ],
+  "collectedAt": "2026-11-26 05:56 UTC",
+  "findings": [
+    {
+      "rule": "KD296",
+      "title": "StatefulSet update stops at its partition",
+      "severity": "warning",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-statefulset-partition",
+        "name": "cache"
+      },
+      "cause": "StatefulSet cache's pod template has changed, and none of its 2 pods runs it: its rolling update has partition 2, at or above its replica count, so the update reaches no pod",
+      "evidence": [
+        {
+          "object": {
+            "kind": "StatefulSet",
+            "namespace": "kd-statefulset-partition",
+            "name": "cache"
+          },
+          "what": "StatefulSet cache: partition 2, current revision cache-856bc7c797, update revision cache-847dfc6486, 0 of 2 pods updated",
+          "command": "kubectl get statefulset cache -n kd-statefulset-partition -o jsonpath='{.spec.updateStrategy}{\" \"}{.status.currentRevision}{\" \"}{.status.updateRevision}{\" \"}{.status.updatedReplicas}/{.status.replicas}'"
+        }
+      ],
+      "fix": "Lower the partition to roll the change out further (0 updates every pod), once the pods above it look healthy; kubectl rollout status statefulset/cache follows it."
+    }
+  ],
+  "checked": {
+    "pods": 3,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

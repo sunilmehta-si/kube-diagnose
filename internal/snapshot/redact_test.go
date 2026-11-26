@@ -3,6 +3,7 @@ package snapshot
 import (
 	"encoding/json"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -37,8 +38,11 @@ func TestRedactRemovesIdentifiersAndKeepsShape(t *testing.T) {
 				}
 			}
 		}
+		// Label keys are kept by design, and the well-known ones (batch.kubernetes.io/controller-uid) hold words a
+		// name may also be: a pod called batch.
+		unkeyed := reWellKnownKey.ReplaceAllString(text, `"$1":`)
 		for _, sec := range secrets {
-			if sec != "" && strings.Contains(text, sec) {
+			if sec != "" && strings.Contains(unkeyed, sec) {
 				t.Errorf("%s: redacted snapshot still contains %q", filepath.Base(path), sec)
 			}
 		}
@@ -305,3 +309,24 @@ func TestRedactRenamesDynamicResourceAllocationsObjects(t *testing.T) {
 		t.Errorf("claim %+v, slice %+v", red.ResourceClaims[0].Spec, red.ResourceSlices[0].Spec)
 	}
 }
+
+func TestRedactKeepsACronJobsRunsNamedForIt(t *testing.T) {
+	var cj kube.CronJob
+	cj.Metadata = kube.ObjectMeta{Name: "nightly-backup", Namespace: "shop"}
+	var e kube.Event
+	e.InvolvedObject.Kind, e.InvolvedObject.Namespace, e.InvolvedObject.Name = "Job", "shop", "nightly-backup-29927834"
+	e.Reason, e.Message = "BackoffLimitExceeded", "Job has reached the specified backoff limit"
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, CronJobs: []kube.CronJob{cj}, Events: []kube.Event{e}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if b, _ := json.Marshal(red); strings.Contains(string(b), "nightly-backup") {
+		t.Errorf("still names the CronJob: %s", b)
+	}
+	if want := red.CronJobs[0].Metadata.Name + "-29927834"; red.Events[0].InvolvedObject.Name != want {
+		t.Errorf("run %q, want %q", red.Events[0].InvolvedObject.Name, want)
+	}
+}
+
+var reWellKnownKey = regexp.MustCompile(`"[a-z0-9.-]*kubernetes\.io/([^"]*)":`)

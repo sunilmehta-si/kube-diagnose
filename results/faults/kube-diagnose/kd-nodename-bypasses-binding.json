@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-nodename-bypasses-binding"
   ],
-  "collectedAt": "2026-11-25 16:09 UTC",
+  "collectedAt": "2026-11-26 05:51 UTC",
   "findings": [
     {
       "rule": "KD159",
@@ -21,10 +21,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodename-bypasses-binding",
-            "name": "db-68946d5798-dggwd"
+            "name": "db-68946d5798-bw2gz"
           },
           "what": "pod sets spec.nodeName kd-faults-control-plane",
-          "command": "kubectl get pod db-68946d5798-dggwd -n kd-nodename-bypasses-binding -o jsonpath='{.spec.nodeName}'"
+          "command": "kubectl get pod db-68946d5798-bw2gz -n kd-nodename-bypasses-binding -o jsonpath='{.spec.nodeName}'"
         },
         {
           "object": {
@@ -49,7 +49,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-nodename-bypasses-binding",
-          "name": "db-68946d5798-dggwd"
+          "name": "db-68946d5798-bw2gz"
         }
       ]
     }

@@ -1,0 +1,72 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-runtimeclass-node-selector"
+  ],
+  "collectedAt": "2026-11-26 05:54 UTC",
+  "findings": [
+    {
+      "rule": "KD141",
+      "title": "No node matches the pod's node selector",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-runtimeclass-node-selector",
+        "name": "scanner"
+      },
+      "cause": "no node has the labels sandbox.example.com/runtime=gvisor that the pod's nodeSelector requires; sandbox.example.com/runtime=gvisor comes from RuntimeClass kd-faults-sandboxed (handler runc), whose scheduling.nodeSelector is merged into every pod that uses it, not from the pod's own template; Deployment scanner has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-runtimeclass-node-selector",
+            "name": "scanner-6bd9474d68-nb6fq"
+          },
+          "what": "pod is not scheduled: Unschedulable",
+          "detail": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
+          "command": "kubectl get pod scanner-6bd9474d68-nb6fq -n kd-runtimeclass-node-selector -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-runtimeclass-node-selector",
+            "name": "scanner-6bd9474d68-nb6fq"
+          },
+          "what": "pod requires node labels sandbox.example.com/runtime=gvisor",
+          "command": "kubectl get pod scanner-6bd9474d68-nb6fq -n kd-runtimeclass-node-selector -o jsonpath='{.spec.nodeSelector}'"
+        },
+        {
+          "object": {
+            "kind": "Node",
+            "name": "*"
+          },
+          "what": "none of the 1 nodes has sandbox.example.com/runtime=gvisor",
+          "command": "kubectl get nodes -l sandbox.example.com/runtime=gvisor"
+        },
+        {
+          "object": {
+            "kind": "RuntimeClass",
+            "name": "kd-faults-sandboxed"
+          },
+          "what": "RuntimeClass kd-faults-sandboxed's scheduling.nodeSelector is sandbox.example.com/runtime=gvisor",
+          "command": "kubectl get runtimeclass kd-faults-sandboxed -o jsonpath='{.handler}{\" \"}{.scheduling}'"
+        }
+      ],
+      "fix": "Label the nodes that have the runc runtime handler with sandbox.example.com/runtime=gvisor (the runtime's installer usually does), or, if none has it, install it on a node pool or stop using RuntimeClass kd-faults-sandboxed; the pod template's own nodeSelector is not where this comes from.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-runtimeclass-node-selector",
+          "name": "scanner-6bd9474d68-nb6fq"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

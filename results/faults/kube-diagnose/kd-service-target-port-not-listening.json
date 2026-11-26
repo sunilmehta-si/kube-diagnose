@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-service-target-port-not-listening"
   ],
-  "collectedAt": "2026-11-25 16:12 UTC",
+  "collectedAt": "2026-11-26 05:55 UTC",
   "findings": [
     {
       "rule": "KD225",
@@ -15,26 +15,26 @@
         "namespace": "kd-service-target-port-not-listening",
         "name": "client"
       },
-      "cause": "container client exits because Service web refuses its connection on port 80, though the Service has ready pods: it forwards port 80 to the pods' port 80, and nothing in pod web-54b4cbcd4d-bts54 listens there, so the pod itself refuses. The pod counts as ready only because no readiness probe checks that port; the pod's command or env names port 8080, which is likely where the app listens; its log says: \"wget: can't connect to remote host (10.96.110.109): Connection refused\"; Deployment client has 0 of 1 replicas ready",
+      "cause": "container client exits because Service web refuses its connection on port 80, though the Service has ready pods: it forwards port 80 to the pods' port 80, and nothing in pod web-54b4cbcd4d-dkbxb listens there, so the pod itself refuses. The pod counts as ready only because no readiness probe checks that port; the pod's command or env names port 8080, which is likely where the app listens; its log says: \"wget: can't connect to remote host (10.96.129.41): Connection refused\"; Deployment client has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-target-port-not-listening",
-            "name": "client-5fb6f4d88d-w6gsf"
+            "name": "client-5fb6f4d88d-t4htp"
           },
-          "what": "container client exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod client-5fb6f4d88d-w6gsf -n kd-service-target-port-not-listening -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
+          "what": "container client exited with code 1 (Error), restarted 7 times",
+          "command": "kubectl get pod client-5fb6f4d88d-t4htp -n kd-service-target-port-not-listening -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-target-port-not-listening",
-            "name": "client-5fb6f4d88d-w6gsf"
+            "name": "client-5fb6f4d88d-t4htp"
           },
           "what": "last lines of container client's log (run that exited)",
-          "detail": "Connecting to web (10.96.110.109:80)\nwget: can't connect to remote host (10.96.110.109): Connection refused",
-          "command": "kubectl logs client-5fb6f4d88d-w6gsf -n kd-service-target-port-not-listening -c client --tail=20 --previous"
+          "detail": "Connecting to web (10.96.129.41:80)\nwget: can't connect to remote host (10.96.129.41): Connection refused",
+          "command": "kubectl logs client-5fb6f4d88d-t4htp -n kd-service-target-port-not-listening -c client --tail=20 --previous"
         },
         {
           "object": {
@@ -49,10 +49,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-service-target-port-not-listening",
-            "name": "web-54b4cbcd4d-bts54"
+            "name": "web-54b4cbcd4d-dkbxb"
           },
-          "what": "pod web-54b4cbcd4d-bts54 is Ready and behind Service web, and no readiness probe of it checks port 80",
-          "command": "kubectl get pod web-54b4cbcd4d-bts54 -n kd-service-target-port-not-listening -o jsonpath='{range .spec.containers[*]}{.name}{\" ports=\"}{.ports[*].containerPort}{\" readiness=\"}{.readinessProbe}{\" command=\"}{.command}{\" \"}{.args}{\"\\n\"}{end}'"
+          "what": "pod web-54b4cbcd4d-dkbxb is Ready and behind Service web, and no readiness probe of it checks port 80",
+          "command": "kubectl get pod web-54b4cbcd4d-dkbxb -n kd-service-target-port-not-listening -o jsonpath='{range .spec.containers[*]}{.name}{\" ports=\"}{.ports[*].containerPort}{\" readiness=\"}{.readinessProbe}{\" command=\"}{.command}{\" \"}{.args}{\"\\n\"}{end}'"
         }
       ],
       "fix": "Set Service web's targetPort to 8080, the port the app listens on by its command or env (a containerPort in the pod spec is a label, not a setting: it does not make the app listen there), or make the app listen on 80 on all interfaces (0.0.0.0, not 127.0.0.1). Then add a readiness probe on that port, so a pod that does not answer gets no traffic and shows as not ready.",
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-service-target-port-not-listening",
-          "name": "client-5fb6f4d88d-w6gsf"
+          "name": "client-5fb6f4d88d-t4htp"
         }
       ]
     }

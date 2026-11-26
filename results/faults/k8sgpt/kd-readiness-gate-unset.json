@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-gate-unset",
-              "Masked": "PjBAU0p0V1QoSXM9eHctKllRIzFGaD0="
+              "Masked": "dFQpZC1MZCQmQEEySnBxfVkvSXAxZlc="
             },
             {
               "Unmasked": "web",
-              "Masked": "bktp"
+              "Masked": "VCxM"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-readiness-gate-unset/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-54495c8f84\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readiness-gate-unset",
+              "Masked": "T2d4d054UTQ4KTJhZCV5aTNwcHJ7KGQ="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "RChN"
             }
           ]
         }
@@ -31,7 +45,7 @@
       "name": "kd-readiness-gate-unset/web",
       "error": [
         {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-54495c8f84-hddxb], expected 1",
+          "Text": "Service has not ready endpoints, pods: [Pod/web-54495c8f84-xjdz8], expected 1",
           "KubernetesDoc": "",
           "Sensitive": []
         }

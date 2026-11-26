@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-networkpolicy-dns-pod-selector",
+  "description": "The web pods' egress policy allows port 53 to pods labelled k8s-app: kube-dns with no namespaceSelector, which names pods of this namespace, not kube-system's, so no lookup gets out.",
+  "rule": "KD123",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "kube-dns"
+    ],
+    [
+      "kube-system"
+    ],
+    [
+      "namespaceSelector"
+    ]
+  ]
+}

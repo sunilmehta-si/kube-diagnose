@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,30 +14,31 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pv-access-mode-mismatch",
-              "Masked": "fDZsZExsNS1Rc0xjUF5xPlMtQ0MpWj4hO3g="
+              "Masked": "KihSREZ5MEIhQTtsXUNyUD5lTygmKitKd0U="
             },
             {
               "Unmasked": "db",
-              "Masked": "ZnA="
+              "Masked": "VzI="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pv-access-mode-mismatch/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-access-mode-mismatch",
+              "Masked": "Pmd1QjYjSms7OXYmVVdycm9KTWQpeG1ALVY="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "NTo="
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-pv-access-mode-mismatch/db-56f8666648-8lnhw",
-      "error": [
-        {
-          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/db"
     },
     {
       "kind": "PersistentVolumeClaim",
@@ -51,6 +52,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pv-access-mode-mismatch/db-56f8666648-74mmg",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
     }
   ]
 }

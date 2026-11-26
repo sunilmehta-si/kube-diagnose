@@ -1,0 +1,111 @@
+# ValidatingAdmissionPolicy kd-faults-require-team-label, bound to the namespace, denies every pod without a team label, and the web pods have none, so none is created.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-admission-policy-denies
+
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: kd-faults-require-team-label
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: ["v1"]
+        operations: ["CREATE"]
+        resources: ["pods"]
+  validations:
+    - expression: "has(object.metadata.labels) && 'team' in object.metadata.labels"
+      message: every pod needs a team label
+
+---
+# The platform team's rule, bound to this namespace; the web Deployment's pods carry no team label.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: kd-faults-require-team-label
+spec:
+  policyName: kd-faults-require-team-label
+  validationActions: [Deny]
+  matchResources:
+    namespaceSelector:
+      matchLabels:
+        kubernetes.io/metadata.name: kd-admission-policy-denies
+
+---
+# Starts at 0 replicas and is scaled up by the Job below once the policy is in force: a policy just created takes a
+# moment to apply, and a pod created in that moment is admitted.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-admission-policy-denies
+spec:
+  replicas: 0
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: scaler
+  namespace: kd-admission-policy-denies
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: scaler
+  namespace: kd-admission-policy-denies
+rules:
+  - apiGroups: ["apps"]
+    resources: ["deployments", "deployments/scale"]
+    verbs: ["get", "patch", "update"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: scaler
+  namespace: kd-admission-policy-denies
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: scaler
+subjects:
+  - kind: ServiceAccount
+    name: scaler
+    namespace: kd-admission-policy-denies
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: scale-up
+  namespace: kd-admission-policy-denies
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      serviceAccountName: scaler
+      restartPolicy: Never
+      initContainers:
+        - name: wait
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "30"]
+      containers:
+        - name: scale
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["scale", "deployment/web", "--replicas=1"]

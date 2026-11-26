@@ -422,7 +422,20 @@ func (r *redactor) collect(s *Snapshot) {
 		r.addName("obj", e.InvolvedObject.Name)
 		r.addName("event", e.Metadata.Name)
 	}
+	// A CronJob's runs are named for it, NAME-<the minute it was scheduled for>, and a diagnosis reads that: a run
+	// that is deleted leaves only its name in events (KD297). The run keeps its CronJob's pseudonym and its suffix,
+	// a time that says nothing of the cluster.
+	for _, c := range s.CronJobs {
+		pseudo, prefix := r.names[c.Metadata.Name], c.Metadata.Name+"-"
+		for n := range r.names {
+			if suffix, ok := strings.CutPrefix(n, prefix); ok && pseudo != "" && reRunSuffix.MatchString(suffix) {
+				r.names[n] = pseudo + "-" + suffix
+			}
+		}
+	}
 }
+
+var reRunSuffix = regexp.MustCompile(`^\d{6,}$`)
 
 type kubeContainer struct{ name, image string }
 

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-hpa-target-scaled-to-zero"
   ],
-  "collectedAt": "2026-11-25 16:07 UTC",
+  "collectedAt": "2026-11-26 05:49 UTC",
   "findings": [
     {
       "rule": "KD290",

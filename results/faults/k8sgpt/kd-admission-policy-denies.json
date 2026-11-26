@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-admission-policy-denies/web-5478fd465b",
+      "error": [
+        {
+          "Text": "pods \"web-5478fd465b-2gtqr\" is forbidden: ValidatingAdmissionPolicy 'kd-faults-require-team-label' with binding 'kd-faults-require-team-label' denied request: every pod needs a team label",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "Deployment",
+      "name": "kd-admission-policy-denies/web",
+      "error": [
+        {
+          "Text": "Deployment kd-admission-policy-denies/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-admission-policy-denies",
+              "Masked": "LU82dkN1dTNGTW8pTj9ZS1BdXTkyKDptaTo="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "N0Jm"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

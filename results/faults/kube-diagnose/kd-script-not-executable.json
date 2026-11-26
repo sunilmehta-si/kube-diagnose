@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-script-not-executable"
   ],
-  "collectedAt": "2026-11-25 16:11 UTC",
+  "collectedAt": "2026-11-26 05:55 UTC",
   "findings": [
     {
       "rule": "KD200",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-not-executable",
-            "name": "web-fd58cb87d-2pnz9"
+            "name": "web-fd58cb87d-8mck4"
           },
           "what": "container web did not start",
           "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: exec: \"/scripts/run.sh\": permission denied",
-          "command": "kubectl get pod web-fd58cb87d-2pnz9 -n kd-script-not-executable -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
+          "command": "kubectl get pod web-fd58cb87d-8mck4 -n kd-script-not-executable -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-script-not-executable",
-            "name": "web-fd58cb87d-2pnz9"
+            "name": "web-fd58cb87d-8mck4"
           },
           "what": "container web mounts volume scripts (ConfigMap scripts) at /scripts",
-          "command": "kubectl get pod web-fd58cb87d-2pnz9 -n kd-script-not-executable -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
+          "command": "kubectl get pod web-fd58cb87d-8mck4 -n kd-script-not-executable -o jsonpath='{.spec.volumes[?(@.name==\"scripts\")]}'"
         }
       ],
       "fix": "Set defaultMode: 0755 on volume scripts (or mode: 0755 on its item), or run the script through its interpreter, for example command: [\"sh\", \"/scripts/run.sh\"].",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-script-not-executable",
-          "name": "web-fd58cb87d-2pnz9"
+          "name": "web-fd58cb87d-8mck4"
         }
       ]
     }

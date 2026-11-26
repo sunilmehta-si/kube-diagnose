@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-udp-port",
-              "Masked": "d3Fmdnh7ZUssbyRBJDZJWSg="
+              "Masked": "YzBYLz5xc0toa2ZLT1JKUTI="
             },
             {
               "Unmasked": "log-receiver",
-              "Masked": "VXdOfSZmJFA6S24n"
+              "Masked": "UF5DK0k1RD5la1I/"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-probe-udp-port/log-receiver has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"log-receiver-664d876767\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-udp-port",
+              "Masked": "eGlufUN0eyJFXjdoaVokdSU="
+            },
+            {
+              "Unmasked": "log-receiver",
+              "Masked": "KEY/Uzx3MktqTThh"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-udp-port/log-receiver-664d876767-hvhnl",
+      "name": "kd-probe-udp-port/log-receiver-664d876767-cvq6f",
       "error": [
         {
-          "Text": "Readiness probe failed: dial tcp 10.244.0.123:5514: connect: connection refused",
+          "Text": "Readiness probe failed: dial tcp 10.244.0.132:5514: connect: connection refused",
           "KubernetesDoc": "",
           "Sensitive": []
         }

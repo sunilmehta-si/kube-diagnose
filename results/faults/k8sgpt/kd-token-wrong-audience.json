@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-token-wrong-audience/sync",
+      "error": [
+        {
+          "Text": "Deployment kd-token-wrong-audience/sync has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-token-wrong-audience",
+              "Masked": "SCE8IkpZKjFYPUR9MTM2cH1SWE8oX0M="
+            },
+            {
+              "Unmasked": "sync",
+              "Masked": "PmhoYw=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-token-wrong-audience/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-token-wrong-audience/sync-895975bd6-srsnw",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=sync pod=sync-895975bd6-srsnw",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/sync"
+    }
+  ]
+}

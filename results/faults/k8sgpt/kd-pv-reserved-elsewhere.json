@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
     {
       "kind": "Deployment",
@@ -14,30 +14,31 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pv-reserved-elsewhere",
-              "Masked": "dnJfeFNiJnhTMDJiNCFyQzpeVDRUYURp"
+              "Masked": "S01IWEpNcGUreDQqOV9FUE48PzkrT2ty"
             },
             {
               "Unmasked": "db",
-              "Masked": "e3c="
+              "Masked": "VmI="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pv-reserved-elsewhere/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-reserved-elsewhere",
+              "Masked": "VlNRKTBIdFFCbmhLa1s6ZD5wMDs7ZiR2"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "P3c="
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-pv-reserved-elsewhere/db-56f8666648-r6rmh",
-      "error": [
-        {
-          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/db"
     },
     {
       "kind": "PersistentVolumeClaim",
@@ -51,6 +52,19 @@
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-pv-reserved-elsewhere/db-56f8666648-n2485",
+      "error": [
+        {
+          "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/db"
     }
   ]
 }

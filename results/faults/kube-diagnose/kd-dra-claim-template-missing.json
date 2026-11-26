@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-claim-template-missing"
   ],
-  "collectedAt": "2026-11-25 16:06 UTC",
+  "collectedAt": "2026-11-26 05:47 UTC",
   "findings": [
     {
       "rule": "KD321",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-claim-template-missing",
-            "name": "trainer-77c4d99c54-v7zjt"
+            "name": "trainer-77c4d99c54-bdv79"
           },
           "what": "pod claims gpu through ResourceClaimTemplate single-gpu",
-          "command": "kubectl get pod trainer-77c4d99c54-v7zjt -n kd-dra-claim-template-missing -o jsonpath='{.spec.resourceClaims}{\"\\n\"}{.status.resourceClaimStatuses}'"
+          "command": "kubectl get pod trainer-77c4d99c54-bdv79 -n kd-dra-claim-template-missing -o jsonpath='{.spec.resourceClaims}{\"\\n\"}{.status.resourceClaimStatuses}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-claim-template-missing",
-            "name": "trainer-77c4d99c54-v7zjt"
+            "name": "trainer-77c4d99c54-bdv79"
           },
           "what": "event FailedResourceClaimCreation (16 times)",
           "detail": "PodResourceClaim gpu: resource claim template \"single-gpu\": resourceclaimtemplate.resource.k8s.io \"single-gpu\" not found",
-          "command": "kubectl get events -n kd-dra-claim-template-missing --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-77c4d99c54-v7zjt"
+          "command": "kubectl get events -n kd-dra-claim-template-missing --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-77c4d99c54-bdv79"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dra-claim-template-missing",
-          "name": "trainer-77c4d99c54-v7zjt"
+          "name": "trainer-77c4d99c54-bdv79"
         }
       ]
     }

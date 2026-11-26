@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-sidecar-startup-probe"
+  ],
+  "collectedAt": "2026-11-26 05:55 UTC",
+  "findings": [
+    {
+      "rule": "KD112",
+      "title": "Liveness probe kills the container",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-sidecar-startup-probe",
+        "name": "web"
+      },
+      "cause": "container proxy fails its startup probe (GET /ready on port 15021), so the kubelet restarts it (7 restarts); it is a sidecar (an init container with restartPolicy: Always), and the containers after it start only once its startup probe passes, so container web never starts; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-sidecar-startup-probe",
+            "name": "web-6cf79ccb5b-wgtkp"
+          },
+          "what": "event Unhealthy (21 times)",
+          "detail": "Startup probe failed: Get \"http://10.244.0.202:15021/ready\": dial tcp 10.244.0.202:15021: connect: connection refused",
+          "command": "kubectl get events -n kd-sidecar-startup-probe --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cf79ccb5b-wgtkp"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-sidecar-startup-probe",
+            "name": "web-6cf79ccb5b-wgtkp"
+          },
+          "what": "event Killing (6 times)",
+          "detail": "Init container proxy failed startup probe",
+          "command": "kubectl get events -n kd-sidecar-startup-probe --field-selector involvedObject.kind=Pod,involvedObject.name=web-6cf79ccb5b-wgtkp"
+        }
+      ],
+      "fix": "Point the probe at a port and path the app serves, or give it a startupProbe or longer initialDelaySeconds if it starts slowly.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-sidecar-startup-probe",
+          "name": "web-6cf79ccb5b-wgtkp"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

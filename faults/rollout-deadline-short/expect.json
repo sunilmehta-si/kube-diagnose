@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-rollout-deadline-short",
+  "description": "Deployment api allows a rollout 10 seconds without progress, and its readiness probe waits 30 before its first check, so every rollout is reported as failed though the pod comes up fine.",
+  "rule": "KD295",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "progressDeadlineSeconds"
+    ],
+    [
+      "30s"
+    ],
+    [
+      "ProgressDeadlineExceeded"
+    ]
+  ]
+}

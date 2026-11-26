@@ -1,0 +1,39 @@
+# The proxy sidecar's startup probe checks port 15021, which it never opens, so the kubelet keeps restarting it and the web container, which starts only after the sidecar has, never starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-sidecar-startup-probe
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-sidecar-startup-probe
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      initContainers:
+        # A mesh proxy as a native sidecar. Its startup probe checks a readiness port the proxy never opens (its
+        # config is missing), so it never counts as started and the web container waits behind it.
+        - name: proxy
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          restartPolicy: Always
+          command: ["sh", "-c", "echo 'proxy: no bootstrap config, admin port stays closed'; exec sleep 3600"]
+          startupProbe:
+            httpGet:
+              path: /ready
+              port: 15021
+            periodSeconds: 5
+            failureThreshold: 3
+      containers:
+        - name: web
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]

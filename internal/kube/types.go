@@ -319,9 +319,13 @@ type ProjectedSource struct {
 		Optional *bool       `json:"optional,omitempty"`
 	} `json:"secret,omitempty"`
 	// The other sources put files of their own in the volume; only that they are there matters here.
-	DownwardAPI         *struct{} `json:"downwardAPI,omitempty"`
-	ServiceAccountToken *struct{} `json:"serviceAccountToken,omitempty"`
-	ClusterTrustBundle  *struct{} `json:"clusterTrustBundle,omitempty"`
+	DownwardAPI *struct{} `json:"downwardAPI,omitempty"`
+	// ServiceAccountToken is a token minted for the audience named (the API server's own when empty), at path.
+	ServiceAccountToken *struct {
+		Audience string `json:"audience,omitempty"`
+		Path     string `json:"path"`
+	} `json:"serviceAccountToken,omitempty"`
+	ClusterTrustBundle *struct{} `json:"clusterTrustBundle,omitempty"`
 }
 
 type ProjectedVolumeSource struct {
@@ -803,12 +807,19 @@ type Workload struct {
 		MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 		// Paused stops a Deployment's rollouts until it is resumed.
 		Paused bool `json:"paused,omitempty"`
+		// ProgressDeadlineSeconds is how long a Deployment's rollout may go without progress before it is reported
+		// as failed (ProgressDeadlineExceeded); 600 when unset.
+		ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
 		// PodManagementPolicy is a StatefulSet's: OrderedReady (the default) creates pod n only once pod n-1 is ready.
 		PodManagementPolicy string `json:"podManagementPolicy,omitempty"`
 		// UpdateStrategy is a StatefulSet's or DaemonSet's: RollingUpdate (the default) or OnDelete, which replaces
 		// a pod with the new template only when the pod is deleted.
 		UpdateStrategy struct {
 			Type string `json:"type,omitempty"`
+			// RollingUpdate.Partition is a StatefulSet's: only pods with an ordinal at or above it get a new template.
+			RollingUpdate *struct {
+				Partition *int32 `json:"partition,omitempty"`
+			} `json:"rollingUpdate,omitempty"`
 		} `json:"updateStrategy,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`
@@ -870,7 +881,9 @@ type CronJob struct {
 		Suspend           *bool   `json:"suspend,omitempty"`
 		// StartingDeadlineSeconds is how late after its scheduled time a run may still start.
 		StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds,omitempty"`
-		JobTemplate             struct {
+		// FailedJobsHistoryLimit is how many failed Jobs the controller keeps (1 when unset); 0 deletes each at once.
+		FailedJobsHistoryLimit *int32 `json:"failedJobsHistoryLimit,omitempty"`
+		JobTemplate            struct {
 			Spec struct {
 				Template PodTemplate `json:"template"`
 			} `json:"spec"`
@@ -1404,4 +1417,15 @@ func OfficialBaseImage(repo string) string {
 		return repo
 	}
 	return ""
+}
+
+// RuntimeClass names a container runtime handler (gVisor's runsc, Kata). Its scheduling section is merged into every
+// pod that uses it at admission: its nodeSelector into the pod's, its tolerations into the pod's.
+type RuntimeClass struct {
+	Metadata   ObjectMeta `json:"metadata"`
+	Handler    string     `json:"handler"`
+	Scheduling *struct {
+		NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+		Tolerations  []Toleration      `json:"tolerations,omitempty"`
+	} `json:"scheduling,omitempty"`
 }

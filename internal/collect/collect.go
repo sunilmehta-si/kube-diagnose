@@ -132,6 +132,9 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		func(g *snapshot.Snapshot) error {
 			return list(ctx, r, g, "ingressclasses.networking.k8s.io", "", nil, &s.IngressClasses)
 		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "runtimeclasses.node.k8s.io", "", nil, &s.RuntimeClasses)
+		},
 		func(g *snapshot.Snapshot) error { return list(ctx, r, g, "persistentvolumes", "", nil, &s.PVs) },
 		func(g *snapshot.Snapshot) error { return namespaces(ctx, r, g, &s.NamespaceObjects) },
 		func(g *snapshot.Snapshot) error {
