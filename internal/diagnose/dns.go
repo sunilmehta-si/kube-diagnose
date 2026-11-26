@@ -84,8 +84,9 @@ func (ix *index) missingService(podNS string, lines []string) (svcNS, svc, line 
 // dnsBlockedBy returns the egress NetworkPolicy that leaves a pod no way to reach DNS: the pod is selected by
 // egress policies and none of their rules allows port 53 (a rule without ports allows every port to its peers).
 // It returns nil when the pod's egress is not restricted or DNS is allowed.
-func dnsBlockedBy(ix *index, p kube.Pod) *kube.NetworkPolicy {
+func dnsBlockedBy(ix *index, p kube.Pod) (*kube.NetworkPolicy, *kube.NetworkPolicyPeer) {
 	var first *kube.NetworkPolicy
+	var local *kube.NetworkPolicyPeer // a port-53 rule's peer that names pods of the policy's own namespace only
 	for i, np := range ix.s.NetworkPolicies {
 		if np.Metadata.Namespace != p.Metadata.Namespace || !np.AppliesToEgress() || !np.Spec.PodSelector.Matches(p.Metadata.Labels) {
 			continue
@@ -93,18 +94,33 @@ func dnsBlockedBy(ix *index, p kube.Pod) *kube.NetworkPolicy {
 		if first == nil {
 			first = &ix.s.NetworkPolicies[i]
 		}
-		for _, rule := range np.Spec.Egress {
-			if len(rule.Ports) == 0 {
-				return nil
-			}
+		for r, rule := range np.Spec.Egress {
+			dns := len(rule.Ports) == 0
 			for _, port := range rule.Ports {
 				if port.Port == nil || (!port.Port.IsName && port.Port.Int == 53) || (port.Port.IsName && strings.HasPrefix(port.Port.Str, "dns")) {
-					return nil
+					dns = true
+				}
+			}
+			if !dns {
+				continue
+			}
+			// The rule lets port 53 out; to where? A podSelector with no namespaceSelector picks pods of the policy's
+			// own namespace, and cluster DNS runs in kube-system, so such a peer lets no lookup out.
+			if len(rule.To) == 0 {
+				return nil, nil
+			}
+			for j, peer := range rule.To {
+				if peer.NamespaceSelector != nil || peer.IPBlock != nil {
+					return nil, nil
+				}
+				if local == nil && p.Metadata.Namespace != "kube-system" {
+					local = &ix.s.NetworkPolicies[i].Spec.Egress[r].To[j]
+					first = &ix.s.NetworkPolicies[i]
 				}
 			}
 		}
 	}
-	return first
+	return first, local
 }
 
 // dnsBlocked finds a container that exits after a failed lookup while an egress NetworkPolicy blocks its DNS.
@@ -113,12 +129,24 @@ func dnsBlocked(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, 
 	if host == "" {
 		return nil
 	}
-	np := dnsBlockedBy(ix, p)
+	np, local := dnsBlockedBy(ix, p)
 	if np == nil {
 		return nil
 	}
 	ns := p.Metadata.Namespace
 	ref := kube.Ref{Kind: "NetworkPolicy", Namespace: ns, Name: np.Metadata.Name}
+	if local != nil {
+		sel := "{}"
+		if local.PodSelector != nil {
+			sel = selectorString(*local.PodSelector)
+		}
+		ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("NetworkPolicy %s allows port 53 only to pods matching %s, with no namespaceSelector", np.Metadata.Name, sel),
+			Command: cmdGet("networkpolicy", ns, np.Metadata.Name, "{.spec.egress}")})
+		return newProblem(p, cs.Name, "KD123", "NetworkPolicy blocks the pod's DNS lookups", Critical,
+			fmt.Sprintf("container %s exits because it cannot resolve %s: NetworkPolicy %s allows port 53 only to pods matching %s, and a podSelector with no namespaceSelector picks pods of namespace %s alone, while cluster DNS runs in kube-system, so no DNS lookup gets out; its log says: %q",
+				cs.Name, host, np.Metadata.Name, sel, ns, clip(line, 200)),
+			"dnsblocked|"+np.Metadata.Name, fmt.Sprintf("Add namespaceSelector {matchLabels: {kubernetes.io/metadata.name: kube-system}} to that peer of %s, in the same entry as its podSelector, so it picks the DNS pods in kube-system.", np.Metadata.Name), ev...)
+	}
 	ev = append(ev, Evidence{Object: ref, What: fmt.Sprintf("NetworkPolicy %s restricts the pod's egress and allows no traffic to port 53", np.Metadata.Name),
 		Command: cmdGet("networkpolicy", ns, np.Metadata.Name, "{.spec.egress}")})
 	return newProblem(p, cs.Name, "KD123", "NetworkPolicy blocks the pod's DNS lookups", Critical,

@@ -1295,6 +1295,19 @@ func TestNetworkPolicyBlocksDNS(t *testing.T) {
 	if f := Diagnose(s).Findings[0]; f.Rule == "KD123" {
 		t.Errorf("DNS is allowed: %s", f.Cause)
 	}
+
+	// Port 53 allowed to the DNS pods by podSelector alone: that names pods of shop, not kube-system's.
+	s.NetworkPolicies[0].Spec.Egress[1].To = []kube.NetworkPolicyPeer{{PodSelector: &kube.LabelSelector{MatchLabels: map[string]string{"k8s-app": "kube-dns"}}}}
+	f = Diagnose(s).Findings[0]
+	expect(t, f, "KD123", "Deployment shop/web", "allows port 53 only to pods matching k8s-app=kube-dns", "picks pods of namespace shop alone, while cluster DNS runs in kube-system")
+	if !strings.Contains(f.Fix, "kubernetes.io/metadata.name: kube-system") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// With the namespaceSelector beside it, DNS gets out.
+	s.NetworkPolicies[0].Spec.Egress[1].To[0].NamespaceSelector = &kube.LabelSelector{MatchLabels: map[string]string{"kubernetes.io/metadata.name": "kube-system"}}
+	if f := Diagnose(s).Findings[0]; f.Rule == "KD123" {
+		t.Errorf("DNS is allowed to kube-system: %s", f.Cause)
+	}
 }
 
 func TestCrashOnARefusedServiceWithNoPods(t *testing.T) {
