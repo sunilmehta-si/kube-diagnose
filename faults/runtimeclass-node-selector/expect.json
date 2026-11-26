@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-runtimeclass-node-selector",
+  "description": "The scanner runs under RuntimeClass kd-faults-sandboxed, whose scheduling.nodeSelector sandbox.example.com/runtime=gvisor is merged into its pods, and no node has that label.",
+  "rule": "KD141",
+  "object": "Deployment/scanner",
+  "keywords": [
+    [
+      "kd-faults-sandboxed"
+    ],
+    [
+      "sandbox.example.com/runtime"
+    ],
+    [
+      "RuntimeClass"
+    ]
+  ]
+}
