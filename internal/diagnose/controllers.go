@@ -25,6 +25,8 @@ var (
 	reWebhkCall     = regexp.MustCompile(`failed calling webhook "([^"]+)": (?:failed to call webhook: )?(.*)$`)
 	reWebhkService  = regexp.MustCompile(`"https://([a-z0-9-]+)\.([a-z0-9-]+)\.svc(?::\d+)?[^"]*"`)
 	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
+	// The API server's own CEL admission: "ValidatingAdmissionPolicy 'p' with binding 'b' denied request: <message>".
+	reVAP = regexp.MustCompile(`ValidatingAdmissionPolicy '([^']+)' with binding '([^']+)' denied request: (.*)$`)
 )
 
 // controllerFindings reads why a controller cannot create its pods, from its FailedCreate events: quota,
@@ -133,6 +135,17 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Namespace", Name: ns}, What: "namespace PodSecurity labels",
 			Command: "kubectl get namespace " + ns + " --show-labels"})
 		f.Fix = "Change the pod spec to meet the level (the message lists each violation), or relax the namespace's pod-security.kubernetes.io/enforce label if that is intended."
+	case reVAP.MatchString(msg):
+		m := reVAP.FindStringSubmatch(msg)
+		policy, binding, why := m[1], m[2], strings.TrimSpace(m[3])
+		f.Rule, f.Title = "KD279", "ValidatingAdmissionPolicy rejects the pods"
+		f.Cause = fmt.Sprintf("%s cannot create pods: ValidatingAdmissionPolicy %s, through binding %s, denies them: %s", owner, policy, binding, clip(why, 200))
+		f.Evidence = append(f.Evidence,
+			Evidence{Object: kube.Ref{Kind: "ValidatingAdmissionPolicy", Name: policy}, What: fmt.Sprintf("policy %s's validations", policy),
+				Command: cmdGet("validatingadmissionpolicy", "", policy, `{.spec.validations}`)},
+			Evidence{Object: kube.Ref{Kind: "ValidatingAdmissionPolicyBinding", Name: binding}, What: fmt.Sprintf("binding %s: what it applies the policy to, and how", binding),
+				Command: cmdGet("validatingadmissionpolicybinding", "", binding, `{.spec.matchResources}{"\n"}{.spec.validationActions}`)})
+		f.Fix = fmt.Sprintf("Change the pod template to pass the policy (its message says what it checks), or, if %s should not apply here, narrow binding %s's matchResources; validationActions Warn or Audit report without denying.", owner, binding)
 	case reWebhkCall.MatchString(msg):
 		webhookUnreachable(&f, owner, reWebhkCall.FindStringSubmatch(msg))
 	case reWebhk.MatchString(msg):

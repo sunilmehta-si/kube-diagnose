@@ -4358,6 +4358,24 @@ func TestAdmissionWebhookCannotBeReached(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD173", "Deployment shop/web")
 }
 
+func TestValidatingAdmissionPolicyRejectsThePods(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "web-rs", "FailedCreate",
+		`Error creating: pods "web-rs-x2k4p" is forbidden: ValidatingAdmissionPolicy 'require-team-label' with binding 'require-team-label-everywhere' denied request: every pod needs a team label`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD279", "Deployment shop/web", "ValidatingAdmissionPolicy require-team-label, through binding require-team-label-everywhere, denies them: every pod needs a team label")
+	if len(f.Evidence) != 3 || !strings.Contains(f.Fix, "narrow binding require-team-label-everywhere's matchResources") {
+		t.Errorf("evidence %+v fix %s", f.Evidence, f.Fix)
+	}
+	// A policy without a message says which expression failed.
+	s.Events[0].Message = `Error creating: pods "web-rs-x2k4p" is forbidden: ValidatingAdmissionPolicy 'require-team-label' with binding 'b' denied request: failed expression: has(object.metadata.labels.team)`
+	expect(t, only(t, Diagnose(s)), "KD279", "Deployment shop/web", "failed expression: has(object.metadata.labels.team)")
+}
+
 // TestContainerCaughtJustAfterFinishing is a Deployment's container whose process ends with code 0 each time, as the
 // fault suite recorded it between an exit and the kubelet's back-off: state terminated, reason Completed, five
 // restarts. It used to yield no finding at all.
