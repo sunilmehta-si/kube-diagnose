@@ -5877,3 +5877,20 @@ func TestNoNodeCanTakeAnotherPod(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestSidecarsStartupProbeHoldsTheAppBack(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.InitContainers = []kube.Container{{Name: "proxy", RestartPolicy: "Always", StartupProbe: &kube.Probe{HTTPGet: &kube.HTTPGetAction{Path: "/ready", Port: port(15021)}}}}
+	p.Status.Phase = "Pending"
+	started := false
+	p.Status.InitContainerStatuses = []kube.ContainerStatus{{Name: "proxy", Started: &started, RestartCount: 3, State: kube.ContainerState{Running: &kube.ContainerStateRunning{StartedAt: t0}},
+		LastTerminationState: kube.ContainerState{Terminated: &kube.ContainerStateTerminated{ExitCode: 137, Reason: "Error"}}}}
+	p.Status.ContainerStatuses = []kube.ContainerStatus{{Name: "web", State: kube.ContainerState{Waiting: &kube.ContainerStateWaiting{Reason: "PodInitializing"}}}}
+	p.Status.Conditions = []kube.Condition{{Type: "PodScheduled", Status: "True"}, {Type: "Initialized", Status: "False"}}
+	s.Pods = []kube.Pod{p}
+	s.Events = []kube.Event{event("Pod", "web-rs-a", "Unhealthy", `Startup probe failed: Get "http://10.244.0.9:15021/ready": dial tcp 10.244.0.9:15021: connect: connection refused`, 0),
+		event("Pod", "web-rs-a", "Killing", "Container proxy failed startup probe, will be restarted", 0)}
+	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web", "container proxy fails its startup probe", "it is a sidecar", "so container web never starts")
+}
