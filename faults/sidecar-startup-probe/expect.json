@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-sidecar-startup-probe",
+  "description": "The proxy sidecar's startup probe checks port 15021, which it never opens, so the kubelet keeps restarting it and the web container, which starts only after the sidecar has, never starts.",
+  "rule": "KD112",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "proxy"
+    ],
+    [
+      "sidecar"
+    ],
+    [
+      "startup probe"
+    ]
+  ]
+}
