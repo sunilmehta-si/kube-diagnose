@@ -803,6 +803,9 @@ type Workload struct {
 		MinReadySeconds int32 `json:"minReadySeconds,omitempty"`
 		// Paused stops a Deployment's rollouts until it is resumed.
 		Paused bool `json:"paused,omitempty"`
+		// ProgressDeadlineSeconds is how long a Deployment's rollout may go without progress before it is reported
+		// as failed (ProgressDeadlineExceeded); 600 when unset.
+		ProgressDeadlineSeconds *int32 `json:"progressDeadlineSeconds,omitempty"`
 		// PodManagementPolicy is a StatefulSet's: OrderedReady (the default) creates pod n only once pod n-1 is ready.
 		PodManagementPolicy string `json:"podManagementPolicy,omitempty"`
 		// UpdateStrategy is a StatefulSet's or DaemonSet's: RollingUpdate (the default) or OnDelete, which replaces

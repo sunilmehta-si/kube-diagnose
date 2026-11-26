@@ -5798,3 +5798,24 @@ func TestStatefulSetUpdateStopsAtItsPartition(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestRolloutDeadlineIsShorterThanAPodTakesToBecomeAvailable(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 2, 2)
+	d := &s.Workloads[0]
+	ten := int32(10)
+	d.Spec.ProgressDeadlineSeconds = &ten
+	d.Spec.Template.Spec.Containers = []kube.Container{{Name: "api", ReadinessProbe: &kube.Probe{InitialDelaySeconds: 30}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD295", "Deployment shop/api", "progressDeadlineSeconds is 10", "cannot count as available in under 30s", "container api's readiness probe waits initialDelaySeconds 30")
+	// minReadySeconds adds to the wait.
+	d.Spec.MinReadySeconds = 15
+	ninety := int32(40)
+	d.Spec.ProgressDeadlineSeconds = &ninety
+	expect(t, only(t, Diagnose(s)), "KD295", "Deployment shop/api", "under 45s", "then minReadySeconds 15")
+	// The default deadline, or one long enough, says nothing.
+	d.Spec.ProgressDeadlineSeconds = nil
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}

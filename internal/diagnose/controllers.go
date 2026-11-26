@@ -198,6 +198,8 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 			out = append(out, *f)
 		} else if f := partitionHolds(w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
+		} else if f := deadlineTooShort(w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
 		} else if f := minReadyHolds(w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
 		}
@@ -622,4 +624,46 @@ func partitionHolds(w kube.Workload) *Finding {
 		Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("StatefulSet %s: partition %d, current revision %s, update revision %s, %d of %d pods updated", name, part, w.Status.CurrentRevision, w.Status.UpdateRevision, w.Status.UpdatedReplicas, all),
 			Command: cmdGet("statefulset", ns, name, `{.spec.updateStrategy}{" "}{.status.currentRevision}{" "}{.status.updateRevision}{" "}{.status.updatedReplicas}/{.status.replicas}`)}},
 		Fix: fmt.Sprintf("Lower the partition to roll the change out further (0 updates every pod), once the pods above it look healthy; kubectl rollout status statefulset/%s follows it.", name)}
+}
+
+// deadlineTooShort finds a Deployment whose progressDeadlineSeconds is shorter than its new pods can take to count as
+// available: the readiness probe's initialDelaySeconds (or the startup probe's, which runs first) plus
+// minReadySeconds. Every rollout then makes no progress for longer than the deadline and is reported as failed
+// (ProgressDeadlineExceeded, and kubectl rollout status fails a pipeline), though the pods come up fine.
+func deadlineTooShort(w kube.Workload) *Finding {
+	d := w.Spec.ProgressDeadlineSeconds
+	if w.Kind != "Deployment" || d == nil {
+		return nil
+	}
+	need, why := int32(0), ""
+	for _, c := range w.Spec.Template.Spec.Containers {
+		delay, kind := int32(0), ""
+		if c.StartupProbe != nil {
+			delay, kind = c.StartupProbe.InitialDelaySeconds, "startup"
+		}
+		if c.ReadinessProbe != nil && c.ReadinessProbe.InitialDelaySeconds > delay {
+			delay, kind = c.ReadinessProbe.InitialDelaySeconds, "readiness"
+		}
+		if delay > need {
+			need, why = delay, fmt.Sprintf("container %s's %s probe waits initialDelaySeconds %d", c.Name, kind, delay)
+		}
+	}
+	if m := w.Spec.MinReadySeconds; m > 0 {
+		need += m
+		if why != "" {
+			why += fmt.Sprintf(", then minReadySeconds %d", m)
+		} else {
+			why = fmt.Sprintf("minReadySeconds is %d", m)
+		}
+	}
+	if need == 0 || *d >= need {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	return &Finding{Rule: "KD295", Title: "Rollout deadline is shorter than a pod takes to become available", Severity: Warning, Object: w.Ref(),
+		Cause: fmt.Sprintf("Deployment %s's progressDeadlineSeconds is %d, and a new pod cannot count as available in under %ds (%s), so every rollout goes %ds without progress and is reported as failed (ProgressDeadlineExceeded), and kubectl rollout status fails, though the pods come up fine",
+			name, *d, need, why, *d),
+		Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("Deployment %s: progressDeadlineSeconds %d, minReadySeconds %d, and its probes' initial delays", name, *d, w.Spec.MinReadySeconds),
+			Command: cmdGet("deployment", ns, name, `{.spec.progressDeadlineSeconds}{" "}{.spec.minReadySeconds}{"\n"}{range .spec.template.spec.containers[*]}{.name}{" "}{.readinessProbe.initialDelaySeconds}{" "}{.startupProbe.initialDelaySeconds}{"\n"}{end}`)}},
+		Fix: fmt.Sprintf("Raise progressDeadlineSeconds well above %ds (the default is 600), or shorten the probe's initialDelaySeconds: a startup probe lets a slow start finish without a long fixed delay.", need)}
 }
