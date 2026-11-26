@@ -319,9 +319,13 @@ type ProjectedSource struct {
 		Optional *bool       `json:"optional,omitempty"`
 	} `json:"secret,omitempty"`
 	// The other sources put files of their own in the volume; only that they are there matters here.
-	DownwardAPI         *struct{} `json:"downwardAPI,omitempty"`
-	ServiceAccountToken *struct{} `json:"serviceAccountToken,omitempty"`
-	ClusterTrustBundle  *struct{} `json:"clusterTrustBundle,omitempty"`
+	DownwardAPI *struct{} `json:"downwardAPI,omitempty"`
+	// ServiceAccountToken is a token minted for the audience named (the API server's own when empty), at path.
+	ServiceAccountToken *struct {
+		Audience string `json:"audience,omitempty"`
+		Path     string `json:"path"`
+	} `json:"serviceAccountToken,omitempty"`
+	ClusterTrustBundle *struct{} `json:"clusterTrustBundle,omitempty"`
 }
 
 type ProjectedVolumeSource struct {

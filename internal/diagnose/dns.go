@@ -526,3 +526,59 @@ func peerNotPublished(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []st
 	}
 	return newProblem(p, cs.Name, "KD373", "StatefulSet's peers have no DNS records until they are ready", Critical, cause, "peerdns|"+svc.Metadata.Name, fix, ev...)
 }
+
+// reUnauthorized matches the API server's 401 as clients print it: kubectl, busybox wget and curl, client-go.
+var reUnauthorized = regexp.MustCompile(`(?i)must be logged in to the server \(Unauthorized\)|\b401 Unauthorized\b|"code":\s*401|\(401\)`)
+
+// tokenForAnotherAudience finds a container that exits because the API server refuses its token (401, not 403):
+// the token it sends is a projected ServiceAccount token minted for another audience (a Vault role, a cloud
+// provider), and the API server accepts only tokens minted for its own. It reads as an RBAC failure and is not one.
+func tokenForAnotherAudience(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	line := ""
+	for i := len(lines) - 1; i >= 0 && line == ""; i-- {
+		if reUnauthorized.MatchString(lines[i]) {
+			line = lines[i]
+		}
+	}
+	if line == "" {
+		return nil
+	}
+	for _, v := range p.Spec.Volumes {
+		if v.Projected == nil {
+			continue
+		}
+		for _, src := range v.Projected.Sources {
+			t := src.ServiceAccountToken
+			if t == nil || t.Audience == "" || strings.Contains(t.Audience, "kubernetes.default") {
+				continue
+			}
+			m, ok := mountOf(p, cs.Name, v.Name)
+			if !ok {
+				continue
+			}
+			file := strings.TrimRight(m, "/") + "/" + t.Path
+			cause := fmt.Sprintf("container %s exits because the API server refuses its token (401 Unauthorized, not a missing permission): the token at %s, from projected volume %s, is minted for audience %s, and the API server accepts only tokens minted for its own; its log says: %q",
+				cs.Name, file, v.Name, t.Audience, clip(line, 200))
+			ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("volume %s projects a ServiceAccount token for audience %s at %s", v.Name, t.Audience, file),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.volumes[?(@.name=="%s")].projected.sources}`, v.Name))})
+			fix := fmt.Sprintf("Call the API server with a token for its own audience: the default one at /var/run/secrets/kubernetes.io/serviceaccount/token (automounted unless turned off), or a projected token with no audience. Keep the %s token for %s.", t.Audience, t.Audience)
+			return newProblem(p, cs.Name, "KD316", "Container calls the API server with a token for another audience", Critical, cause, "audience|"+t.Audience, fix, ev...)
+		}
+	}
+	return nil
+}
+
+// mountOf returns where the container mounts the named volume.
+func mountOf(p kube.Pod, container, volume string) (string, bool) {
+	for _, c := range append(append([]kube.Container{}, p.Spec.InitContainers...), p.Spec.Containers...) {
+		if c.Name != container {
+			continue
+		}
+		for _, m := range c.VolumeMounts {
+			if m.Name == volume {
+				return m.MountPath, true
+			}
+		}
+	}
+	return "", false
+}

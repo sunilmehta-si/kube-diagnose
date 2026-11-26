@@ -5894,3 +5894,27 @@ func TestSidecarsStartupProbeHoldsTheAppBack(t *testing.T) {
 		event("Pod", "web-rs-a", "Killing", "Container proxy failed startup probe, will be restarted", 0)}
 	expect(t, only(t, Diagnose(s)), "KD112", "Deployment shop/web", "container proxy fails its startup probe", "it is a sidecar", "so container web never starts")
 }
+
+func TestContainerCallsTheAPIServerWithATokenForAnotherAudience(t *testing.T) {
+	s := snap()
+	deployment(s, "sync", 1, 0)
+	p := pod("sync-rs-a", "sync")
+	crashed(&p, 1, "Error", 3)
+	src := kube.ProjectedSource{ServiceAccountToken: &struct {
+		Audience string `json:"audience,omitempty"`
+		Path     string `json:"path"`
+	}{"vault", "vault-token"}}
+	p.Spec.Volumes = []kube.Volume{{Name: "vault-token", Projected: &kube.ProjectedVolumeSource{Sources: []kube.ProjectedSource{src}}}}
+	p.Spec.Containers[0].VolumeMounts = []kube.VolumeMount{{Name: "vault-token", MountPath: "/var/run/secrets/tokens"}}
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"listing pods", "wget: server returned error: HTTP/1.1 401 Unauthorized"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD316", "Deployment shop/sync", "refuses its token (401 Unauthorized, not a missing permission)", "the token at /var/run/secrets/tokens/vault-token", "minted for audience vault")
+	// A 403 is a missing permission, not this.
+	s.Logs[0].Lines = []string{`pods is forbidden: User "system:serviceaccount:shop:sync" cannot list resource "pods" in API group "" in the namespace "shop"`}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD316" {
+			t.Errorf("403: %s", f.Cause)
+		}
+	}
+}
