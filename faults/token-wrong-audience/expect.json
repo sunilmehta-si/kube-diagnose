@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-token-wrong-audience",
+  "description": "The sync pod calls the API server with the ServiceAccount token it projects for Vault (audience vault), and the API server refuses it with 401 Unauthorized.",
+  "rule": "KD316",
+  "object": "Deployment/sync",
+  "keywords": [
+    [
+      "audience"
+    ],
+    [
+      "vault"
+    ],
+    [
+      "401"
+    ]
+  ]
+}

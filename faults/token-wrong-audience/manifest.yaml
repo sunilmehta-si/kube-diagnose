@@ -1,0 +1,45 @@
+# The sync pod calls the API server with the ServiceAccount token it projects for Vault (audience vault), and the API server refuses it with 401 Unauthorized.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-token-wrong-audience
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: sync
+  namespace: kd-token-wrong-audience
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: sync
+  template:
+    metadata:
+      labels:
+        app: sync
+    spec:
+      # The pod gets one token, projected for Vault, and uses it for the API server too.
+      automountServiceAccountToken: false
+      volumes:
+        - name: vault-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: vault
+                  path: vault-token
+      containers:
+        - name: sync
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          volumeMounts:
+            - name: vault-token
+              mountPath: /var/run/secrets/tokens
+          command:
+            - sh
+            - -c
+            - |
+              echo "listing pods"
+              wget -q -O /dev/null --header "Authorization: Bearer $(cat /var/run/secrets/tokens/vault-token)" \
+                https://kubernetes.default.svc/api/v1/namespaces/kd-token-wrong-audience/pods || exit 1
+              exec sleep 3600
