@@ -16,8 +16,10 @@
     progressDeadlineSeconds is shorter than its pods take to become available (KD295); a CronJob whose runs fail while
     failedJobsHistoryLimit 0 deletes each failed Job and its logs (KD297).
 - RuntimeClasses are read: their handler, and the nodeSelector and tolerations they merge into the pods that use them.
-- 11 fault scenarios, 230 broken namespaces in all: one for each new rule, and one each for KD123's, KD141's,
-  KD112's and KD160's new causes below.
+- 10 fault scenarios, 229 broken namespaces in all: one for each new rule but KD380, and one each for KD123's,
+  KD141's, KD112's and KD160's new causes below. KD380 is tested on the recorded message: kind's API server, as
+  configured, admits system-critical priority in any namespace, while clusters that limit it to kube-system (GKE
+  does) refuse it with that message.
 
 ### Changed
 - KD123 says when an egress policy lets port 53 out only to kube-dns by podSelector, which without a namespaceSelector
