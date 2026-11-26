@@ -101,6 +101,19 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 		Command: cmdGet("service", ns, svc.Metadata.Name, "{.spec.selector}")}}
 	cause := fmt.Sprintf("Service %s selects pods with %s, and no pod in namespace %s has those labels", svc.Metadata.Name, sel, ns)
 	fix := "Change the Service's selector to the labels its pods carry, or the pods' labels to match the selector."
+	// The selector matches a workload's own labels, not its pod template's: the labels under metadata are the
+	// Deployment's, and only spec.template.metadata.labels reach its pods.
+	for _, w := range ix.s.Workloads {
+		if w.Metadata.Namespace != ns || w.Kind == "ReplicaSet" || !kube.MatchesMap(svc.Spec.Selector, w.Metadata.Labels) {
+			continue
+		}
+		pods := kube.FormatMap(w.Spec.Template.Metadata.Labels)
+		ev = append(ev, Evidence{Object: w.Ref(), What: fmt.Sprintf("%s %s's own labels match the selector; its pod template's labels are %s", w.Kind, w.Metadata.Name, pods),
+			Command: cmdGet(strings.ToLower(w.Kind), ns, w.Metadata.Name, `{.metadata.labels}{"\n"}{.spec.template.metadata.labels}`)})
+		cause += fmt.Sprintf(": %s matches %s %s's own labels (under its metadata), which its pods do not get; its pods carry %s", sel, w.Kind, w.Metadata.Name, pods)
+		fix = fmt.Sprintf("Select the pods by their template's labels (%s), or add %s to %s %s's spec.template.metadata.labels: only those labels reach the pods.", pods, sel, w.Kind, w.Metadata.Name)
+		return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Critical, Object: svc.Ref(), Cause: cause, Evidence: ev, Fix: fix}
+	}
 	if near := nearestLabels(ix, ns, svc.Spec.Selector); near != "" {
 		ev = append(ev, Evidence{Object: kube.Ref{Kind: "Pod", Namespace: ns, Name: "*"},
 			What: "the closest labels on pods in the namespace are " + near, Command: "kubectl get pods -n " + ns + " --show-labels"})

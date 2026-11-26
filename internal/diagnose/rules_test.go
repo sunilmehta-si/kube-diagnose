@@ -5918,3 +5918,19 @@ func TestContainerCallsTheAPIServerWithATokenForAnotherAudience(t *testing.T) {
 		}
 	}
 }
+
+func TestServiceSelectsTheDeploymentsLabelsNotItsPods(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 1)
+	s.Workloads[0].Metadata.Labels = map[string]string{"app": "api"}
+	s.Workloads[0].Spec.Template.Metadata.Labels = map[string]string{"app": "api-server"}
+	p := pod("api-rs-a", "api")
+	p.Metadata.Labels = map[string]string{"app": "api-server"}
+	s.Pods = []kube.Pod{p}
+	s.Services = []kube.Service{service("api", map[string]string{"app": "api"}, port(8080))}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD160", "Service shop/api", "app=api matches Deployment api's own labels (under its metadata), which its pods do not get; its pods carry app=api-server")
+	if !strings.Contains(f.Fix, "spec.template.metadata.labels: only those labels reach the pods") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
