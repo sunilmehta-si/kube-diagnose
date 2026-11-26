@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-cronjob-failures-deleted",
+  "description": "CronJob backup fails every run, and its failedJobsHistoryLimit is 0, so each failed Job and its pod are deleted at once and no log is left to read.",
+  "rule": "KD297",
+  "object": "CronJob/backup",
+  "keywords": [
+    [
+      "failedJobsHistoryLimit"
+    ],
+    [
+      "failed"
+    ],
+    [
+      "deletes"
+    ]
+  ]
+}
