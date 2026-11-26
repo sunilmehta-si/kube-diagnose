@@ -161,7 +161,7 @@ func TestCollect(t *testing.T) {
 			t.Errorf("secrets must be read as key names only: %v", c)
 		}
 		if c[0] == "get" && c[1] != "nodes" && c[1] != "storageclasses.storage.k8s.io" && c[1] != "persistentvolumes" && c[1] != "ingressclasses.networking.k8s.io" && c[1] != "namespaces" && c[1] != "clusterroles.rbac.authorization.k8s.io" && c[1] != "gatewayclasses.gateway.networking.k8s.io" &&
-			c[1] != "deviceclasses.resource.k8s.io" && c[1] != "resourceslices.resource.k8s.io" &&
+			c[1] != "deviceclasses.resource.k8s.io" && c[1] != "resourceslices.resource.k8s.io" && c[1] != "runtimeclasses.node.k8s.io" &&
 			!(c[len(c)-2] == "-n" && c[len(c)-1] == "shop") {
 			t.Errorf("namespaced read not scoped to the namespace: %v", c)
 		}
@@ -442,5 +442,18 @@ func TestCollectReadsDynamicResourceAllocationWhenTheClusterServesIt(t *testing.
 	s, _ = Collect(context.Background(), f, Options{Namespace: "shop"})
 	if !s.ResourceAllocationRead || len(s.Gaps) != 1 || s.Gaps[0].Resource != "resourceclaims.resource.k8s.io" {
 		t.Errorf("gaps %+v", s.Gaps)
+	}
+}
+
+func TestCollectReadsRuntimeClassesAndTheirScheduling(t *testing.T) {
+	f := &fake{answers: map[string]string{
+		"get runtimeclasses.node.k8s.io": `{"items":[{"metadata":{"name":"gvisor"},"handler":"runsc","scheduling":{"nodeSelector":{"sandbox":"gvisor"},"tolerations":[{"key":"sandbox","operator":"Exists"}]}}]}`,
+	}}
+	s, err := Collect(context.Background(), f, Options{Namespace: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(s.RuntimeClasses) != 1 || s.RuntimeClasses[0].Handler != "runsc" || s.RuntimeClasses[0].Scheduling.NodeSelector["sandbox"] != "gvisor" {
+		t.Errorf("runtime classes %+v", s.RuntimeClasses)
 	}
 }

@@ -72,11 +72,13 @@ type Snapshot struct {
 	PVs                    []kube.PersistentVolume        `json:"persistentVolumes"`
 	// NamespaceObjects holds the name and labels of every namespace of the cluster, read to judge namespace
 	// selectors; empty in snapshots recorded before 0.12.0 and when namespaces could not be listed.
-	NamespaceObjects []kube.Namespace      `json:"namespaceObjects,omitempty"`
-	StorageClasses   []kube.StorageClass   `json:"storageClasses"`
-	NetworkPolicies  []kube.NetworkPolicy  `json:"networkPolicies"`
-	ResourceQuotas   []kube.ResourceQuota  `json:"resourceQuotas"`
-	ServiceAccounts  []kube.ServiceAccount `json:"serviceAccounts"`
+	NamespaceObjects []kube.Namespace    `json:"namespaceObjects,omitempty"`
+	StorageClasses   []kube.StorageClass `json:"storageClasses"`
+	// RuntimeClasses of the cluster; empty in snapshots recorded before 0.16.0.
+	RuntimeClasses  []kube.RuntimeClass   `json:"runtimeClasses,omitempty"`
+	NetworkPolicies []kube.NetworkPolicy  `json:"networkPolicies"`
+	ResourceQuotas  []kube.ResourceQuota  `json:"resourceQuotas"`
+	ServiceAccounts []kube.ServiceAccount `json:"serviceAccounts"`
 	// Roles and RoleBindings of the namespaces read, and the names of the cluster's ClusterRoles (a RoleBinding may
 	// grant one); all empty in snapshots recorded before 0.12.0.
 	Roles        []kube.Role        `json:"roles,omitempty"`

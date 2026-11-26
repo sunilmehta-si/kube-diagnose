@@ -1414,3 +1414,14 @@ func OfficialBaseImage(repo string) string {
 	}
 	return ""
 }
+
+// RuntimeClass names a container runtime handler (gVisor's runsc, Kata). Its scheduling section is merged into every
+// pod that uses it at admission: its nodeSelector into the pod's, its tolerations into the pod's.
+type RuntimeClass struct {
+	Metadata   ObjectMeta `json:"metadata"`
+	Handler    string     `json:"handler"`
+	Scheduling *struct {
+		NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+		Tolerations  []Toleration      `json:"tolerations,omitempty"`
+	} `json:"scheduling,omitempty"`
+}
