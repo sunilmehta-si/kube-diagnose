@@ -26,7 +26,9 @@ var (
 	reWebhkService  = regexp.MustCompile(`"https://([a-z0-9-]+)\.([a-z0-9-]+)\.svc(?::\d+)?[^"]*"`)
 	rePSA           = regexp.MustCompile(`violates PodSecurity "([^"]+)"`)
 	// The API server's own CEL admission: "ValidatingAdmissionPolicy 'p' with binding 'b' denied request: <message>".
-	reVAP = regexp.MustCompile(`ValidatingAdmissionPolicy '([^']+)' with binding '([^']+)' denied request: (.*)$`)
+	// System-critical priority is limited to namespaces with a ResourceQuota that names it (kube-system's, by default).
+	reCriticalPriority = regexp.MustCompile(`insufficient quota to match these scopes: \[\{PriorityClass In \[([^\]]+)\]\}\]`)
+	reVAP              = regexp.MustCompile(`ValidatingAdmissionPolicy '([^']+)' with binding '([^']+)' denied request: (.*)$`)
 )
 
 // controllerFindings reads why a controller cannot create its pods, from its FailedCreate events: quota,
@@ -79,6 +81,22 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		claim = m[1]
 	}
 	switch {
+	case reCriticalPriority.MatchString(msg):
+		classes := reCriticalPriority.FindStringSubmatch(msg)[1]
+		pc := ""
+		if w := ix.workloads[src]; w != nil {
+			pc = w.Spec.Template.Spec.PriorityClassName
+		} else if j := ix.jobs[src]; j != nil {
+			pc = j.Spec.Template.Spec.PriorityClassName
+		}
+		if pc == "" {
+			pc = strings.Fields(classes)[0]
+		}
+		f.Rule, f.Title = "KD380", "System-critical priority is not allowed in the namespace"
+		f.Cause = fmt.Sprintf("%s cannot create pods: they use PriorityClass %s, and the API server admits a pod with a system-critical priority (%s) only in a namespace with a ResourceQuota that names that class, as kube-system has; %s has none", owner, pc, classes, ns)
+		f.Evidence = append(f.Evidence, Evidence{Object: owner, What: fmt.Sprintf("the pod template's priorityClassName is %s", pc),
+			Command: cmdGet(strings.ToLower(owner.Kind), ns, owner.Name, `{.spec.template.spec.priorityClassName}`)})
+		f.Fix = fmt.Sprintf("Remove priorityClassName %s (it is for cluster add-ons that must not be evicted, often copied from a kube-system manifest) or use a PriorityClass of your own. If the workload truly is critical, add a ResourceQuota in %s whose scopeSelector names PriorityClass %s.", pc, ns, pc)
 	case reQuota.MatchString(msg):
 		m := reQuota.FindStringSubmatch(msg)
 		f.Rule, f.Title = "KD170", "ResourceQuota is exhausted"

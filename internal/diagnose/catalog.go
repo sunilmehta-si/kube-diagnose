@@ -238,6 +238,7 @@ var Rules = []Rule{
 	{"KD373", "StatefulSet's peers have no DNS records until they are ready", Critical, "A StatefulSet's pod exits because it cannot resolve a peer's name (NAME-N.SERVICE) while the headless governing Service publishes ready pods only: peers that find each other by name while they start never become ready, so none ever gets a record.", "The lookup in the log, and the Service's clusterIP and publishNotReadyAddresses."},
 	{"KD374", "Route rule gives every backend weight 0", Critical, "Every backendRef of an HTTPRoute or GRPCRoute rule has weight 0, so the Gateway sends none of them a request and answers the requests the rule matches with an error: a canary or cutover left half done.", "The rule's backendRefs and their weights."},
 	{"KD375", "Route path is a pattern that its match type compares as text", Warning, "An HTTPRoute match's path holds a glob or regular expression (/api/*, /v[0-9]+/) under type PathPrefix or Exact, which compare paths as text, so only a request for that literal path matches.", "The route rule's match."},
+	{"KD380", "System-critical priority is not allowed in the namespace", Critical, "A controller's pods use system-node-critical or system-cluster-critical priority, often copied from a kube-system manifest, and the API server admits such pods only in a namespace with a ResourceQuota that names the class (kube-system has one), so none is created. The quota error otherwise reads like an exhausted quota.", "The FailedCreate event and the pod template's priorityClassName."},
 }
 
 // RuleByID finds a rule.

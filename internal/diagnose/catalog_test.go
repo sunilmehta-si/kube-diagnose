@@ -57,7 +57,7 @@ func rulesDoc() string {
 	b.WriteString("networking, x70-x79 creating pods, x80-x89 workloads and x90-x99 nodes. KD2xx continues an area once its KD1xx ")
 	b.WriteString("numbers are used up, and two areas ran past their ten there: KD270-KD274 and KD278 are Services and ")
 	b.WriteString("networking, and KD290-KD294 are workloads. KD3xx continues an area whose KD2xx numbers are used up: KD300 ")
-	b.WriteString("and on are running the container, and KD360 and on Services and networking. KD320-KD329 are an area of ")
+	b.WriteString("and on are running the container, KD360 and on Services and networking, and KD380 and on creating pods. KD320-KD330 are an area of ")
 	b.WriteString("their own: a pod's device claims (dynamic resource allocation), from the claim to the node's driver.\n\n| Rule | Title | Severity | Detects | Evidence |\n|---|---|---|---|---|\n")
 	ids := make([]string, 0, len(Rules))
 	for _, r := range Rules {

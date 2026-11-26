@@ -5934,3 +5934,19 @@ func TestServiceSelectsTheDeploymentsLabelsNotItsPods(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestSystemCriticalPriorityIsNotAllowedInTheNamespace(t *testing.T) {
+	s := snap()
+	deployment(s, "agent", 1, 0)
+	for i := range s.Workloads {
+		s.Workloads[i].Status.Replicas = 0
+		s.Workloads[i].Spec.Template.Spec.PriorityClassName = "system-node-critical"
+	}
+	s.Events = []kube.Event{event("ReplicaSet", "agent-rs", "FailedCreate",
+		`Error creating: pods "agent-rs-x2k4p" is forbidden: insufficient quota to match these scopes: [{PriorityClass In [system-node-critical system-cluster-critical]}]`, time.Minute)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD380", "Deployment shop/agent", "they use PriorityClass system-node-critical", "only in a namespace with a ResourceQuota that names that class, as kube-system has; shop has none")
+	if !strings.Contains(f.Fix, "copied from a kube-system manifest") || !strings.Contains(f.Fix, "scopeSelector names PriorityClass system-node-critical") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
