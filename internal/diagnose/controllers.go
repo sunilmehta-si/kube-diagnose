@@ -196,6 +196,8 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 			out = append(out, *f)
 		} else if f := onDeleteWaits(w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
+		} else if f := partitionHolds(w); f != nil && !explained[w.Ref()] {
+			out = append(out, *f)
 		} else if f := minReadyHolds(w); f != nil && !explained[w.Ref()] {
 			out = append(out, *f)
 		}
@@ -587,4 +589,37 @@ func onDeleteWaits(w kube.Workload) *Finding {
 			w.Kind, name, old, all),
 		Evidence: []Evidence{ev},
 		Fix:      fmt.Sprintf("Delete the old pods one at a time (each comes back with the new template), or set updateStrategy type RollingUpdate on %s %s to have the controller do it: kubectl rollout status %s/%s then follows it.", w.Kind, name, kind, name)}
+}
+
+// partitionHolds finds a StatefulSet whose rolling update stops at its partition: only pods with an ordinal at or
+// above it get the new template, and pods below keep the old one for as long as the partition stays. A partition is
+// how a canary is staged; one left behind holds every later change back from those pods, and one at or above the
+// replica count lets the change reach none.
+func partitionHolds(w kube.Workload) *Finding {
+	ru := w.Spec.UpdateStrategy.RollingUpdate
+	if w.Kind != "StatefulSet" || w.Spec.UpdateStrategy.Type == "OnDelete" || ru == nil || ru.Partition == nil || *ru.Partition <= 0 {
+		return nil
+	}
+	if w.Status.UpdateRevision == "" || w.Status.UpdateRevision == w.Status.CurrentRevision {
+		return nil
+	}
+	part, all := *ru.Partition, w.Desired()
+	old := all - w.Status.UpdatedReplicas
+	if old <= 0 {
+		return nil
+	}
+	ns, name := w.Metadata.Namespace, w.Metadata.Name
+	held := fmt.Sprintf("pods %s-0 to %s-%d", name, name, min(part, all)-1)
+	if min(part, all) == 1 {
+		held = fmt.Sprintf("pod %s-0", name)
+	}
+	cause := fmt.Sprintf("StatefulSet %s's pod template has changed, and %d of its %d pods still run the old one: its rolling update has partition %d, so only pods with an ordinal of %d or more get the new template, and %s keep the old one", name, old, all, part, part, held)
+	if part >= all {
+		cause = fmt.Sprintf("StatefulSet %s's pod template has changed, and none of its %d pods runs it: its rolling update has partition %d, at or above its replica count, so the update reaches no pod", name, all, part)
+	}
+	return &Finding{Rule: "KD296", Title: "StatefulSet update stops at its partition", Severity: Warning, Object: w.Ref(),
+		Cause: cause,
+		Evidence: []Evidence{{Object: w.Ref(), What: fmt.Sprintf("StatefulSet %s: partition %d, current revision %s, update revision %s, %d of %d pods updated", name, part, w.Status.CurrentRevision, w.Status.UpdateRevision, w.Status.UpdatedReplicas, all),
+			Command: cmdGet("statefulset", ns, name, `{.spec.updateStrategy}{" "}{.status.currentRevision}{" "}{.status.updateRevision}{" "}{.status.updatedReplicas}/{.status.replicas}`)}},
+		Fix: fmt.Sprintf("Lower the partition to roll the change out further (0 updates every pod), once the pods above it look healthy; kubectl rollout status statefulset/%s follows it.", name)}
 }

@@ -809,6 +809,10 @@ type Workload struct {
 		// a pod with the new template only when the pod is deleted.
 		UpdateStrategy struct {
 			Type string `json:"type,omitempty"`
+			// RollingUpdate.Partition is a StatefulSet's: only pods with an ordinal at or above it get a new template.
+			RollingUpdate *struct {
+				Partition *int32 `json:"partition,omitempty"`
+			} `json:"rollingUpdate,omitempty"`
 		} `json:"updateStrategy,omitempty"`
 	} `json:"spec"`
 	Status WorkloadStatus `json:"status"`

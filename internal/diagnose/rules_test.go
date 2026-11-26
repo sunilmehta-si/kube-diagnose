@@ -5774,3 +5774,27 @@ func TestInPlaceResizeCannotFitTheNode(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestStatefulSetUpdateStopsAtItsPartition(t *testing.T) {
+	s := snap()
+	sts := kube.Workload{Kind: "StatefulSet", Metadata: kube.ObjectMeta{Name: "kafka", Namespace: "shop"}}
+	three, part := int32(3), int32(2)
+	sts.Spec.Replicas = &three
+	sts.Spec.UpdateStrategy.RollingUpdate = &struct {
+		Partition *int32 `json:"partition,omitempty"`
+	}{&part}
+	sts.Status.Replicas, sts.Status.ReadyReplicas, sts.Status.UpdatedReplicas = 3, 3, 1
+	sts.Status.CurrentRevision, sts.Status.UpdateRevision = "kafka-6d5f", "kafka-7b9c"
+	s.Workloads = []kube.Workload{sts}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD296", "StatefulSet shop/kafka", "2 of its 3 pods still run the old one", "partition 2", "pods kafka-0 to kafka-1 keep the old one")
+	// A partition at the replica count lets the change reach no pod.
+	part = 3
+	s.Workloads[0].Status.UpdatedReplicas = 0
+	expect(t, only(t, Diagnose(s)), "KD296", "StatefulSet shop/kafka", "none of its 3 pods runs it", "reaches no pod")
+	// Rolled out as far as the partition allows and no further change: nothing to say.
+	s.Workloads[0].Status.CurrentRevision = "kafka-7b9c"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
