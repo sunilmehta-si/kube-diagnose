@@ -256,7 +256,7 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 			Evidence{Object: p.Ref(), What: "pod requests host ports " + strings.Join(ports, ", "),
 				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.containers[*].ports}")}), cause
 	case r.text == "Too many pods":
-		return insufficient(ix, p, "pods", r.nodes)
+		return podLimit(ix, p, r.nodes)
 	}
 	cause := fmt.Sprintf("%s: %s", nodes, r.text)
 	return newProblem(p, "", "KD149", "Pod cannot be scheduled", Critical, "no node can run the pod: "+cause,
@@ -576,4 +576,29 @@ func runtimeClassSelector(ix *index, p kube.Pod) (*kube.RuntimeClass, map[string
 		}
 	}
 	return nil, nil
+}
+
+// podLimit explains "Too many pods": the nodes hold as many pods as their kubelets allow (maxPods, 110 by default,
+// which the node reports as allocatable pods), whatever CPU and memory they have free. Pods that have finished do
+// not count.
+func podLimit(ix *index, p kube.Pod, nodes int) (*problem, string) {
+	var limits []string
+	for _, n := range ix.s.Nodes {
+		if v := n.Status.Allocatable["pods"]; v != "" {
+			limits = append(limits, fmt.Sprintf("%s %s", n.Metadata.Name, v))
+		}
+	}
+	sort.Strings(limits)
+	cause := fmt.Sprintf("%s as many pods as %s allows (the kubelet's maxPods, 110 unless set), whatever CPU and memory %s free",
+		nodesVerb(nodes, "already runs", "already run"), map[bool]string{true: "its kubelet", false: "their kubelets"}[nodes == 1], map[bool]string{true: "it has", false: "they have"}[nodes == 1])
+	ev := []Evidence{{Object: kube.Ref{Kind: "Node", Name: "*"}, What: "the nodes' pod limits (allocatable pods)",
+		Command: "kubectl get nodes -o custom-columns=NAME:.metadata.name,PODS:.status.allocatable.pods"}}
+	if len(limits) > 0 {
+		if len(limits) > 5 {
+			limits = append(limits[:5], "…")
+		}
+		cause += fmt.Sprintf(" (pod limits: %s)", strings.Join(limits, ", "))
+	}
+	return newProblem(p, "", "KD140", "No node has enough of a resource", Critical, "no node can take another pod: "+cause, "res|pods",
+		"Add nodes, or raise the kubelet's maxPods on them (the node's pod CIDR must have addresses for that many), or remove pods the cluster does not need; pods that have finished do not count.", ev...), "at its pod limit"
 }

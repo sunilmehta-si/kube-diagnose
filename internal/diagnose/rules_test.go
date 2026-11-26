@@ -5862,3 +5862,18 @@ func TestNodeSelectorFromARuntimeClass(t *testing.T) {
 		t.Errorf("cause: %s", f.Cause)
 	}
 }
+
+func TestNoNodeCanTakeAnotherPod(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.NodeName = ""
+	p.Status = kube.PodStatus{Phase: "Pending", Conditions: []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 Too many pods. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod."}}}
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD140", "Deployment shop/web", "no node can take another pod: 1 node already runs as many pods as its kubelet allows", "pod limits: node-1 110")
+	if strings.Contains(f.Fix, "request") || !strings.Contains(f.Fix, "maxPods") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
