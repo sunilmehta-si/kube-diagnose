@@ -1,0 +1,57 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-sidecar-startup-probe/web",
+      "error": [
+        {
+          "Text": "Deployment kd-sidecar-startup-probe/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-sidecar-startup-probe",
+              "Masked": "Xj0/d3o2VHdZcEJ5MkpXcDAwTVNPSHVJ"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "XWtw"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-sidecar-startup-probe/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-6cf79ccb5b\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-sidecar-startup-probe",
+              "Masked": "TDViPGJtRUdCSVFBXS9ZfCQ5bkUidGM0"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "TXdm"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-sidecar-startup-probe/web-6cf79ccb5b-wgtkp",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=proxy pod=web-6cf79ccb5b-wgtkp",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

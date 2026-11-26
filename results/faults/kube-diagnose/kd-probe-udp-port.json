@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-udp-port"
   ],
-  "collectedAt": "2026-11-25 16:10 UTC",
+  "collectedAt": "2026-11-26 05:52 UTC",
   "findings": [
     {
       "rule": "KD212",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-udp-port",
-            "name": "log-receiver-664d876767-hvhnl"
+            "name": "log-receiver-664d876767-cvq6f"
           },
-          "what": "event Unhealthy (64 times)",
-          "detail": "Readiness probe failed: dial tcp 10.244.0.123:5514: connect: connection refused",
-          "command": "kubectl get events -n kd-probe-udp-port --field-selector involvedObject.kind=Pod,involvedObject.name=log-receiver-664d876767-hvhnl"
+          "what": "event Unhealthy (126 times)",
+          "detail": "Readiness probe failed: dial tcp 10.244.0.132:5514: connect: connection refused",
+          "command": "kubectl get events -n kd-probe-udp-port --field-selector involvedObject.kind=Pod,involvedObject.name=log-receiver-664d876767-cvq6f"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-udp-port",
-            "name": "log-receiver-664d876767-hvhnl"
+            "name": "log-receiver-664d876767-cvq6f"
           },
           "what": "container receiver's readiness probe",
-          "command": "kubectl get pod log-receiver-664d876767-hvhnl -n kd-probe-udp-port -o jsonpath='{.spec.containers[?(@.name==\"receiver\")].readinessProbe}'"
+          "command": "kubectl get pod log-receiver-664d876767-cvq6f -n kd-probe-udp-port -o jsonpath='{.spec.containers[?(@.name==\"receiver\")].readinessProbe}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-udp-port",
-            "name": "log-receiver-664d876767-hvhnl"
+            "name": "log-receiver-664d876767-cvq6f"
           },
           "what": "container receiver's ports",
-          "command": "kubectl get pod log-receiver-664d876767-hvhnl -n kd-probe-udp-port -o jsonpath='{.spec.containers[?(@.name==\"receiver\")].ports}'"
+          "command": "kubectl get pod log-receiver-664d876767-cvq6f -n kd-probe-udp-port -o jsonpath='{.spec.containers[?(@.name==\"receiver\")].ports}'"
         }
       ],
       "fix": "Probe a TCP port the app serves (a health or metrics endpoint), or use an exec probe that sends a real query (a DNS server: nslookup or dig against 127.0.0.1); a probe cannot check UDP port 5514.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-udp-port",
-          "name": "log-receiver-664d876767-hvhnl"
+          "name": "log-receiver-664d876767-cvq6f"
         }
       ]
     }

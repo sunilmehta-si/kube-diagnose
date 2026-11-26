@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-poststart-hook-fails",
-              "Masked": "b0w5LUw/WGw8V2hzOlY3cHw5ZjVmO0Q="
+              "Masked": "Yloyc1hBemxLKUEkLXRubyg3JkM2eTA="
             },
             {
               "Unmasked": "web",
-              "Masked": "QyFw"
+              "Masked": "WGk3"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-poststart-hook-fails/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-657885869b\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-poststart-hook-fails",
+              "Masked": "NltRaTZVTFVESCpINClJXV5ndG9WKFQ="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "b1ox"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-poststart-hook-fails/web-657885869b-wkt4h",
+      "name": "kd-poststart-hook-fails/web-657885869b-czgq5",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-657885869b-wkt4h",
+          "Text": "the last termination reason is Error container=web pod=web-657885869b-czgq5",
           "KubernetesDoc": "",
           "Sensitive": []
         }

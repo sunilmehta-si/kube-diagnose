@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pv-too-small"
   ],
-  "collectedAt": "2026-11-25 16:10 UTC",
+  "collectedAt": "2026-11-26 05:53 UTC",
   "findings": [
     {
       "rule": "KD250",
@@ -49,7 +49,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pv-too-small",
-          "name": "db-56f8666648-hslfj"
+          "name": "db-56f8666648-2w588"
         }
       ]
     }

@@ -3,6 +3,7 @@ package snapshot
 import (
 	"encoding/json"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
@@ -37,8 +38,11 @@ func TestRedactRemovesIdentifiersAndKeepsShape(t *testing.T) {
 				}
 			}
 		}
+		// Label keys are kept by design, and the well-known ones (batch.kubernetes.io/controller-uid) hold words a
+		// name may also be: a pod called batch.
+		unkeyed := reWellKnownKey.ReplaceAllString(text, `"$1":`)
 		for _, sec := range secrets {
-			if sec != "" && strings.Contains(text, sec) {
+			if sec != "" && strings.Contains(unkeyed, sec) {
 				t.Errorf("%s: redacted snapshot still contains %q", filepath.Base(path), sec)
 			}
 		}
@@ -324,3 +328,5 @@ func TestRedactKeepsACronJobsRunsNamedForIt(t *testing.T) {
 		t.Errorf("run %q, want %q", red.Events[0].InvolvedObject.Name, want)
 	}
 }
+
+var reWellKnownKey = regexp.MustCompile(`"[a-z0-9.-]*kubernetes\.io/([^"]*)":`)

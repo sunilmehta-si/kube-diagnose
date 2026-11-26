@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-admission-policy-denies"
+  ],
+  "collectedAt": "2026-11-26 05:45 UTC",
+  "findings": [
+    {
+      "rule": "KD279",
+      "title": "ValidatingAdmissionPolicy rejects the pods",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-admission-policy-denies",
+        "name": "web"
+      },
+      "cause": "Deployment kd-admission-policy-denies/web cannot create pods: ValidatingAdmissionPolicy kd-faults-require-team-label, through binding kd-faults-require-team-label, denies them: every pod needs a team label",
+      "evidence": [
+        {
+          "object": {
+            "kind": "ReplicaSet",
+            "namespace": "kd-admission-policy-denies",
+            "name": "web-5478fd465b"
+          },
+          "what": "event FailedCreate (6 times)",
+          "detail": "(combined from similar events): Error creating: pods \"web-5478fd465b-zzq2t\" is forbidden: ValidatingAdmissionPolicy 'kd-faults-require-team-label' with binding 'kd-faults-require-team-label' denied request: every pod needs a team label",
+          "command": "kubectl get events -n kd-admission-policy-denies --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-5478fd465b"
+        },
+        {
+          "object": {
+            "kind": "ValidatingAdmissionPolicy",
+            "name": "kd-faults-require-team-label"
+          },
+          "what": "policy kd-faults-require-team-label's validations",
+          "command": "kubectl get validatingadmissionpolicy kd-faults-require-team-label -o jsonpath='{.spec.validations}'"
+        },
+        {
+          "object": {
+            "kind": "ValidatingAdmissionPolicyBinding",
+            "name": "kd-faults-require-team-label"
+          },
+          "what": "binding kd-faults-require-team-label: what it applies the policy to, and how",
+          "command": "kubectl get validatingadmissionpolicybinding kd-faults-require-team-label -o jsonpath='{.spec.matchResources}{\"\\n\"}{.spec.validationActions}'"
+        }
+      ],
+      "fix": "Change the pod template to pass the policy (its message says what it checks), or, if Deployment kd-admission-policy-denies/web should not apply here, narrow binding kd-faults-require-team-label's matchResources; validationActions Warn or Audit report without denying."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

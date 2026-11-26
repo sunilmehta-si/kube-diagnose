@@ -2,8 +2,44 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-pv-too-small/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pv-too-small/db has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-too-small",
+              "Masked": "bjBBSyFUeVJDOV5oUTJT"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "Xy0="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pv-too-small/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-56f8666648\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pv-too-small",
+              "Masked": "S3B3bkg1JlFHYSJsWk96"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "KHU="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
     {
       "kind": "PersistentVolumeClaim",
       "name": "kd-pv-too-small/data",
@@ -18,30 +54,8 @@
       "parentObject": ""
     },
     {
-      "kind": "Deployment",
-      "name": "kd-pv-too-small/db",
-      "error": [
-        {
-          "Text": "Deployment kd-pv-too-small/db has 1 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-pv-too-small",
-              "Masked": "PltPTD4iZCNsek5jI2VC"
-            },
-            {
-              "Unmasked": "db",
-              "Masked": "OFs="
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
       "kind": "Pod",
-      "name": "kd-pv-too-small/db-56f8666648-hslfj",
+      "name": "kd-pv-too-small/db-56f8666648-2w588",
       "error": [
         {
           "Text": "0/1 nodes are available: pod has unbound immediate PersistentVolumeClaims. not found",

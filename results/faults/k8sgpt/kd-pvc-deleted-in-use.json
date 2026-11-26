@@ -2,11 +2,33 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 1,
+  "problems": 2,
   "results": [
     {
+      "kind": "Deployment",
+      "name": "kd-pvc-deleted-in-use/db",
+      "error": [
+        {
+          "Text": "Deployment kd-pvc-deleted-in-use/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-b8db66b85\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-deleted-in-use",
+              "Masked": "XWxhZzJoUHIiWk5MKEs8UC1TPEU4"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "emQ="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Pod",
-      "name": "kd-pvc-deleted-in-use/db-f5fb7f9d-vfntl",
+      "name": "kd-pvc-deleted-in-use/db-b8db66b85-cwtz9",
       "error": [
         {
           "Text": "0/1 nodes are available: persistentvolumeclaim \"data\" is being deleted. not found",

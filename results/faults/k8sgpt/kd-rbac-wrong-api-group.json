@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-rbac-wrong-api-group",
-              "Masked": "a19YJEVWRU0qbSpqbl5oaDBsW1Z2YkM="
+              "Masked": "dntrLUxwTGlCVVlCSGYpTTlrUlBfaHM="
             },
             {
               "Unmasked": "rollout-watcher",
-              "Masked": "WyUoRjJaSXYpXyk+KkJK"
+              "Masked": "QDdeciZeK2lkMTxSY1pK"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-rbac-wrong-api-group/rollout-watcher-868db6486d-fhdds",
+      "name": "kd-rbac-wrong-api-group/rollout-watcher-868db6486d-2vbbr",
       "error": [
         {
-          "Text": "the last termination reason is Error container=watcher pod=rollout-watcher-868db6486d-fhdds",
+          "Text": "the termination reason is Error exitCode=1 container=watcher pod=rollout-watcher-868db6486d-2vbbr",
           "KubernetesDoc": "",
           "Sensitive": []
         }

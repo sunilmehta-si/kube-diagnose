@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-probe-timeout",
-              "Masked": "TWVQMyReN0lJfTx9fTV2RU8mQ1pMUEBLX3c="
+              "Masked": "Py5ZP0Z6MTskIUxfT0Q5YTUyZSg8WHByUm8="
             },
             {
               "Unmasked": "web",
-              "Masked": "SD4+"
+              "Masked": "fWdw"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-readiness-probe-timeout/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-84466c7679\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readiness-probe-timeout",
+              "Masked": "Ji80c20pVGZZZjBAeTlMTm1rM3pJKDVHIjg="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Olhn"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-readiness-probe-timeout/web-84466c7679-2hdmf",
+      "name": "kd-readiness-probe-timeout/web-84466c7679-ljlj4",
       "error": [
         {
           "Text": "Readiness probe failed: command timed out: \"sh -c sleep 3; wget -q -O /dev/null http://127.0.0.1:8080/\" timed out after 1s",

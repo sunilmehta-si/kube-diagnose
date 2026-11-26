@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-claim-missing"
   ],
-  "collectedAt": "2026-11-25 16:06 UTC",
+  "collectedAt": "2026-11-26 05:46 UTC",
   "findings": [
     {
       "rule": "KD320",
@@ -21,10 +21,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-claim-missing",
-            "name": "trainer-74c6d97c6b-l65pj"
+            "name": "trainer-74c6d97c6b-6jsr7"
           },
           "what": "pod claims gpu through ResourceClaim train-gpu",
-          "command": "kubectl get pod trainer-74c6d97c6b-l65pj -n kd-dra-claim-missing -o jsonpath='{.spec.resourceClaims}'"
+          "command": "kubectl get pod trainer-74c6d97c6b-6jsr7 -n kd-dra-claim-missing -o jsonpath='{.spec.resourceClaims}'"
         },
         {
           "object": {
@@ -41,7 +41,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dra-claim-missing",
-          "name": "trainer-74c6d97c6b-l65pj"
+          "name": "trainer-74c6d97c6b-6jsr7"
         }
       ]
     }

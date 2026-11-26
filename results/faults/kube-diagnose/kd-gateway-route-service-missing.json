@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-gateway-route-service-missing"
   ],
-  "collectedAt": "2026-11-25 16:07 UTC",
+  "collectedAt": "2026-11-26 05:48 UTC",
   "findings": [
     {
       "rule": "KD362",

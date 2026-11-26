@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-hostnetwork-port-taken",
-              "Masked": "Ui5MbTVTd19xY3pqV2JAQld4Wjh4SGt3IQ=="
+              "Masked": "ZTNiLC0pPXctdjxkR25sZ1BEVX07LkVXNg=="
             },
             {
               "Unmasked": "node-agent",
-              "Masked": "R3Q/P2FEMV8pOg=="
+              "Masked": "M3hLfGJHZydlKA=="
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-hostnetwork-port-taken/node-agent-68f6b4788b-j2qxp",
+      "name": "kd-hostnetwork-port-taken/node-agent-68f6b4788b-z79hw",
       "error": [
         {
-          "Text": "the last termination reason is Error container=agent pod=node-agent-68f6b4788b-j2qxp",
+          "Text": "the last termination reason is Error container=agent pod=node-agent-68f6b4788b-z79hw",
           "KubernetesDoc": "",
           "Sensitive": []
         }

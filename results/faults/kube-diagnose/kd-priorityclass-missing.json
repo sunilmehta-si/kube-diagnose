@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-priorityclass-missing"
   ],
-  "collectedAt": "2026-11-25 16:10 UTC",
+  "collectedAt": "2026-11-26 05:52 UTC",
   "findings": [
     {
       "rule": "KD175",

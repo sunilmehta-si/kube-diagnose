@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-nodeselector-node-gone"
   ],
-  "collectedAt": "2026-11-25 16:09 UTC",
+  "collectedAt": "2026-11-26 05:51 UTC",
   "findings": [
     {
       "rule": "KD141",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodeselector-node-gone",
-            "name": "web-9755df678-fvdx9"
+            "name": "web-9755df678-q7hzj"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod web-9755df678-fvdx9 -n kd-nodeselector-node-gone -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-9755df678-q7hzj -n kd-nodeselector-node-gone -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-nodeselector-node-gone",
-            "name": "web-9755df678-fvdx9"
+            "name": "web-9755df678-q7hzj"
           },
           "what": "pod requires node labels kubernetes.io/hostname=kd-faults-worker-old",
-          "command": "kubectl get pod web-9755df678-fvdx9 -n kd-nodeselector-node-gone -o jsonpath='{.spec.nodeSelector}'"
+          "command": "kubectl get pod web-9755df678-q7hzj -n kd-nodeselector-node-gone -o jsonpath='{.spec.nodeSelector}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-nodeselector-node-gone",
-          "name": "web-9755df678-fvdx9"
+          "name": "web-9755df678-q7hzj"
         }
       ]
     }

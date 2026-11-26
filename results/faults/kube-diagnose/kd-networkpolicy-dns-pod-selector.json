@@ -1,0 +1,65 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-networkpolicy-dns-pod-selector"
+  ],
+  "collectedAt": "2026-11-26 05:51 UTC",
+  "findings": [
+    {
+      "rule": "KD123",
+      "title": "NetworkPolicy blocks the pod's DNS lookups",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-networkpolicy-dns-pod-selector",
+        "name": "web"
+      },
+      "cause": "container web exits because it cannot resolve db: NetworkPolicy egress-db-and-dns allows port 53 only to pods matching k8s-app=kube-dns, and a podSelector with no namespaceSelector picks pods of namespace kd-networkpolicy-dns-pod-selector alone, while cluster DNS runs in kube-system, so no DNS lookup gets out; its log says: \"wget: bad address 'db'\"; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-dns-pod-selector",
+            "name": "web-67d57f7c4d-h22vt"
+          },
+          "what": "container web exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod web-67d57f7c4d-h22vt -n kd-networkpolicy-dns-pod-selector -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-networkpolicy-dns-pod-selector",
+            "name": "web-67d57f7c4d-h22vt"
+          },
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "calling db\nwget: bad address 'db'",
+          "command": "kubectl logs web-67d57f7c4d-h22vt -n kd-networkpolicy-dns-pod-selector -c web --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "NetworkPolicy",
+            "namespace": "kd-networkpolicy-dns-pod-selector",
+            "name": "egress-db-and-dns"
+          },
+          "what": "NetworkPolicy egress-db-and-dns allows port 53 only to pods matching k8s-app=kube-dns, with no namespaceSelector",
+          "command": "kubectl get networkpolicy egress-db-and-dns -n kd-networkpolicy-dns-pod-selector -o jsonpath='{.spec.egress}'"
+        }
+      ],
+      "fix": "Add namespaceSelector {matchLabels: {kubernetes.io/metadata.name: kube-system}} to that peer of egress-db-and-dns, in the same entry as its podSelector, so it picks the DNS pods in kube-system.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-networkpolicy-dns-pod-selector",
+          "name": "web-67d57f7c4d-h22vt"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

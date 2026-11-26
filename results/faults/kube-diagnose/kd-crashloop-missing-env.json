@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-crashloop-missing-env"
   ],
-  "collectedAt": "2026-11-25 16:05 UTC",
+  "collectedAt": "2026-11-26 05:46 UTC",
   "findings": [
     {
       "rule": "KD110",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-crashloop-missing-env",
-            "name": "web-dbf954cc7-9bb7c"
+            "name": "web-dbf954cc7-9mlnp"
           },
           "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-dbf954cc7-9bb7c -n kd-crashloop-missing-env -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+          "command": "kubectl get pod web-dbf954cc7-9mlnp -n kd-crashloop-missing-env -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-crashloop-missing-env",
-            "name": "web-dbf954cc7-9bb7c"
+            "name": "web-dbf954cc7-9mlnp"
           },
-          "what": "last lines of container web's log (current run)",
-          "detail": "starting web\nerror: DATABASE_URL is not set",
-          "command": "kubectl logs web-dbf954cc7-9bb7c -n kd-crashloop-missing-env -c web --tail=20"
+          "what": "last lines of container web's log (run that exited)",
+          "detail": "error: DATABASE_URL is not set\nstarting web",
+          "command": "kubectl logs web-dbf954cc7-9mlnp -n kd-crashloop-missing-env -c web --tail=20 --previous"
         }
       ],
       "fix": "Fix what the log reports; the process exits on its own, so the cause is in the app or its configuration.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-crashloop-missing-env",
-          "name": "web-dbf954cc7-9bb7c"
+          "name": "web-dbf954cc7-9mlnp"
         }
       ]
     }

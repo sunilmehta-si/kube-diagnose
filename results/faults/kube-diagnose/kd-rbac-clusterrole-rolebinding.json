@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-clusterrole-rolebinding"
   ],
-  "collectedAt": "2026-11-25 16:11 UTC",
+  "collectedAt": "2026-11-26 05:53 UTC",
   "findings": [
     {
       "rule": "KD305",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-clusterrole-rolebinding",
-            "name": "node-inventory-8797b59d-6kz6d"
+            "name": "node-inventory-8797b59d-s2cct"
           },
-          "what": "container inventory exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod node-inventory-8797b59d-6kz6d -n kd-rbac-clusterrole-rolebinding -o jsonpath='{.status.containerStatuses[?(@.name==\"inventory\")].lastState.terminated}'"
+          "what": "container inventory exited with code 1 (Error), restarted 7 times",
+          "command": "kubectl get pod node-inventory-8797b59d-s2cct -n kd-rbac-clusterrole-rolebinding -o jsonpath='{.status.containerStatuses[?(@.name==\"inventory\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-clusterrole-rolebinding",
-            "name": "node-inventory-8797b59d-6kz6d"
+            "name": "node-inventory-8797b59d-s2cct"
           },
-          "what": "last lines of container inventory's log (run that exited)",
+          "what": "last lines of container inventory's log (current run)",
           "detail": "Error from server (Forbidden): nodes is forbidden: User \"system:serviceaccount:kd-rbac-clusterrole-rolebinding:inventory\" cannot list resource \"nodes\" in API group \"\" at the cluster scope",
-          "command": "kubectl logs node-inventory-8797b59d-6kz6d -n kd-rbac-clusterrole-rolebinding -c inventory --tail=20 --previous"
+          "command": "kubectl logs node-inventory-8797b59d-s2cct -n kd-rbac-clusterrole-rolebinding -c inventory --tail=20"
         },
         {
           "object": {
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-clusterrole-rolebinding",
-          "name": "node-inventory-8797b59d-6kz6d"
+          "name": "node-inventory-8797b59d-s2cct"
         }
       ]
     }

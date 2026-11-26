@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-node-affinity-no-match"
   ],
-  "collectedAt": "2026-11-25 16:09 UTC",
+  "collectedAt": "2026-11-26 05:51 UTC",
   "findings": [
     {
       "rule": "KD141",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-node-affinity-no-match",
-            "name": "web-d6f4d45d-xp5r9"
+            "name": "web-d6f4d45d-b75r8"
           },
           "what": "pod is not scheduled: Unschedulable",
           "detail": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get pod web-d6f4d45d-xp5r9 -n kd-node-affinity-no-match -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
+          "command": "kubectl get pod web-d6f4d45d-b75r8 -n kd-node-affinity-no-match -o jsonpath='{.status.conditions[?(@.type==\"PodScheduled\")].message}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-node-affinity-no-match",
-            "name": "web-d6f4d45d-xp5r9"
+            "name": "web-d6f4d45d-b75r8"
           },
           "what": "required node affinity: kubernetes.io/arch in (arm64), and the nodes have amd64",
-          "command": "kubectl get pod web-d6f4d45d-xp5r9 -n kd-node-affinity-no-match -o jsonpath='{.spec.affinity.nodeAffinity}'"
+          "command": "kubectl get pod web-d6f4d45d-b75r8 -n kd-node-affinity-no-match -o jsonpath='{.spec.affinity.nodeAffinity}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-node-affinity-no-match",
-          "name": "web-d6f4d45d-xp5r9"
+          "name": "web-d6f4d45d-b75r8"
         }
       ]
     }

@@ -1,0 +1,69 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 4,
+  "results": [
+    {
+      "kind": "Pod",
+      "name": "kd-resize-infeasible/resize-4jl9h",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=resize pod=resize-4jl9h",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-resize-infeasible/resize-frqlk",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=resize pod=resize-frqlk",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-resize-infeasible/resize-ws84l",
+      "error": [
+        {
+          "Text": "the termination reason is Error exitCode=1 container=resize pod=resize-ws84l",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Job",
+      "name": "kd-resize-infeasible/resize",
+      "error": [
+        {
+          "Text": "Job has reached the specified backoff limit",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-resize-infeasible",
+              "Masked": "LldLeFplIzRNdDtwWWlDMEU5c1k="
+            },
+            {
+              "Unmasked": "resize",
+              "Masked": "Ti5LQlcr"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

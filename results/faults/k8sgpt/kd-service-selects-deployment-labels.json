@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Service",
+      "name": "kd-service-selects-deployment-labels/api",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=api",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "app",
+              "Masked": "fFoy"
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "SH1o"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

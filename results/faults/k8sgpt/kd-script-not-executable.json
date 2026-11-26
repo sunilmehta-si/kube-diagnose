@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-script-not-executable",
-              "Masked": "TW9UNkwxOXIlUDdTdEc1OClxNDMxKVJQ"
+              "Masked": "Jl40PltGUGU+OkIzfUY+ITJCSTMnRGgn"
             },
             {
               "Unmasked": "web",
-              "Masked": "eXVm"
+              "Masked": "NSQ9"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-script-not-executable/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-fd58cb87d\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-script-not-executable",
+              "Masked": "KWV6VGVqJUN0TnFQOyU0ZEBaUXgnWlts"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "RkBW"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-script-not-executable/web-fd58cb87d-2pnz9",
+      "name": "kd-script-not-executable/web-fd58cb87d-8mck4",
       "error": [
         {
-          "Text": "the last termination reason is StartError container=web pod=web-fd58cb87d-2pnz9",
+          "Text": "the last termination reason is StartError container=web pod=web-fd58cb87d-8mck4",
           "KubernetesDoc": "",
           "Sensitive": []
         }

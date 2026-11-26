@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-probe-grpc-on-http",
-              "Masked": "T1Y2SSQ1KVFVWnAoejUvUyouV1tM"
+              "Masked": "KkFtIykkaScpUCQhSFZ1OkE+UFtj"
             },
             {
               "Unmasked": "api",
-              "Masked": "Lndh"
+              "Masked": "P3hZ"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-probe-grpc-on-http/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-7bbdd84c89\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-probe-grpc-on-http",
+              "Masked": "fEVvSmlYaXZxaSFndklpKmJeTFhy"
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "ZXUv"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-probe-grpc-on-http/api-7bbdd84c89-fccfn",
+      "name": "kd-probe-grpc-on-http/api-7bbdd84c89-nfvhs",
       "error": [
         {
-          "Text": "Readiness probe failed: timeout: failed to connect service \"10.244.0.118:8080\" within 1s: context deadline exceeded",
+          "Text": "Readiness probe failed: timeout: failed to connect service \"10.244.0.126:8080\" within 1s: context deadline exceeded",
           "KubernetesDoc": "",
           "Sensitive": []
         }

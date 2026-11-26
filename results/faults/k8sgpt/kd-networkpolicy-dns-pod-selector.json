@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-networkpolicy-dns-pod-selector/web",
+      "error": [
+        {
+          "Text": "Deployment kd-networkpolicy-dns-pod-selector/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-networkpolicy-dns-pod-selector",
+              "Masked": "Mm19aDdMWXZXLWl7dTJHZFMtZil7eXNIJmd1NipPZFti"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Ti5i"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-networkpolicy-dns-pod-selector/web-67d57f7c4d-h22vt",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-67d57f7c4d-h22vt",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

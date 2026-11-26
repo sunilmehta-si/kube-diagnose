@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-dnspolicy-none",
-              "Masked": "TzcsR1prPTgyTlh3V19DXUQ="
+              "Masked": "Mj9CTCg3OnU5QGgjJXQ0bFQ="
             },
             {
               "Unmasked": "api",
-              "Masked": "TCty"
+              "Masked": "by1l"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-dnspolicy-none/api-5c4f64b4b7-s8486",
+      "name": "kd-dnspolicy-none/api-5c4f64b4b7-jqvv2",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=api pod=api-5c4f64b4b7-s8486",
+          "Text": "the last termination reason is Error container=api pod=api-5c4f64b4b7-jqvv2",
           "KubernetesDoc": "",
           "Sensitive": []
         }

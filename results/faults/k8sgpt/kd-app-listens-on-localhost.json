@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-app-listens-on-localhost",
-              "Masked": "OSlAbXVYT1hRJDl5OU13NDpRPFRvNWtSUF5L"
+              "Masked": "Old0Jlp2K3tSRzRDL2IhRjtSYWpoe0dmXXs1"
             },
             {
               "Unmasked": "web",
-              "Masked": "TWdp"
+              "Masked": "Ql1J"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-app-listens-on-localhost/web-966bc545f-5wjck",
+      "name": "kd-app-listens-on-localhost/web-966bc545f-2r556",
       "error": [
         {
-          "Text": "Readiness probe failed: Get \"http://10.244.0.5:8080/\": dial tcp 10.244.0.5:8080: connect: connection refused",
+          "Text": "Readiness probe failed: Get \"http://10.244.0.6:8080/\": dial tcp 10.244.0.6:8080: connect: connection refused",
           "KubernetesDoc": "",
           "Sensitive": []
         }

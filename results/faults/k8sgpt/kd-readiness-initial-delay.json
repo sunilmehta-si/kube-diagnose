@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 1,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-initial-delay",
-              "Masked": "LUcmdV9ZNj57Y3hFcl5HKXRmPUxyTy03V0Q="
+              "Masked": "RzdodypRVjFCcVNnUHNDU3IpMDBSKFVnWi0="
             },
             {
               "Unmasked": "api",
-              "Masked": "M1Y6"
+              "Masked": "VUxu"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-readiness-initial-delay/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-868866fccb\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-readiness-initial-delay",
+              "Masked": "Nl4qWFAwczVoMSMsLDVTeG9kV24yMCRUfCk="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "S0c/"
             }
           ]
         }

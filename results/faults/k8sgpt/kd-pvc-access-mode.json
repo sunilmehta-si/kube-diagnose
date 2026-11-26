@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 1,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-access-mode",
-              "Masked": "M3o/JkVkMmprT0N4RCFBMzlb"
+              "Masked": "I292L2wiSD04aEY0L2d0bnVi"
             },
             {
               "Unmasked": "web",
-              "Masked": "RChs"
+              "Masked": "Jmkq"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pvc-access-mode/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-dd5864d49\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pvc-access-mode",
+              "Masked": "RDttaVlCOnFrbzJuUEprREVB"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "RXtA"
             }
           ]
         }

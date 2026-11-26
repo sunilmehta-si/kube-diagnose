@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-runasnonroot-root-image"
   ],
-  "collectedAt": "2026-11-25 16:11 UTC",
+  "collectedAt": "2026-11-26 05:54 UTC",
   "findings": [
     {
       "rule": "KD117",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-runasnonroot-root-image",
-            "name": "web-67f8d9fc9-25lc6"
+            "name": "web-67f8d9fc9-hj2zl"
           },
           "what": "container web is waiting: CreateContainerConfigError",
-          "detail": "container has runAsNonRoot and image will run as root (pod: \"web-67f8d9fc9-25lc6_kd-runasnonroot-root-image(d3bd75a8-685f-4a25-afc5-bfd9ef8c1a23)\", container: web)",
-          "command": "kubectl get pod web-67f8d9fc9-25lc6 -n kd-runasnonroot-root-image -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+          "detail": "container has runAsNonRoot and image will run as root (pod: \"web-67f8d9fc9-hj2zl_kd-runasnonroot-root-image(f54a331d-4f64-4a9e-aaf8-cbe21b32ec33)\", container: web)",
+          "command": "kubectl get pod web-67f8d9fc9-hj2zl -n kd-runasnonroot-root-image -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
         }
       ],
       "fix": "Set securityContext.runAsUser to a non-zero UID the image supports, or use an image built to run as a non-root user.",
@@ -33,7 +33,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-runasnonroot-root-image",
-          "name": "web-67f8d9fc9-25lc6"
+          "name": "web-67f8d9fc9-hj2zl"
         }
       ]
     }

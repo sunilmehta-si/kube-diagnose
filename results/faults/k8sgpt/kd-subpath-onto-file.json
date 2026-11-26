@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-subpath-onto-file",
-              "Masked": "Skw4Jl5xKWorZz1jbkN3d1J3UUs="
+              "Masked": "Tzdja1BJKitnVGFIV2ZaVW0kK0I="
             },
             {
               "Unmasked": "app",
-              "Masked": "bnk9"
+              "Masked": "YVN4"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-subpath-onto-file/app has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"app-56875bc89d\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-subpath-onto-file",
+              "Masked": "RUslXXBlUD85QVYwfSpXVGQ4NlU="
+            },
+            {
+              "Unmasked": "app",
+              "Masked": "RHcl"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-subpath-onto-file/app-56875bc89d-7lsm5",
+      "name": "kd-subpath-onto-file/app-56875bc89d-t2hlq",
       "error": [
         {
-          "Text": "the last termination reason is StartError container=app pod=app-56875bc89d-7lsm5",
+          "Text": "the last termination reason is StartError container=app pod=app-56875bc89d-t2hlq",
           "KubernetesDoc": "",
           "Sensitive": []
         }
