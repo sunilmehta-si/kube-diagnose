@@ -1,4 +1,4 @@
-# A Job resizes the running batch pod in place to 64 CPUs, which no node has, so the kubelet leaves it at its old size with the resize pending as Infeasible.
+# A Job resizes the running batch pod in place to 64 CPUs, more than its node has, and the API server refuses the resize, so the Job fails.
 apiVersion: v1
 kind: Namespace
 metadata:

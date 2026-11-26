@@ -1,18 +1,17 @@
 {
   "namespace": "kd-resize-infeasible",
-  "description": "A Job resizes the running batch pod in place to 64 CPUs, which no node has, so the kubelet leaves it at its old size with the resize pending as Infeasible.",
+  "description": "A Job resizes the running batch pod in place to 64 CPUs, more than its node has, and the API server refuses the resize, so the Job fails.",
   "rule": "KD247",
-  "object": "Pod/batch",
+  "object": "Job/resize",
   "keywords": [
     [
-      "Infeasible",
-      "cannot hold"
+      "refused the in-place resize"
     ],
     [
-      "resize"
+      "allocatable"
     ],
     [
-      "64"
+      "64000"
     ]
   ]
 }
