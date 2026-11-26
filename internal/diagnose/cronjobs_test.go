@@ -221,3 +221,24 @@ func TestCronJobsRunsFailAndTheirJobsAreDeletedAtOnce(t *testing.T) {
 		}
 	}
 }
+
+func TestCronJobFailuresSeenOnlyInTheDeletedJobsEvents(t *testing.T) {
+	// What a cluster records: no SawCompletedJob, the controller's SuccessfulDelete, and each failed Job's own
+	// BackoffLimitExceeded, which outlives the Job.
+	s := snap()
+	cj := cronJob("backup", "Allow")
+	zero := int32(0)
+	cj.Spec.FailedJobsHistoryLimit = &zero
+	s.CronJobs = []kube.CronJob{cj}
+	s.Events = []kube.Event{
+		event("Job", "backup-29927834", "BackoffLimitExceeded", "Job has reached the specified backoff limit", time.Minute),
+		event("CronJob", "backup", "SuccessfulDelete", "Deleted job backup-29927834", time.Minute),
+		event("Job", "backup-29927833", "BackoffLimitExceeded", "Job has reached the specified backoff limit", 2*time.Minute),
+		event("Job", "backup-other-1", "BackoffLimitExceeded", "Job has reached the specified backoff limit", 2*time.Minute),
+	}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD297", "CronJob shop/backup", "its last 2 runs failed (backup-29927834, backup-29927833)")
+	if f.Evidence[0].Object.Kind != "Job" || f.Evidence[0].Object.Name != "backup-29927834" {
+		t.Errorf("evidence %+v", f.Evidence[0])
+	}
+}

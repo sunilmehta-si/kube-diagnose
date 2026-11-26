@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"regexp"
 	"slices"
+	"sort"
 	"strings"
 	"time"
 
@@ -306,6 +307,9 @@ func cronJobPilesUp(ix *index, cj kube.CronJob) *Finding {
 		Fix: "Set concurrencyPolicy: Forbid (skip a run while one is going) or Replace (stop the old run), and give the Job an activeDeadlineSeconds; or schedule it less often than a run takes."}
 }
 
+// reScheduledJob is the suffix the CronJob controller gives a run: its scheduled time in minutes.
+var reScheduledJob = regexp.MustCompile(`^\d{6,}$`)
+
 var reSawCompleted = regexp.MustCompile(`^Saw completed job: (\S+), (?:condition|status): (\w+)`)
 
 // cronJobFailuresDeleted finds a CronJob whose runs fail while failedJobsHistoryLimit is 0: the controller deletes
@@ -315,38 +319,59 @@ func cronJobFailuresDeleted(ix *index, cj kube.CronJob) *Finding {
 	if l := cj.Spec.FailedJobsHistoryLimit; l == nil || *l != 0 {
 		return nil
 	}
-	var failed []string
-	var newest kube.Event
+	ns := cj.Metadata.Namespace
+	// The failures, newest first: the controller's SawCompletedJob events when it saw them, and the failed Jobs' own
+	// events (BackoffLimitExceeded, DeadlineExceeded), which outlive the Jobs it deleted.
+	type run struct {
+		job string
+		e   kube.Event
+	}
+	var runs []run
+	latestOK := false
 	for i, e := range ix.eventsFor(cj.Ref(), "SawCompletedJob") { // newest first
-		m := reSawCompleted.FindStringSubmatch(e.Message)
-		if m == nil {
-			continue
-		}
-		if i == 0 && m[2] != "Failed" {
-			return nil // the latest run succeeded
-		}
-		if m[2] == "Failed" {
-			failed = append(failed, m[1])
-			if newest.Message == "" {
-				newest = e
+		if m := reSawCompleted.FindStringSubmatch(e.Message); m != nil {
+			if i == 0 && m[2] != "Failed" {
+				latestOK = true
+			}
+			if m[2] == "Failed" {
+				runs = append(runs, run{m[1], e})
 			}
 		}
 	}
-	if len(failed) == 0 {
+	for _, e := range ix.s.Events {
+		job := e.InvolvedObject.Name
+		if e.InvolvedObject.Kind != "Job" || e.InvolvedObject.Namespace != ns || (e.Reason != "BackoffLimitExceeded" && e.Reason != "DeadlineExceeded") ||
+			!reScheduledJob.MatchString(strings.TrimPrefix(job, cj.Metadata.Name+"-")) || !strings.HasPrefix(job, cj.Metadata.Name+"-") || ix.jobs[kube.Ref{Kind: "Job", Namespace: ns, Name: job}] != nil {
+			continue
+		}
+		if !slices.ContainsFunc(runs, func(r run) bool { return r.job == job }) {
+			runs = append(runs, run{job, e})
+		}
+	}
+	if latestOK || len(runs) == 0 {
 		return nil
 	}
-	ns, name := cj.Metadata.Namespace, cj.Metadata.Name
-	runs := fmt.Sprintf("its run %s failed", failed[0])
+	sort.SliceStable(runs, func(i, j int) bool { return runs[i].e.Last().After(runs[j].e.Last()) })
+	if t := cj.Status.LastSuccessfulTime; t != nil && t.After(runs[0].e.Last()) {
+		return nil
+	}
+	var failed []string
+	for _, r := range runs {
+		failed = append(failed, r.job)
+	}
+	newest := runs[0].e
+	name := cj.Metadata.Name
+	what := fmt.Sprintf("its run %s failed", failed[0])
 	if len(failed) > 1 {
-		runs = fmt.Sprintf("its last %d runs failed (%s)", len(failed), strings.Join(failed, ", "))
+		what = fmt.Sprintf("its last %d runs failed (%s)", len(failed), strings.Join(failed, ", "))
 	}
 	done := "it has never completed a run"
 	if t := cj.Status.LastSuccessfulTime; t != nil {
 		done = fmt.Sprintf("its last run that completed ended %s ago", ix.s.CollectedAt.Sub(*t).Round(time.Minute))
 	}
 	return &Finding{Rule: "KD297", Title: "CronJob's runs fail, and their Jobs are deleted at once", Severity: Critical, Object: cj.Ref(),
-		Cause: fmt.Sprintf("CronJob %s's runs fail: %s, and %s. Its failedJobsHistoryLimit is 0, so the controller deletes each failed Job and its pods as soon as it sees it, and there is no pod or log left to say why", name, runs, done),
-		Evidence: []Evidence{eventEvidence(cj.Ref(), newest),
+		Cause: fmt.Sprintf("CronJob %s's runs fail: %s, and %s. Its failedJobsHistoryLimit is 0, so the controller deletes each failed Job and its pods as soon as it sees it, and there is no pod or log left to say why", name, what, done),
+		Evidence: []Evidence{eventEvidence(kube.Ref{Kind: newest.InvolvedObject.Kind, Namespace: ns, Name: newest.InvolvedObject.Name}, newest),
 			{Object: cj.Ref(), What: fmt.Sprintf("CronJob %s keeps no failed Job (failedJobsHistoryLimit: 0)", name),
 				Command: cmdGet("cronjob", ns, name, `{.spec.failedJobsHistoryLimit}{" "}{.status}`)}},
 		Fix: fmt.Sprintf("Set failedJobsHistoryLimit to 1 or more so the next failed run's Job and pods stay to be read (kubectl logs job/<name>), or start a run by hand to watch it: kubectl create job --from=cronjob/%s %s-debug -n %s.", name, name, ns)}
