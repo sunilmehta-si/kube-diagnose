@@ -114,6 +114,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		}
 	}
 	if p.Status.Phase == "Running" {
+		if pr := resizeInfeasible(p); pr != nil {
+			return pr
+		}
 		if pr := subdomainProblem(ix, p, nil, nil, nil); pr != nil {
 			return pr
 		}

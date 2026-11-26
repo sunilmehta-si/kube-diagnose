@@ -5755,3 +5755,22 @@ func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
 		}
 	}
 }
+
+func TestInPlaceResizeCannotFitTheNode(t *testing.T) {
+	s := snap()
+	deployment(s, "batch", 1, 1)
+	p := pod("batch-rs-a", "batch")
+	p.Status.Conditions = append(p.Status.Conditions, kube.Condition{Type: "PodResizePending", Status: "True", Reason: "Infeasible",
+		Message: "Node didn't have enough capacity: cpu, requested: 64000, capacity: 8000"})
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD247", "Deployment shop/batch", "node node-1 cannot hold the new size at all", "requested: 64000, capacity: 8000")
+	if f.Severity != Warning || !strings.Contains(f.Fix, "a resize never moves a pod") {
+		t.Errorf("severity %v fix %s", f.Severity, f.Fix)
+	}
+	// Deferred: the node may have room later, and the kubelet retries.
+	s.Pods[0].Status.Conditions[2].Reason = "Deferred"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("%+v", r.Findings)
+	}
+}
