@@ -509,6 +509,14 @@ which the scheduler never tries, the claim a quota refused and the missing plugi
 runs after redaction caught two more: --redact replaced busybox with a pseudonym, which hid the base image KD315 reads,
 and Docker Hub's official base images are kept now; and it left the pod's name in a claim that a message named before it
 was made (POD-gpu-x7k2p), which is renamed with the pod now.
+The 10 added for 0.16.0 caught four things on their first runs. A ValidatingAdmissionPolicy created with the Deployment
+it should deny let the first pod through, as a new policy takes a moment to apply; the scenario now scales the
+Deployment up once it is in force. kind's API server admits system-critical priority in any namespace, so KD380 is
+tested on the message clusters that limit it give, and has no scenario. The CronJob controller sent no SawCompletedJob
+for the runs it deleted; KD297 reads each failed run from the Job's own BackoffLimitExceeded event, which outlives the
+Job, and redaction keeps a run named for its CronJob. And the API server now refuses an in-place resize the node cannot
+hold outright, so the pod is never left with a pending one; KD247 explains the refusal in the client that asked. Before
+that, the resize scenario's own Job lacked get on pods/resize, which kube-diagnose named (KD307).
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.
 

@@ -4,6 +4,9 @@
 
 ## [0.16.0] - 2026-11-26
 
+- The fault suite's committed run (45763138488): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 229 of 229 faults and raises no false alarm; k8sgpt v0.4.41 names 37, 10 of them first.
+
 ### Added
 - 7 rules, 228 in all (`docs/rules.md`):
   - creating pods: a ValidatingAdmissionPolicy, the API server's own CEL admission, that denies a controller's pods,
@@ -28,6 +31,9 @@
 - KD140 says when the nodes are at the kubelet's pod limit (Too many pods), not short of a resource the pod requests.
 - KD112 says when a sidecar's startup probe holds back the containers after it, which never start.
 - KD160 says when a Service's selector matches a workload's own labels, which its pods never get.
+- KD247 also explains an in-place resize the API server refuses at once (Kubernetes 1.35 and later), in the client that
+  asked for it.
+- `record --redact` keeps a CronJob's runs named for it (its pseudonym and the run's scheduled-time suffix).
 
 ## [0.15.0] - 2026-11-25
 
