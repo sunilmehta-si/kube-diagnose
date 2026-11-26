@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-admission-policy-denies",
+  "description": "ValidatingAdmissionPolicy kd-faults-require-team-label, bound to the namespace, denies every pod without a team label, and the web pods have none, so none is created.",
+  "rule": "KD279",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "kd-faults-require-team-label"
+    ],
+    [
+      "ValidatingAdmissionPolicy"
+    ],
+    [
+      "team label"
+    ]
+  ]
+}
