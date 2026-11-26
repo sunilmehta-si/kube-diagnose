@@ -1,0 +1,81 @@
+# A Job resizes the running batch pod in place to 64 CPUs, which no node has, so the kubelet leaves it at its old size with the resize pending as Infeasible.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-resize-infeasible
+
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: batch
+  namespace: kd-resize-infeasible
+spec:
+  containers:
+    - name: batch
+      image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+      command: ["sh", "-c", "exec sleep 3600"]
+      resources:
+        requests:
+          cpu: 100m
+          memory: 32Mi
+        limits:
+          cpu: 200m
+          memory: 32Mi
+
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: resizer
+  namespace: kd-resize-infeasible
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: resizer
+  namespace: kd-resize-infeasible
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods/resize"]
+    verbs: ["patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: resizer
+  namespace: kd-resize-infeasible
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: resizer
+subjects:
+  - kind: ServiceAccount
+    name: resizer
+    namespace: kd-resize-infeasible
+
+---
+# Gives the batch pod 64 CPUs in place once it runs, as a tuning script might; no node of the cluster has that many.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: resize
+  namespace: kd-resize-infeasible
+spec:
+  backoffLimit: 2
+  template:
+    spec:
+      serviceAccountName: resizer
+      restartPolicy: Never
+      initContainers:
+        - name: wait
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["wait", "--for=condition=Ready", "pod/batch", "--timeout=120s"]
+      containers:
+        - name: resize
+          image: registry.k8s.io/kubectl:v1.37.2@sha256:fe049faa65ae483ac200009a949a68fa4c9985daea12c9cb1195c9c7965301fc
+          args: ["patch", "pod", "batch", "--subresource", "resize", "--patch",
+                 '{"spec":{"containers":[{"name":"batch","resources":{"requests":{"cpu":"64"},"limits":{"cpu":"64"}}}]}}']

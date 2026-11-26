@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-resize-infeasible",
+  "description": "A Job resizes the running batch pod in place to 64 CPUs, which no node has, so the kubelet leaves it at its old size with the resize pending as Infeasible.",
+  "rule": "KD247",
+  "object": "Pod/batch",
+  "keywords": [
+    [
+      "Infeasible",
+      "cannot hold"
+    ],
+    [
+      "resize"
+    ],
+    [
+      "64"
+    ]
+  ]
+}
