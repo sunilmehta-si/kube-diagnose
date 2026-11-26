@@ -18,7 +18,7 @@ spec:
       resources:
         requests:
           cpu: 100m
-          memory: 32Mi
+          memory: 16Mi
         limits:
           cpu: 200m
           memory: 32Mi
@@ -41,7 +41,7 @@ rules:
     verbs: ["get", "list", "watch"]
   - apiGroups: [""]
     resources: ["pods/resize"]
-    verbs: ["patch"]
+    verbs: ["get", "patch"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -59,6 +59,7 @@ subjects:
 
 ---
 # Gives the batch pod 64 CPUs in place once it runs, as a tuning script might; no node of the cluster has that many.
+# The memory request stays below its limit, so the pod's QoS class (Burstable), which a resize may not change, holds.
 apiVersion: batch/v1
 kind: Job
 metadata:
