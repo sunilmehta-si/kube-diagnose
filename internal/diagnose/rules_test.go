@@ -5832,3 +5832,33 @@ func TestRolloutDeadlineIsShorterThanAPodTakesToBecomeAvailable(t *testing.T) {
 		t.Errorf("%+v", r.Findings)
 	}
 }
+
+func TestNodeSelectorFromARuntimeClass(t *testing.T) {
+	s := snap()
+	deployment(s, "sandboxed", 1, 0)
+	p := pod("sandboxed-rs-a", "sandboxed")
+	p.Spec.NodeName = ""
+	p.Spec.RuntimeClassName = "gvisor"
+	p.Spec.NodeSelector = map[string]string{"sandbox.example.com/runtime": "gvisor"}
+	p.Status = kube.PodStatus{Phase: "Pending", Conditions: []kube.Condition{{Type: "PodScheduled", Status: "False", Reason: "Unschedulable",
+		Message: "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling."}}}
+	s.Pods = []kube.Pod{p}
+	var rc kube.RuntimeClass
+	rc.Metadata.Name, rc.Handler = "gvisor", "runsc"
+	rc.Scheduling = &struct {
+		NodeSelector map[string]string `json:"nodeSelector,omitempty"`
+		Tolerations  []kube.Toleration `json:"tolerations,omitempty"`
+	}{NodeSelector: map[string]string{"sandbox.example.com/runtime": "gvisor"}}
+	s.RuntimeClasses = []kube.RuntimeClass{rc}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD141", "Deployment shop/sandboxed", "sandbox.example.com/runtime=gvisor comes from RuntimeClass gvisor (handler runsc)", "not from the pod's own template")
+	if !strings.Contains(f.Fix, "Label the nodes that have the runsc runtime handler") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Without the RuntimeClass on record, the selector is the pod's own.
+	s.RuntimeClasses = nil
+	f = only(t, Diagnose(s))
+	if strings.Contains(f.Cause, "RuntimeClass") {
+		t.Errorf("cause: %s", f.Cause)
+	}
+}

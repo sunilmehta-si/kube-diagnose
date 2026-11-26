@@ -157,9 +157,15 @@ func classifySched(ix *index, p kube.Pod, r schedReason) (*problem, string) {
 				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, "{.spec.affinity.nodeAffinity}")},
 				Evidence{Object: kube.Ref{Kind: "Node", Name: "*"}, What: "the nodes' labels", Command: "kubectl get nodes --show-labels"})
 		}
+		fix := "Label a node to match (kubectl label node), or correct the pod's nodeSelector or affinity."
+		if rc, sel := runtimeClassSelector(ix, p); rc != nil {
+			cause += fmt.Sprintf("; %s comes from RuntimeClass %s (handler %s), whose scheduling.nodeSelector is merged into every pod that uses it, not from the pod's own template", kube.FormatMap(sel), rc.Metadata.Name, rc.Handler)
+			fix = fmt.Sprintf("Label the nodes that have the %s runtime handler with %s (the runtime's installer usually does), or, if none has it, install it on a node pool or stop using RuntimeClass %s; the pod template's own nodeSelector is not where this comes from.", rc.Handler, kube.FormatMap(sel), rc.Metadata.Name)
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "RuntimeClass", Name: rc.Metadata.Name}, What: fmt.Sprintf("RuntimeClass %s's scheduling.nodeSelector is %s", rc.Metadata.Name, kube.FormatMap(sel)),
+				Command: cmdGet("runtimeclass", "", rc.Metadata.Name, `{.handler}{" "}{.scheduling}`)})
+		}
 		return newProblem(p, "", "KD141", "No node matches the pod's node selector", Critical, cause,
-			"selector|"+kube.FormatMap(p.Spec.NodeSelector),
-			"Label a node to match (kubectl label node), or correct the pod's nodeSelector or affinity.", ev...), phrase
+			"selector|"+kube.FormatMap(p.Spec.NodeSelector), fix, ev...), phrase
 	case strings.Contains(r.text, "taint"):
 		taint := ""
 		if m := reTaint.FindStringSubmatch(r.text); m != nil {
@@ -546,4 +552,28 @@ func nodeExists(ix *index, name string) bool {
 		}
 	}
 	return false
+}
+
+// runtimeClassSelector returns the pod's RuntimeClass and the part of the pod's nodeSelector that came from it: the
+// RuntimeClass admission plugin merges a RuntimeClass's scheduling.nodeSelector into every pod that uses it.
+func runtimeClassSelector(ix *index, p kube.Pod) (*kube.RuntimeClass, map[string]string) {
+	if p.Spec.RuntimeClassName == "" {
+		return nil, nil
+	}
+	for i := range ix.s.RuntimeClasses {
+		rc := &ix.s.RuntimeClasses[i]
+		if rc.Metadata.Name != p.Spec.RuntimeClassName || rc.Scheduling == nil || len(rc.Scheduling.NodeSelector) == 0 {
+			continue
+		}
+		sel := map[string]string{}
+		for k, v := range rc.Scheduling.NodeSelector {
+			if p.Spec.NodeSelector[k] == v {
+				sel[k] = v
+			}
+		}
+		if len(sel) > 0 {
+			return rc, sel
+		}
+	}
+	return nil, nil
 }
