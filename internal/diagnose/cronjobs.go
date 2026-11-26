@@ -2,6 +2,7 @@ package diagnose
 
 import (
 	"fmt"
+	"regexp"
 	"slices"
 	"strings"
 	"time"
@@ -28,6 +29,8 @@ func cronJobFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		} else if f := cronJobPilesUp(ix, cj); f != nil {
 			out = append(out, *f)
 		} else if f := cronJobReplaces(ix, cj); f != nil {
+			out = append(out, *f)
+		} else if f := cronJobFailuresDeleted(ix, cj); f != nil {
 			out = append(out, *f)
 		} else if f := suspendedCronJob(ix, cj); f != nil {
 			out = append(out, *f)
@@ -301,4 +304,50 @@ func cronJobPilesUp(ix *index, cj kube.CronJob) *Finding {
 		Evidence: []Evidence{{Object: cj.Ref(), What: fmt.Sprintf("CronJob %s has concurrencyPolicy Allow and %d active Jobs", name, len(jobs)),
 			Command: cmdGet("cronjob", ns, name, `{.spec.schedule}{" "}{.spec.concurrencyPolicy}{" "}{.status.active[*].name}`)}},
 		Fix: "Set concurrencyPolicy: Forbid (skip a run while one is going) or Replace (stop the old run), and give the Job an activeDeadlineSeconds; or schedule it less often than a run takes."}
+}
+
+var reSawCompleted = regexp.MustCompile(`^Saw completed job: (\S+), (?:condition|status): (\w+)`)
+
+// cronJobFailuresDeleted finds a CronJob whose runs fail while failedJobsHistoryLimit is 0: the controller deletes
+// each failed Job, and its pods, as soon as it sees it, so there is no Job, pod or log left to read and nothing else
+// reports the failures. The controller's SawCompletedJob events are the only trace.
+func cronJobFailuresDeleted(ix *index, cj kube.CronJob) *Finding {
+	if l := cj.Spec.FailedJobsHistoryLimit; l == nil || *l != 0 {
+		return nil
+	}
+	var failed []string
+	var newest kube.Event
+	for i, e := range ix.eventsFor(cj.Ref(), "SawCompletedJob") { // newest first
+		m := reSawCompleted.FindStringSubmatch(e.Message)
+		if m == nil {
+			continue
+		}
+		if i == 0 && m[2] != "Failed" {
+			return nil // the latest run succeeded
+		}
+		if m[2] == "Failed" {
+			failed = append(failed, m[1])
+			if newest.Message == "" {
+				newest = e
+			}
+		}
+	}
+	if len(failed) == 0 {
+		return nil
+	}
+	ns, name := cj.Metadata.Namespace, cj.Metadata.Name
+	runs := fmt.Sprintf("its run %s failed", failed[0])
+	if len(failed) > 1 {
+		runs = fmt.Sprintf("its last %d runs failed (%s)", len(failed), strings.Join(failed, ", "))
+	}
+	done := "it has never completed a run"
+	if t := cj.Status.LastSuccessfulTime; t != nil {
+		done = fmt.Sprintf("its last run that completed ended %s ago", ix.s.CollectedAt.Sub(*t).Round(time.Minute))
+	}
+	return &Finding{Rule: "KD297", Title: "CronJob's runs fail, and their Jobs are deleted at once", Severity: Critical, Object: cj.Ref(),
+		Cause: fmt.Sprintf("CronJob %s's runs fail: %s, and %s. Its failedJobsHistoryLimit is 0, so the controller deletes each failed Job and its pods as soon as it sees it, and there is no pod or log left to say why", name, runs, done),
+		Evidence: []Evidence{eventEvidence(cj.Ref(), newest),
+			{Object: cj.Ref(), What: fmt.Sprintf("CronJob %s keeps no failed Job (failedJobsHistoryLimit: 0)", name),
+				Command: cmdGet("cronjob", ns, name, `{.spec.failedJobsHistoryLimit}{" "}{.status}`)}},
+		Fix: fmt.Sprintf("Set failedJobsHistoryLimit to 1 or more so the next failed run's Job and pods stay to be read (kubectl logs job/<name>), or start a run by hand to watch it: kubectl create job --from=cronjob/%s %s-debug -n %s.", name, name, ns)}
 }

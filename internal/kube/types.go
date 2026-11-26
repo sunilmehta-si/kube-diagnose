@@ -877,7 +877,9 @@ type CronJob struct {
 		Suspend           *bool   `json:"suspend,omitempty"`
 		// StartingDeadlineSeconds is how late after its scheduled time a run may still start.
 		StartingDeadlineSeconds *int64 `json:"startingDeadlineSeconds,omitempty"`
-		JobTemplate             struct {
+		// FailedJobsHistoryLimit is how many failed Jobs the controller keeps (1 when unset); 0 deletes each at once.
+		FailedJobsHistoryLimit *int32 `json:"failedJobsHistoryLimit,omitempty"`
+		JobTemplate            struct {
 			Spec struct {
 				Template PodTemplate `json:"template"`
 			} `json:"spec"`
