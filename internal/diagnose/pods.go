@@ -1228,6 +1228,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := policyBlocksService(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := resizeRefused(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := tokenForAnotherAudience(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}

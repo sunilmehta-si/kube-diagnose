@@ -5781,6 +5781,27 @@ func TestInPlaceResizeCannotFitTheNode(t *testing.T) {
 	if f.Severity != Warning || !strings.Contains(f.Fix, "a resize never moves a pod") {
 		t.Errorf("severity %v fix %s", f.Severity, f.Fix)
 	}
+	// The API server refuses such a resize at once (1.35 and later): the client that asked exits with its message.
+	q := pod("resize-x7k2p", "")
+	q.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "Job", Name: "resize", Controller: yes()}}
+	crashed(&q, 1, "Error", 0)
+	q.Status.Phase = "Failed"
+	s.Jobs = []kube.Job{{Metadata: kube.ObjectMeta{Name: "resize", Namespace: "shop"}}}
+	s.Pods = append(s.Pods, q)
+	s.Logs = []snapshot.Log{{Pod: q.Ref(), Container: "web", Previous: true,
+		Lines: []string{`Error from server (Forbidden): pods "batch-rs-a" is forbidden: node didn't have enough allocatable resources: cpu, requested: 64000, allocatable: 4000`}}}
+	var refused *Finding
+	for i, f := range Diagnose(s).Findings {
+		if f.Object.Kind == "Job" {
+			refused = &Diagnose(s).Findings[i]
+		}
+	}
+	if refused == nil {
+		t.Fatal("no finding for the Job that asked for the resize")
+	}
+	expect(t, *refused, "KD247", "Job shop/resize", "refused the in-place resize it asked for", "has 4000m cpu allocatable, and the resize asks for 64000m")
+	s.Pods, s.Logs, s.Jobs = s.Pods[:1], nil, nil
+
 	// Deferred: the node may have room later, and the kubelet retries.
 	s.Pods[0].Status.Conditions[2].Reason = "Deferred"
 	if r := Diagnose(s); len(r.Findings) != 0 {
