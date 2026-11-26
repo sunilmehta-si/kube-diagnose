@@ -71,54 +71,59 @@ a ServiceAccount that does not exist (or a Role bound as a ClusterRole), the IP 
 Service's name, the optional key or pod label whose absence left a variable unset, the file its init container wrote
 where it mounts the volume elsewhere, the key file whose mode lets others read it, the user ID its image's /etc/passwd
 lacks, the ConfigMap mounted as a directory where it reads a file, the /dev/shm it filled (the runtime's 64 MiB), the
-StatefulSet peers it could not resolve because their Service publishes ready pods only, or the token automounting turned
-off), out-of-memory kills (a memory-backed emptyDir, a LimitRange's default limit and the app's own memory setting above
-the limit among them), probes on the wrong port or over TCP to a UDP port, speaking HTTPS to plain HTTP, checking a host
-other than the pod, refused because the app listens on localhost only, gRPC probes on a port that does not speak gRPC or
-lacks the health service, liveness probes that kill the app before it has started, probes that time out, preStop hooks
-that outlast the grace period, readiness probes held back by a long initialDelaySeconds, naming a port the container
-does not have or running a command the image does not have or one written as a single string (a failed HTTP probe's
-status, 404 or 401 say, is explained), init containers that never finish (sidecars are told apart, and one that waits
-for its own pod's Service is named), readiness gates nobody sets, failing lifecycle hooks, runAsNonRoot with a root
-image, writes to a read-only root filesystem, missing ConfigMaps, Secrets and keys, subPaths that name a key the volume
-does not have, pods whose device claims (dynamic resource allocation) name a ResourceClaim, template or DeviceClass that
-does not exist or is being deleted, ask for more devices than a node has, for devices no driver offers, that other
-claims hold or that their selectors match none of, share a claim allocated on another node, or wait on a node with no
-plugin for the driver, pods no node can take (with the request and the largest node's capacity, a cpu request missing
-its m, or the spread rule, a spread over a node label no node has or with more minDomains than the nodes form, pod
-affinity to pods that do not exist, node affinity no node meets, host port, volume zone, scheduling gate, missing
-scheduler or ReadWriteOncePod claim another pod holds that stops them), pods the kubelet rejects for a sysctl it forbids
-or a resource the node lacks, or, when spec.nodeName skips the scheduler, for the node's labels or a host port another
-pod holds, pods for another operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network
-plugin cannot set up, hostPath volumes the node does not have (the Docker socket on a containerd node among them), pods
-bound by nodeName to a node that does not exist or past the scheduler their claim waits for, pods stuck terminating,
-volumes still attached to another node, claims for StorageClasses that do not exist, access modes they cannot provide or
-a named volume they cannot bind to, claims that no hand-made PersistentVolume fits (too small, other access modes,
-taken, or Released), claims that have lost their volume or carry a selector their provisioner refuses, claims deleted
-while pods still use them, Services and Ingresses that send traffic nowhere, Services with no selector and no endpoints
-(or an EndpointSlice missing the label that links it), headless Services that map a port nothing maps, Service ports
-whose protocol the pods do not serve, Services that also select another workload's pods, pod subdomains no headless
-Service serves, ExternalName Services set to an IP address, Ingresses that claim one host and path for different
-Services, Ingress TLS Secrets that are missing, Ingress hosts their TLS does not cover or paths written as patterns
-their pathType compares as text, Gateway API routes that send traffic to a Service or port that does not exist or to
-another namespace that grants them nothing, are attached to no Gateway, to one or a listener that does not exist, to
-listeners that do not admit them or serve none of their hostnames, tie with an older route for a hostname and path, give
-every backend weight 0 or write a path as a pattern (/api/*) that PathPrefix compares as text, Gateways whose
-GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that never get an address,
-StatefulSets without their headless Service, NetworkPolicies that shut a Service off, cut pods off from the API server,
-allow the Service's port where the pods' port is meant, allow a Service's cluster IP by ipBlock, allow a port name the
-pods do not declare, select no pods or select namespaces by a label none has, exhausted quotas, quotas on a limit the
-pods do not set, a LimitRange default below the container's request, LimitRange, PriorityClass, RuntimeClass,
-ServiceAccount, Pod Security and webhook rejections, admission webhooks that cannot be reached, Deployments left paused
-or holding ready pods unavailable with a long minReadySeconds, HPAs that cannot scale, name their target with an
+API server's 401 for a projected token minted for another audience, the StatefulSet peers it could not resolve because
+their Service publishes ready pods only, or the token automounting turned off), out-of-memory kills (a memory-backed
+emptyDir, a LimitRange's default limit and the app's own memory setting above the limit among them), probes on the wrong
+port or over TCP to a UDP port, speaking HTTPS to plain HTTP, checking a host other than the pod, refused because the
+app listens on localhost only, gRPC probes on a port that does not speak gRPC or lacks the health service, liveness
+probes that kill the app before it has started, sidecars whose startup probe holds back the containers after them,
+probes that time out, preStop hooks that outlast the grace period, readiness probes held back by a long
+initialDelaySeconds, naming a port the container does not have or running a command the image does not have or one
+written as a single string (a failed HTTP probe's status, 404 or 401 say, is explained), init containers that never
+finish (sidecars are told apart, and one that waits for its own pod's Service is named), readiness gates nobody sets,
+failing lifecycle hooks, runAsNonRoot with a root image, writes to a read-only root filesystem, missing ConfigMaps,
+Secrets and keys, subPaths that name a key the volume does not have, pods whose device claims (dynamic resource
+allocation) name a ResourceClaim, template or DeviceClass that does not exist or is being deleted, ask for more devices
+than a node has, for devices no driver offers, that other claims hold or that their selectors match none of, share a
+claim allocated on another node, or wait on a node with no plugin for the driver, pods resized in place beyond what
+their node can hold, pods no node can take (nodes at the kubelet's pod limit among them, with the request and the
+largest node's capacity, a cpu request missing its m, or the spread rule, a spread over a node label no node has or with
+more minDomains than the nodes form, pod affinity to pods that do not exist, node affinity no node meets, a
+RuntimeClass's nodeSelector no node has, host port, volume zone, scheduling gate, missing scheduler or ReadWriteOncePod
+claim another pod holds that stops them), pods the kubelet rejects for a sysctl it forbids or a resource the node lacks,
+or, when spec.nodeName skips the scheduler, for the node's labels or a host port another pod holds, pods for another
+operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network plugin cannot set up, hostPath
+volumes the node does not have (the Docker socket on a containerd node among them), pods bound by nodeName to a node
+that does not exist or past the scheduler their claim waits for, pods stuck terminating, volumes still attached to
+another node, claims for StorageClasses that do not exist, access modes they cannot provide or a named volume they
+cannot bind to, claims that no hand-made PersistentVolume fits (too small, other access modes, taken, or Released),
+claims that have lost their volume or carry a selector their provisioner refuses, claims deleted while pods still use
+them, Services and Ingresses that send traffic nowhere (a Service selecting a Deployment's own labels, not its pods',
+among them), Services with no selector and no endpoints (or an EndpointSlice missing the label that links it), headless
+Services that map a port nothing maps, Service ports whose protocol the pods do not serve, Services that also select
+another workload's pods, pod subdomains no headless Service serves, ExternalName Services set to an IP address,
+Ingresses that claim one host and path for different Services, Ingress TLS Secrets that are missing, Ingress hosts their
+TLS does not cover or paths written as patterns their pathType compares as text, Gateway API routes that send traffic to
+a Service or port that does not exist or to another namespace that grants them nothing, are attached to no Gateway, to
+one or a listener that does not exist, to listeners that do not admit them or serve none of their hostnames, tie with an
+older route for a hostname and path, give every backend weight 0 or write a path as a pattern (/api/*) that PathPrefix
+compares as text, Gateways whose GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that
+never get an address, StatefulSets without their headless Service, NetworkPolicies that shut a Service off, let DNS out
+only to kube-dns pods of their own namespace, cut pods off from the API server, allow the Service's port where the pods'
+port is meant, allow a Service's cluster IP by ipBlock, allow a port name the pods do not declare, select no pods or
+select namespaces by a label none has, exhausted quotas, quotas on a limit the pods do not set, a LimitRange default
+below the container's request, LimitRange, PriorityClass, RuntimeClass, ServiceAccount, Pod Security, webhook and
+ValidatingAdmissionPolicy rejections, system-critical priority outside kube-system, admission webhooks that cannot be
+reached, Deployments whose progress deadline is shorter than their pods take to become available, Deployments left
+paused or holding ready pods unavailable with a long minReadySeconds, HPAs that cannot scale, name their target with an
 apiVersion the cluster does not serve, are switched off by a target at 0 replicas or share their pods with another HPA,
 PodDisruptionBudgets that block drains, select nothing or overlap, evictions (an emptyDir past its sizeLimit among
 them), failed Jobs and CronJobs (a podFailurePolicy that failed the Job at once and a Job cut off by its
 activeDeadlineSeconds are named), replicas sharing a ReadWriteOnce claim, CronJobs that skip runs, are suspended,
 replace each run before it finishes pile up runs, are scheduled for a date that never comes or miss every start for a
-startingDeadlineSeconds too short, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy
-leaves a template change on no pod, Jobs with parallelism 0 or held open by a sidecar that never exits, and nodes that
-are not ready.
+startingDeadlineSeconds too short, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy,
+or a StatefulSet partition, leaves a template change on no pod, CronJobs whose failed runs are deleted at once, Jobs
+with parallelism 0 or held open by a sidecar that never exits, and nodes that are not ready.
 
 ## Install
 
