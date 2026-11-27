@@ -17,7 +17,7 @@ var (
 	reQuotaMust     = regexp.MustCompile(`failed quota: ([^:]+): must specify (.+)$`)
 	reReqAboveLimit = regexp.MustCompile(`spec\.(initContainers|containers)\[(\d+)\]\.resources\.requests: Invalid value: "([^"]+)": must be less than or equal to (\S+) limit of (\S+)`)
 	reCreateClaim   = regexp.MustCompile(`^[Cc]reate Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
-	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
+	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod|PersistentVolumeClaim) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
 	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)
 	reSA            = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
@@ -123,6 +123,10 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: ns, Name: "*"},
 			What: "the namespace's LimitRanges", Command: "kubectl get limitranges -n " + ns + " -o yaml"})
 		f.Fix = "Set the containers' requests and limits inside the LimitRange's minimum and maximum, or change the LimitRange."
+		if claim != "" {
+			f.Cause = fmt.Sprintf("%s cannot create PersistentVolumeClaim %s from its volumeClaimTemplates, so the pod that mounts it is never created: a LimitRange in %s rejects the claim (%s)", owner, claim, ns, strings.Join(m, "; "))
+			f.Fix = "Ask for storage within the LimitRange's PersistentVolumeClaim minimum and maximum in the volumeClaimTemplates (they cannot be edited in place: delete the StatefulSet with --cascade=orphan, which keeps its pods, and apply it again), or change the LimitRange."
+		}
 	case rePriorityClass.MatchString(msg):
 		pc := rePriorityClass.FindStringSubmatch(msg)[1]
 		f.Rule, f.Title = "KD175", "PriorityClass does not exist"

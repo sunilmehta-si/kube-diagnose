@@ -472,6 +472,14 @@ func TestQuotaStopsAStatefulSetsClaim(t *testing.T) {
 	// Kubernetes 1.37 writes the event with a capital: "Create Claim ...". The claim is named all the same.
 	s.Events[0].Message = "C" + s.Events[0].Message[1:]
 	expect(t, only(t, Diagnose(s)), "KD170", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates")
+
+	// A LimitRange's PersistentVolumeClaim minimum rejects the claim in the same place.
+	s.Events[0].Message = `Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims "data-db-0" is forbidden: minimum storage usage per PersistentVolumeClaim is 1Gi, but request is 100Mi`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD174", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates", "minimum storage usage per PersistentVolumeClaim is 1Gi, but request is 100Mi")
+	if !strings.Contains(f.Fix, "--cascade=orphan") {
+		t.Errorf("%s: %s", f.Title, f.Fix)
+	}
 }
 
 func TestServiceAccountMissing(t *testing.T) {
