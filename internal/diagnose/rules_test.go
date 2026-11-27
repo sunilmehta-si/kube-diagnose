@@ -6075,3 +6075,62 @@ func TestOOMKilledUnderThePodLevelLimit(t *testing.T) {
 	s.Pods[0].Spec.Containers[0].Resources.Limits = map[string]string{"memory": "32Mi"}
 	expect(t, only(t, Diagnose(s)), "KD111", "Deployment shop/web", "uses more than its 32Mi memory limit")
 }
+
+func backendTLS(name, target, ca string) kube.BackendTLSPolicy {
+	var b kube.BackendTLSPolicy
+	b.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
+	b.Spec.TargetRefs = append(b.Spec.TargetRefs, struct {
+		Group       string `json:"group"`
+		Kind        string `json:"kind"`
+		Name        string `json:"name"`
+		SectionName string `json:"sectionName,omitempty"`
+	}{"", "Service", target, ""})
+	b.Spec.Validation.CACertificateRefs = append(b.Spec.Validation.CACertificateRefs, struct {
+		Group string `json:"group"`
+		Kind  string `json:"kind"`
+		Name  string `json:"name"`
+	}{"", "ConfigMap", ca})
+	b.Spec.Validation.Hostname = target + ".shop.svc"
+	return b
+}
+
+func TestBackendTLSPolicyCACertificate(t *testing.T) {
+	s := snap()
+	s.Services = []kube.Service{service("auth", nil, port(8443))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("auth", 1)}
+	s.BackendTLSPolicies = []kube.BackendTLSPolicy{backendTLS("auth-tls", "auth", "auth-ca")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD376", "BackendTLSPolicy shop/auth-tls", "Service auth against the CA bundle in ConfigMap auth-ca, and there is no ConfigMap auth-ca in namespace shop", "fail with a 5xx error")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "auth-ca", "ca.pem")}
+	expect(t, only(t, Diagnose(s)), "KD376", "BackendTLSPolicy shop/auth-tls", "ConfigMap auth-ca has keys ca.pem, and the CA bundle must be under key ca.crt")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "auth-ca", "ca.crt")}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a good CA ConfigMap: %+v", r.Findings)
+	}
+	// ConfigMaps not read: nothing to say.
+	s.ConfigMaps = nil
+	s.Gaps = []snapshot.Gap{{Resource: "configmaps"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("configmaps not read: %+v", r.Findings)
+	}
+}
+
+func TestBackendTLSPolicyTarget(t *testing.T) {
+	s := snap()
+	s.Services = []kube.Service{service("auth", nil, port(8443))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("auth", 1)}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "auth-ca", "ca.crt")}
+	s.BackendTLSPolicies = []kube.BackendTLSPolicy{backendTLS("auth-tls", "auth-svc", "auth-ca")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD377", "BackendTLSPolicy shop/auth-tls", "targets Service auth-svc, and there is no Service auth-svc in namespace shop (there is a Service auth)", "connects without TLS")
+	if !strings.Contains(f.Fix, "Service auth,") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.BackendTLSPolicies[0].Spec.TargetRefs[0].Name, s.BackendTLSPolicies[0].Spec.TargetRefs[0].SectionName = "auth", "https"
+	s.Services[0].Spec.Ports[0].Name = "web"
+	expect(t, only(t, Diagnose(s)), "KD377", "BackendTLSPolicy shop/auth-tls", "targets Service auth (port https), and Service auth has no port named https (its ports are named web)")
+	s.Services[0].Spec.Ports[0].Name = "https"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a good target: %+v", r.Findings)
+	}
+}
