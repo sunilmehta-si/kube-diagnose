@@ -5999,3 +5999,32 @@ func TestServiceSelectsAnOldPodTemplateHash(t *testing.T) {
 		}
 	}
 }
+
+func TestJobManagedByAnotherController(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "train", Namespace: "shop", CreationTimestamp: t0.Add(-10 * time.Minute)}
+	j.Spec.ManagedBy = "batch.example.com/scheduler"
+	s.Jobs = []kube.Job{j}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD298", "Job shop/train", "spec.managedBy batch.example.com/scheduler", "creates no pods", "in 10m0s that controller has not started it")
+	s.Jobs[0].Spec.ManagedBy = "kueue.x-k8s.io/multikueue"
+	expect(t, only(t, Diagnose(s)), "KD298", "Job shop/train", "MultiKueue, which runs it on a worker cluster")
+	// Started by the controller it names, the Job controller's own name, or just created: nothing to say.
+	started := t0.Add(-9 * time.Minute)
+	s.Jobs[0].Status.StartTime = &started
+	s.Jobs[0].Status.Active = 1
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("started: %+v", r.Findings)
+	}
+	s.Jobs[0].Status.StartTime, s.Jobs[0].Status.Active = nil, 0
+	s.Jobs[0].Spec.ManagedBy = "kubernetes.io/job-controller"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("the Job controller: %+v", r.Findings)
+	}
+	s.Jobs[0].Spec.ManagedBy = "batch.example.com/scheduler"
+	s.Jobs[0].Metadata.CreationTimestamp = t0.Add(-30 * time.Second)
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("just created: %+v", r.Findings)
+	}
+}

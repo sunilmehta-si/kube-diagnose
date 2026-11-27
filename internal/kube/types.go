@@ -851,12 +851,15 @@ func (w Workload) Ready() int32 {
 type Job struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
-		BackoffLimit          *int32      `json:"backoffLimit,omitempty"`
-		Completions           *int32      `json:"completions,omitempty"`
-		Parallelism           *int32      `json:"parallelism,omitempty"`
-		ActiveDeadlineSeconds *int64      `json:"activeDeadlineSeconds,omitempty"`
-		Suspend               *bool       `json:"suspend,omitempty"`
-		Template              PodTemplate `json:"template"`
+		BackoffLimit          *int32 `json:"backoffLimit,omitempty"`
+		Completions           *int32 `json:"completions,omitempty"`
+		Parallelism           *int32 `json:"parallelism,omitempty"`
+		ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+		Suspend               *bool  `json:"suspend,omitempty"`
+		// ManagedBy names the controller that runs the Job; the Job controller (kubernetes.io/job-controller) leaves
+		// any other value to that controller.
+		ManagedBy string      `json:"managedBy,omitempty"`
+		Template  PodTemplate `json:"template"`
 	} `json:"spec"`
 	Status struct {
 		StartTime  *time.Time  `json:"startTime,omitempty"`
