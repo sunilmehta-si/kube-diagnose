@@ -56,6 +56,8 @@ type Snapshot struct {
 	GatewayClasses  []kube.GatewayClass   `json:"gatewayClasses,omitempty"`
 	Routes          []kube.Route          `json:"routes,omitempty"`
 	ReferenceGrants []kube.ReferenceGrant `json:"referenceGrants,omitempty"`
+	// BackendTLSPolicies: empty in snapshots recorded before 0.17.0.
+	BackendTLSPolicies []kube.BackendTLSPolicy `json:"backendTLSPolicies,omitempty"`
 	// Dynamic resource allocation's objects (resource.k8s.io). ResourceAllocationRead says they were read: the
 	// cluster serves the API, and the snapshot was recorded by 0.15.0 or later.
 	ResourceAllocationRead bool                           `json:"resourceAllocationRead,omitempty"`

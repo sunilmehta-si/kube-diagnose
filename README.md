@@ -158,8 +158,8 @@ It needs permission to `get` and `list` pods, events, Services, EndpointSlices, 
 HorizontalPodAutoscalers, PodDisruptionBudgets, claims, NetworkPolicies, ResourceQuotas, ServiceAccounts, Roles,
 RoleBindings, ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses, RuntimeClasses,
 PersistentVolumes, namespaces (their names and labels) and ClusterRoles (their names) in the cluster, and to read pod
-logs. Where the cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes and ReferenceGrants in
-the namespace and GatewayClasses in the cluster; a cluster without it is no gap. Where it serves dynamic resource
+logs. Where the cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes, ReferenceGrants and
+BackendTLSPolicies in the namespace and GatewayClasses in the cluster; a cluster without it is no gap. Where it serves dynamic resource
 allocation (resource.k8s.io), it reads ResourceClaims and ResourceClaimTemplates in the namespace and DeviceClasses and
 ResourceSlices in the cluster, keeping of each slice its driver, nodes and device names. With less, it diagnoses from
 the rest and lists what it could not read.

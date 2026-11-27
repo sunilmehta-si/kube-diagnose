@@ -1290,6 +1290,33 @@ type ReferenceGrant struct {
 	} `json:"spec"`
 }
 
+// BackendTLSPolicy tells a Gateway to speak TLS to a Service's pods, and how to check the certificate they present:
+// against the CA bundle in a ConfigMap (key ca.crt), or the system's well-known CAs.
+type BackendTLSPolicy struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		TargetRefs []struct {
+			Group       string `json:"group"`
+			Kind        string `json:"kind"`
+			Name        string `json:"name"`
+			SectionName string `json:"sectionName,omitempty"`
+		} `json:"targetRefs"`
+		Validation struct {
+			CACertificateRefs []struct {
+				Group string `json:"group"`
+				Kind  string `json:"kind"`
+				Name  string `json:"name"`
+			} `json:"caCertificateRefs,omitempty"`
+			WellKnownCACertificates string `json:"wellKnownCACertificates,omitempty"`
+			Hostname                string `json:"hostname"`
+		} `json:"validation"`
+	} `json:"spec"`
+}
+
+func (b BackendTLSPolicy) Ref() Ref {
+	return Ref{Kind: "BackendTLSPolicy", Namespace: b.Metadata.Namespace, Name: b.Metadata.Name}
+}
+
 // Dynamic resource allocation (resource.k8s.io): a pod asks for devices, a GPU for one, through a ResourceClaim;
 // each request names a DeviceClass, and the scheduler picks devices for it from those a driver publishes in
 // ResourceSlices. The fields read are those of resource.k8s.io/v1; v1beta1 put a request's class, count and

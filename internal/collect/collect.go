@@ -147,6 +147,9 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 		func(g *snapshot.Snapshot) error {
 			return list(ctx, r, g, "referencegrants.gateway.networking.k8s.io", ns, scope, &s.ReferenceGrants)
 		},
+		func(g *snapshot.Snapshot) error {
+			return list(ctx, r, g, "backendtlspolicies.gateway.networking.k8s.io", ns, scope, &s.BackendTLSPolicies)
+		},
 		func(g *snapshot.Snapshot) error { return resourceAllocation(ctx, r, g, s, ns, scope) },
 	}
 	// The reads are independent, each a kubectl process and one API request, so a few run at once. Every step

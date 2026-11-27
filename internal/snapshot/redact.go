@@ -309,6 +309,16 @@ func (r *redactor) collect(s *Snapshot) {
 			}
 		}
 	}
+	for _, x := range s.BackendTLSPolicies {
+		r.addName("btls", x.Metadata.Name)
+		for _, t := range x.Spec.TargetRefs {
+			r.addName("svc", t.Name)
+		}
+		for _, c := range x.Spec.Validation.CACertificateRefs {
+			r.addName("cm", c.Name)
+		}
+		r.addHost(x.Spec.Validation.Hostname)
+	}
 	for _, x := range s.ReferenceGrants {
 		r.addName("refgrant", x.Metadata.Name)
 		for _, f := range x.Spec.From {
