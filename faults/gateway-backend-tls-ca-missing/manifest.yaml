@@ -1,0 +1,73 @@
+# BackendTLSPolicy auth-tls checks Service auth's certificate against the CA in ConfigMap auth-ca, which holds it under ca.pem, not ca.crt, so the reference is invalid and requests through a Gateway to auth fail.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-gateway-backend-tls-ca-missing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth
+  namespace: kd-gateway-backend-tls-ca-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: auth
+  template:
+    metadata:
+      labels:
+        app: auth
+    spec:
+      containers:
+        - name: auth
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8443", "-h", "/tmp"]
+          ports:
+            - containerPort: 8443
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth
+  namespace: kd-gateway-backend-tls-ca-missing
+spec:
+  selector:
+    app: auth
+  ports:
+    - name: https
+      port: 443
+      targetPort: 8443
+
+---
+# The CA bundle, made with kubectl create configmap auth-ca --from-file=ca.pem: its key is the file's name.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: auth-ca
+  namespace: kd-gateway-backend-tls-ca-missing
+data:
+  ca.pem: |
+    -----BEGIN CERTIFICATE-----
+    MIIBdDCCARmgAwIBAgIUa2QtZmF1bHRzLWNhLW5vdC1yZWFsMAoGCCqGSM49BAMC
+    -----END CERTIFICATE-----
+
+---
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: auth-tls
+  namespace: kd-gateway-backend-tls-ca-missing
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: auth
+  validation:
+    caCertificateRefs:
+      - group: ""
+        kind: ConfigMap
+        name: auth-ca
+    hostname: auth.internal.example.com

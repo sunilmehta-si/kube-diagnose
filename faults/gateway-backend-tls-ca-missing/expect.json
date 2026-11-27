@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-backend-tls-ca-missing",
+  "description": "BackendTLSPolicy auth-tls checks Service auth's certificate against the CA in ConfigMap auth-ca, which holds it under ca.pem, not ca.crt, so the reference is invalid and requests through a Gateway to auth fail.",
+  "rule": "KD376",
+  "object": "BackendTLSPolicy/auth-tls",
+  "keywords": [
+    [
+      "auth-ca"
+    ],
+    [
+      "ca.crt"
+    ],
+    [
+      "5xx"
+    ]
+  ]
+}
