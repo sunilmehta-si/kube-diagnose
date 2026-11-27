@@ -6134,3 +6134,19 @@ func TestBackendTLSPolicyTarget(t *testing.T) {
 		t.Errorf("a good target: %+v", r.Findings)
 	}
 }
+
+func TestRouteSendsTrafficToADeployment(t *testing.T) {
+	s := gatewaySnapshot()
+	deployment(s, "storefront", 1, 1)
+	s.Routes[0].Spec.Rules[0].BackendRefs[0] = kube.BackendRef{Group: "apps", Kind: "Deployment", Name: "storefront"}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD378", "HTTPRoute shop/shop", "sends the requests of rule 1 to Deployment storefront", "InvalidKind", "Service web selects Deployment storefront's pods")
+	if !strings.Contains(f.Fix, "Send the rule to Service web,") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Another group's kind is an implementation's or an extension's backend: nothing to say.
+	s.Routes[0].Spec.Rules[0].BackendRefs[0] = kube.BackendRef{Group: "inference.networking.k8s.io", Kind: "InferencePool", Name: "llama"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("InferencePool: %+v", r.Findings)
+	}
+}
