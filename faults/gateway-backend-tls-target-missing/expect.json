@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-gateway-backend-tls-target-missing",
+  "description": "BackendTLSPolicy payments-tls targets Service payments-svc, and the Service is named payments, so the policy applies to nothing and a Gateway would connect to payments without TLS.",
+  "rule": "KD377",
+  "object": "BackendTLSPolicy/payments-tls",
+  "keywords": [
+    [
+      "payments-svc"
+    ],
+    [
+      "does not exist",
+      "no Service"
+    ],
+    [
+      "without TLS"
+    ]
+  ]
+}
