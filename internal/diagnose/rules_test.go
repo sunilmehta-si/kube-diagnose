@@ -279,6 +279,21 @@ func TestMissingSecretKey(t *testing.T) {
 	if !strings.Contains(f.Evidence[1].What, "keys pass, user, not password") {
 		t.Errorf("evidence %+v", f.Evidence)
 	}
+	if strings.Contains(f.Cause, "differs only") {
+		t.Errorf("pass is not password: %s", f.Cause)
+	}
+	// The key the pod reads, written the environment variable's way; the Secret's key in the file's way.
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = "couldn't find key DB_PASSWORD in Secret shop/db"
+	s.Secrets = []kube.KeySet{keys("shop", "db", "db-password", "db-user")}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD132", "Pod shop/web", "reads key DB_PASSWORD from Secret db", "it has db-password, which differs only in case and separators")
+	if !strings.Contains(f.Fix, "Read key db-password") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = "couldn't find key db_password in Secret shop/db"
+	expect(t, only(t, Diagnose(s)), "KD132", "Pod shop/web", "it has db-password, which differs only in its separators")
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = "couldn't find key db-pasword in Secret shop/db"
+	expect(t, only(t, Diagnose(s)), "KD132", "Pod shop/web", "it has db-password, which differs only in spelling")
 }
 
 func TestMissingConfigMapVolume(t *testing.T) {

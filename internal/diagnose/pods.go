@@ -772,7 +772,13 @@ func missingObject(ix *index, p kube.Pod, container, kind, name string, ev []Evi
 func missingKey(ix *index, p kube.Pod, container, kind, name, key string, ev []Evidence) *problem {
 	k := kindName(kind)
 	ns := p.Metadata.Namespace
+	cause := fmt.Sprintf("container %s reads key %s from %s %s, which has no such key", container, key, k, name)
+	fix := fmt.Sprintf("Add key %s to %s %s, or correct the key name in the pod spec.", key, k, name)
 	if ks, exists, _ := ix.keySet(strings.ToLower(k), ns, name); exists {
+		if near := closeKey(key, ks.Keys); near != "" {
+			cause += fmt.Sprintf("; it has %s, which differs only in %s", near, keyDifference(key, near))
+			fix = fmt.Sprintf("Read key %s, as %s %s spells it, or rename the key in %s %s to %s.", near, k, name, k, name, key)
+		}
 		have := "no keys"
 		if len(ks.Keys) > 0 {
 			have = "keys " + strings.Join(ks.Keys, ", ")
@@ -782,9 +788,46 @@ func missingKey(ix *index, p kube.Pod, container, kind, name, key string, ev []E
 			Command: fmt.Sprintf("kubectl get %s %s -n %s -o go-template=%s", strings.ToLower(k), name, ns,
 				shq(`{{range $k, $v := .data}}{{$k}}{{"\n"}}{{end}}`))})
 	}
-	return newProblem(p, container, "KD132", "Key missing from "+k, Critical,
-		fmt.Sprintf("container %s reads key %s from %s %s, which has no such key", container, key, k, name),
-		k+"|"+name+"|"+key, fmt.Sprintf("Add key %s to %s %s, or correct the key name in the pod spec.", key, k, name), ev...)
+	return newProblem(p, container, "KD132", "Key missing from "+k, Critical, cause, k+"|"+name+"|"+key, fix, ev...)
+}
+
+// normalKey is a key name with case and separators (-, _, .) left out: DB_PASSWORD and db-password read the same.
+func normalKey(k string) string {
+	return strings.NewReplacer("-", "", "_", "", ".", "").Replace(strings.ToLower(k))
+}
+
+// closeKey returns the key that a missing key was most likely meant to be: the same name in another case or with
+// other separators (DB_PASSWORD for db-password), or one a letter or two away in a name long enough to tell.
+func closeKey(want string, have []string) string {
+	for _, k := range have {
+		if normalKey(k) == normalKey(want) {
+			return k
+		}
+	}
+	best, bestD := "", 3
+	for _, k := range have {
+		if len(want) < 6 || len(k) < 6 {
+			continue
+		}
+		if d := editDistance(normalKey(k), normalKey(want)); d < bestD {
+			best, bestD = k, d
+		}
+	}
+	return best
+}
+
+// keyDifference says how a key differs from the one closeKey found.
+func keyDifference(want, near string) string {
+	lower := func(s string) bool { return strings.ToLower(s) == s }
+	switch {
+	case strings.EqualFold(want, near):
+		return "case"
+	case normalKey(want) == normalKey(near) && lower(want) == lower(near):
+		return "its separators (- _ .)"
+	case normalKey(want) == normalKey(near):
+		return "case and separators (- _ .)"
+	}
+	return "spelling"
 }
 
 var (
