@@ -6057,3 +6057,21 @@ func TestContainerCannotEnterItsWorkingDirectory(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestOOMKilledUnderThePodLevelLimit(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers = append(p.Spec.Containers, kube.Container{Name: "proxy", Image: "registry.example.com/proxy:2"})
+	p.Spec.Resources = &kube.Resources{Limits: map[string]string{"memory": "64Mi", "cpu": "1"}}
+	crashed(&p, 137, "OOMKilled", 4)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD111", "Deployment shop/web", "under the pod's own 64Mi memory limit (spec.resources.limits.memory)", "shared by all 2 of the pod's containers")
+	if !strings.Contains(f.Fix, "pod-level memory limit") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The container's own limit is the one it hit.
+	s.Pods[0].Spec.Containers[0].Resources.Limits = map[string]string{"memory": "32Mi"}
+	expect(t, only(t, Diagnose(s)), "KD111", "Deployment shop/web", "uses more than its 32Mi memory limit")
+}

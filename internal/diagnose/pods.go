@@ -1579,6 +1579,14 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	fix := "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use."
+	// No limit of its own, but the pod has one: its containers share it, and the kernel kills within the pod.
+	if r := p.Spec.Resources; limit == "" && r != nil && r.Limits["memory"] != "" {
+		limit = r.Limits["memory"]
+		cause = fmt.Sprintf("container %s is killed for memory (OOMKilled) under the pod's own %s memory limit (spec.resources.limits.memory): it sets no limit of its own, and that limit is shared by all %d of the pod's containers", cs.Name, limit, len(p.Spec.Containers)+len(p.Spec.InitContainers))
+		fix = fmt.Sprintf("Raise the pod-level memory limit (spec.resources.limits.memory, now %s) to what all the pod's containers use together at peak, or give %s a limit of its own inside it so that one container's growth is told apart.", limit, cs.Name)
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the pod has memory limit %s, and container %s has none", limit, cs.Name),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.resources}{" "}{.spec.containers[?(@.name=="%s")].resources}`, cs.Name))})
+	}
 	if lim, err := kube.ParseQuantity(limit); err == nil && lim > 0 {
 		if where, setting, size, ok := memorySetting(c); ok && size >= lim {
 			cause += fmt.Sprintf("; the app is told to use more than that: %s, %s, in %s", setting, kube.FormatQuantity("memory", size), where)

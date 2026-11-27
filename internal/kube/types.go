@@ -358,9 +358,11 @@ type LocalObjectReference struct {
 }
 
 type PodSpec struct {
-	NodeName    string `json:"nodeName,omitempty"`
-	HostNetwork bool   `json:"hostNetwork,omitempty"`
-	DNSPolicy   string `json:"dnsPolicy,omitempty"`
+	// Resources are pod-level requests and limits (PodLevelResources), shared by all the pod's containers.
+	Resources   *Resources `json:"resources,omitempty"`
+	NodeName    string     `json:"nodeName,omitempty"`
+	HostNetwork bool       `json:"hostNetwork,omitempty"`
+	DNSPolicy   string     `json:"dnsPolicy,omitempty"`
 	// DNSConfig adds to the pod's resolv.conf; with dnsPolicy None it is all of it.
 	DNSConfig *struct {
 		Nameservers []string `json:"nameservers,omitempty"`
