@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-dns-search-line-too-long",
+  "description": "Deployment web lists 32 search domains in its dnsConfig, one per team, and with the cluster's own they are more than a resolver reads, so the kubelet drops the last and short names in those domains no longer resolve.",
+  "rule": "KD379",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "search domains"
+    ],
+    [
+      "32"
+    ],
+    [
+      "dropped"
+    ]
+  ]
+}
