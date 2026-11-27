@@ -302,6 +302,20 @@ func suspendedJob(ix *index, j kube.Job) *Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Workload", Namespace: ns, Name: "*"}, What: "Kueue's Workloads in the namespace, with their admission status",
 			Command: "kubectl get workloads.kueue.x-k8s.io -n " + ns})
 		f.Fix = fmt.Sprintf("Read the Job's Workload (its QuotaReserved and Admitted conditions say why it waits): the ClusterQueue behind LocalQueue %s has no quota left for its flavor, or the LocalQueue does not exist. Do not unsuspend it by hand: Kueue would suspend it again.", q)
+		switch {
+		case ix.s.KueueAPI == "absent":
+			f.Severity = Critical
+			f.Cause = fmt.Sprintf("Job %s has waited %s, suspended, for Kueue to admit it from LocalQueue %s, and this cluster does not serve Kueue's API (kueue.x-k8s.io): Kueue is not installed, so nothing will ever unsuspend the Job", name, held, q)
+			f.Evidence = []Evidence{ev[0], {Object: kube.Ref{Kind: "LocalQueue", Namespace: ns, Name: q}, What: "the cluster has no resource type localqueues.kueue.x-k8s.io",
+				Command: "kubectl get localqueues.kueue.x-k8s.io -n " + ns}}
+			f.Fix = fmt.Sprintf("Install Kueue and create LocalQueue %s, or, to run the Job without it, recreate it without the kueue.x-k8s.io/queue-name label and with suspend: false.", q)
+		case ix.s.KueueAPI == "served" && !localQueueExists(ix, ns, q):
+			f.Severity = Critical
+			f.Cause = fmt.Sprintf("Job %s has waited %s, suspended, for Kueue to admit it from LocalQueue %s, and namespace %s has no LocalQueue %s, so Kueue never admits it", name, held, q, ns, q)
+			f.Evidence = []Evidence{ev[0], {Object: kube.Ref{Kind: "LocalQueue", Namespace: ns, Name: "*"}, What: "the LocalQueues of namespace " + ns,
+				Command: "kubectl get localqueues.kueue.x-k8s.io -n " + ns}}
+			f.Fix = fmt.Sprintf("Set the Job's kueue.x-k8s.io/queue-name label to a LocalQueue of namespace %s (a new Job: the label cannot be changed while Kueue manages it), or create LocalQueue %s pointing at a ClusterQueue.", ns, q)
+		}
 	}
 	return f
 }
@@ -328,6 +342,15 @@ func managedElsewhere(ix *index, j kube.Job) *Finding {
 		Evidence: []Evidence{{Object: j.Ref(), What: fmt.Sprintf("Job %s has spec.managedBy %s and no status after %s", name, by, age),
 			Command: cmdGet("job", ns, name, `{.spec.managedBy}{" "}{.status}`)}},
 		Fix: fix}
+}
+
+func localQueueExists(ix *index, ns, name string) bool {
+	for _, q := range ix.s.LocalQueues {
+		if q.Metadata.Namespace == ns && q.Metadata.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // noParallelism finds a Job with parallelism 0 that has not finished: it starts no pods, so it never completes, and

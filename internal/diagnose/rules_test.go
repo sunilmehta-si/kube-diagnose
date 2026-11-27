@@ -1845,6 +1845,19 @@ func TestSuspendedJob(t *testing.T) {
 		t.Errorf("%s %s", f.Severity, f.Fix)
 	}
 
+	// No Kueue on the cluster, or no such LocalQueue: it never runs.
+	s.KueueAPI = "absent"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD187", "Job shop/train", "this cluster does not serve Kueue's API (kueue.x-k8s.io): Kueue is not installed, so nothing will ever unsuspend the Job")
+	if f.Severity != Critical {
+		t.Errorf("severity %s", f.Severity)
+	}
+	s.KueueAPI = "served"
+	s.LocalQueues = []kube.LocalQueue{{Metadata: kube.ObjectMeta{Name: "team-b", Namespace: "shop"}}}
+	expect(t, only(t, Diagnose(s)), "KD187", "Job shop/train", "namespace shop has no LocalQueue team-a, so Kueue never admits it")
+	s.LocalQueues[0].Metadata.Name = "team-a"
+	expect(t, only(t, Diagnose(s)), "KD187", "Job shop/train", "waited 20m0s for Kueue to admit it from LocalQueue team-a")
+
 	s.Jobs[0].Status.Conditions[0].LastTransitionTime = t0.Add(-30 * time.Second)
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("just suspended: %+v", r.Findings)
