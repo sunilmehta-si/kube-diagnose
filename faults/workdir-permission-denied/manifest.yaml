@@ -1,0 +1,31 @@
+# Deployment report runs as user 10001 with workingDir /root/app, from an image built to run as root; the runtime cannot enter /root/app as that user, so the container never starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-workdir-permission-denied
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: report
+  namespace: kd-workdir-permission-denied
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: report
+  template:
+    metadata:
+      labels:
+        app: report
+    spec:
+      # The platform's policy runs every pod as a non-root user; the app was written to run as root from /root/app.
+      securityContext:
+        runAsUser: 10001
+        runAsNonRoot: true
+      containers:
+        - name: report
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          workingDir: /root/app
+          command: ["sh", "-c", "echo writing reports to $PWD; sleep 3600"]
