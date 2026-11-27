@@ -1,0 +1,23 @@
+# Job train has spec.managedBy batch.example.com/scheduler, copied from a cluster that runs that scheduler; Kubernetes' Job controller leaves it alone and nothing here runs it, so it never starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-job-managed-by-missing-controller
+
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: train
+  namespace: kd-job-managed-by-missing-controller
+spec:
+  # Copied from a cluster where a batch scheduler runs these Jobs; none runs here.
+  managedBy: batch.example.com/scheduler
+  backoffLimit: 1
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: train
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sh", "-c", "echo training; sleep 30"]
