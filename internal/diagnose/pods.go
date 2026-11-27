@@ -980,6 +980,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 		return newProblem(p, cs.Name, "KD207", "Seccomp profile is not on the node", Critical, cause, "seccomp|"+path,
 			"Put the profile on every node that may run the pod, under the kubelet's seccomp directory (the Security Profiles Operator or a DaemonSet can install it), keep the pod to the nodes that have it, or use seccompProfile type RuntimeDefault.", ev...)
 	}
+	if pr := workingDirFails(p, cs, c, msg, ev); pr != nil {
+		return pr
+	}
 	switch {
 	case reExecFormat.MatchString(msg):
 		return execFormat(p, cs, ev)
@@ -1009,6 +1012,42 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			"Correct the command (or the image's entrypoint): use a path that exists in the image.", ev...)
 	}
 	return nil
+}
+
+// reChdir is runc failing to enter the container's working directory, the last step before it runs the command.
+var reChdir = regexp.MustCompile(`chdir to cwd \(\\?"([^"\\]+)\\?"\) set in config\.json failed: ([a-z ]+)`)
+
+// workingDirFails finds a container the runtime cannot start because it cannot enter the container's working
+// directory: the runtime creates a missing one as root, so a container that runs as another user is refused one
+// under a directory only root may enter (/root/app), and a path that is a file in the image is no directory.
+func workingDirFails(p kube.Pod, cs kube.ContainerStatus, c kube.Container, msg string, ev []Evidence) *problem {
+	m := reChdir.FindStringSubmatch(msg)
+	if m == nil {
+		return nil
+	}
+	dir, why := m[1], strings.TrimSpace(m[2])
+	from := "the image's WORKDIR"
+	if c.WorkingDir != "" {
+		from = "its workingDir"
+	}
+	cause := fmt.Sprintf("container %s cannot start: the runtime cannot enter %s, %s (%s)", cs.Name, dir, from, why)
+	fix := "Set workingDir to a directory the container may enter (one under /tmp, or one the image creates for its user), or leave it unset to use the image's WORKDIR."
+	switch {
+	case strings.Contains(why, "permission denied"):
+		user := "its user"
+		if u, ok := p.RunAsUser(cs.Name); ok {
+			user = fmt.Sprintf("user %d", u)
+		}
+		parent := path.Dir(dir)
+		cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is under %s, which %s may not enter (permission denied); the runtime creates a missing working directory as root, and then runs the command as %s from there", cs.Name, dir, from, parent, user, user)
+		fix = fmt.Sprintf("Use a working directory %s may enter: one the image creates and gives to that user (WORKDIR after a chown in the Dockerfile), or one under /tmp or a mounted volume; %s is for root.", user, parent)
+	case strings.Contains(why, "not a directory"):
+		cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is a file in the image, not a directory (not a directory)", cs.Name, dir, from)
+		fix = fmt.Sprintf("Set workingDir to the directory that holds the file, %s.", path.Dir(dir))
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's workingDir and user", cs.Name),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].workingDir}{" "}{.spec.securityContext}{" "}{.spec.containers[?(@.name=="%s")].securityContext}`, cs.Name, cs.Name))})
+	return newProblem(p, cs.Name, "KD237", "Container cannot enter its working directory", Critical, cause, "cwd|"+dir, fix, ev...)
 }
 
 // volumeHidesCommand finds a command the runtime cannot find because a volume is mounted on the directory that holds

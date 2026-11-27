@@ -6036,3 +6036,24 @@ func TestJobManagedByAnotherController(t *testing.T) {
 		t.Errorf("just created: %+v", r.Findings)
 	}
 }
+
+func TestContainerCannotEnterItsWorkingDirectory(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	uid := int64(10001)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	p.Spec.Containers[0].WorkingDir = "/root/app"
+	waiting(&p, "RunContainerError", `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: chdir to cwd ("/root/app") set in config.json failed: permission denied`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD237", "Deployment shop/web", "working directory /root/app (its workingDir) is under /root, which user 10001 may not enter (permission denied)", "creates a missing working directory as root")
+	// A file where a directory should be; the kubelet's escaped form of the message reads the same.
+	s.Pods[0].Spec.SecurityContext, s.Pods[0].Spec.Containers[0].WorkingDir = nil, ""
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = `error during container init: chdir to cwd (\"/app/server\") set in config.json failed: not a directory`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD237", "Deployment shop/web", "working directory /app/server (the image's WORKDIR) is a file in the image")
+	if !strings.Contains(f.Fix, "/app.") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}

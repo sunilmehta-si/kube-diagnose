@@ -260,6 +260,8 @@ type Container struct {
 	ImagePullPolicy string   `json:"imagePullPolicy,omitempty"`
 	Command         []string `json:"command,omitempty"`
 	Args            []string `json:"args,omitempty"`
+	// WorkingDir replaces the image's WORKDIR.
+	WorkingDir string `json:"workingDir,omitempty"`
 	// Stdin and TTY keep a shell open, as kubectl run -it does.
 	Stdin           bool             `json:"stdin,omitempty"`
 	TTY             bool             `json:"tty,omitempty"`
