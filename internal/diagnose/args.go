@@ -195,3 +195,56 @@ func ownOperator(words []string, i int) bool {
 	}
 	return false
 }
+
+// trailingNewline finds a container that exits because an argument or an environment variable's value ends with a
+// newline: YAML's literal block scalar (- |) keeps the line break at its end, so the program gets
+// "/etc/app/app.conf\n", a file that does not exist, or a URL or host with a control character in it. The value is
+// told by its log, which quotes the text without the newline (the newline itself breaks the log line).
+func trailingNewline(p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, ok := containerSpec(p, cs.Name)
+	if !ok {
+		return nil
+	}
+	type item struct{ field, value string }
+	var items []item
+	all := append(append([]string{}, c.Command...), c.Args...)
+	for i, a := range all {
+		if i == 0 && len(c.Command) > 0 || i > 0 && all[i-1] == "-c" && len(c.Command) > 0 && shells[c.Command[0]] {
+			continue // the program, and a shell's script, which may end as it likes
+		}
+		field := "args"
+		if i < len(c.Command) {
+			field = "command"
+		}
+		items = append(items, item{field, a})
+	}
+	for _, e := range c.Env {
+		if e.ValueFrom == nil {
+			items = append(items, item{"env " + e.Name, e.Value})
+		}
+	}
+	for _, it := range items {
+		v := strings.TrimRight(it.value, " ")
+		if !strings.HasSuffix(v, "\n") || strings.Contains(strings.TrimSuffix(v, "\n"), "\n") || strings.TrimSpace(v) == "" {
+			continue
+		}
+		text := strings.TrimSpace(v)
+		for i := len(lines) - 1; i >= 0; i-- {
+			if !strings.Contains(lines[i], text) {
+				continue
+			}
+			what := "item " + strconv.Quote(it.value)
+			if strings.HasPrefix(it.field, "env ") {
+				what = "value " + strconv.Quote(it.value)
+			}
+			ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's %s ends with a newline: %q", cs.Name, it.field, it.value),
+				Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")]['command','args','env']}`, cs.Name))})
+			return newProblem(p, cs.Name, "KD238", "Value ends with a newline from a YAML block scalar", Critical,
+				fmt.Sprintf("container %s exits because its %s %s ends with a newline, which a YAML literal block (|) keeps, so the program gets %q with the line break in it; its log says: %q",
+					cs.Name, it.field, what, it.value, clip(lines[i], 200)),
+				"newline|"+it.field,
+				fmt.Sprintf("Write %q on one line in quotes, or use |- or >- so YAML drops the final newline.", text), ev...)
+		}
+	}
+	return nil
+}

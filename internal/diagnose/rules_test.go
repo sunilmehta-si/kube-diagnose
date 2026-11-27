@@ -6188,3 +6188,29 @@ func TestImageFromALocalhostRegistry(t *testing.T) {
 		t.Errorf("registry: %s %s", registry("localhost/web"), registry("library/busybox"))
 	}
 }
+
+func TestValueEndsWithANewlineFromAYAMLBlock(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].Command = []string{"sh", "-c", "cat \"$0\" > /dev/null && exec httpd -f -p 8080\n"}
+	p.Spec.Containers[0].Args = []string{"/etc/app/app.conf\n"}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"cat: can't open '/etc/app/app.conf", "': No such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD238", "Deployment shop/web", `its args item "/etc/app/app.conf\n" ends with a newline, which a YAML literal block (|) keeps`, "cat: can't open '/etc/app/app.conf")
+	// An environment variable, quoted by the program that read it.
+	s.Pods[0].Spec.Containers[0].Args = nil
+	s.Pods[0].Spec.Containers[0].Env = []kube.EnvVar{{Name: "API_URL", Value: "http://api.shop.svc:8080\n"}}
+	s.Logs[0].Lines = []string{`parse "http://api.shop.svc:8080`, `": net/url: invalid control character in URL`}
+	expect(t, only(t, Diagnose(s)), "KD238", "Deployment shop/web", `its env API_URL value "http://api.shop.svc:8080\n"`)
+	// A script that ends with a newline, and a log that does not quote the value: not this.
+	s.Pods[0].Spec.Containers[0].Env = nil
+	s.Logs[0].Lines = []string{"httpd: bind: Address in use"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD238" {
+			t.Errorf("script: %s", f.Cause)
+		}
+	}
+}

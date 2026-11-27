@@ -1229,6 +1229,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := windowsLineEndings(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := trailingNewline(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := shmTooSmall(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
