@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-secret-key-case",
+  "description": "Deployment api reads key DB_PASSWORD from Secret db, written the way the variable is named; the Secret, made with --from-file, has key db-password, so the container is never created.",
+  "rule": "KD132",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "DB_PASSWORD"
+    ],
+    [
+      "db-password"
+    ],
+    [
+      "case",
+      "separators"
+    ]
+  ]
+}
