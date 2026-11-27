@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-oom-pod-level-limit",
+  "description": "The indexer pod sets a 64Mi memory limit for the whole pod (spec.resources) and none on its containers; the indexer grows past it and is OOMKilled again and again.",
+  "rule": "KD111",
+  "object": "Deployment/indexer",
+  "keywords": [
+    [
+      "pod's own",
+      "pod-level"
+    ],
+    [
+      "64Mi"
+    ],
+    [
+      "OOMKilled"
+    ]
+  ]
+}
