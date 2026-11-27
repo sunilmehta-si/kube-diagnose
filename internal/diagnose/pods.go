@@ -554,6 +554,11 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			fmt.Sprintf("registry %s speaks plain HTTP and the node pulls image %s over HTTPS", host, image), "plainhttp|"+host,
 			fmt.Sprintf("Serve %s over TLS, or configure every node's runtime to use HTTP for it (for containerd, a hosts.toml under /etc/containerd/certs.d/%s with server = \"http://%s\").", host, host, host), ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
+		if host := registry(image); localRegistry(host) {
+			return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
+				fmt.Sprintf("image %s names registry %s, and on node %s that is the node itself, where no registry answers: the image was built on a workstation (podman and buildah name local builds localhost/...) or pushed to a registry there, and the node cannot reach either", image, host, p.Spec.NodeName),
+				"net|"+host, "Push the image to a registry the nodes can reach and use that name, or load it onto the nodes (kind load docker-image, minikube image load) and set imagePullPolicy: IfNotPresent so the kubelet does not pull it.", ev...)
+		}
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
 			"Check the registry host name in the image, and that nodes can resolve and reach it (DNS, egress, proxy).", ev...)
@@ -625,10 +630,20 @@ func deniedReason(msg string) string {
 }
 
 func registry(image string) string {
-	if i := strings.Index(image, "/"); i > 0 && strings.ContainsAny(image[:i], ".:") {
+	// The first part is a registry when it has a dot or a port, or is localhost, as the container runtimes read it.
+	if i := strings.Index(image, "/"); i > 0 && (strings.ContainsAny(image[:i], ".:") || image[:i] == "localhost") {
 		return image[:i]
 	}
 	return "docker.io"
+}
+
+// localRegistry reports whether a registry host is the loopback address, which on a node is the node itself.
+func localRegistry(host string) bool {
+	h := host
+	if i := strings.LastIndex(h, ":"); i > 0 && !strings.HasSuffix(h, "]") {
+		h = h[:i]
+	}
+	return h == "localhost" || h == "127.0.0.1" || h == "[::1]"
 }
 
 // ---- configuration ----

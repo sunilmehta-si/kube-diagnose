@@ -6150,3 +6150,26 @@ func TestRouteSendsTrafficToADeployment(t *testing.T) {
 		t.Errorf("InferencePool: %+v", r.Findings)
 	}
 }
+
+func TestImageFromALocalhostRegistry(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].Image = "localhost/shop/web:dev"
+	waiting(&p, "ErrImagePull", `failed to pull and unpack image "localhost/shop/web:dev": failed to resolve reference "localhost/shop/web:dev": failed to do request: Head "https://localhost/v2/shop/web/manifests/dev": dial tcp [::1]:443: connect: connection refused`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD103", "Deployment shop/web", "names registry localhost, and on node node-1 that is the node itself", "podman and buildah name local builds localhost/")
+	if !strings.Contains(f.Fix, "kind load docker-image") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A registry on a port of localhost, as kind's local-registry recipe names it.
+	s.Pods[0].Spec.Containers[0].Image = "localhost:5001/web:dev"
+	expect(t, only(t, Diagnose(s)), "KD103", "Deployment shop/web", "names registry localhost:5001")
+	// Any other unreachable registry keeps the general cause.
+	s.Pods[0].Spec.Containers[0].Image = "registry.corp.internal/web:dev"
+	expect(t, only(t, Diagnose(s)), "KD103", "Deployment shop/web", "the node cannot reach the registry for image registry.corp.internal/web:dev")
+	if registry("localhost/web") != "localhost" || registry("library/busybox") != "docker.io" {
+		t.Errorf("registry: %s %s", registry("localhost/web"), registry("library/busybox"))
+	}
+}
