@@ -15,6 +15,8 @@ var (
 	reCNI           = regexp.MustCompile(`(?i)failed to setup network for sandbox|cni plugin not initialized|network plugin is not ready|failed to find plugin`)
 	// containerd: "failed to get sandbox runtime: no runtime for \"nvidia\" is configured"
 	reNoRuntime = regexp.MustCompile(`no runtime for "([^"]+)" is configured`)
+	// The kubelet, building the sandbox's hostname for a pod with setHostnameAsFQDN.
+	reFQDNTooLong = regexp.MustCompile(`FQDN (\S+) is too long \((\d+) characters is the max, (\d+) characters requested\)`)
 )
 
 // sandboxProblem finds a pod that is assigned to a node and still has no container started because the node cannot
@@ -38,6 +40,15 @@ func sandboxProblem(ix *index, p kube.Pod) *problem {
 	node := p.Spec.NodeName
 	ev := []Evidence{eventEvidence(p.Ref(), e)}
 	switch {
+	case reFQDNTooLong.MatchString(msg):
+		m := reFQDNTooLong.FindStringSubmatch(msg)
+		ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's hostname, subdomain and setHostnameAsFQDN",
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.hostname}{" "}{.spec.subdomain}{" "}{.spec.setHostnameAsFQDN}`)})
+		return newProblem(p, "", "KD239", "Pod's FQDN is too long to be its hostname", Critical,
+			fmt.Sprintf("the pod sets setHostnameAsFQDN, so the kubelet makes its full name %s (hostname, subdomain, namespace and cluster domain) the hostname, and at %s characters it is longer than the %s a Linux hostname may have, so the sandbox is never created", m[1], m[3], m[2]),
+			"sandbox|fqdn",
+			fmt.Sprintf("Shorten the names that make up the FQDN to %s characters or fewer (a StatefulSet's name and serviceName give its pods their hostname and subdomain, and the namespace counts too), or drop setHostnameAsFQDN: the pod's FQDN still resolves in DNS, and only the hostname inside the container is short.", m[2]),
+			ev...)
 	case reNoRuntime.MatchString(msg):
 		handler := reNoRuntime.FindStringSubmatch(msg)[1]
 		class := "its RuntimeClass"

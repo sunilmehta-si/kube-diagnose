@@ -6214,3 +6214,19 @@ func TestValueEndsWithANewlineFromAYAMLBlock(t *testing.T) {
 		}
 	}
 }
+
+func TestPodFQDNTooLongToBeItsHostname(t *testing.T) {
+	s := snap()
+	p := pod("reporting-analytics-worker-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "reporting-analytics-worker", Controller: yes()}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "ContainerCreating", "")
+	s.Pods = []kube.Pod{p}
+	fqdn := "reporting-analytics-worker-0.reporting-analytics.shop.svc.cluster.local"
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "FailedCreatePodSandBox", fmt.Sprintf("Failed to create pod sandbox: failed to construct FQDN from pod hostname and cluster domain, FQDN %s is too long (64 characters is the max, %d characters requested)", fqdn, len(fqdn)), 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD239", "StatefulSet shop/reporting-analytics-worker", "makes its full name "+fqdn, fmt.Sprintf("at %d characters it is longer than the 64", len(fqdn)))
+	if !strings.Contains(f.Fix, "drop setHostnameAsFQDN") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
