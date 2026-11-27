@@ -6230,3 +6230,29 @@ func TestPodFQDNTooLongToBeItsHostname(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestDNSSearchLineCutShort(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	p := pod("web-rs-a", "web")
+	var searches []string
+	for i := 1; i <= 32; i++ {
+		searches = append(searches, fmt.Sprintf("team%d.corp.example.com", i))
+	}
+	p.Spec.DNSConfig = &struct {
+		Nameservers []string `json:"nameservers,omitempty"`
+		Searches    []string `json:"searches,omitempty"`
+	}{Searches: searches}
+	s.Pods = []kube.Pod{p}
+	applied := append([]string{"shop.svc.cluster.local", "svc.cluster.local", "cluster.local"}, searches[:29]...)
+	e := event("Pod", "web-rs-a", "DNSConfigForming", "Search Line limits were exceeded, some search paths have been omitted, the applied search line is: "+strings.Join(applied, " "), 0)
+	s.Events = []kube.Event{e}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD379", "Deployment shop/web", "more than the 32 search domains a resolver reads, so it kept the first 32", "dropped team30.corp.example.com, team31.corp.example.com, team32.corp.example.com of the pod's dnsConfig", "short name")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+	// Only the node's domains dropped.
+	s.Pods[0].Spec.DNSConfig = nil
+	expect(t, only(t, Diagnose(s)), "KD379", "Deployment shop/web", "the search domains it dropped are the node's")
+}

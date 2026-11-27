@@ -582,3 +582,54 @@ func mountOf(p kube.Pod, container, volume string) (string, bool) {
 	}
 	return "", false
 }
+
+// reDNSLimits is the kubelet's warning that a pod's resolv.conf would have more search domains (32, or 2048
+// characters) or name servers (3) than resolvers read, and the line it wrote instead.
+var reDNSLimits = regexp.MustCompile(`^(Search Line|Nameserver) limits were exceeded, some (?:search paths|nameservers) have been omitted, the applied (?:search|nameserver) line is: (.*)$`)
+
+// dnsLimits finds a pod whose resolv.conf the kubelet cut short: the cluster's search domains, the node's and the
+// pod's own dnsConfig together are more than a resolver reads, so the last are dropped, and a short name that only
+// they would complete does not resolve.
+func dnsLimits(ix *index, p kube.Pod) *problem {
+	evs := ix.eventsFor(p.Ref(), "DNSConfigForming")
+	if len(evs) == 0 {
+		return nil
+	}
+	m := reDNSLimits.FindStringSubmatch(evs[0].Message)
+	if m == nil {
+		return nil
+	}
+	applied := strings.Fields(m[2])
+	var mine []string
+	if p.Spec.DNSConfig != nil {
+		mine = p.Spec.DNSConfig.Searches
+		if m[1] == "Nameserver" {
+			mine = p.Spec.DNSConfig.Nameservers
+		}
+	}
+	var dropped []string
+	for _, d := range mine {
+		if !slices.Contains(applied, d) {
+			dropped = append(dropped, d)
+		}
+	}
+	what, limit := "search domains", "32 search domains"
+	if m[1] == "Nameserver" {
+		what, limit = "name servers", "3 name servers"
+	}
+	cause := fmt.Sprintf("the kubelet cut the pod's resolv.conf short: with the cluster's, the node's and the pod's own %s together it would have more than the %s a resolver reads, so it kept the first %d", what, limit, len(applied))
+	fix := fmt.Sprintf("Give the pod fewer %s in dnsConfig, or trim the node's resolv.conf (the kubelet's --resolv-conf); ", what)
+	if len(dropped) > 0 {
+		cause += fmt.Sprintf(" and dropped %s of the pod's dnsConfig", strings.Join(dropped, ", "))
+		if m[1] == "Search Line" {
+			cause += ", so a short name that only they would complete does not resolve"
+		}
+		fix += "or use fully qualified names (ending in a dot) for the hosts in the dropped domains."
+	} else {
+		cause += fmt.Sprintf(", and the %s it dropped are the node's", what)
+		fix += "the cluster's own come first and are kept."
+	}
+	return newProblem(p, "", "KD379", "Pod's DNS settings are more than a resolver reads", Warning, cause, "dnslimits|"+m[1], fix,
+		eventEvidence(p.Ref(), evs[0]),
+		Evidence{Object: p.Ref(), What: "the pod's dnsPolicy and dnsConfig", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.dnsPolicy}{" "}{.spec.dnsConfig}`)})
+}
