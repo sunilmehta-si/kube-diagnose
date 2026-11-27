@@ -5971,3 +5971,26 @@ func TestSystemCriticalPriorityIsNotAllowedInTheNamespace(t *testing.T) {
 		t.Errorf("fix: %s", f.Fix)
 	}
 }
+
+func TestServiceSelectsAnOldPodTemplateHash(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 2)
+	a, b := pod("web-rs-a", "web"), pod("web-rs-b", "web")
+	for _, p := range []*kube.Pod{&a, &b} {
+		p.Metadata.Labels = map[string]string{"app": "web", "pod-template-hash": "7c4b9d5f6"}
+	}
+	s.Pods = []kube.Pod{a, b}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web", "pod-template-hash": "5d9f7c6b8d"}, port(8080))}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD160", "Service shop/web", "pod-template-hash=5d9f7c6b8d is a label the Deployment controller", "changes with each rollout", "the pods now carry pod-template-hash=7c4b9d5f6")
+	if !strings.Contains(f.Fix, "Remove pod-template-hash") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A selector of generated labels alone is not this: nothing else to select the pods by.
+	s.Services[0].Spec.Selector = map[string]string{"pod-template-hash": "5d9f7c6b8d"}
+	for _, f := range Diagnose(s).Findings {
+		if strings.Contains(f.Cause, "changes with each rollout") {
+			t.Errorf("generated label only: %s", f.Cause)
+		}
+	}
+}
