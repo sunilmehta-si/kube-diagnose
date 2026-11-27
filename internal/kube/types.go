@@ -1290,6 +1290,15 @@ type ReferenceGrant struct {
 	} `json:"spec"`
 }
 
+// LocalQueue is Kueue's queue in a namespace, which a Job names in its kueue.x-k8s.io/queue-name label; it feeds a
+// ClusterQueue, which holds the quota.
+type LocalQueue struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ClusterQueue string `json:"clusterQueue"`
+	} `json:"spec"`
+}
+
 // BackendTLSPolicy tells a Gateway to speak TLS to a Service's pods, and how to check the certificate they present:
 // against the CA bundle in a ConfigMap (key ca.crt), or the system's well-known CAs.
 type BackendTLSPolicy struct {

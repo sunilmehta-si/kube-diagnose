@@ -461,3 +461,26 @@ func TestCollectReadsRuntimeClassesAndTheirScheduling(t *testing.T) {
 		t.Errorf("runtime classes %+v", s.RuntimeClasses)
 	}
 }
+
+func TestCollectReadsKueuesLocalQueuesAndWhetherKueueIsServed(t *testing.T) {
+	f := &fake{answers: map[string]string{
+		"get localqueues.kueue.x-k8s.io": `{"items":[{"metadata":{"name":"team-a","namespace":"shop"},"spec":{"clusterQueue":"gpus"}}]}`,
+	}}
+	s, err := Collect(context.Background(), f, Options{Namespace: "shop"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.KueueAPI != "served" || len(s.LocalQueues) != 1 || s.LocalQueues[0].Spec.ClusterQueue != "gpus" {
+		t.Errorf("%q %+v", s.KueueAPI, s.LocalQueues)
+	}
+	// No Kueue: noted, and no gap.
+	f = &fake{errs: map[string]error{"get localqueues.kueue.x-k8s.io": errors.New(`kubectl: error: the server doesn't have a resource type "localqueues"`)}}
+	if s, _ = Collect(context.Background(), f, Options{Namespace: "shop"}); s.KueueAPI != "absent" || len(s.Gaps) != 0 {
+		t.Errorf("%q %+v", s.KueueAPI, s.Gaps)
+	}
+	// Forbidden: a gap, and nothing known.
+	f = &fake{errs: map[string]error{"get localqueues.kueue.x-k8s.io": errors.New(`Error from server (Forbidden): localqueues.kueue.x-k8s.io is forbidden`)}}
+	if s, _ = Collect(context.Background(), f, Options{Namespace: "shop"}); s.KueueAPI != "" || len(s.Gaps) != 1 {
+		t.Errorf("%q %+v", s.KueueAPI, s.Gaps)
+	}
+}

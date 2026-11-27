@@ -151,6 +151,7 @@ func Collect(ctx context.Context, r Runner, o Options) (*snapshot.Snapshot, erro
 			return list(ctx, r, g, "backendtlspolicies.gateway.networking.k8s.io", ns, scope, &s.BackendTLSPolicies)
 		},
 		func(g *snapshot.Snapshot) error { return resourceAllocation(ctx, r, g, s, ns, scope) },
+		func(g *snapshot.Snapshot) error { return kueue(ctx, r, g, s, scope) },
 	}
 	// The reads are independent, each a kubectl process and one API request, so a few run at once. Every step
 	// writes its own field of the snapshot and collects its gaps apart, which are then added in the steps' order: the
@@ -262,6 +263,29 @@ func resourceAllocation(ctx context.Context, r Runner, g, s *snapshot.Snapshot, 
 		return err
 	}
 	return list(ctx, r, g, "resourceslices.resource.k8s.io", "", nil, &s.ResourceSlices)
+}
+
+// kueue reads Kueue's LocalQueues, and so learns whether the cluster serves Kueue's API at all: a Job that waits for
+// Kueue on a cluster without it waits for ever.
+func kueue(ctx context.Context, r Runner, g, s *snapshot.Snapshot, scope []string) error {
+	const resource = "localqueues.kueue.x-k8s.io"
+	b, err := r.Run(ctx, append([]string{"get", resource, "-o", "json"}, scope...)...)
+	switch {
+	case err != nil && ctx.Err() != nil:
+		return ctx.Err()
+	case err != nil && notServed(err):
+		s.KueueAPI = "absent"
+		return nil
+	case err != nil:
+		g.Gaps = append(g.Gaps, snapshot.Gap{Resource: resource, Error: firstLine(err.Error())})
+		return nil
+	}
+	var l kube.List[kube.LocalQueue]
+	if err := json.Unmarshal(b, &l); err != nil {
+		return fmt.Errorf("kubectl get %s: unexpected output: %w", resource, err)
+	}
+	s.LocalQueues, s.KueueAPI = l.Items, "served"
+	return nil
 }
 
 // notServed reports whether kubectl failed because the API server does not serve the resource at all: its CRD is

@@ -309,6 +309,10 @@ func (r *redactor) collect(s *Snapshot) {
 			}
 		}
 	}
+	for _, x := range s.LocalQueues {
+		r.addName("lq", x.Metadata.Name)
+		r.addName("cq", x.Spec.ClusterQueue)
+	}
 	for _, x := range s.BackendTLSPolicies {
 		r.addName("btls", x.Metadata.Name)
 		for _, t := range x.Spec.TargetRefs {
