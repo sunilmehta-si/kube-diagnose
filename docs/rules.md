@@ -2,7 +2,7 @@
 
 Every finding names one of these rules. IDs are stable: a rule is retired, never renumbered. `kube-diagnose rules KD101` prints one. This file is generated from `internal/diagnose/catalog.go` (`make docs`).
 
-The tens digit says where the problem is: x00-x29 pulling the image and running the container, x30-x39 its configuration and volumes, x40-x49 scheduling, x50-x59 storage, x60-x69 Services and networking, x70-x79 creating pods, x80-x89 workloads and x90-x99 nodes. KD2xx continues an area once its KD1xx numbers are used up, and two areas ran past their ten there: KD270-KD274 and KD278 are Services and networking, and KD290-KD294 are workloads. KD3xx continues an area whose KD2xx numbers are used up: KD300 and on are running the container, KD360 and on Services and networking, and KD380 and on creating pods. KD320-KD330 are an area of their own: a pod's device claims (dynamic resource allocation), from the claim to the node's driver.
+The tens digit says where the problem is: x00-x29 pulling the image and running the container, x30-x39 its configuration and volumes, x40-x49 scheduling, x50-x59 storage, x60-x69 Services and networking, x70-x79 creating pods, x80-x89 workloads and x90-x99 nodes. KD2xx continues an area once its KD1xx numbers are used up, and two areas ran past their ten there: KD270-KD274 and KD278 are Services and networking, and KD290-KD298 are workloads. KD3xx continues an area whose KD2xx numbers are used up: KD300 and on are running the container, KD360 and on Services and networking, and KD380 and on creating pods. KD320-KD330 are an area of their own: a pod's device claims (dynamic resource allocation), from the claim to the node's driver.
 
 | Rule | Title | Severity | Detects | Evidence |
 |---|---|---|---|---|
