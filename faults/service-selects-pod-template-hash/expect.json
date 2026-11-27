@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-service-selects-pod-template-hash",
+  "description": "Service web selects app=web and pod-template-hash=5d9f7c6b8d, copied from a pod of an earlier rollout; the pods of the current ReplicaSet carry another hash, so the Service selects no pod.",
+  "rule": "KD160",
+  "object": "Service/web",
+  "keywords": [
+    [
+      "pod-template-hash"
+    ],
+    [
+      "rollout"
+    ],
+    [
+      "app=web"
+    ]
+  ]
+}
