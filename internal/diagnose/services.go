@@ -86,6 +86,13 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	// to zero is often deliberate (KEDA does it); it is worth saying only when an Ingress still sends traffic here.
 	var zero []kube.Workload
 	for _, w := range ix.s.Workloads {
+		// A StatefulSet's governing Service that selects other pods is said under the StatefulSet (KD182), whose
+		// pods lose their DNS names.
+		if w.Kind == "StatefulSet" && w.Metadata.Namespace == ns && w.Spec.ServiceName == svc.Metadata.Name && svc.Spec.ClusterIP == "None" {
+			return nil
+		}
+	}
+	for _, w := range ix.s.Workloads {
 		if w.Metadata.Namespace == ns && w.Kind != "ReplicaSet" && kube.MatchesMap(svc.Spec.Selector, w.Spec.Template.Metadata.Labels) {
 			if w.Kind == "DaemonSet" || w.Desired() != 0 {
 				return nil

@@ -1240,6 +1240,11 @@ func TestStatefulSetGoverningService(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is not headless (it has clusterIP 10.96.4.20)")
 
 	s.Services[0].Spec.ClusterIP, s.Services[0].Spec.Ports[0].Port = "None", 8080 // headless, so its port is the pods' port
+	s.Services[0].Spec.Selector = map[string]string{"app": "database"}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 0)}
+	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is headless, but it selects pods with app=database and the StatefulSet's pods carry app=web", "db-0.db-headless.shop.svc does not resolve")
+	s.Services[0].Spec.Selector = map[string]string{"app": "web"}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 1)}
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("a headless governing Service: %+v", r.Findings)
 	}
