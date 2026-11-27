@@ -1,0 +1,42 @@
+# StatefulSet reporting-analytics-worker sets setHostnameAsFQDN, and its pods' full names (pod, serviceName reporting-analytics, namespace, cluster domain) run past 64 characters, so the kubelet cannot make them the hostname and no pod starts.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-pod-fqdn-too-long
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: reporting-analytics
+  namespace: kd-pod-fqdn-too-long
+spec:
+  clusterIP: None
+  selector:
+    app: reporting-analytics
+  ports:
+    - port: 8080
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: reporting-analytics-worker
+  namespace: kd-pod-fqdn-too-long
+spec:
+  serviceName: reporting-analytics
+  replicas: 1
+  selector:
+    matchLabels:
+      app: reporting-analytics
+  template:
+    metadata:
+      labels:
+        app: reporting-analytics
+    spec:
+      # The app reads its peers' names from hostname -f, so the FQDN was made the hostname.
+      setHostnameAsFQDN: true
+      containers:
+        - name: worker
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
