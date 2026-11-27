@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-kueue-not-installed",
+  "description": "Job train is created suspended with label kueue.x-k8s.io/queue-name: team-a, as Kueue's docs say, on a cluster where Kueue is not installed, so nothing ever admits or unsuspends it.",
+  "rule": "KD187",
+  "object": "Job/train",
+  "keywords": [
+    [
+      "Kueue"
+    ],
+    [
+      "not installed",
+      "does not serve"
+    ],
+    [
+      "team-a"
+    ]
+  ]
+}
