@@ -120,6 +120,9 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		if pr := subdomainProblem(ix, p, nil, nil, nil); pr != nil {
 			return pr
 		}
+		if pr := hostAliasService(ix, p); pr != nil {
+			return pr
+		}
 		if pr := dnsLimits(ix, p); pr != nil {
 			return pr
 		}

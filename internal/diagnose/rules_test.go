@@ -6308,3 +6308,34 @@ func TestDNSSearchLineCutShort(t *testing.T) {
 	s.Pods[0].Spec.DNSConfig = nil
 	expect(t, only(t, Diagnose(s)), "KD379", "Deployment shop/web", "the search domains it dropped are the node's")
 }
+
+func TestHostAliasesSendAServiceNameElsewhere(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	p := pod("web-rs-a", "web")
+	p.Spec.HostAliases = append(p.Spec.HostAliases, struct {
+		IP        string   `json:"ip"`
+		Hostnames []string `json:"hostnames,omitempty"`
+	}{"10.96.255.250", []string{"db"}})
+	db := service("db", map[string]string{"app": "db"}, port(8080))
+	db.Spec.ClusterIP = "10.96.37.4"
+	d := pod("db-0", "")
+	d.Metadata.Labels = map[string]string{"app": "db"}
+	s.Pods, s.Services, s.EndpointSlices = []kube.Pod{p, d}, []kube.Service{db}, []kube.EndpointSlice{slice("db", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD317", "Deployment shop/web", "hostAliases write 10.96.255.250 db into its /etc/hosts", "not to Service db's cluster IP 10.96.37.4", "goes nowhere")
+	if !strings.Contains(f.Fix, "Remove db from the pod's hostAliases") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	// A pod's address, as the FQDN: it works until that pod is replaced.
+	s.Pods[0].Spec.HostAliases[0].IP, s.Pods[0].Spec.HostAliases[0].Hostnames = "10.0.0.1", []string{"db.shop.svc.cluster.local"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD317", "Deployment shop/web", "the name db.shop.svc.cluster.local goes to 10.0.0.1", "one of the Service's pods today")
+	// The Service's own address, or a name that is no Service, is fine.
+	for _, a := range [][2]string{{"10.96.37.4", "db"}, {"192.0.2.10", "legacy.corp.example"}, {"192.0.2.10", "cache"}} {
+		s.Pods[0].Spec.HostAliases[0].IP, s.Pods[0].Spec.HostAliases[0].Hostnames = a[0], []string{a[1]}
+		if r := Diagnose(s); len(r.Findings) != 0 {
+			t.Errorf("%v: %s %s", a, r.Findings[0].Rule, r.Findings[0].Cause)
+		}
+	}
+}

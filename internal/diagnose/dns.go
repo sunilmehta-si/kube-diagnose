@@ -633,3 +633,63 @@ func dnsLimits(ix *index, p kube.Pod) *problem {
 		eventEvidence(p.Ref(), evs[0]),
 		Evidence{Object: p.Ref(), What: "the pod's dnsPolicy and dnsConfig", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.dnsPolicy}{" "}{.spec.dnsConfig}`)})
 }
+
+// aliasedService returns the Service a hostname names as cluster DNS would read it, from a pod in namespace ns: db,
+// db.shop, or db.shop.svc and the cluster domain after it.
+func aliasedService(ns, host string) (svcNS, svc string) {
+	labels := strings.Split(strings.TrimSuffix(strings.ToLower(host), "."), ".")
+	switch {
+	case len(labels) == 1:
+		return ns, labels[0]
+	case len(labels) == 2:
+		return labels[1], labels[0]
+	case labels[2] == "svc":
+		return labels[1], labels[0]
+	}
+	return "", ""
+}
+
+// hostAliasService finds a pod whose hostAliases pin a Service's name to an address that is not the Service's:
+// /etc/hosts is read before DNS, so the name never reaches the Service. It is a line left from before the Service
+// was recreated (with a new cluster IP), or a pod's address copied in, which is gone when that pod is replaced.
+func hostAliasService(ix *index, p kube.Pod) *problem {
+	if !ix.read("services") {
+		return nil
+	}
+	for _, a := range p.Spec.HostAliases {
+		for _, h := range a.Hostnames {
+			ns, name := aliasedService(p.Metadata.Namespace, h)
+			var svc *kube.Service
+			for i := range ix.s.Services {
+				if s := &ix.s.Services[i]; s.Metadata.Namespace == ns && s.Metadata.Name == name {
+					svc = s
+				}
+			}
+			if svc == nil || svc.Spec.Type == "ExternalName" || svc.Spec.ClusterIP == a.IP || svc.Spec.ClusterIP == "" {
+				continue
+			}
+			backend := false
+			for _, e := range ix.slices[nsName{ns, name}] {
+				for _, ep := range e.Endpoints {
+					backend = backend || slices.Contains(ep.Addresses, a.IP)
+				}
+			}
+			addr := fmt.Sprintf("Service %s's cluster IP %s", name, svc.Spec.ClusterIP)
+			if svc.Spec.ClusterIP == "None" {
+				addr = fmt.Sprintf("the addresses of headless Service %s's pods", name)
+			}
+			cause := fmt.Sprintf("the pod's hostAliases write %s %s into its /etc/hosts, which is read before DNS, so the name %s goes to %s and not to %s", a.IP, h, h, a.IP, addr)
+			if backend {
+				cause += fmt.Sprintf(": %s is one of the Service's pods today, so connections skip the Service, reach that one pod, and fail once it is replaced", a.IP)
+			} else {
+				cause += fmt.Sprintf(": no pod of the Service has that address, so every connection to %s goes nowhere", h)
+			}
+			return newProblem(p, "", "KD317", "Pod's hostAliases send a Service's name to another address", Critical, cause, "hostalias|"+h,
+				fmt.Sprintf("Remove %s from the pod's hostAliases, so that it resolves through cluster DNS to Service %s; hostAliases are for names DNS cannot answer.", h, name),
+				Evidence{Object: p.Ref(), What: "the pod's hostAliases", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.hostAliases}`)},
+				Evidence{Object: kube.Ref{Kind: "Service", Namespace: ns, Name: name}, What: fmt.Sprintf("Service %s's cluster IP: %s", name, svc.Spec.ClusterIP),
+					Command: cmdGet("service", ns, name, `{.spec.clusterIP}`)})
+		}
+	}
+	return nil
+}
