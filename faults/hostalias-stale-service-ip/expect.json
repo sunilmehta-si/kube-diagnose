@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-hostalias-stale-service-ip",
+  "description": "The api reaches the database by the name db, but its pod's hostAliases pin db to 10.96.255.250, the Service's address before it was created again; /etc/hosts is read before DNS, so the connection goes nowhere and the api exits.",
+  "rule": "KD317",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "hostAliases"
+    ],
+    [
+      "10.96.255.250"
+    ],
+    [
+      "db"
+    ]
+  ]
+}
