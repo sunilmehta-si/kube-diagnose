@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-envfrom-key-case",
+  "description": "ConfigMap api-config holds db-host and db-port, and the api loads it with envFrom; envFrom keeps each key's name, so the container has db-host and no DB_HOST, and the api exits because DB_HOST is not set.",
+  "rule": "KD231",
+  "object": "Deployment/api",
+  "keywords": [
+    [
+      "db-host"
+    ],
+    [
+      "DB_HOST"
+    ],
+    [
+      "envFrom"
+    ]
+  ]
+}
