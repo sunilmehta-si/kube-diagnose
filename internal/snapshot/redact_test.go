@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"testing"
 
@@ -159,6 +160,35 @@ func TestRedactKeepsASliceNamedForItsService(t *testing.T) {
 	}
 	if got := red.EndpointSlices[2].Metadata.Name; strings.HasPrefix(got, p) || strings.Contains(got, "payments") {
 		t.Errorf("slice paymentsdb became %q", got)
+	}
+}
+
+// TestRedactKeepsAHostAliasOnItsService covers KD317: a hostAliases name for a Service, short or fully qualified, takes
+// the Service's pseudonym; any other host is renamed, and its address replaced.
+func TestRedactKeepsAHostAliasOnItsService(t *testing.T) {
+	var svc kube.Service
+	svc.Metadata = kube.ObjectMeta{Name: "db", Namespace: "shop"}
+	var p kube.Pod
+	p.Metadata = kube.ObjectMeta{Name: "web-1", Namespace: "shop"}
+	p.Spec.HostAliases = append(p.Spec.HostAliases, struct {
+		IP        string   `json:"ip"`
+		Hostnames []string `json:"hostnames,omitempty"`
+	}{"10.96.255.250", []string{"db", "db.shop.svc.cluster.local", "legacy.corp.example"}})
+	s := &Snapshot{SchemaVersion: SchemaVersion, Namespaces: []string{"shop"}, Services: []kube.Service{svc}, Pods: []kube.Pod{p}}
+	red, err := redactWithKey(s, []byte("k"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	name, ns := red.Services[0].Metadata.Name, red.Services[0].Metadata.Namespace
+	a := red.Pods[0].Spec.HostAliases[0]
+	if want := []string{name, name + "." + ns + ".svc.cluster.local"}; !slices.Equal(a.Hostnames[:2], want) {
+		t.Errorf("hostnames %v, want %v first", a.Hostnames, want)
+	}
+	if h := a.Hostnames[2]; strings.Contains(h, "legacy") || strings.Contains(h, "corp") || strings.Contains(h, "example") {
+		t.Errorf("outside host kept: %s", h)
+	}
+	if a.IP == "10.96.255.250" {
+		t.Errorf("address kept: %s", a.IP)
 	}
 }
 

@@ -368,6 +368,11 @@ type PodSpec struct {
 		Nameservers []string `json:"nameservers,omitempty"`
 		Searches    []string `json:"searches,omitempty"`
 	} `json:"dnsConfig,omitempty"`
+	// HostAliases are lines the kubelet writes into the pod's /etc/hosts, which the resolver reads before DNS.
+	HostAliases []struct {
+		IP        string   `json:"ip"`
+		Hostnames []string `json:"hostnames,omitempty"`
+	} `json:"hostAliases,omitempty"`
 	SecurityContext    *PodSecurityContext    `json:"securityContext,omitempty"`
 	SchedulerName      string                 `json:"schedulerName,omitempty"`
 	NodeSelector       map[string]string      `json:"nodeSelector,omitempty"`

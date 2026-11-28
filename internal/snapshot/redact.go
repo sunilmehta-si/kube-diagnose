@@ -447,6 +447,18 @@ func (r *redactor) collect(s *Snapshot) {
 			}
 		}
 	}
+	// A pod's hostAliases name hosts. One that starts with a name the snapshot holds (a Service: db, or
+	// db.shop.svc.cluster.local) is left to the text pass, which gives it that name's pseudonym, so KD317 still matches
+	// it to its Service; any other is a machine outside the cluster, named label by label.
+	for _, p := range s.Pods {
+		for _, a := range p.Spec.HostAliases {
+			for _, h := range a.Hostnames {
+				if _, ok := r.names[strings.Split(h, ".")[0]]; !ok {
+					r.addHost(h)
+				}
+			}
+		}
+	}
 }
 
 var reRunSuffix = regexp.MustCompile(`^\d{6,}$`)
