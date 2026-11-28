@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-workdir-is-a-file",
+  "description": "Deployment report sets workingDir to /bin/busybox, the program, not the directory that holds it; the runtime cannot create a working directory where the image has a file, so the container never starts.",
+  "rule": "KD237",
+  "object": "Deployment/report",
+  "keywords": [
+    [
+      "/bin/busybox"
+    ],
+    [
+      "working directory"
+    ],
+    [
+      "not a directory"
+    ]
+  ]
+}
