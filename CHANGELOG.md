@@ -2,6 +2,45 @@
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-11-28
+
+- The fault suite's committed run (46147236217): kube-diagnose names the root cause in its first finding, with the
+  exact rule and object, for 247 of 247 faults and raises no false alarm; k8sgpt v0.4.41 names 36, 7 of them first.
+
+### Added
+- 10 rules, 238 in all (`docs/rules.md`):
+  - running the container: a working directory the runtime cannot create or enter, a file in the image or a directory
+    neither root nor the container's user may enter (KD237); an argument or variable written as a YAML literal block
+    that kept its final newline (KD238); a pod's hostAliases that send a Service's name to an address that is not the
+    Service's, for a running pod or one whose log shows the failed connection (KD317);
+  - configuration: an envFrom key written db-host or dbHost where the app reads DB_HOST, which envFrom passes on under
+    the key's own name (KD231); a pod whose setHostnameAsFQDN makes a hostname longer than 64 characters (KD239);
+  - workloads: a Job that spec.managedBy hands to a controller that has not run it (KD298);
+  - Services and networking: a BackendTLSPolicy whose CA ConfigMap is missing or has no ca.crt (KD376), or that targets
+    a Service or port that does not exist (KD377); a route whose backendRef names a Deployment or Pod in place of a
+    Service (KD378); a pod whose search domains or name servers are more than a resolver reads, naming the ones of its
+    dnsConfig the kubelet dropped (KD379).
+- BackendTLSPolicies (Gateway API) and Kueue's LocalQueues are read where the cluster serves them, and a pod's
+  hostAliases with the pod.
+- 18 fault scenarios, 247 broken namespaces in all: one for each new rule, and one each for the new causes of KD103,
+  KD111, KD132, KD160, KD174, KD182, KD187 and KD315 below. The fault suite pins python 3.14.9-slim by digest for the
+  KD315 scenario.
+
+### Changed
+- KD315 also names a language image (python, node, ruby, php, pypy) run with no command, or command python3 or node
+  alone: the interpreter reads its program from empty input and exits 0.
+- KD187 says when a Job waits for Kueue on a cluster that does not serve Kueue, or names a LocalQueue the namespace does
+  not have.
+- KD160 says when a Service's selector kept a pod-template-hash (or controller-revision-hash) from an earlier rollout,
+  and KD182 when a StatefulSet's headless Service selects other pods.
+- KD174 reads a LimitRange's PersistentVolumeClaim bounds refusing a StatefulSet's claims.
+- KD111 names a pod-level memory limit (spec.resources) for a container with none of its own.
+- KD103 names an image from registry localhost, which on a node is the node itself.
+- KD132 names the key of another case or spelling (db-password for DB_PASSWORD) that the ConfigMap or Secret has.
+- `record --redact` keeps Docker Hub's official language images, as it keeps busybox, and keeps a Service's name in a
+  pod's hostAliases on the Service's pseudonym while renaming other hosts.
+- The fault suite's readiness-delay scenario waits an hour, longer than the suite now takes.
+
 ## [0.16.0] - 2026-11-26
 
 - The fault suite's committed run (45763138488): kube-diagnose names the root cause in its first finding, with the
