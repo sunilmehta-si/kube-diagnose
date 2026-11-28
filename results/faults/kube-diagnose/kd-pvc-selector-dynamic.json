@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-selector-dynamic"
   ],
-  "collectedAt": "2026-11-26 05:53 UTC",
+  "collectedAt": "2026-11-28 13:17 UTC",
   "findings": [
     {
       "rule": "KD253",
@@ -41,7 +41,7 @@
             "namespace": "kd-pvc-selector-dynamic",
             "name": "data"
           },
-          "what": "event ProvisioningFailed (6 times)",
+          "what": "event ProvisioningFailed (8 times)",
           "detail": "failed to provision volume with StorageClass \"standard\": claim.Spec.Selector is not supported",
           "command": "kubectl get events -n kd-pvc-selector-dynamic --field-selector involvedObject.kind=PersistentVolumeClaim,involvedObject.name=data"
         }
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pvc-selector-dynamic",
-          "name": "cache-65d9d4b888-q56xs"
+          "name": "cache-65d9d4b888-2k2c6"
         }
       ]
     }

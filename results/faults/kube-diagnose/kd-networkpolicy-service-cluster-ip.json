@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-networkpolicy-service-cluster-ip"
   ],
-  "collectedAt": "2026-11-26 05:51 UTC",
+  "collectedAt": "2026-11-28 13:13 UTC",
   "findings": [
     {
       "rule": "KD360",
@@ -15,26 +15,26 @@
         "namespace": "kd-networkpolicy-service-cluster-ip",
         "name": "client"
       },
-      "cause": "container client exits because its connection to Service web times out: NetworkPolicy client-egress allows egress to ipBlock 10.96.0.200/32, which holds the Service's cluster IP 10.96.0.200, but a policy is checked after the Service has forwarded the connection, against the pods' IPs, such as 10.244.0.105, which no rule allows; a blocked connection is dropped, not refused; its log says: \"wget: download timed out\"; Deployment client has 0 of 1 replicas ready",
+      "cause": "container client exits because its connection to Service web times out: NetworkPolicy client-egress allows egress to ipBlock 10.96.0.200/32, which holds the Service's cluster IP 10.96.0.200, but a policy is checked after the Service has forwarded the connection, against the pods' IPs, such as 10.244.0.116, which no rule allows; a blocked connection is dropped, not refused; its log says: \"wget: download timed out\"; Deployment client has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-service-cluster-ip",
-            "name": "client-5858c98f74-79n5z"
+            "name": "client-5858c98f74-fhr9s"
           },
-          "what": "container client exited with code 1 (Error), restarted 6 times",
-          "command": "kubectl get pod client-5858c98f74-79n5z -n kd-networkpolicy-service-cluster-ip -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
+          "what": "container client exited with code 1 (Error), restarted 7 times",
+          "command": "kubectl get pod client-5858c98f74-fhr9s -n kd-networkpolicy-service-cluster-ip -o jsonpath='{.status.containerStatuses[?(@.name==\"client\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-networkpolicy-service-cluster-ip",
-            "name": "client-5858c98f74-79n5z"
+            "name": "client-5858c98f74-fhr9s"
           },
           "what": "last lines of container client's log (run that exited)",
           "detail": "Connecting to web (10.96.0.200:80)\nwget: download timed out",
-          "command": "kubectl logs client-5858c98f74-79n5z -n kd-networkpolicy-service-cluster-ip -c client --tail=20 --previous"
+          "command": "kubectl logs client-5858c98f74-fhr9s -n kd-networkpolicy-service-cluster-ip -c client --tail=20 --previous"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-networkpolicy-service-cluster-ip",
-          "name": "client-5858c98f74-79n5z"
+          "name": "client-5858c98f74-fhr9s"
         }
       ]
     }

@@ -1,0 +1,56 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "ConfigMap",
+      "name": "kd-limitrange-claim-too-small/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Service",
+      "name": "kd-limitrange-claim-too-small/db",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=db",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "app",
+              "Masked": "YkhI"
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "NWU="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "kd-limitrange-claim-too-small/db",
+      "error": [
+        {
+          "Text": "Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims \"data-db-0\" is forbidden: minimum storage usage per PersistentVolumeClaim is 1Gi, but request is 100Mi",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

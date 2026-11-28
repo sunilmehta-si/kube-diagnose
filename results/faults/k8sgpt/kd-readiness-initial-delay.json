@@ -14,25 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-initial-delay",
-              "Masked": "RzdodypRVjFCcVNnUHNDU3IpMDBSKFVnWi0="
+              "Masked": "ZTNVRkdvMG5USiFUSjFTY0R4LXZfeyY5dT8="
             },
             {
               "Unmasked": "api",
-              "Masked": "VUxu"
+              "Masked": "JzFL"
             }
           ]
         },
         {
-          "Text": "Deployment kd-readiness-initial-delay/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-868866fccb\" has timed out progressing.",
+          "Text": "Deployment kd-readiness-initial-delay/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-bfc8d7cb6\" has timed out progressing.",
           "KubernetesDoc": "",
           "Sensitive": [
             {
               "Unmasked": "kd-readiness-initial-delay",
-              "Masked": "Nl4qWFAwczVoMSMsLDVTeG9kV24yMCRUfCk="
+              "Masked": "ZldLI0dmKyZAX1lSPmo3cmwxQFRAYkczSUw="
             },
             {
               "Unmasked": "api",
-              "Masked": "S0c/"
+              "Masked": "bUgs"
             }
           ]
         }

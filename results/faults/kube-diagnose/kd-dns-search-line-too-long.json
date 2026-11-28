@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-dns-search-line-too-long"
+  ],
+  "collectedAt": "2026-11-28 13:05 UTC",
+  "findings": [
+    {
+      "rule": "KD379",
+      "title": "Pod's DNS settings are more than a resolver reads",
+      "severity": "warning",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-dns-search-line-too-long",
+        "name": "web"
+      },
+      "cause": "the kubelet cut the pod's resolv.conf short: with the cluster's, the node's and the pod's own search domains together it would have more than the 32 search domains a resolver reads, so it kept the first 32 and dropped team29.corp.example.com, team30.corp.example.com, team31.corp.example.com, team32.corp.example.com of the pod's dnsConfig, so a short name that only they would complete does not resolve; Deployment web has 1 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dns-search-line-too-long",
+            "name": "web-7c5f899578-mhvs2"
+          },
+          "what": "event DNSConfigForming (2 times)",
+          "detail": "Search Line limits were exceeded, some search paths have been omitted, the applied search line is: kd-dns-search-line-too-long.svc.cluster.local svc.cluster.local cluster.local q1dgkpax044ebjlqqxvb14ao4g.dx.internal.cloudapp.net team1.corp.example.com team2.corp.example.com team3.corp.example.com team4.corp.example.com team5.corp.example.com team6.corp.example.com team7.corp.example.com team8.corp.example.com team9.corp.example.com team10.corp.example.com team11.corp.example.com team12.corp.example.com team13.corp.example.com team14.corp.example.com team15.corp.example.com team16.corp.example.com team17.corp.example.com team18.corp.example.com team19.corp.example.com team20.corp.example.com team21.corp.example.com team22.corp.example.com team23.corp.example.com team24.corp.example.com team25.corp.example.com team26.corp.example.com team27.corp.example.com team28.corp.example.com",
+          "command": "kubectl get events -n kd-dns-search-line-too-long --field-selector involvedObject.kind=Pod,involvedObject.name=web-7c5f899578-mhvs2"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-dns-search-line-too-long",
+            "name": "web-7c5f899578-mhvs2"
+          },
+          "what": "the pod's dnsPolicy and dnsConfig",
+          "command": "kubectl get pod web-7c5f899578-mhvs2 -n kd-dns-search-line-too-long -o jsonpath='{.spec.dnsPolicy}{\" \"}{.spec.dnsConfig}'"
+        }
+      ],
+      "fix": "Give the pod fewer search domains in dnsConfig, or trim the node's resolv.conf (the kubelet's --resolv-conf); or use fully qualified names (ending in a dot) for the hosts in the dropped domains.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-dns-search-line-too-long",
+          "name": "web-7c5f899578-mhvs2"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

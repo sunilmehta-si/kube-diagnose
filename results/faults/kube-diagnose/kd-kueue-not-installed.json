@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-kueue-not-installed"
+  ],
+  "collectedAt": "2026-11-28 13:11 UTC",
+  "findings": [
+    {
+      "rule": "KD187",
+      "title": "Job is suspended",
+      "severity": "critical",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-kueue-not-installed",
+        "name": "train"
+      },
+      "cause": "Job train has waited 12m0s, suspended, for Kueue to admit it from LocalQueue team-a, and this cluster does not serve Kueue's API (kueue.x-k8s.io): Kueue is not installed, so nothing will ever unsuspend the Job",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-kueue-not-installed",
+            "name": "train"
+          },
+          "what": "Job has spec.suspend: true",
+          "command": "kubectl get job train -n kd-kueue-not-installed -o jsonpath='{.spec.suspend}{\" \"}{.status.conditions}'"
+        },
+        {
+          "object": {
+            "kind": "LocalQueue",
+            "namespace": "kd-kueue-not-installed",
+            "name": "team-a"
+          },
+          "what": "the cluster has no resource type localqueues.kueue.x-k8s.io",
+          "command": "kubectl get localqueues.kueue.x-k8s.io -n kd-kueue-not-installed"
+        }
+      ],
+      "fix": "Install Kueue and create LocalQueue team-a, or, to run the Job without it, recreate it without the kueue.x-k8s.io/queue-name label and with suspend: false."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-missing-configmap-env",
-              "Masked": "V2pAb0QvSlNoPWl9bWFhM3VqciNNUWlU"
+              "Masked": "NnxAPUFlIUxlSFReR3Y8LnMoa21yN0U1"
             },
             {
               "Unmasked": "web",
-              "Masked": "fXI3"
+              "Masked": "KzEm"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-missing-configmap-env/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-797b746fc4\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-missing-configmap-env",
+              "Masked": "b1gnLGNTVFMsK05TbG9RWG5vcWlSNE1A"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "ZXBw"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-missing-configmap-env/web-797b746fc4-q72fg",
+      "name": "kd-missing-configmap-env/web-797b746fc4-nrfbx",
       "error": [
         {
           "Text": "configmap \"app-config\" not found",

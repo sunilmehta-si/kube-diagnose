@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-wrong-api-group"
   ],
-  "collectedAt": "2026-11-26 05:54 UTC",
+  "collectedAt": "2026-11-28 13:17 UTC",
   "findings": [
     {
       "rule": "KD300",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-wrong-api-group",
-            "name": "rollout-watcher-868db6486d-2vbbr"
+            "name": "rollout-watcher-868db6486d-579qd"
           },
-          "what": "container watcher exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod rollout-watcher-868db6486d-2vbbr -n kd-rbac-wrong-api-group -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+          "what": "container watcher exited with code 1 (Error), restarted 8 times",
+          "command": "kubectl get pod rollout-watcher-868db6486d-579qd -n kd-rbac-wrong-api-group -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-wrong-api-group",
-            "name": "rollout-watcher-868db6486d-2vbbr"
+            "name": "rollout-watcher-868db6486d-579qd"
           },
           "what": "last lines of container watcher's log (current run)",
           "detail": "Error from server (Forbidden): deployments.apps is forbidden: User \"system:serviceaccount:kd-rbac-wrong-api-group:deployer\" cannot list resource \"deployments\" in API group \"apps\" in the namespace \"kd-rbac-wrong-api-group\"",
-          "command": "kubectl logs rollout-watcher-868db6486d-2vbbr -n kd-rbac-wrong-api-group -c watcher --tail=20"
+          "command": "kubectl logs rollout-watcher-868db6486d-579qd -n kd-rbac-wrong-api-group -c watcher --tail=20"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-wrong-api-group",
-          "name": "rollout-watcher-868db6486d-2vbbr"
+          "name": "rollout-watcher-868db6486d-579qd"
         }
       ]
     }

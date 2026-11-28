@@ -2,21 +2,8 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
-    {
-      "kind": "ConfigMap",
-      "name": "kd-limitrange-max-memory/kube-root-ca.crt",
-      "error": [
-        {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
     {
       "kind": "Deployment",
       "name": "kd-limitrange-max-memory/web",
@@ -27,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-limitrange-max-memory",
-              "Masked": "YS8pZGw6eGllV1UlVEEnIkFLamdIX0pK"
+              "Masked": "aik5KFZaNXhIclhyTVNuaUw5OkpYJXcw"
             },
             {
               "Unmasked": "web",
-              "Masked": "Nnpn"
+              "Masked": "J3Ik"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-limitrange-max-memory/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-6bc7c8f797\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-max-memory",
+              "Masked": "dEQ0YXRMcFZOcjkjfWRPJnpkIVBRLGw7"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "fEd1"
             }
           ]
         }
@@ -44,13 +45,26 @@
       "name": "kd-limitrange-max-memory/web-6bc7c8f797",
       "error": [
         {
-          "Text": "pods \"web-6bc7c8f797-djq5p\" is forbidden: maximum memory usage per Container is 64Mi, but limit is 128Mi",
+          "Text": "pods \"web-6bc7c8f797-pn49f\" is forbidden: maximum memory usage per Container is 64Mi, but limit is 128Mi",
           "KubernetesDoc": "",
           "Sensitive": []
         }
       ],
       "details": "",
       "parentObject": "Deployment/web"
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-limitrange-max-memory/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
     }
   ]
 }

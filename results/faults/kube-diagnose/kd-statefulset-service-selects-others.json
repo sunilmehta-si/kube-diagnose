@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-statefulset-service-selects-others"
+  ],
+  "collectedAt": "2026-11-28 13:21 UTC",
+  "findings": [
+    {
+      "rule": "KD182",
+      "title": "StatefulSet's governing Service is missing or not headless",
+      "severity": "warning",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-statefulset-service-selects-others",
+        "name": "db"
+      },
+      "cause": "StatefulSet db's governing Service db is headless, but it selects pods with app=database and the StatefulSet's pods carry app=db; a headless Service's DNS records come from the pods it selects, so the StatefulSet's pods have no DNS names (db-0.db.kd-statefulset-service-selects-others.svc does not resolve)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "StatefulSet",
+            "namespace": "kd-statefulset-service-selects-others",
+            "name": "db"
+          },
+          "what": "StatefulSet db names Service db as its governing Service",
+          "command": "kubectl get statefulset db -n kd-statefulset-service-selects-others -o jsonpath='{.spec.serviceName}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-statefulset-service-selects-others",
+            "name": "db"
+          },
+          "what": "Service db is headless and selects pods with app=database",
+          "command": "kubectl get service db -n kd-statefulset-service-selects-others -o jsonpath='{.spec.clusterIP}{\" \"}{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "StatefulSet",
+            "namespace": "kd-statefulset-service-selects-others",
+            "name": "db"
+          },
+          "what": "StatefulSet db's pods carry app=db",
+          "command": "kubectl get statefulset db -n kd-statefulset-service-selects-others -o jsonpath='{.spec.template.metadata.labels}'"
+        }
+      ],
+      "fix": "Change Service db's selector to the StatefulSet's pod labels (app=db), or give it its own headless Service."
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

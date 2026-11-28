@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-missing-configmap-volume",
-              "Masked": "KzkqITo2cCFLeT5rJk9QMUF0SHw8aXNpTVEv"
+              "Masked": "T3B2d1ZZM15fSUooRXV0VXIrTVU1e152eyQp"
             },
             {
               "Unmasked": "web",
-              "Masked": "Y2Qy"
+              "Masked": "L2Ry"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-missing-configmap-volume/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-6cfc54975f\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-missing-configmap-volume",
+              "Masked": "Ul5hMklkbj1RaHVyWTNyU2smZixRdkl4bGFe"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "OFZn"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-missing-configmap-volume/web-6cfc54975f-87fwb",
+      "name": "kd-missing-configmap-volume/web-6cfc54975f-zvl2p",
       "error": [
         {
           "Text": "MountVolume.SetUp failed for volume \"config\" : configmap \"nginx-conf\" not found",

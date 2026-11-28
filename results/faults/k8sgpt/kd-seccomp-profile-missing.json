@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-seccomp-profile-missing",
-              "Masked": "fTJhTl4wck17PkY8PXB8RDRWeiNfdWg3VF4="
+              "Masked": "fXI1bmp5ZjUyJ25hdDd9M1RBZCRCXUA6I0g="
             },
             {
               "Unmasked": "api",
-              "Masked": "Ly0y"
+              "Masked": "L3A1"
             }
           ]
         },
@@ -28,11 +28,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-seccomp-profile-missing",
-              "Masked": "VT1pIyYtXzVzRzRWNzBvMSVrTF84OWsjYXY="
+              "Masked": "eTZqM2xNb011bylWSi5nX2Q1MmlEbUQ2cHY="
             },
             {
               "Unmasked": "api",
-              "Masked": "Wmkx"
+              "Masked": "TEll"
             }
           ]
         }
@@ -42,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-seccomp-profile-missing/api-69c86f6c44-cnctq",
+      "name": "kd-seccomp-profile-missing/api-69c86f6c44-2ttmx",
       "error": [
         {
           "Text": "failed to create containerd container: cannot load seccomp profile \"/var/lib/kubelet/seccomp/profiles/kd-hardened.json\": open /var/lib/kubelet/seccomp/profiles/kd-hardened.json: no such file or directory",

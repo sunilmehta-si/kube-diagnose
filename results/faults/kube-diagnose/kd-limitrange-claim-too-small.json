@@ -1,0 +1,49 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-limitrange-claim-too-small"
+  ],
+  "collectedAt": "2026-11-28 13:11 UTC",
+  "findings": [
+    {
+      "rule": "KD174",
+      "title": "LimitRange rejects the pods",
+      "severity": "critical",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-limitrange-claim-too-small",
+        "name": "db"
+      },
+      "cause": "StatefulSet kd-limitrange-claim-too-small/db cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates, so the pod that mounts it is never created: a LimitRange in kd-limitrange-claim-too-small rejects the claim (minimum storage usage per PersistentVolumeClaim is 1Gi, but request is 100Mi)",
+      "evidence": [
+        {
+          "object": {
+            "kind": "StatefulSet",
+            "namespace": "kd-limitrange-claim-too-small",
+            "name": "db"
+          },
+          "what": "event FailedCreate (18 times)",
+          "detail": "Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims \"data-db-0\" is forbidden: minimum storage usage per PersistentVolumeClaim is 1Gi, but request is 100Mi",
+          "command": "kubectl get events -n kd-limitrange-claim-too-small --field-selector involvedObject.kind=StatefulSet,involvedObject.name=db"
+        },
+        {
+          "object": {
+            "kind": "LimitRange",
+            "namespace": "kd-limitrange-claim-too-small",
+            "name": "*"
+          },
+          "what": "the namespace's LimitRanges",
+          "command": "kubectl get limitranges -n kd-limitrange-claim-too-small -o yaml"
+        }
+      ],
+      "fix": "Ask for storage within the LimitRange's PersistentVolumeClaim minimum and maximum in the volumeClaimTemplates (they cannot be edited in place: delete the StatefulSet with --cascade=orphan, which keeps its pods, and apply it again), or change the LimitRange."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-resize-infeasible"
   ],
-  "collectedAt": "2026-11-26 05:54 UTC",
+  "collectedAt": "2026-11-28 13:18 UTC",
   "findings": [
     {
       "rule": "KD247",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-resize-infeasible",
-            "name": "resize-4jl9h"
+            "name": "resize-hrg4g"
           },
           "what": "container resize exited with code 1 (Error)",
-          "command": "kubectl get pod resize-4jl9h -n kd-resize-infeasible -o jsonpath='{.status.containerStatuses[?(@.name==\"resize\")].state.terminated}'"
+          "command": "kubectl get pod resize-hrg4g -n kd-resize-infeasible -o jsonpath='{.status.containerStatuses[?(@.name==\"resize\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-resize-infeasible",
-            "name": "resize-4jl9h"
+            "name": "resize-hrg4g"
           },
           "what": "last lines of container resize's log (current run)",
           "detail": "Error from server (Forbidden): pods \"batch\" is forbidden: node didn't have enough allocatable resources: cpu, requested: 64000, allocatable: 4000",
-          "command": "kubectl logs resize-4jl9h -n kd-resize-infeasible -c resize --tail=20"
+          "command": "kubectl logs resize-hrg4g -n kd-resize-infeasible -c resize --tail=20"
         },
         {
           "object": {
@@ -51,17 +51,17 @@
         {
           "kind": "Pod",
           "namespace": "kd-resize-infeasible",
-          "name": "resize-4jl9h"
+          "name": "resize-hrg4g"
         },
         {
           "kind": "Pod",
           "namespace": "kd-resize-infeasible",
-          "name": "resize-frqlk"
+          "name": "resize-ndkbv"
         },
         {
           "kind": "Pod",
           "namespace": "kd-resize-infeasible",
-          "name": "resize-ws84l"
+          "name": "resize-q6bnb"
         }
       ]
     }

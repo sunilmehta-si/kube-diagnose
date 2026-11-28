@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-first-pod-unready"
   ],
-  "collectedAt": "2026-11-26 05:56 UTC",
+  "collectedAt": "2026-11-28 13:21 UTC",
   "findings": [
     {
       "rule": "KD120",
@@ -23,7 +23,7 @@
             "namespace": "kd-statefulset-first-pod-unready",
             "name": "db-0"
           },
-          "what": "event Unhealthy (126 times)",
+          "what": "event Unhealthy (248 times)",
           "detail": "Readiness probe failed: cat: can't open '/tmp/ready': No such file or directory\n",
           "command": "kubectl get events -n kd-statefulset-first-pod-unready --field-selector involvedObject.kind=Pod,involvedObject.name=db-0"
         },

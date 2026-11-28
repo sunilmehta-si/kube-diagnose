@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-token-wrong-audience",
-              "Masked": "SCE8IkpZKjFYPUR9MTM2cH1SWE8oX0M="
+              "Masked": "UmFwZ01HRUBhdml7MkB1bURaQk4kZCE="
             },
             {
               "Unmasked": "sync",
-              "Masked": "PmhoYw=="
+              "Masked": "VDVGLw=="
             }
           ]
         }
@@ -41,10 +41,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-token-wrong-audience/sync-895975bd6-srsnw",
+      "name": "kd-token-wrong-audience/sync-895975bd6-q92fz",
       "error": [
         {
-          "Text": "the last termination reason is Error container=sync pod=sync-895975bd6-srsnw",
+          "Text": "the last termination reason is Error container=sync pod=sync-895975bd6-q92fz",
           "KubernetesDoc": "",
           "Sensitive": []
         }

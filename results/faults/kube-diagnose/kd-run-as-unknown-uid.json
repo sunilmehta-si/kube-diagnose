@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-run-as-unknown-uid"
   ],
-  "collectedAt": "2026-11-26 05:54 UTC",
+  "collectedAt": "2026-11-28 13:18 UTC",
   "findings": [
     {
       "rule": "KD312",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-run-as-unknown-uid",
-            "name": "reporter-78c5b4fbf-727z9"
+            "name": "reporter-78c5b4fbf-dwqw5"
           },
-          "what": "container reporter exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod reporter-78c5b4fbf-727z9 -n kd-run-as-unknown-uid -o jsonpath='{.status.containerStatuses[?(@.name==\"reporter\")].lastState.terminated}'"
+          "what": "container reporter exited with code 1 (Error), restarted 8 times",
+          "command": "kubectl get pod reporter-78c5b4fbf-dwqw5 -n kd-run-as-unknown-uid -o jsonpath='{.status.containerStatuses[?(@.name==\"reporter\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-run-as-unknown-uid",
-            "name": "reporter-78c5b4fbf-727z9"
+            "name": "reporter-78c5b4fbf-dwqw5"
           },
           "what": "last lines of container reporter's log (run that exited)",
           "detail": "whoami: unknown uid 10001",
-          "command": "kubectl logs reporter-78c5b4fbf-727z9 -n kd-run-as-unknown-uid -c reporter --tail=20 --previous"
+          "command": "kubectl logs reporter-78c5b4fbf-dwqw5 -n kd-run-as-unknown-uid -c reporter --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-run-as-unknown-uid",
-            "name": "reporter-78c5b4fbf-727z9"
+            "name": "reporter-78c5b4fbf-dwqw5"
           },
           "what": "container reporter runs as user 10001",
-          "command": "kubectl get pod reporter-78c5b4fbf-727z9 -n kd-run-as-unknown-uid -o jsonpath='{.spec.securityContext.runAsUser}{\" \"}{.spec.containers[?(@.name==\"reporter\")].securityContext.runAsUser}'"
+          "command": "kubectl get pod reporter-78c5b4fbf-dwqw5 -n kd-run-as-unknown-uid -o jsonpath='{.spec.securityContext.runAsUser}{\" \"}{.spec.containers[?(@.name==\"reporter\")].securityContext.runAsUser}'"
         }
       ],
       "fix": "Run as a user the image defines (its USER, or a user ID listed in its /etc/passwd), or add user 10001 to the image's /etc/passwd when building it.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-run-as-unknown-uid",
-          "name": "reporter-78c5b4fbf-727z9"
+          "name": "reporter-78c5b4fbf-dwqw5"
         }
       ]
     }

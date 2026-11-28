@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-image-never-pull",
-              "Masked": "TEhQcXx5SmNndGxWcmVkPERCMQ=="
+              "Masked": "SnxAdG9eZlRkRCYlRmx0KDIoQg=="
             },
             {
               "Unmasked": "web",
-              "Masked": "bHYt"
+              "Masked": "NFEn"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-image-never-pull/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-7859f6669f\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-image-never-pull",
+              "Masked": "MyldZF5ISWN3NmwqLFZGVT5XUQ=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Rk0r"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-image-never-pull/web-7859f6669f-8s6bm",
+      "name": "kd-image-never-pull/web-7859f6669f-dv8xl",
       "error": [
         {
           "Text": "Container image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\" is not present with pull policy of Never",

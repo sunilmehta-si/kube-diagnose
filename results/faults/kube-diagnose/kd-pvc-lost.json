@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-lost"
   ],
-  "collectedAt": "2026-11-26 05:53 UTC",
+  "collectedAt": "2026-11-28 13:16 UTC",
   "findings": [
     {
       "rule": "KD252",
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pvc-lost",
-          "name": "db-56f8666648-kq8dz"
+          "name": "db-56f8666648-8dqvf"
         }
       ]
     }

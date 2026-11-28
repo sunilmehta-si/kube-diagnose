@@ -5,6 +5,19 @@
   "problems": 2,
   "results": [
     {
+      "kind": "Pod",
+      "name": "kd-shm-too-small/trainer-75f5d88cf5-b6x7g",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=trainer pod=trainer-75f5d88cf5-b6x7g",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/trainer"
+    },
+    {
       "kind": "Deployment",
       "name": "kd-shm-too-small/trainer",
       "error": [
@@ -14,30 +27,17 @@
           "Sensitive": [
             {
               "Unmasked": "kd-shm-too-small",
-              "Masked": "T1RndmFhLFlaNVk2KU5NRg=="
+              "Masked": "UWppITg9NU5PMjMnW3xEZg=="
             },
             {
               "Unmasked": "trainer",
-              "Masked": "am1zclZeSA=="
+              "Masked": "Y3F5RVAoIQ=="
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-shm-too-small/trainer-75f5d88cf5-bvjb6",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=trainer pod=trainer-75f5d88cf5-bvjb6",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/trainer"
     }
   ]
 }

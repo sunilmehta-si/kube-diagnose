@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-token-not-mounted",
-              "Masked": "Y05kcXtGend6dztdPyRpT2RnUzk="
+              "Masked": "NDRPcCNtOFRndV1PU3p3cGxBQSM="
             },
             {
               "Unmasked": "watcher",
-              "Masked": "Lj0ycCVHbQ=="
+              "Masked": "fTVMJ1FJZw=="
             }
           ]
         }
@@ -41,10 +41,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-token-not-mounted/watcher-7975754ccb-xw62q",
+      "name": "kd-token-not-mounted/watcher-7975754ccb-jnmzg",
       "error": [
         {
-          "Text": "the last termination reason is Error container=watcher pod=watcher-7975754ccb-xw62q",
+          "Text": "the last termination reason is Error container=watcher pod=watcher-7975754ccb-jnmzg",
           "KubernetesDoc": "",
           "Sensitive": []
         }

@@ -1,0 +1,57 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-workdir-is-a-file/report",
+      "error": [
+        {
+          "Text": "Deployment kd-workdir-is-a-file/report has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-workdir-is-a-file",
+              "Masked": "dU8tK0NuYlI3aE9KdEtTQmg8Yzg="
+            },
+            {
+              "Unmasked": "report",
+              "Masked": "OFdNek82"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-workdir-is-a-file/report has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"report-66db69c88b\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-workdir-is-a-file",
+              "Masked": "UitVST4qej04SChmWi4pcFJGJEg="
+            },
+            {
+              "Unmasked": "report",
+              "Masked": "dXo9Jjht"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-workdir-is-a-file/report-66db69c88b-2qncv",
+      "error": [
+        {
+          "Text": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: mkdir /bin/busybox: not a directory",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/report"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rbac-resourcenames-list"
   ],
-  "collectedAt": "2026-11-26 05:53 UTC",
+  "collectedAt": "2026-11-28 13:17 UTC",
   "findings": [
     {
       "rule": "KD303",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-resourcenames-list",
-            "name": "config-watcher-64cf7557b8-wgswr"
+            "name": "config-watcher-64cf7557b8-729zl"
           },
-          "what": "container watcher exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod config-watcher-64cf7557b8-wgswr -n kd-rbac-resourcenames-list -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
+          "what": "container watcher exited with code 1 (Error), restarted 8 times",
+          "command": "kubectl get pod config-watcher-64cf7557b8-729zl -n kd-rbac-resourcenames-list -o jsonpath='{.status.containerStatuses[?(@.name==\"watcher\")].state.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-rbac-resourcenames-list",
-            "name": "config-watcher-64cf7557b8-wgswr"
+            "name": "config-watcher-64cf7557b8-729zl"
           },
           "what": "last lines of container watcher's log (current run)",
           "detail": "Error from server (Forbidden): configmaps is forbidden: User \"system:serviceaccount:kd-rbac-resourcenames-list:app\" cannot list resource \"configmaps\" in API group \"\" in the namespace \"kd-rbac-resourcenames-list\"",
-          "command": "kubectl logs config-watcher-64cf7557b8-wgswr -n kd-rbac-resourcenames-list -c watcher --tail=20"
+          "command": "kubectl logs config-watcher-64cf7557b8-729zl -n kd-rbac-resourcenames-list -c watcher --tail=20"
         },
         {
           "object": {
@@ -60,7 +60,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-rbac-resourcenames-list",
-          "name": "config-watcher-64cf7557b8-wgswr"
+          "name": "config-watcher-64cf7557b8-729zl"
         }
       ]
     }

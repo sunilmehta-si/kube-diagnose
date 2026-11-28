@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-command-one-string",
-              "Masked": "c0lsSn1TO2VJSTYyaCI+KjhvTntQ"
+              "Masked": "fWZrZnZ3Tkk4XnQtXj8wRHQ0TUYq"
             },
             {
               "Unmasked": "worker",
-              "Masked": "OVdiQkwq"
+              "Masked": "Zkw4R3ZT"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-command-one-string/worker-66444d4765-7w2m6",
+      "name": "kd-command-one-string/worker-66444d4765-n4w6f",
       "error": [
         {
-          "Text": "the last termination reason is StartError container=worker pod=worker-66444d4765-7w2m6",
+          "Text": "the last termination reason is StartError container=worker pod=worker-66444d4765-n4w6f",
           "KubernetesDoc": "",
           "Sensitive": []
         }

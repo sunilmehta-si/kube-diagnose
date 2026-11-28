@@ -5,19 +5,6 @@
   "problems": 2,
   "results": [
     {
-      "kind": "ReplicaSet",
-      "name": "kd-admission-policy-denies/web-5478fd465b",
-      "error": [
-        {
-          "Text": "pods \"web-5478fd465b-2gtqr\" is forbidden: ValidatingAdmissionPolicy 'kd-faults-require-team-label' with binding 'kd-faults-require-team-label' denied request: every pod needs a team label",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
-    },
-    {
       "kind": "Deployment",
       "name": "kd-admission-policy-denies/web",
       "error": [
@@ -27,17 +14,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-admission-policy-denies",
-              "Masked": "LU82dkN1dTNGTW8pTj9ZS1BdXTkyKDptaTo="
+              "Masked": "bGZPemJoekokJUQ0bGdPbDgjc21UdjFaLUI="
             },
             {
               "Unmasked": "web",
-              "Masked": "N0Jm"
+              "Masked": "SiIo"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-admission-policy-denies/web-5478fd465b",
+      "error": [
+        {
+          "Text": "pods \"web-5478fd465b-tvdhp\" is forbidden: ValidatingAdmissionPolicy 'kd-faults-require-team-label' with binding 'kd-faults-require-team-label' denied request: every pod needs a team label",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     }
   ]
 }

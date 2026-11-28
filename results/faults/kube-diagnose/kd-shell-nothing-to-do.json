@@ -4,36 +4,36 @@
   "namespaces": [
     "kd-shell-nothing-to-do"
   ],
-  "collectedAt": "2026-11-26 05:55 UTC",
+  "collectedAt": "2026-11-28 13:20 UTC",
   "findings": [
     {
       "rule": "KD315",
-      "title": "Container runs a shell with nothing to do",
+      "title": "Container runs a shell or interpreter with nothing to do",
       "severity": "critical",
       "object": {
         "kind": "Deployment",
         "namespace": "kd-shell-nothing-to-do",
         "name": "toolbox"
       },
-      "cause": "container toolbox exits with code 0 as soon as it starts: it sets no command, and image busybox's default command is a shell, and a shell with no terminal and no input has nothing to do, so it exits at once and the kubelet restarts it; Deployment toolbox has 0 of 1 replicas ready",
+      "cause": "container toolbox exits with code 0 as soon as it starts: it sets no command, and image busybox's default command is a shell (sh), and a shell with no terminal and no input has nothing to do, so it exits at once and the kubelet restarts it; Deployment toolbox has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-shell-nothing-to-do",
-            "name": "toolbox-68b5fc954-k8m58"
+            "name": "toolbox-68b5fc954-jqhqs"
           },
-          "what": "container toolbox exited with code 0 (Completed), restarted 7 times",
-          "command": "kubectl get pod toolbox-68b5fc954-k8m58 -n kd-shell-nothing-to-do -o jsonpath='{.status.containerStatuses[?(@.name==\"toolbox\")].lastState.terminated}'"
+          "what": "container toolbox exited with code 0 (Completed), restarted 8 times",
+          "command": "kubectl get pod toolbox-68b5fc954-jqhqs -n kd-shell-nothing-to-do -o jsonpath='{.status.containerStatuses[?(@.name==\"toolbox\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-shell-nothing-to-do",
-            "name": "toolbox-68b5fc954-k8m58"
+            "name": "toolbox-68b5fc954-jqhqs"
           },
           "what": "container toolbox's image, command and args",
-          "command": "kubectl get pod toolbox-68b5fc954-k8m58 -n kd-shell-nothing-to-do -o jsonpath='{.spec.containers[?(@.name==\"toolbox\")].image}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].command}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].args}'"
+          "command": "kubectl get pod toolbox-68b5fc954-jqhqs -n kd-shell-nothing-to-do -o jsonpath='{.spec.containers[?(@.name==\"toolbox\")].image}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].command}{\" \"}{.spec.containers[?(@.name==\"toolbox\")].args}'"
         }
       ],
       "fix": "Give the container the command it is meant to run; to keep a debugging container alive, run sleep infinity (or set stdin: true and tty: true), and use kubectl debug or kubectl run -it for an interactive shell.",
@@ -41,7 +41,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-shell-nothing-to-do",
-          "name": "toolbox-68b5fc954-k8m58"
+          "name": "toolbox-68b5fc954-jqhqs"
         }
       ]
     }

@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-init-waits-for-own-service",
-              "Masked": "eGhaNmNoI2RXdDglUWdTaSZmIVMtMHNHd1h7aEY="
+              "Masked": "U0xjLntJL2ZacTE1VVIiMUZSZCFXcm8qVGYzQ2g="
             },
             {
               "Unmasked": "web",
-              "Masked": "Lk89"
+              "Masked": "LzMl"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-init-waits-for-own-service/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-df8d558d8\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-init-waits-for-own-service",
+              "Masked": "JXpeZVA2ZlBnZGZGRCtpQ2MzXkxWKUBScVZ8d0E="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "JFFO"
             }
           ]
         }
@@ -31,7 +45,7 @@
       "name": "kd-init-waits-for-own-service/web",
       "error": [
         {
-          "Text": "Service has not ready endpoints, pods: [Pod/web-df8d558d8-gxsnh], expected 1",
+          "Text": "Service has not ready endpoints, pods: [Pod/web-df8d558d8-tfj6k], expected 1",
           "KubernetesDoc": "",
           "Sensitive": []
         }

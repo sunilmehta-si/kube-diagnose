@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 1,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-missing-scheduler",
-              "Masked": "IzRVeHkwQypYQS1UWFhFLidVLmg="
+              "Masked": "UjF1UWVuUDRhQk9JYVR9YkYyZUY="
             },
             {
               "Unmasked": "web",
-              "Masked": "IjZP"
+              "Masked": "Njdk"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-missing-scheduler/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-86c86bf68\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-missing-scheduler",
+              "Masked": "KiJ9UFVpZTsjcCE4d2xCaEdYUG4="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "fVVG"
             }
           ]
         }

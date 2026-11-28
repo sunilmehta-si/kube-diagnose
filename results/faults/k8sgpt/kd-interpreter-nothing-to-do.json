@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-interpreter-nothing-to-do/etl",
+      "error": [
+        {
+          "Text": "Deployment kd-interpreter-nothing-to-do/etl has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-interpreter-nothing-to-do",
+              "Masked": "XTdrYVMwZWZ0M0ZLXlVaektLKUdXVFJxQTcrUw=="
+            },
+            {
+              "Unmasked": "etl",
+              "Masked": "JnpN"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

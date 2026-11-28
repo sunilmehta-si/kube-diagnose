@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-service-port-not-exposed",
-              "Masked": "QkNUVUZjKHA+I1J5SHk2bWJ3aVpQbF08azNt"
+              "Masked": "RiJeaW5UQGx4TE41LkVhLlRVdTghKEhYbzlz"
             },
             {
               "Unmasked": "client",
-              "Masked": "Snc3QGxm"
+              "Masked": "MERwLjU7"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-service-port-not-exposed/client-5d4f8f9d6-tjj7b",
+      "name": "kd-service-port-not-exposed/client-5d4f8f9d6-6pm5p",
       "error": [
         {
-          "Text": "the last termination reason is Error container=client pod=client-5d4f8f9d6-tjj7b",
+          "Text": "the last termination reason is Error container=client pod=client-5d4f8f9d6-6pm5p",
           "KubernetesDoc": "",
           "Sensitive": []
         }

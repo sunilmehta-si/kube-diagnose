@@ -1,0 +1,21 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "ConfigMap",
+      "name": "kd-gateway-backend-tls-target-missing/payments-ca",
+      "error": [
+        {
+          "Text": "ConfigMap payments-ca is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

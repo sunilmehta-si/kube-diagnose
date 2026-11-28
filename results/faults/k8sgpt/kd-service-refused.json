@@ -14,17 +14,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-service-refused",
-              "Masked": "d3RyViRDVFNnJGg7Tls4di99"
+              "Masked": "KHlJNGlwNjl7U2VeckpGZFIz"
             },
             {
               "Unmasked": "web",
-              "Masked": "clt6"
+              "Masked": "VTxe"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-service-refused/web-bc988964d-m6h55",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-bc988964d-m6h55",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     },
     {
       "kind": "Service",
@@ -36,30 +49,17 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "XzYx"
+              "Masked": "eV81"
             },
             {
               "Unmasked": "db",
-              "Masked": "YnQ="
+              "Masked": "Jns="
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-service-refused/web-bc988964d-bj9bp",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=web pod=web-bc988964d-bj9bp",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     }
   ]
 }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-statefulset-peer-dns"
   ],
-  "collectedAt": "2026-11-26 05:56 UTC",
+  "collectedAt": "2026-11-28 13:21 UTC",
   "findings": [
     {
       "rule": "KD373",
@@ -23,7 +23,7 @@
             "namespace": "kd-statefulset-peer-dns",
             "name": "quorum-0"
           },
-          "what": "container member exited with code 1 (Error), restarted 7 times",
+          "what": "container member exited with code 1 (Error), restarted 8 times",
           "command": "kubectl get pod quorum-0 -n kd-statefulset-peer-dns -o jsonpath='{.status.containerStatuses[?(@.name==\"member\")].lastState.terminated}'"
         },
         {

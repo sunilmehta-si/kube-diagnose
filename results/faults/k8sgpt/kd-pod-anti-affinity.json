@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pod-anti-affinity",
-              "Masked": "XmZ9IThVTmliQkVjIzhfdFEmNjQ="
+              "Masked": "QyQ2VyldLUR2aXBpdXZ1KEZAdlc="
             },
             {
               "Unmasked": "web",
-              "Masked": "ckpq"
+              "Masked": "R1ZX"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-pod-anti-affinity/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-769478f8ff\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-pod-anti-affinity",
+              "Masked": "WSRNNkxdLW5uPUlpRTc3WDBvOTc="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "NEk2"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-pod-anti-affinity/web-769478f8ff-gn72d",
+      "name": "kd-pod-anti-affinity/web-769478f8ff-2n8kz",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) didn't match pod anti-affinity rules. preemption: 0/1 nodes are available: 1 No preemption victims found for incoming pod.",

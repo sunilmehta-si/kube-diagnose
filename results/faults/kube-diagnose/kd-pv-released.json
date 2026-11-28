@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pv-released"
   ],
-  "collectedAt": "2026-11-26 05:53 UTC",
+  "collectedAt": "2026-11-28 13:16 UTC",
   "findings": [
     {
       "rule": "KD251",
@@ -49,7 +49,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pv-released",
-          "name": "db-56f8666648-vdwzs"
+          "name": "db-56f8666648-vghmr"
         }
       ]
     }

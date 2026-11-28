@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-admission-policy-denies"
   ],
-  "collectedAt": "2026-11-26 05:45 UTC",
+  "collectedAt": "2026-11-28 13:03 UTC",
   "findings": [
     {
       "rule": "KD279",
@@ -23,8 +23,8 @@
             "namespace": "kd-admission-policy-denies",
             "name": "web-5478fd465b"
           },
-          "what": "event FailedCreate (6 times)",
-          "detail": "(combined from similar events): Error creating: pods \"web-5478fd465b-zzq2t\" is forbidden: ValidatingAdmissionPolicy 'kd-faults-require-team-label' with binding 'kd-faults-require-team-label' denied request: every pod needs a team label",
+          "what": "event FailedCreate (7 times)",
+          "detail": "(combined from similar events): Error creating: pods \"web-5478fd465b-r7p79\" is forbidden: ValidatingAdmissionPolicy 'kd-faults-require-team-label' with binding 'kd-faults-require-team-label' denied request: every pod needs a team label",
           "command": "kubectl get events -n kd-admission-policy-denies --field-selector involvedObject.kind=ReplicaSet,involvedObject.name=web-5478fd465b"
         },
         {

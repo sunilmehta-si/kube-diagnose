@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-grpc-on-http"
   ],
-  "collectedAt": "2026-11-26 05:52 UTC",
+  "collectedAt": "2026-11-28 13:15 UTC",
   "findings": [
     {
       "rule": "KD209",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-grpc-on-http",
-            "name": "api-7bbdd84c89-nfvhs"
+            "name": "api-7bbdd84c89-mvc52"
           },
-          "what": "event Unhealthy (125 times)",
-          "detail": "Readiness probe failed: timeout: failed to connect service \"10.244.0.126:8080\" within 1s: context deadline exceeded",
-          "command": "kubectl get events -n kd-probe-grpc-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=api-7bbdd84c89-nfvhs"
+          "what": "event Unhealthy (189 times)",
+          "detail": "Readiness probe failed: timeout: failed to connect service \"10.244.0.139:8080\" within 1s: context deadline exceeded",
+          "command": "kubectl get events -n kd-probe-grpc-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=api-7bbdd84c89-mvc52"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-grpc-on-http",
-            "name": "api-7bbdd84c89-nfvhs"
+            "name": "api-7bbdd84c89-mvc52"
           },
           "what": "container api's readiness probe",
-          "command": "kubectl get pod api-7bbdd84c89-nfvhs -n kd-probe-grpc-on-http -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
+          "command": "kubectl get pod api-7bbdd84c89-mvc52 -n kd-probe-grpc-on-http -o jsonpath='{.spec.containers[?(@.name==\"api\")].readinessProbe}'"
         }
       ],
       "fix": "Point the probe's grpc.port at the app's gRPC port, or, if the app speaks HTTP, use an httpGet probe.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-grpc-on-http",
-          "name": "api-7bbdd84c89-nfvhs"
+          "name": "api-7bbdd84c89-mvc52"
         }
       ]
     }

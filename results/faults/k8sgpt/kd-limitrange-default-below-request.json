@@ -2,30 +2,8 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 3,
+  "problems": 4,
   "results": [
-    {
-      "kind": "Deployment",
-      "name": "kd-limitrange-default-below-request/web",
-      "error": [
-        {
-          "Text": "Deployment kd-limitrange-default-below-request/web has 2 replicas but 0 are available with status running",
-          "KubernetesDoc": "",
-          "Sensitive": [
-            {
-              "Unmasked": "kd-limitrange-default-below-request",
-              "Masked": "bDxZR3VCWkxYeUJyPyZkPEwtdkBPaixvXyRpRGY2ZXMreXY="
-            },
-            {
-              "Unmasked": "web",
-              "Masked": "STNQ"
-            }
-          ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
     {
       "kind": "ConfigMap",
       "name": "kd-limitrange-default-below-request/kube-root-ca.crt",
@@ -40,11 +18,47 @@
       "parentObject": ""
     },
     {
+      "kind": "Deployment",
+      "name": "kd-limitrange-default-below-request/web",
+      "error": [
+        {
+          "Text": "Deployment kd-limitrange-default-below-request/web has 2 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-default-below-request",
+              "Masked": "JFpDWU88SSM+R0RucThIazRySlMmX2VtaFgkWkZ9U1ImLkc="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "XjdH"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-limitrange-default-below-request/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-6c8ddf67c6\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-default-below-request",
+              "Masked": "X3h6JnlDXzNqYkReIy8/RD8xLzYxTSlRSzE4Y0VVWmxsTjo="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "PWhN"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "ReplicaSet",
       "name": "kd-limitrange-default-below-request/web-6c8ddf67c6",
       "error": [
         {
-          "Text": "Pod \"web-6c8ddf67c6-n6szp\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
+          "Text": "Pod \"web-6c8ddf67c6-mzk28\" is invalid: spec.containers[0].resources.requests: Invalid value: \"256Mi\": must be less than or equal to memory limit of 128Mi",
           "KubernetesDoc": "",
           "Sensitive": []
         }
