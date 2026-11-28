@@ -1075,16 +1075,31 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 	return nil
 }
 
-// reChdir is runc failing to enter the container's working directory, the last step before it runs the command.
-var reChdir = regexp.MustCompile(`chdir to cwd \(\\?"([^"\\]+)\\?"\) set in config\.json failed: ([a-z ]+)`)
+// reChdir is runc failing to enter the container's working directory, the last step before it runs the command. runc
+// tries as root first and again as the container's user only when root is refused, so permission denied means
+// neither may enter it (a volume that squashes root, such as NFS). reMkdirCwd is runc creating a missing working
+// directory, which fails on a path that is a file in the image, or that has one where a directory should be.
+var (
+	reChdir    = regexp.MustCompile(`chdir to cwd \(\\?"([^"\\]+)\\?"\) set in config\.json failed: ([a-z ]+)`)
+	reMkdirCwd = regexp.MustCompile(`mkdir (/[^:\s]*): not a directory`)
+)
 
-// workingDirFails finds a container the runtime cannot start because it cannot enter the container's working
-// directory: the runtime creates a missing one as root, so a container that runs as another user is refused one
-// under a directory only root may enter (/root/app), and a path that is a file in the image is no directory.
+// workingDirFails finds a container the runtime cannot start because it cannot create or enter the container's
+// working directory: a path that is a file in the image (the program, not the directory that holds it), or a
+// directory neither root nor the container's user may enter.
 func workingDirFails(p kube.Pod, cs kube.ContainerStatus, c kube.Container, msg string, ev []Evidence) *problem {
 	m := reChdir.FindStringSubmatch(msg)
 	if m == nil {
-		return nil
+		// The mkdir error names the path that is a file: the working directory itself, or one of its parents. A
+		// volume's mount point that fails the same way is reported with the mount, so only these are read here.
+		mk := reMkdirCwd.FindStringSubmatch(msg)
+		if mk == nil || c.WorkingDir == "" || (mk[1] != c.WorkingDir && !strings.HasPrefix(c.WorkingDir, strings.TrimSuffix(mk[1], "/")+"/")) {
+			return nil
+		}
+		m = []string{"", c.WorkingDir, "not a directory"}
+		if mk[1] != c.WorkingDir {
+			m[1] = mk[1]
+		}
 	}
 	dir, why := m[1], strings.TrimSpace(m[2])
 	from := "the image's WORKDIR"
@@ -1099,12 +1114,17 @@ func workingDirFails(p kube.Pod, cs kube.ContainerStatus, c kube.Container, msg 
 		if u, ok := p.RunAsUser(cs.Name); ok {
 			user = fmt.Sprintf("user %d", u)
 		}
-		parent := path.Dir(dir)
-		cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is under %s, which %s may not enter (permission denied); the runtime creates a missing working directory as root, and then runs the command as %s from there", cs.Name, dir, from, parent, user, user)
-		fix = fmt.Sprintf("Use a working directory %s may enter: one the image creates and gives to that user (WORKDIR after a chown in the Dockerfile), or one under /tmp or a mounted volume; %s is for root.", user, parent)
+		cause = fmt.Sprintf("container %s cannot start: neither the runtime, as root, nor %s may enter its working directory %s (%s) (permission denied); the runtime tries as root first, so this is a directory root is refused too, as on a volume that squashes root (NFS)", cs.Name, user, dir, from)
+		fix = fmt.Sprintf("Give %s to %s where it lives (on the NFS server for a squashed volume), or use a working directory under /tmp or a volume %s owns.", dir, user, user)
 	case strings.Contains(why, "not a directory"):
-		cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is a file in the image, not a directory (not a directory)", cs.Name, dir, from)
-		fix = fmt.Sprintf("Set workingDir to the directory that holds the file, %s.", path.Dir(dir))
+		file := dir
+		if c.WorkingDir != "" && c.WorkingDir != dir {
+			cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is under %s, which is a file in the image, not a directory (not a directory), so the runtime cannot create it", cs.Name, c.WorkingDir, from, dir)
+			dir = c.WorkingDir
+		} else {
+			cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is a file in the image, not a directory (not a directory)", cs.Name, dir, from)
+		}
+		fix = fmt.Sprintf("Set workingDir to a directory: the one that holds the file, %s, or another the image has.", path.Dir(file))
 	}
 	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's workingDir and user", cs.Name),
 		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].workingDir}{" "}{.spec.securityContext}{" "}{.spec.containers[?(@.name=="%s")].securityContext}`, cs.Name, cs.Name))})

@@ -6075,14 +6075,33 @@ func TestContainerCannotEnterItsWorkingDirectory(t *testing.T) {
 	waiting(&p, "RunContainerError", `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: chdir to cwd ("/root/app") set in config.json failed: permission denied`)
 	s.Pods = []kube.Pod{p}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD237", "Deployment shop/web", "working directory /root/app (its workingDir) is under /root, which user 10001 may not enter (permission denied)", "creates a missing working directory as root")
+	expect(t, f, "KD237", "Deployment shop/web", "neither the runtime, as root, nor user 10001 may enter its working directory /root/app (its workingDir) (permission denied)", "squashes root")
 	// A file where a directory should be; the kubelet's escaped form of the message reads the same.
 	s.Pods[0].Spec.SecurityContext, s.Pods[0].Spec.Containers[0].WorkingDir = nil, ""
 	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = `error during container init: chdir to cwd (\"/app/server\") set in config.json failed: not a directory`
 	f = only(t, Diagnose(s))
 	expect(t, f, "KD237", "Deployment shop/web", "working directory /app/server (the image's WORKDIR) is a file in the image")
-	if !strings.Contains(f.Fix, "/app.") {
+	if !strings.Contains(f.Fix, "/app,") {
 		t.Errorf("fix: %s", f.Fix)
+	}
+	// What runc reports for a workingDir that is a file: it creates a missing working directory first, and that fails.
+	s.Pods[0].Spec.Containers[0].WorkingDir = "/bin/busybox"
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: mkdir /bin/busybox: not a directory: unknown`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD237", "Deployment shop/web", "working directory /bin/busybox (its workingDir) is a file in the image, not a directory")
+	if !strings.Contains(f.Fix, "/bin,") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A file on the way to it.
+	s.Pods[0].Spec.Containers[0].WorkingDir = "/bin/busybox/reports"
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = `error during container init: mkdir /bin/busybox: not a directory: unknown`
+	expect(t, only(t, Diagnose(s)), "KD237", "Deployment shop/web", "working directory /bin/busybox/reports (its workingDir) is under /bin/busybox, which is a file in the image")
+	// The same error for a path that is not the working directory is some other mkdir, not this rule's.
+	s.Pods[0].Spec.Containers[0].WorkingDir = "/srv"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD237" {
+			t.Errorf("KD237 for a mkdir off the working directory: %s", f.Cause)
+		}
 	}
 }
 
