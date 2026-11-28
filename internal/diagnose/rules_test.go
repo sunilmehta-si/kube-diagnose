@@ -6351,3 +6351,38 @@ func TestHostAliasesSendAServiceNameElsewhere(t *testing.T) {
 		t.Errorf("unrelated crash: %s", f.Cause)
 	}
 }
+
+func TestEnvFromKeyNameDiffersFromTheVariable(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	p.Spec.Containers[0].EnvFrom = []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "api-config"}}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "api-config", "db-host", "db-port")}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"sh: DB_HOST: DB_HOST is not set"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD231", "Deployment shop/api", "DB_HOST is unset", "the key is db-host, so the container has db-host and no DB_HOST", "its log says")
+	if !strings.Contains(f.Fix, "Rename key db-host of ConfigMap api-config to DB_HOST") || !strings.Contains(f.Fix, "configMapKeyRef, key db-host") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// camelCase, and a prefix: the variable is the prefix and the key.
+	s.ConfigMaps[0].Keys = []string{"dbHost"}
+	s.Pods[0].Spec.Containers[0].EnvFrom[0].Prefix = "APP_"
+	s.Logs[0].Lines = []string{"fatal: APP_DB_HOST is required"}
+	expect(t, only(t, Diagnose(s)), "KD231", "Deployment shop/api", "the key is dbHost, so the container has APP_dbHost and no APP_DB_HOST")
+	// The key with the right name, or no near one: not this rule.
+	for _, k := range []string{"APP_DB_HOST", "database"} {
+		s.ConfigMaps[0].Keys = []string{k}
+		s.Pods[0].Spec.Containers[0].EnvFrom[0].Prefix = ""
+		if k == "APP_DB_HOST" {
+			s.ConfigMaps[0].Keys = []string{"DB_HOST"}
+			s.Pods[0].Spec.Containers[0].EnvFrom[0].Prefix = "APP_"
+		}
+		for _, f := range Diagnose(s).Findings {
+			if f.Rule == "KD231" {
+				t.Errorf("%s: %s", k, f.Cause)
+			}
+		}
+	}
+}

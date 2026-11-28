@@ -453,3 +453,54 @@ func downwardFieldMissing(p kube.Pod, cs kube.ContainerStatus, lines []string, e
 	}
 	return nil
 }
+
+// envFromKeyName finds a container that exits because a variable it reads is unset, while an envFrom source has a
+// key of that name in another case or with other separators (db-host or dbHost for DB_HOST): envFrom makes each key
+// a variable of exactly the key's name, so the container has db-host and no DB_HOST. Kubernetes accepts such names
+// as variables, and a shell or an app reading DB_HOST never sees them.
+func envFromKeyName(ix *index, p kube.Pod, cs kube.ContainerStatus, lines []string, ev []Evidence) *problem {
+	c, _ := containerSpec(p, cs.Name)
+	ns := p.Metadata.Namespace
+	defined, _ := containerEnv(ix, ns, c)
+	for i := len(lines) - 1; i >= 0; i-- {
+		if !reVarUnset.MatchString(lines[i]) {
+			continue
+		}
+		for _, m := range reUnsetName.FindAllStringSubmatch(lines[i], -1) {
+			name := m[1]
+			if defined[name] {
+				continue
+			}
+			for _, src := range c.EnvFrom {
+				kind, ref := "configmap", src.ConfigMapRef
+				if ref == nil {
+					kind, ref = "secret", src.SecretRef
+				}
+				if ref == nil {
+					continue
+				}
+				ks, exists, known := ix.keySet(kind, ns, ref.Name)
+				if !known || !exists {
+					continue
+				}
+				for _, k := range ks.Keys {
+					v := src.Prefix + k
+					if v == name || normalKey(v) != normalKey(name) {
+						continue
+					}
+					kindName := map[string]string{"configmap": "ConfigMap", "secret": "Secret"}[kind]
+					cause := fmt.Sprintf("container %s exits because %s is unset: it takes its variables from %s %s with envFrom, which makes each key a variable of exactly the key's name, and the key is %s, so the container has %s and no %s; its log says: %q",
+						cs.Name, name, kindName, ref.Name, k, v, name, clip(lines[i], 200))
+					fix := fmt.Sprintf("Rename key %s of %s %s to %s, or set %s in the container's env from that key (valueFrom.%sKeyRef, key %s): envFrom does not change a key's case or separators.",
+						k, kindName, ref.Name, strings.TrimPrefix(name, src.Prefix), name, map[string]string{"configmap": "configMap", "secret": "secret"}[kind], k)
+					return newProblem(p, cs.Name, "KD231", "envFrom key's name differs from the variable the app reads", Critical, cause, "envkey|"+name, fix,
+						append(ev, Evidence{Object: kube.Ref{Kind: kindName, Namespace: ns, Name: ref.Name}, What: fmt.Sprintf("%s %s's keys: %s", kindName, ref.Name, strings.Join(ks.Keys, ", ")),
+							Command: cmdGet(kind, ns, ref.Name, "{.data}")},
+							Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s takes envFrom %s %s", cs.Name, kindName, ref.Name),
+								Command: cmdGet("pod", ns, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].envFrom}`, cs.Name))})...)
+				}
+			}
+		}
+	}
+	return nil
+}
