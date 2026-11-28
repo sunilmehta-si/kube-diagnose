@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-interpreter-nothing-to-do",
+  "description": "Deployment etl runs the python image with no command, meant to come from the chart's values, which left it empty; the image's default is python3, which with no program, terminal or input exits 0 at once, and the kubelet restarts it.",
+  "rule": "KD315",
+  "object": "Deployment/etl",
+  "keywords": [
+    [
+      "python3"
+    ],
+    [
+      "interpreter"
+    ],
+    [
+      "code 0"
+    ]
+  ]
+}

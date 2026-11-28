@@ -1,0 +1,26 @@
+# Deployment etl runs the python image with no command, meant to come from the chart's values, which left it empty; the image's default is python3, which with no program, terminal or input exits 0 at once, and the kubelet restarts it.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-interpreter-nothing-to-do
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: etl
+  namespace: kd-interpreter-nothing-to-do
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: etl
+  template:
+    metadata:
+      labels:
+        app: etl
+    spec:
+      containers:
+        - name: etl
+          image: docker.io/library/python:3.14.9-slim@sha256:35caba83af2fe6da9a5d922f9b0156f21d1246a48278c58a08bd253303ba42e8
+          # The chart sets command from .Values.etl.command, which this release left empty.
