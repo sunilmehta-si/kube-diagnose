@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-backend-tls-ca-missing"
+  ],
+  "collectedAt": "2026-11-28 13:07 UTC",
+  "findings": [
+    {
+      "rule": "KD376",
+      "title": "Backend TLS policy's CA certificate is missing",
+      "severity": "critical",
+      "object": {
+        "kind": "BackendTLSPolicy",
+        "namespace": "kd-gateway-backend-tls-ca-missing",
+        "name": "auth-tls"
+      },
+      "cause": "BackendTLSPolicy auth-tls checks the certificate of Service auth against the CA bundle in ConfigMap auth-ca, and ConfigMap auth-ca has keys ca.pem, and the CA bundle must be under key ca.crt, so the reference is invalid and requests a Gateway sends there fail with a 5xx error",
+      "evidence": [
+        {
+          "object": {
+            "kind": "BackendTLSPolicy",
+            "namespace": "kd-gateway-backend-tls-ca-missing",
+            "name": "auth-tls"
+          },
+          "what": "BackendTLSPolicy auth-tls names ConfigMap auth-ca as its CA certificate",
+          "command": "kubectl get backendtlspolicy auth-tls -n kd-gateway-backend-tls-ca-missing -o jsonpath='{.spec.validation}'"
+        },
+        {
+          "object": {
+            "kind": "ConfigMap",
+            "namespace": "kd-gateway-backend-tls-ca-missing",
+            "name": "auth-ca"
+          },
+          "what": "ConfigMap auth-ca has keys ca.pem, and the CA bundle must be under key ca.crt",
+          "command": "kubectl get configmap auth-ca -n kd-gateway-backend-tls-ca-missing -o jsonpath='{.data}'"
+        }
+      ],
+      "fix": "Create ConfigMap auth-ca in namespace kd-gateway-backend-tls-ca-missing with the backend's CA bundle under key ca.crt (kubectl create configmap auth-ca --from-file=ca.crt=ca.pem -n kd-gateway-backend-tls-ca-missing), or point caCertificateRefs at the ConfigMap that holds it."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

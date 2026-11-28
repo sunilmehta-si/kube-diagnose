@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-hostalias-stale-service-ip/api",
+      "error": [
+        {
+          "Text": "Deployment kd-hostalias-stale-service-ip/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-hostalias-stale-service-ip",
+              "Masked": "JFBNbHY0Q1kkOyo4bThlOycpNFNXOlpvLXkxLXk="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "QEN3"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-hostalias-stale-service-ip/api-698bb55b9f-24q9m",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=api pod=api-698bb55b9f-24q9m",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

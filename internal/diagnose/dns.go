@@ -582,3 +582,135 @@ func mountOf(p kube.Pod, container, volume string) (string, bool) {
 	}
 	return "", false
 }
+
+// reDNSLimits is the kubelet's warning that a pod's resolv.conf would have more search domains (32, or 2048
+// characters) or name servers (3) than resolvers read, and the line it wrote instead.
+var reDNSLimits = regexp.MustCompile(`^(Search Line|Nameserver) limits were exceeded, some (?:search paths|nameservers) have been omitted, the applied (?:search|nameserver) line is: (.*)$`)
+
+// dnsLimits finds a pod whose resolv.conf the kubelet cut short: the cluster's search domains, the node's and the
+// pod's own dnsConfig together are more than a resolver reads, so the last are dropped, and a short name that only
+// they would complete does not resolve.
+func dnsLimits(ix *index, p kube.Pod) *problem {
+	evs := ix.eventsFor(p.Ref(), "DNSConfigForming")
+	if len(evs) == 0 {
+		return nil
+	}
+	m := reDNSLimits.FindStringSubmatch(evs[0].Message)
+	if m == nil {
+		return nil
+	}
+	applied := strings.Fields(m[2])
+	var mine []string
+	if p.Spec.DNSConfig != nil {
+		mine = p.Spec.DNSConfig.Searches
+		if m[1] == "Nameserver" {
+			mine = p.Spec.DNSConfig.Nameservers
+		}
+	}
+	var dropped []string
+	for _, d := range mine {
+		if !slices.Contains(applied, d) {
+			dropped = append(dropped, d)
+		}
+	}
+	what, limit := "search domains", "32 search domains"
+	if m[1] == "Nameserver" {
+		what, limit = "name servers", "3 name servers"
+	}
+	cause := fmt.Sprintf("the kubelet cut the pod's resolv.conf short: with the cluster's, the node's and the pod's own %s together it would have more than the %s a resolver reads, so it kept the first %d", what, limit, len(applied))
+	fix := fmt.Sprintf("Give the pod fewer %s in dnsConfig, or trim the node's resolv.conf (the kubelet's --resolv-conf); ", what)
+	if len(dropped) > 0 {
+		cause += fmt.Sprintf(" and dropped %s of the pod's dnsConfig", strings.Join(dropped, ", "))
+		if m[1] == "Search Line" {
+			cause += ", so a short name that only they would complete does not resolve"
+		}
+		fix += "or use fully qualified names (ending in a dot) for the hosts in the dropped domains."
+	} else {
+		cause += fmt.Sprintf(", and the %s it dropped are the node's", what)
+		fix += "the cluster's own come first and are kept."
+	}
+	return newProblem(p, "", "KD379", "Pod's DNS settings are more than a resolver reads", Warning, cause, "dnslimits|"+m[1], fix,
+		eventEvidence(p.Ref(), evs[0]),
+		Evidence{Object: p.Ref(), What: "the pod's dnsPolicy and dnsConfig", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.dnsPolicy}{" "}{.spec.dnsConfig}`)})
+}
+
+// aliasedService returns the Service a hostname names as cluster DNS would read it, from a pod in namespace ns: db,
+// db.shop, or db.shop.svc and the cluster domain after it.
+func aliasedService(ns, host string) (svcNS, svc string) {
+	labels := strings.Split(strings.TrimSuffix(strings.ToLower(host), "."), ".")
+	switch {
+	case len(labels) == 1:
+		return ns, labels[0]
+	case len(labels) == 2:
+		return labels[1], labels[0]
+	case labels[2] == "svc":
+		return labels[1], labels[0]
+	}
+	return "", ""
+}
+
+// hostAliasService finds a pod whose hostAliases pin a Service's name to an address that is not the Service's:
+// /etc/hosts is read before DNS, so the name never reaches the Service. It is a line left from before the Service
+// was recreated (with a new cluster IP), or a pod's address copied in, which is gone when that pod is replaced. For a
+// running pod the spec says it; for a container that exits, its log must show a failed connection and the alias's
+// address (busybox's wget prints "Connecting to db:5432 (10.96.255.250:5432)", then "download timed out").
+func hostAliasService(ix *index, p kube.Pod, cs *kube.ContainerStatus, lines []string, ev ...Evidence) *problem {
+	if !ix.read("services") {
+		return nil
+	}
+	failed := ""
+	if cs != nil {
+		for i := len(lines) - 1; i >= 0 && failed == ""; i-- {
+			if reConnFailure.MatchString(lines[i]) {
+				failed = lines[i]
+			}
+		}
+		if failed == "" {
+			return nil
+		}
+	}
+	for _, a := range p.Spec.HostAliases {
+		for _, h := range a.Hostnames {
+			if cs != nil && !mentions(lines, a.IP) {
+				continue
+			}
+			ns, name := aliasedService(p.Metadata.Namespace, h)
+			var svc *kube.Service
+			for i := range ix.s.Services {
+				if s := &ix.s.Services[i]; s.Metadata.Namespace == ns && s.Metadata.Name == name {
+					svc = s
+				}
+			}
+			if svc == nil || svc.Spec.Type == "ExternalName" || svc.Spec.ClusterIP == a.IP || svc.Spec.ClusterIP == "" {
+				continue
+			}
+			backend := false
+			for _, e := range ix.slices[nsName{ns, name}] {
+				for _, ep := range e.Endpoints {
+					backend = backend || slices.Contains(ep.Addresses, a.IP)
+				}
+			}
+			addr := fmt.Sprintf("Service %s's cluster IP %s", name, svc.Spec.ClusterIP)
+			if svc.Spec.ClusterIP == "None" {
+				addr = fmt.Sprintf("the addresses of headless Service %s's pods", name)
+			}
+			cause := fmt.Sprintf("the pod's hostAliases write %s %s into its /etc/hosts, which is read before DNS, so the name %s goes to %s and not to %s", a.IP, h, h, a.IP, addr)
+			if backend {
+				cause += fmt.Sprintf(": %s is one of the Service's pods today, so connections skip the Service, reach that one pod, and fail once it is replaced", a.IP)
+			} else {
+				cause += fmt.Sprintf(": no pod of the Service has that address, so every connection to %s goes nowhere", h)
+			}
+			container := ""
+			if cs != nil {
+				container = cs.Name
+				cause = fmt.Sprintf("container %s exits because its connection to %s fails: %s; its log says: %q", cs.Name, h, cause, clip(failed, 200))
+			}
+			ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's hostAliases", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.hostAliases}`)},
+				Evidence{Object: kube.Ref{Kind: "Service", Namespace: ns, Name: name}, What: fmt.Sprintf("Service %s's cluster IP: %s", name, svc.Spec.ClusterIP),
+					Command: cmdGet("service", ns, name, `{.spec.clusterIP}`)})
+			return newProblem(p, container, "KD317", "Pod's hostAliases send a Service's name to another address", Critical, cause, "hostalias|"+h,
+				fmt.Sprintf("Remove %s from the pod's hostAliases, so that it resolves through cluster DNS to Service %s; hostAliases are for names DNS cannot answer.", h, name), ev...)
+		}
+	}
+	return nil
+}

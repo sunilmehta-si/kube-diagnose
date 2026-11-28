@@ -34,6 +34,9 @@ func gatewayFindings(ix *index) []Finding {
 	for _, rt := range ix.s.Routes {
 		out = append(out, routeParentFindings(ix, rt)...)
 		out = append(out, routeBackendFindings(ix, rt)...)
+		if f := backendWorkloadKind(ix, rt); f != nil {
+			out = append(out, *f)
+		}
 		out = append(out, routePortFindings(ix, rt)...)
 		out = append(out, routeZeroWeights(rt)...)
 		out = append(out, routePathPatterns(rt)...)
@@ -41,7 +44,114 @@ func gatewayFindings(ix *index) []Finding {
 			out = append(out, *f)
 		}
 	}
+	for _, b := range ix.s.BackendTLSPolicies {
+		if !ix.nsRead(b.Metadata.Namespace) {
+			continue
+		}
+		if f := backendTLSTarget(ix, b); f != nil {
+			out = append(out, *f)
+		}
+		if f := backendTLSCA(ix, b); f != nil {
+			out = append(out, *f)
+		}
+	}
 	return out
+}
+
+// backendTLSTarget is a BackendTLSPolicy whose target Service does not exist, or lacks the port its sectionName
+// names: the policy applies to nothing, and a Gateway connects to the Service the policy was meant for in plain
+// text, which a backend that serves only TLS refuses.
+func backendTLSTarget(ix *index, b kube.BackendTLSPolicy) *Finding {
+	ns, name := b.Metadata.Namespace, b.Metadata.Name
+	for _, t := range b.Spec.TargetRefs {
+		if (t.Group != "" && t.Group != "core") || t.Kind != "Service" {
+			continue
+		}
+		exists, known := ix.serviceExists(ns, t.Name)
+		if !known {
+			continue
+		}
+		ev := []Evidence{{Object: b.Ref(), What: fmt.Sprintf("BackendTLSPolicy %s targets Service %s", name, t.Name), Command: cmdGet("backendtlspolicy", ns, name, "{.spec.targetRefs}")}}
+		var why, fix string
+		if !exists {
+			why = fmt.Sprintf("there is no Service %s in namespace %s", t.Name, ns)
+			fix = fmt.Sprintf("Point the policy's targetRefs at the Service its routes send traffic to (kubectl get services -n %s).", ns)
+			best, bestD := "", 4
+			for _, s := range ix.s.Services {
+				if s.Metadata.Namespace != ns {
+					continue
+				}
+				if d := editDistance(s.Metadata.Name, t.Name); d < bestD || strings.HasPrefix(t.Name, s.Metadata.Name+"-") || strings.HasPrefix(s.Metadata.Name, t.Name+"-") {
+					best, bestD = s.Metadata.Name, min(d, bestD)
+				}
+			}
+			if best != "" {
+				why += fmt.Sprintf(" (there is a Service %s)", best)
+				fix = fmt.Sprintf("Point the policy's targetRefs at Service %s, if that is the one it was written for: a Gateway connects to it without TLS until a policy targets it.", best)
+			}
+			ev = append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: ns, Name: "*"}, What: "the Services of namespace " + ns, Command: "kubectl get services -n " + ns})
+		} else if t.SectionName != "" {
+			svc := serviceByName(ix, ns, t.Name)
+			var names []string
+			found := false
+			for _, p := range svc.Spec.Ports {
+				names = append(names, p.Name)
+				found = found || p.Name == t.SectionName
+			}
+			if found {
+				continue
+			}
+			why = fmt.Sprintf("Service %s has no port named %s (its ports are named %s)", t.Name, t.SectionName, strings.Join(names, ", "))
+			fix = fmt.Sprintf("Set sectionName to the name of the Service port that serves TLS, or name that port %s.", t.SectionName)
+			ev = append(ev, Evidence{Object: svc.Ref(), What: "the Service's ports", Command: cmdGet("service", ns, t.Name, "{.spec.ports}")})
+		} else {
+			continue
+		}
+		return &Finding{Rule: "KD377", Title: "Backend TLS policy targets a Service that does not exist", Severity: Critical, Object: b.Ref(),
+			Cause:    fmt.Sprintf("BackendTLSPolicy %s targets Service %s%s, and %s, so the policy applies to nothing: a Gateway connects without TLS to the Service it was written for, whose pods refuse plain-text connections if they serve only TLS", name, t.Name, sectionSuffix(t.SectionName), why),
+			Evidence: ev, Fix: fix}
+	}
+	return nil
+}
+
+func sectionSuffix(s string) string {
+	if s == "" {
+		return ""
+	}
+	return " (port " + s + ")"
+}
+
+// backendTLSCA is a BackendTLSPolicy whose CA certificate ConfigMap does not exist or has no ca.crt: the reference is
+// invalid, and the Gateway API says that connections through the policy then fail with a 5xx error.
+func backendTLSCA(ix *index, b kube.BackendTLSPolicy) *Finding {
+	ns, name := b.Metadata.Namespace, b.Metadata.Name
+	for _, c := range b.Spec.Validation.CACertificateRefs {
+		if (c.Group != "" && c.Group != "core") || c.Kind != "ConfigMap" {
+			continue
+		}
+		ks, exists, known := ix.keySet("configmap", ns, c.Name)
+		if !known {
+			continue
+		}
+		why := fmt.Sprintf("there is no ConfigMap %s in namespace %s", c.Name, ns)
+		if exists {
+			if slices.Contains(ks.Keys, "ca.crt") {
+				continue
+			}
+			why = fmt.Sprintf("ConfigMap %s has keys %s, and the CA bundle must be under key ca.crt", c.Name, strings.Join(ks.Keys, ", "))
+		}
+		var targets []string
+		for _, t := range b.Spec.TargetRefs {
+			targets = append(targets, t.Kind+" "+t.Name)
+		}
+		return &Finding{Rule: "KD376", Title: "Backend TLS policy's CA certificate is missing", Severity: Critical, Object: b.Ref(),
+			Cause: fmt.Sprintf("BackendTLSPolicy %s checks the certificate of %s against the CA bundle in ConfigMap %s, and %s, so the reference is invalid and requests a Gateway sends there fail with a 5xx error",
+				name, strings.Join(targets, ", "), c.Name, why),
+			Evidence: []Evidence{{Object: b.Ref(), What: fmt.Sprintf("BackendTLSPolicy %s names ConfigMap %s as its CA certificate", name, c.Name), Command: cmdGet("backendtlspolicy", ns, name, "{.spec.validation}")},
+				{Object: kube.Ref{Kind: "ConfigMap", Namespace: ns, Name: c.Name}, What: why, Command: cmdGet("configmap", ns, c.Name, "{.data}")}},
+			Fix: fmt.Sprintf("Create ConfigMap %s in namespace %s with the backend's CA bundle under key ca.crt (kubectl create configmap %s --from-file=ca.crt=ca.pem -n %s), or point caCertificateRefs at the ConfigMap that holds it.", c.Name, ns, c.Name, ns)}
+	}
+	return nil
 }
 
 // routeBackend is a Service a route rule sends traffic to.
@@ -70,6 +180,63 @@ func routeBackends(rt kube.Route) []routeBackend {
 
 func routeEvidence(rt kube.Route, what, jsonpath string) Evidence {
 	return Evidence{Object: rt.Ref(), What: what, Command: cmdGet(strings.ToLower(rt.Kind), rt.Metadata.Namespace, rt.Metadata.Name, jsonpath)}
+}
+
+// workloadKinds are built-in kinds a backendRef sometimes names in place of the Service in front of them. No Gateway
+// API implementation routes to them; kinds of other groups (InferencePool, ServiceImport, an implementation's own
+// backend) are left alone.
+var workloadKinds = map[string]string{"Deployment": "apps", "StatefulSet": "apps", "DaemonSet": "apps", "ReplicaSet": "apps", "Pod": "", "Endpoints": "", "EndpointSlice": "discovery.k8s.io"}
+
+// backendWorkloadKind finds a route rule whose backendRef names a Deployment, a Pod or another built-in kind that is
+// not a Service: the controller cannot resolve it (InvalidKind) and answers the rule's requests with an error.
+func backendWorkloadKind(ix *index, rt kube.Route) *Finding {
+	for i, r := range rt.Spec.Rules {
+		for _, b := range r.BackendRefs {
+			group, ok := workloadKinds[b.Kind]
+			if !ok || (b.Group != "" && b.Group != "core" && b.Group != group) {
+				continue
+			}
+			ns := b.Namespace
+			if ns == "" {
+				ns = rt.Metadata.Namespace
+			}
+			cause := fmt.Sprintf("%s %s sends the requests of rule %d to %s %s, and a route sends traffic to Services, not to %ss: the controller cannot resolve the reference (InvalidKind) and answers those requests with an error (HTTP 500)",
+				rt.Kind, rt.Metadata.Name, i+1, b.Kind, b.Name, b.Kind)
+			fix := fmt.Sprintf("Send the rule to the Service in front of %s %s: set the backendRef's name to the Service's and remove kind (and group), which default to Service.", b.Kind, b.Name)
+			ev := []Evidence{routeEvidence(rt, rt.Kind+" backendRefs", "{.spec.rules[*].backendRefs}")}
+			if svc := serviceFor(ix, ns, b.Kind, b.Name); svc != "" {
+				cause += fmt.Sprintf("; Service %s selects %s %s's pods", svc, b.Kind, b.Name)
+				fix = fmt.Sprintf("Send the rule to Service %s, which selects %s %s's pods: set the backendRef's name to %s and remove kind (and group), which default to Service.", svc, b.Kind, b.Name, svc)
+				ev = append(ev, Evidence{Object: kube.Ref{Kind: "Service", Namespace: ns, Name: svc}, What: fmt.Sprintf("Service %s selects %s %s's pods", svc, b.Kind, b.Name), Command: cmdGet("service", ns, svc, "{.spec.selector}")})
+			}
+			return &Finding{Rule: "KD378", Title: "Route sends traffic to a workload, not a Service", Severity: Critical, Object: rt.Ref(), Cause: cause, Evidence: ev, Fix: fix}
+		}
+	}
+	return nil
+}
+
+// serviceFor returns a Service of the namespace that selects the pods of the named workload (or pod).
+func serviceFor(ix *index, ns, kind, name string) string {
+	var labels map[string]string
+	for _, w := range ix.s.Workloads {
+		if w.Kind == kind && w.Metadata.Namespace == ns && w.Metadata.Name == name {
+			labels = w.Spec.Template.Metadata.Labels
+		}
+	}
+	for _, p := range ix.s.Pods {
+		if kind == "Pod" && p.Metadata.Namespace == ns && p.Metadata.Name == name {
+			labels = p.Metadata.Labels
+		}
+	}
+	if len(labels) == 0 {
+		return ""
+	}
+	for _, s := range ix.s.Services {
+		if s.Metadata.Namespace == ns && len(s.Spec.Selector) > 0 && kube.MatchesMap(s.Spec.Selector, labels) {
+			return s.Metadata.Name
+		}
+	}
+	return ""
 }
 
 // routeBackendFindings finds a route rule that sends traffic to a Service that does not exist.

@@ -1,0 +1,74 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-hostalias-stale-service-ip"
+  ],
+  "collectedAt": "2026-11-28 13:09 UTC",
+  "findings": [
+    {
+      "rule": "KD317",
+      "title": "Pod's hostAliases send a Service's name to another address",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-hostalias-stale-service-ip",
+        "name": "api"
+      },
+      "cause": "container api exits because its connection to db fails: the pod's hostAliases write 10.96.255.250 db into its /etc/hosts, which is read before DNS, so the name db goes to 10.96.255.250 and not to Service db's cluster IP 10.96.66.210: no pod of the Service has that address, so every connection to db goes nowhere; its log says: \"wget: download timed out\"; Deployment api has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostalias-stale-service-ip",
+            "name": "api-698bb55b9f-24q9m"
+          },
+          "what": "container api exited with code 1 (Error), restarted 6 times",
+          "command": "kubectl get pod api-698bb55b9f-24q9m -n kd-hostalias-stale-service-ip -o jsonpath='{.status.containerStatuses[?(@.name==\"api\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostalias-stale-service-ip",
+            "name": "api-698bb55b9f-24q9m"
+          },
+          "what": "last lines of container api's log (run that exited)",
+          "detail": "connecting to the database at db:5432\nConnecting to db:5432 (10.96.255.250:5432)\nwget: download timed out",
+          "command": "kubectl logs api-698bb55b9f-24q9m -n kd-hostalias-stale-service-ip -c api --tail=20 --previous"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-hostalias-stale-service-ip",
+            "name": "api-698bb55b9f-24q9m"
+          },
+          "what": "the pod's hostAliases",
+          "command": "kubectl get pod api-698bb55b9f-24q9m -n kd-hostalias-stale-service-ip -o jsonpath='{.spec.hostAliases}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-hostalias-stale-service-ip",
+            "name": "db"
+          },
+          "what": "Service db's cluster IP: 10.96.66.210",
+          "command": "kubectl get service db -n kd-hostalias-stale-service-ip -o jsonpath='{.spec.clusterIP}'"
+        }
+      ],
+      "fix": "Remove db from the pod's hostAliases, so that it resolves through cluster DNS to Service db; hostAliases are for names DNS cannot answer.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-hostalias-stale-service-ip",
+          "name": "api-698bb55b9f-24q9m"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

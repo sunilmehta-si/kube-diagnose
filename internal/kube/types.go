@@ -260,6 +260,8 @@ type Container struct {
 	ImagePullPolicy string   `json:"imagePullPolicy,omitempty"`
 	Command         []string `json:"command,omitempty"`
 	Args            []string `json:"args,omitempty"`
+	// WorkingDir replaces the image's WORKDIR.
+	WorkingDir string `json:"workingDir,omitempty"`
 	// Stdin and TTY keep a shell open, as kubectl run -it does.
 	Stdin           bool             `json:"stdin,omitempty"`
 	TTY             bool             `json:"tty,omitempty"`
@@ -356,14 +358,21 @@ type LocalObjectReference struct {
 }
 
 type PodSpec struct {
-	NodeName    string `json:"nodeName,omitempty"`
-	HostNetwork bool   `json:"hostNetwork,omitempty"`
-	DNSPolicy   string `json:"dnsPolicy,omitempty"`
+	// Resources are pod-level requests and limits (PodLevelResources), shared by all the pod's containers.
+	Resources   *Resources `json:"resources,omitempty"`
+	NodeName    string     `json:"nodeName,omitempty"`
+	HostNetwork bool       `json:"hostNetwork,omitempty"`
+	DNSPolicy   string     `json:"dnsPolicy,omitempty"`
 	// DNSConfig adds to the pod's resolv.conf; with dnsPolicy None it is all of it.
 	DNSConfig *struct {
 		Nameservers []string `json:"nameservers,omitempty"`
 		Searches    []string `json:"searches,omitempty"`
 	} `json:"dnsConfig,omitempty"`
+	// HostAliases are lines the kubelet writes into the pod's /etc/hosts, which the resolver reads before DNS.
+	HostAliases []struct {
+		IP        string   `json:"ip"`
+		Hostnames []string `json:"hostnames,omitempty"`
+	} `json:"hostAliases,omitempty"`
 	SecurityContext    *PodSecurityContext    `json:"securityContext,omitempty"`
 	SchedulerName      string                 `json:"schedulerName,omitempty"`
 	NodeSelector       map[string]string      `json:"nodeSelector,omitempty"`
@@ -851,12 +860,15 @@ func (w Workload) Ready() int32 {
 type Job struct {
 	Metadata ObjectMeta `json:"metadata"`
 	Spec     struct {
-		BackoffLimit          *int32      `json:"backoffLimit,omitempty"`
-		Completions           *int32      `json:"completions,omitempty"`
-		Parallelism           *int32      `json:"parallelism,omitempty"`
-		ActiveDeadlineSeconds *int64      `json:"activeDeadlineSeconds,omitempty"`
-		Suspend               *bool       `json:"suspend,omitempty"`
-		Template              PodTemplate `json:"template"`
+		BackoffLimit          *int32 `json:"backoffLimit,omitempty"`
+		Completions           *int32 `json:"completions,omitempty"`
+		Parallelism           *int32 `json:"parallelism,omitempty"`
+		ActiveDeadlineSeconds *int64 `json:"activeDeadlineSeconds,omitempty"`
+		Suspend               *bool  `json:"suspend,omitempty"`
+		// ManagedBy names the controller that runs the Job; the Job controller (kubernetes.io/job-controller) leaves
+		// any other value to that controller.
+		ManagedBy string      `json:"managedBy,omitempty"`
+		Template  PodTemplate `json:"template"`
 	} `json:"spec"`
 	Status struct {
 		StartTime  *time.Time  `json:"startTime,omitempty"`
@@ -1283,6 +1295,42 @@ type ReferenceGrant struct {
 	} `json:"spec"`
 }
 
+// LocalQueue is Kueue's queue in a namespace, which a Job names in its kueue.x-k8s.io/queue-name label; it feeds a
+// ClusterQueue, which holds the quota.
+type LocalQueue struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		ClusterQueue string `json:"clusterQueue"`
+	} `json:"spec"`
+}
+
+// BackendTLSPolicy tells a Gateway to speak TLS to a Service's pods, and how to check the certificate they present:
+// against the CA bundle in a ConfigMap (key ca.crt), or the system's well-known CAs.
+type BackendTLSPolicy struct {
+	Metadata ObjectMeta `json:"metadata"`
+	Spec     struct {
+		TargetRefs []struct {
+			Group       string `json:"group"`
+			Kind        string `json:"kind"`
+			Name        string `json:"name"`
+			SectionName string `json:"sectionName,omitempty"`
+		} `json:"targetRefs"`
+		Validation struct {
+			CACertificateRefs []struct {
+				Group string `json:"group"`
+				Kind  string `json:"kind"`
+				Name  string `json:"name"`
+			} `json:"caCertificateRefs,omitempty"`
+			WellKnownCACertificates string `json:"wellKnownCACertificates,omitempty"`
+			Hostname                string `json:"hostname"`
+		} `json:"validation"`
+	} `json:"spec"`
+}
+
+func (b BackendTLSPolicy) Ref() Ref {
+	return Ref{Kind: "BackendTLSPolicy", Namespace: b.Metadata.Namespace, Name: b.Metadata.Name}
+}
+
 // Dynamic resource allocation (resource.k8s.io): a pod asks for devices, a GPU for one, through a ResourceClaim;
 // each request names a DeviceClass, and the scheduler picks devices for it from those a driver publishes in
 // ResourceSlices. The fields read are those of resource.k8s.io/v1; v1beta1 put a request's class, count and
@@ -1402,10 +1450,14 @@ type ResourceSlice struct {
 	} `json:"spec"`
 }
 
-// BaseImages are the official images whose default command is a shell: busybox's and alpine's sh, the
-// distributions' bash. Their names are public, so redaction keeps them.
-var BaseImages = map[string]bool{"busybox": true, "alpine": true, "ubuntu": true, "debian": true, "centos": true, "fedora": true,
-	"rockylinux": true, "almalinux": true, "amazonlinux": true, "archlinux": true, "oraclelinux": true, "photon": true}
+// BaseImages are the official images whose default command reads a script from its input: busybox's and alpine's
+// sh, the distributions' bash, and the language images' interpreters (python's python3, node's node, ruby's irb). Run
+// with no command, no terminal and no input, each reads end of input at once and exits 0. Their names are public, so
+// redaction keeps them.
+var BaseImages = map[string]string{"busybox": "sh", "alpine": "sh", "ubuntu": "bash", "debian": "bash", "centos": "bash",
+	"fedora": "bash", "rockylinux": "bash", "almalinux": "bash", "amazonlinux": "bash", "archlinux": "bash",
+	"oraclelinux": "bash", "photon": "bash",
+	"python": "python3", "pypy": "pypy3", "node": "node", "ruby": "irb", "php": "php -a"}
 
 // OfficialBaseImage returns the base image a repository names, when it is one of Docker Hub's official base images
 // (busybox, docker.io/library/busybox), and "" otherwise.
@@ -1413,7 +1465,7 @@ func OfficialBaseImage(repo string) string {
 	for _, p := range []string{"docker.io/library/", "index.docker.io/library/", "library/"} {
 		repo = strings.TrimPrefix(repo, p)
 	}
-	if BaseImages[repo] {
+	if BaseImages[repo] != "" {
 		return repo
 	}
 	return ""

@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-image-localhost-registry",
+  "description": "Deployment web runs image localhost/kube-diagnose-missing/web:dev, built with podman on a workstation, which names local builds localhost/; on the node, localhost is the node itself, where no registry answers.",
+  "rule": "KD103",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "localhost"
+    ],
+    [
+      "node itself"
+    ],
+    [
+      "podman",
+      "workstation"
+    ]
+  ]
+}

@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-nodename-bypasses-binding",
-              "Masked": "U0smcENXeDVESjkkdSFPNUVkOTFdJVVAJH1XWA=="
+              "Masked": "SDN3USJfIl46QmNlIyNTR1JhNCpdeVM7NUFsOA=="
             },
             {
               "Unmasked": "db",
-              "Masked": "ZWo="
+              "Masked": "PXI="
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-nodename-bypasses-binding/db has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"db-68946d5798\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodename-bypasses-binding",
+              "Masked": "UmJRK1lfRi9ERiFwSUhpMGN6XXV0SEIhN2xePw=="
+            },
+            {
+              "Unmasked": "db",
+              "Masked": "QVg="
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-nodename-bypasses-binding/db-68946d5798-bw2gz",
+      "name": "kd-nodename-bypasses-binding/db-68946d5798-lw6d7",
       "error": [
         {
           "Text": "Unable to attach or mount volumes: unmounted volumes=[data], unattached volumes=[], failed to process volumes=[data]: error processing PVC kd-nodename-bypasses-binding/data: PVC is not bound",

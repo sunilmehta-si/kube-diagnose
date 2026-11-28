@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-no-driver"
   ],
-  "collectedAt": "2026-11-26 05:47 UTC",
+  "collectedAt": "2026-11-28 13:06 UTC",
   "findings": [
     {
       "rule": "KD323",
@@ -15,16 +15,16 @@
         "namespace": "kd-dra-no-driver",
         "name": "trainer"
       },
-      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-shj8d-gpu-49dgv asks for devices of DeviceClass accel.example.com, and no ResourceSlice offers a device from driver accel.example.com, which the class's selectors pick: the driver is not running, or it has found no device on any node, so the scheduler cannot allocate the claim on any node; Deployment trainer has 0 of 1 replicas ready",
+      "cause": "request gpu of ResourceClaim trainer-7845ff4f5b-l94kz-gpu-c2km7 asks for devices of DeviceClass accel.example.com, and no ResourceSlice offers a device from driver accel.example.com, which the class's selectors pick: the driver is not running, or it has found no device on any node, so the scheduler cannot allocate the claim on any node; Deployment trainer has 0 of 1 replicas ready",
       "evidence": [
         {
           "object": {
             "kind": "ResourceClaim",
             "namespace": "kd-dra-no-driver",
-            "name": "trainer-7845ff4f5b-shj8d-gpu-49dgv"
+            "name": "trainer-7845ff4f5b-l94kz-gpu-c2km7"
           },
-          "what": "ResourceClaim trainer-7845ff4f5b-shj8d-gpu-49dgv's device requests",
-          "command": "kubectl get resourceclaim trainer-7845ff4f5b-shj8d-gpu-49dgv -n kd-dra-no-driver -o jsonpath='{.spec.devices.requests}'"
+          "what": "ResourceClaim trainer-7845ff4f5b-l94kz-gpu-c2km7's device requests",
+          "command": "kubectl get resourceclaim trainer-7845ff4f5b-l94kz-gpu-c2km7 -n kd-dra-no-driver -o jsonpath='{.spec.devices.requests}'"
         },
         {
           "object": {
@@ -38,11 +38,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-no-driver",
-            "name": "trainer-7845ff4f5b-shj8d"
+            "name": "trainer-7845ff4f5b-l94kz"
           },
           "what": "event FailedScheduling (2 times)",
           "detail": "0/1 nodes are available: 1 cannot allocate all claims. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",
-          "command": "kubectl get events -n kd-dra-no-driver --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-shj8d"
+          "command": "kubectl get events -n kd-dra-no-driver --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-l94kz"
         },
         {
           "object": {
@@ -58,7 +58,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dra-no-driver",
-          "name": "trainer-7845ff4f5b-shj8d"
+          "name": "trainer-7845ff4f5b-l94kz"
         }
       ]
     }

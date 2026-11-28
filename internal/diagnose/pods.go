@@ -120,6 +120,12 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		if pr := subdomainProblem(ix, p, nil, nil, nil); pr != nil {
 			return pr
 		}
+		if pr := hostAliasService(ix, p, nil, nil); pr != nil {
+			return pr
+		}
+		if pr := dnsLimits(ix, p); pr != nil {
+			return pr
+		}
 		return preStopOutlastsGrace(p)
 	}
 	return nil
@@ -554,6 +560,11 @@ func imagePull(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 			fmt.Sprintf("registry %s speaks plain HTTP and the node pulls image %s over HTTPS", host, image), "plainhttp|"+host,
 			fmt.Sprintf("Serve %s over TLS, or configure every node's runtime to use HTTP for it (for containerd, a hosts.toml under /etc/containerd/certs.d/%s with server = \"http://%s\").", host, host, host), ev...)
 	case reNetwork.MatchString(msg) && !reNotFound.MatchString(msg):
+		if host := registry(image); localRegistry(host) {
+			return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
+				fmt.Sprintf("image %s names registry %s, and on node %s that is the node itself, where no registry answers: the image was built on a workstation (podman and buildah name local builds localhost/...) or pushed to a registry there, and the node cannot reach either", image, host, p.Spec.NodeName),
+				"net|"+host, "Push the image to a registry the nodes can reach and use that name, or load it onto the nodes (kind load docker-image, minikube image load) and set imagePullPolicy: IfNotPresent so the kubelet does not pull it.", ev...)
+		}
 		return newProblem(p, cs.Name, "KD103", "Registry cannot be reached", Critical,
 			fmt.Sprintf("the node cannot reach the registry for image %s", image), "net|"+registry(image),
 			"Check the registry host name in the image, and that nodes can resolve and reach it (DNS, egress, proxy).", ev...)
@@ -625,10 +636,20 @@ func deniedReason(msg string) string {
 }
 
 func registry(image string) string {
-	if i := strings.Index(image, "/"); i > 0 && strings.ContainsAny(image[:i], ".:") {
+	// The first part is a registry when it has a dot or a port, or is localhost, as the container runtimes read it.
+	if i := strings.Index(image, "/"); i > 0 && (strings.ContainsAny(image[:i], ".:") || image[:i] == "localhost") {
 		return image[:i]
 	}
 	return "docker.io"
+}
+
+// localRegistry reports whether a registry host is the loopback address, which on a node is the node itself.
+func localRegistry(host string) bool {
+	h := host
+	if i := strings.LastIndex(h, ":"); i > 0 && !strings.HasSuffix(h, "]") {
+		h = h[:i]
+	}
+	return h == "localhost" || h == "127.0.0.1" || h == "[::1]"
 }
 
 // ---- configuration ----
@@ -757,7 +778,13 @@ func missingObject(ix *index, p kube.Pod, container, kind, name string, ev []Evi
 func missingKey(ix *index, p kube.Pod, container, kind, name, key string, ev []Evidence) *problem {
 	k := kindName(kind)
 	ns := p.Metadata.Namespace
+	cause := fmt.Sprintf("container %s reads key %s from %s %s, which has no such key", container, key, k, name)
+	fix := fmt.Sprintf("Add key %s to %s %s, or correct the key name in the pod spec.", key, k, name)
 	if ks, exists, _ := ix.keySet(strings.ToLower(k), ns, name); exists {
+		if near := closeKey(key, ks.Keys); near != "" {
+			cause += fmt.Sprintf("; it has %s, which differs only in %s", near, keyDifference(key, near))
+			fix = fmt.Sprintf("Read key %s, as %s %s spells it, or rename the key in %s %s to %s.", near, k, name, k, name, key)
+		}
 		have := "no keys"
 		if len(ks.Keys) > 0 {
 			have = "keys " + strings.Join(ks.Keys, ", ")
@@ -767,9 +794,46 @@ func missingKey(ix *index, p kube.Pod, container, kind, name, key string, ev []E
 			Command: fmt.Sprintf("kubectl get %s %s -n %s -o go-template=%s", strings.ToLower(k), name, ns,
 				shq(`{{range $k, $v := .data}}{{$k}}{{"\n"}}{{end}}`))})
 	}
-	return newProblem(p, container, "KD132", "Key missing from "+k, Critical,
-		fmt.Sprintf("container %s reads key %s from %s %s, which has no such key", container, key, k, name),
-		k+"|"+name+"|"+key, fmt.Sprintf("Add key %s to %s %s, or correct the key name in the pod spec.", key, k, name), ev...)
+	return newProblem(p, container, "KD132", "Key missing from "+k, Critical, cause, k+"|"+name+"|"+key, fix, ev...)
+}
+
+// normalKey is a key name with case and separators (-, _, .) left out: DB_PASSWORD and db-password read the same.
+func normalKey(k string) string {
+	return strings.NewReplacer("-", "", "_", "", ".", "").Replace(strings.ToLower(k))
+}
+
+// closeKey returns the key that a missing key was most likely meant to be: the same name in another case or with
+// other separators (DB_PASSWORD for db-password), or one a letter or two away in a name long enough to tell.
+func closeKey(want string, have []string) string {
+	for _, k := range have {
+		if normalKey(k) == normalKey(want) {
+			return k
+		}
+	}
+	best, bestD := "", 3
+	for _, k := range have {
+		if len(want) < 6 || len(k) < 6 {
+			continue
+		}
+		if d := editDistance(normalKey(k), normalKey(want)); d < bestD {
+			best, bestD = k, d
+		}
+	}
+	return best
+}
+
+// keyDifference says how a key differs from the one closeKey found.
+func keyDifference(want, near string) string {
+	lower := func(s string) bool { return strings.ToLower(s) == s }
+	switch {
+	case strings.EqualFold(want, near):
+		return "case"
+	case normalKey(want) == normalKey(near) && lower(want) == lower(near):
+		return "its separators (- _ .)"
+	case normalKey(want) == normalKey(near):
+		return "case and separators (- _ .)"
+	}
+	return "spelling"
 }
 
 var (
@@ -980,6 +1044,9 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 		return newProblem(p, cs.Name, "KD207", "Seccomp profile is not on the node", Critical, cause, "seccomp|"+path,
 			"Put the profile on every node that may run the pod, under the kubelet's seccomp directory (the Security Profiles Operator or a DaemonSet can install it), keep the pod to the nodes that have it, or use seccompProfile type RuntimeDefault.", ev...)
 	}
+	if pr := workingDirFails(p, cs, c, msg, ev); pr != nil {
+		return pr
+	}
 	switch {
 	case reExecFormat.MatchString(msg):
 		return execFormat(p, cs, ev)
@@ -1009,6 +1076,62 @@ func startError(ix *index, p kube.Pod, cs kube.ContainerStatus, msg string) *pro
 			"Correct the command (or the image's entrypoint): use a path that exists in the image.", ev...)
 	}
 	return nil
+}
+
+// reChdir is runc failing to enter the container's working directory, the last step before it runs the command. runc
+// tries as root first and again as the container's user only when root is refused, so permission denied means
+// neither may enter it (a volume that squashes root, such as NFS). reMkdirCwd is runc creating a missing working
+// directory, which fails on a path that is a file in the image, or that has one where a directory should be.
+var (
+	reChdir    = regexp.MustCompile(`chdir to cwd \(\\?"([^"\\]+)\\?"\) set in config\.json failed: ([a-z ]+)`)
+	reMkdirCwd = regexp.MustCompile(`mkdir (/[^:\s]*): not a directory`)
+)
+
+// workingDirFails finds a container the runtime cannot start because it cannot create or enter the container's
+// working directory: a path that is a file in the image (the program, not the directory that holds it), or a
+// directory neither root nor the container's user may enter.
+func workingDirFails(p kube.Pod, cs kube.ContainerStatus, c kube.Container, msg string, ev []Evidence) *problem {
+	m := reChdir.FindStringSubmatch(msg)
+	if m == nil {
+		// The mkdir error names the path that is a file: the working directory itself, or one of its parents. A
+		// volume's mount point that fails the same way is reported with the mount, so only these are read here.
+		mk := reMkdirCwd.FindStringSubmatch(msg)
+		if mk == nil || c.WorkingDir == "" || (mk[1] != c.WorkingDir && !strings.HasPrefix(c.WorkingDir, strings.TrimSuffix(mk[1], "/")+"/")) {
+			return nil
+		}
+		m = []string{"", c.WorkingDir, "not a directory"}
+		if mk[1] != c.WorkingDir {
+			m[1] = mk[1]
+		}
+	}
+	dir, why := m[1], strings.TrimSpace(m[2])
+	from := "the image's WORKDIR"
+	if c.WorkingDir != "" {
+		from = "its workingDir"
+	}
+	cause := fmt.Sprintf("container %s cannot start: the runtime cannot enter %s, %s (%s)", cs.Name, dir, from, why)
+	fix := "Set workingDir to a directory the container may enter (one under /tmp, or one the image creates for its user), or leave it unset to use the image's WORKDIR."
+	switch {
+	case strings.Contains(why, "permission denied"):
+		user := "its user"
+		if u, ok := p.RunAsUser(cs.Name); ok {
+			user = fmt.Sprintf("user %d", u)
+		}
+		cause = fmt.Sprintf("container %s cannot start: neither the runtime, as root, nor %s may enter its working directory %s (%s) (permission denied); the runtime tries as root first, so this is a directory root is refused too, as on a volume that squashes root (NFS)", cs.Name, user, dir, from)
+		fix = fmt.Sprintf("Give %s to %s where it lives (on the NFS server for a squashed volume), or use a working directory under /tmp or a volume %s owns.", dir, user, user)
+	case strings.Contains(why, "not a directory"):
+		file := dir
+		if c.WorkingDir != "" && c.WorkingDir != dir {
+			cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is under %s, which is a file in the image, not a directory (not a directory), so the runtime cannot create it", cs.Name, c.WorkingDir, from, dir)
+			dir = c.WorkingDir
+		} else {
+			cause = fmt.Sprintf("container %s cannot start: its working directory %s (%s) is a file in the image, not a directory (not a directory)", cs.Name, dir, from)
+		}
+		fix = fmt.Sprintf("Set workingDir to a directory: the one that holds the file, %s, or another the image has.", path.Dir(file))
+	}
+	ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("container %s's workingDir and user", cs.Name),
+		Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.containers[?(@.name=="%s")].workingDir}{" "}{.spec.securityContext}{" "}{.spec.containers[?(@.name=="%s")].securityContext}`, cs.Name, cs.Name))})
+	return newProblem(p, cs.Name, "KD237", "Container cannot enter its working directory", Critical, cause, "cwd|"+dir, fix, ev...)
 }
 
 // volumeHidesCommand finds a command the runtime cannot find because a volume is mounted on the directory that holds
@@ -1132,6 +1255,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 	if pr := windowsLineEndings(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
+	if pr := trailingNewline(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
 	if pr := shmTooSmall(p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
@@ -1160,6 +1286,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := downwardFieldMissing(p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := envFromKeyName(ix, p, cs, log.Lines, ev); pr != nil {
 		return pr
 	}
 	if pr := optionalEnvMissing(ix, p, cs, log.Lines, ev); pr != nil {
@@ -1205,6 +1334,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := hostAliasService(ix, p, &cs, log.Lines, ev...); pr != nil {
 		return pr
 	}
 	if pr := localhostForService(ix, p, cs, log.Lines, ev); pr != nil {
@@ -1540,6 +1672,14 @@ func oomKilled(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	fix := "Raise the container's memory limit to what it needs at peak, or reduce the app's memory use."
+	// No limit of its own, but the pod has one: its containers share it, and the kernel kills within the pod.
+	if r := p.Spec.Resources; limit == "" && r != nil && r.Limits["memory"] != "" {
+		limit = r.Limits["memory"]
+		cause = fmt.Sprintf("container %s is killed for memory (OOMKilled) under the pod's own %s memory limit (spec.resources.limits.memory): it sets no limit of its own, and that limit is shared by all %d of the pod's containers", cs.Name, limit, len(p.Spec.Containers)+len(p.Spec.InitContainers))
+		fix = fmt.Sprintf("Raise the pod-level memory limit (spec.resources.limits.memory, now %s) to what all the pod's containers use together at peak, or give %s a limit of its own inside it so that one container's growth is told apart.", limit, cs.Name)
+		ev = append(ev, Evidence{Object: p.Ref(), What: fmt.Sprintf("the pod has memory limit %s, and container %s has none", limit, cs.Name),
+			Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, fmt.Sprintf(`{.spec.resources}{" "}{.spec.containers[?(@.name=="%s")].resources}`, cs.Name))})
+	}
 	if lim, err := kube.ParseQuantity(limit); err == nil && lim > 0 {
 		if where, setting, size, ok := memorySetting(c); ok && size >= lim {
 			cause += fmt.Sprintf("; the app is told to use more than that: %s, %s, in %s", setting, kube.FormatQuantity("memory", size), where)

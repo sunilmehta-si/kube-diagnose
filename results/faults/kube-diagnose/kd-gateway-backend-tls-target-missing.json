@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-backend-tls-target-missing"
+  ],
+  "collectedAt": "2026-11-28 13:07 UTC",
+  "findings": [
+    {
+      "rule": "KD377",
+      "title": "Backend TLS policy targets a Service that does not exist",
+      "severity": "critical",
+      "object": {
+        "kind": "BackendTLSPolicy",
+        "namespace": "kd-gateway-backend-tls-target-missing",
+        "name": "payments-tls"
+      },
+      "cause": "BackendTLSPolicy payments-tls targets Service payments-svc, and there is no Service payments-svc in namespace kd-gateway-backend-tls-target-missing (there is a Service payments), so the policy applies to nothing: a Gateway connects without TLS to the Service it was written for, whose pods refuse plain-text connections if they serve only TLS",
+      "evidence": [
+        {
+          "object": {
+            "kind": "BackendTLSPolicy",
+            "namespace": "kd-gateway-backend-tls-target-missing",
+            "name": "payments-tls"
+          },
+          "what": "BackendTLSPolicy payments-tls targets Service payments-svc",
+          "command": "kubectl get backendtlspolicy payments-tls -n kd-gateway-backend-tls-target-missing -o jsonpath='{.spec.targetRefs}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-gateway-backend-tls-target-missing",
+            "name": "*"
+          },
+          "what": "the Services of namespace kd-gateway-backend-tls-target-missing",
+          "command": "kubectl get services -n kd-gateway-backend-tls-target-missing"
+        }
+      ],
+      "fix": "Point the policy's targetRefs at Service payments, if that is the one it was written for: a Gateway connects to it without TLS until a policy targets it."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

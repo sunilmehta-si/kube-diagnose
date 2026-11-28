@@ -1,0 +1,44 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Service",
+      "name": "kd-service-selects-pod-template-hash/web",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=web",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "app",
+              "Masked": "a190"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "IUUq"
+            }
+          ]
+        },
+        {
+          "Text": "Service has no endpoints, expected label pod-template-hash=5d9f7c6b8d",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "pod-template-hash",
+              "Masked": "MVItIlZCOF0wakA5ZzhMJHs="
+            },
+            {
+              "Unmasked": "5d9f7c6b8d",
+              "Masked": "VV87J21TXUA/dA=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

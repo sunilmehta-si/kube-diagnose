@@ -1,0 +1,65 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Pod",
+      "name": "kd-pod-fqdn-too-long/reporting-analytics-worker-0",
+      "error": [
+        {
+          "Text": "Failed to create pod sandbox: failed to construct FQDN from pod hostname and cluster domain, FQDN reporting-analytics-worker-0.reporting-analytics.kd-pod-fqdn-too-long.svc.cluster.local is too long (64 characters is the max, 87 characters requested)",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "StatefulSet/reporting-analytics-worker"
+    },
+    {
+      "kind": "Service",
+      "name": "kd-pod-fqdn-too-long/reporting-analytics",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=reporting-analytics",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "app",
+              "Masked": "QVV6"
+            },
+            {
+              "Unmasked": "reporting-analytics",
+              "Masked": "SWg4diZAKmduejZscUBedlU8KQ=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "StatefulSet",
+      "name": "kd-pod-fqdn-too-long/reporting-analytics-worker",
+      "error": [
+        {
+          "Text": "Statefulset pod reporting-analytics-worker-0 in the namespace kd-pod-fqdn-too-long is not in running state.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "reporting-analytics-worker-0",
+              "Masked": "cE1vZXA3czlLR3puR1ROPl9mMmgkZXNVTHtFKg=="
+            },
+            {
+              "Unmasked": "kd-pod-fqdn-too-long",
+              "Masked": "JEk/amVVakRBRllrQDhKWXxDWVo="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

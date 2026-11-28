@@ -117,8 +117,8 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 		t.Errorf("node selector: %s", sel)
 	}
 	gateway, _ := filepath.Glob("../../results/faults/k8sgpt/kd-gateway-*.json")
-	if len(gateway) != 12 {
-		t.Errorf("the README says twelve Gateway API scenarios; results hold %d", len(gateway))
+	if len(gateway) != 15 {
+		t.Errorf("the README says fifteen Gateway API scenarios; results hold %d", len(gateway))
 	}
 	// The device-claim scenarios: k8sgpt names the Deployment short of replicas, and nothing of the claim.
 	dra, _ := filepath.Glob("../../results/faults/k8sgpt/kd-dra-*.json")
@@ -139,9 +139,17 @@ func TestReadmeDescribesK8sGPTsOutput(t *testing.T) {
 			t.Errorf("%s: the README says k8sgpt said nothing more: %s", ns, got)
 		}
 	}
+	// For the backend TLS policies k8sgpt names only the CA ConfigMap, as one no pod uses.
 	nss := []string{"kd-networkpolicy-deny-all"}
 	for _, f := range gateway {
-		nss = append(nss, strings.TrimSuffix(filepath.Base(f), ".json"))
+		ns := strings.TrimSuffix(filepath.Base(f), ".json")
+		if strings.HasPrefix(ns, "kd-gateway-backend-tls-") {
+			if got, n := text(ns); n != 1 || !strings.Contains(got, "is not used by any pods") {
+				t.Errorf("%s: the README says k8sgpt said only that the CA ConfigMap is not used by any pods: %s", ns, got)
+			}
+			continue
+		}
+		nss = append(nss, ns)
 	}
 	for _, ns := range nss {
 		if _, n := text(ns); n != 0 {

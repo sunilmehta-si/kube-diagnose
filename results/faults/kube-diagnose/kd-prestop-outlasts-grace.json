@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-prestop-outlasts-grace"
   ],
-  "collectedAt": "2026-11-26 05:52 UTC",
+  "collectedAt": "2026-11-28 13:15 UTC",
   "findings": [
     {
       "rule": "KD208",
@@ -21,10 +21,10 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-prestop-outlasts-grace",
-            "name": "web-55b469ccdc-rwxbh"
+            "name": "web-55b469ccdc-vlcfb"
           },
           "what": "container web's preStop hook and the pod's terminationGracePeriodSeconds",
-          "command": "kubectl get pod web-55b469ccdc-rwxbh -n kd-prestop-outlasts-grace -o jsonpath='{.spec.terminationGracePeriodSeconds}{\"\\n\"}{.spec.containers[?(@.name==\"web\")].lifecycle.preStop}'"
+          "command": "kubectl get pod web-55b469ccdc-vlcfb -n kd-prestop-outlasts-grace -o jsonpath='{.spec.terminationGracePeriodSeconds}{\"\\n\"}{.spec.containers[?(@.name==\"web\")].lifecycle.preStop}'"
         }
       ],
       "fix": "Set terminationGracePeriodSeconds above the preStop wait plus the app's own shutdown time (for example 75), or shorten the preStop sleep.",
@@ -32,7 +32,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-prestop-outlasts-grace",
-          "name": "web-55b469ccdc-rwxbh"
+          "name": "web-55b469ccdc-vlcfb"
         }
       ]
     }

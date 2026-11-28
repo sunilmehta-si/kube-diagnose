@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-dra-claim-quota"
   ],
-  "collectedAt": "2026-11-26 05:47 UTC",
+  "collectedAt": "2026-11-28 13:06 UTC",
   "findings": [
     {
       "rule": "KD330",
@@ -21,11 +21,11 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-dra-claim-quota",
-            "name": "trainer-7845ff4f5b-fpbpl"
+            "name": "trainer-7845ff4f5b-vsrnj"
           },
-          "what": "event FailedResourceClaimCreation (7 times)",
-          "detail": "(combined from similar events): PodResourceClaim gpu: create ResourceClaim : resourceclaims.resource.k8s.io \"trainer-7845ff4f5b-fpbpl-gpu-9cgl6\" is forbidden: exceeded quota: dra-claims, requested: count/resourceclaims.resource.k8s.io=1, used: count/resourceclaims.resource.k8s.io=0, limited: count/resourceclaims.resource.k8s.io=0",
-          "command": "kubectl get events -n kd-dra-claim-quota --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-fpbpl"
+          "what": "event FailedResourceClaimCreation (8 times)",
+          "detail": "(combined from similar events): PodResourceClaim gpu: create ResourceClaim : resourceclaims.resource.k8s.io \"trainer-7845ff4f5b-vsrnj-gpu-27dfx\" is forbidden: exceeded quota: dra-claims, requested: count/resourceclaims.resource.k8s.io=1, used: count/resourceclaims.resource.k8s.io=0, limited: count/resourceclaims.resource.k8s.io=0",
+          "command": "kubectl get events -n kd-dra-claim-quota --field-selector involvedObject.kind=Pod,involvedObject.name=trainer-7845ff4f5b-vsrnj"
         },
         {
           "object": {
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-dra-claim-quota",
-          "name": "trainer-7845ff4f5b-fpbpl"
+          "name": "trainer-7845ff4f5b-vsrnj"
         }
       ]
     }

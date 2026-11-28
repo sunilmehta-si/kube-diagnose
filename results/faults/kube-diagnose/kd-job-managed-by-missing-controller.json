@@ -1,0 +1,39 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-job-managed-by-missing-controller"
+  ],
+  "collectedAt": "2026-11-28 13:11 UTC",
+  "findings": [
+    {
+      "rule": "KD298",
+      "title": "Job is left to another controller, which has not run it",
+      "severity": "warning",
+      "object": {
+        "kind": "Job",
+        "namespace": "kd-job-managed-by-missing-controller",
+        "name": "train"
+      },
+      "cause": "Job train has spec.managedBy batch.example.com/scheduler, so Kubernetes' Job controller leaves it alone and creates no pods; in 12m0s that controller has not started it either (the Job has no status), so it is not running here or does not take this Job",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Job",
+            "namespace": "kd-job-managed-by-missing-controller",
+            "name": "train"
+          },
+          "what": "Job train has spec.managedBy batch.example.com/scheduler and no status after 12m0s",
+          "command": "kubectl get job train -n kd-job-managed-by-missing-controller -o jsonpath='{.spec.managedBy}{\" \"}{.status}'"
+        }
+      ],
+      "fix": "Run the controller that batch.example.com/scheduler names, or create the Job without spec.managedBy so Kubernetes' Job controller runs it (the field cannot be changed on an existing Job: delete and recreate it)."
+    }
+  ],
+  "checked": {
+    "pods": 0,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

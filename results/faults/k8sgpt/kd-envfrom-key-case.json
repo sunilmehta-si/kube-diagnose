@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-envfrom-key-case/api",
+      "error": [
+        {
+          "Text": "Deployment kd-envfrom-key-case/api has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-envfrom-key-case",
+              "Masked": "PFgsZSN7aHV1WTlOUnMjS1Q3Ig=="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "VnAr"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-envfrom-key-case/api-7b8d5f7cb7-z6bjs",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=api pod=api-7b8d5f7cb7-z6bjs",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/api"
+    }
+  ]
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pdb-blocks-drain"
   ],
-  "collectedAt": "2026-11-26 05:52 UTC",
+  "collectedAt": "2026-11-28 13:14 UTC",
   "findings": [
     {
       "rule": "KD185",

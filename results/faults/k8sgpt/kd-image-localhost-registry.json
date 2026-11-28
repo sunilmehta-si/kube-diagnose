@@ -1,0 +1,57 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 3,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-image-localhost-registry/web",
+      "error": [
+        {
+          "Text": "Deployment kd-image-localhost-registry/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-image-localhost-registry",
+              "Masked": "bC4maXUqaUgwOUx4ekJHMjkwcUtoP0s8b0Aq"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "dVVI"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-image-localhost-registry/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-74f5b6db6d\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-image-localhost-registry",
+              "Masked": "ZndTUjx5M0M0bmpdWj9pKklLJj1weHlyR251"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "ZShR"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-image-localhost-registry/web-74f5b6db6d-kzkw7",
+      "error": [
+        {
+          "Text": "Back-off pulling image \"localhost/kube-diagnose-missing/web:dev\": ErrImagePull: failed to pull and unpack image \"localhost/kube-diagnose-missing/web:dev\": failed to resolve reference \"localhost/kube-diagnose-missing/web:dev\": failed to do request: Head \"https://localhost/v2/kube-diagnose-missing/web/manifests/dev\": dial tcp [::1]:443: connect: connection refused",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

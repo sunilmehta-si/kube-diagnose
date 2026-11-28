@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-externalname-unresolved",
-              "Masked": "dzhmdVdNd3VNQF4lMFJUUHklKCM/NkJNZTc="
+              "Masked": "Py1UaFglYixmakVRYSxUR1d7TnJEVHU6Lyg="
             },
             {
               "Unmasked": "api",
-              "Masked": "S1BV"
+              "Masked": "N1U6"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-externalname-unresolved/api-fc8cdb868-zbkd8",
+      "name": "kd-externalname-unresolved/api-fc8cdb868-ht856",
       "error": [
         {
-          "Text": "the termination reason is Error exitCode=1 container=api pod=api-fc8cdb868-zbkd8",
+          "Text": "the last termination reason is Error container=api pod=api-fc8cdb868-ht856",
           "KubernetesDoc": "",
           "Sensitive": []
         }

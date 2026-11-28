@@ -1,0 +1,39 @@
+# ConfigMap api-config holds db-host and db-port, and the api loads it with envFrom; envFrom keeps each key's name, so the container has db-host and no DB_HOST, and the api exits because DB_HOST is not set.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-envfrom-key-case
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-config
+  namespace: kd-envfrom-key-case
+data:
+  # Written in the style of the chart's values file, not as the app's variables.
+  db-host: db
+  db-port: "5432"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kd-envfrom-key-case
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          envFrom:
+            - configMapRef:
+                name: api-config
+          command: ["sh", "-c", ": \"${DB_HOST:?DB_HOST is not set}\"; echo connecting to $DB_HOST; sleep 3600"]

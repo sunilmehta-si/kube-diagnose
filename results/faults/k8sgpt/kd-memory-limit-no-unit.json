@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-memory-limit-no-unit",
-              "Masked": "ZXY7RSZLQXE5Lz0mMmJmUFs0NiYhUGk="
+              "Masked": "YmkrSnJWJF9WaGIoR089RUQtVk4jWFY="
             },
             {
               "Unmasked": "api",
-              "Masked": "bjc0"
+              "Masked": "TDBR"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-memory-limit-no-unit/api has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"api-6f9bcbd468\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-memory-limit-no-unit",
+              "Masked": "NU91L2RwOD1ZJW5tV0pxRU8kMXVFeXo="
+            },
+            {
+              "Unmasked": "api",
+              "Masked": "aiZi"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-memory-limit-no-unit/api-6f9bcbd468-97tgj",
+      "name": "kd-memory-limit-no-unit/api-6f9bcbd468-k8xs5",
       "error": [
         {
-          "Text": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-l57gx\" : write /var/lib/kubelet/pods/5b1c3d50-c762-4eca-a31a-928a75df1b97/volumes/kubernetes.io~projected/kube-api-access-l57gx/..2026_11_26_05_50_24.3644495954/namespace: no space left on device",
+          "Text": "(combined from similar events): MountVolume.SetUp failed for volume \"kube-api-access-5bdnk\" : write /var/lib/kubelet/pods/b258c351-4bb3-43e4-ba9f-f783b3a551b9/volumes/kubernetes.io~projected/kube-api-access-5bdnk/..2026_11_28_13_12_13.2955756867/ca.crt: no space left on device",
           "KubernetesDoc": "",
           "Sensitive": []
         }

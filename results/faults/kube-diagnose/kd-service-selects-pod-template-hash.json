@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-service-selects-pod-template-hash"
+  ],
+  "collectedAt": "2026-11-28 13:20 UTC",
+  "findings": [
+    {
+      "rule": "KD160",
+      "title": "Service selects no pods",
+      "severity": "critical",
+      "object": {
+        "kind": "Service",
+        "namespace": "kd-service-selects-pod-template-hash",
+        "name": "web"
+      },
+      "cause": "Service web selects pods with app=web,pod-template-hash=5d9f7c6b8d, and no pod in namespace kd-service-selects-pod-template-hash has those labels: pod-template-hash=5d9f7c6b8d is a label the Deployment controller, one value per ReplicaSet puts on the pods it creates, and it changes with each rollout, so a selector copied from a pod matches only that rollout's pods; the pods now carry pod-template-hash=696d644569",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-service-selects-pod-template-hash",
+            "name": "web"
+          },
+          "what": "Service selects pods with app=web,pod-template-hash=5d9f7c6b8d",
+          "command": "kubectl get service web -n kd-service-selects-pod-template-hash -o jsonpath='{.spec.selector}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-service-selects-pod-template-hash",
+            "name": "*"
+          },
+          "what": "pods with app=web carry pod-template-hash=696d644569",
+          "command": "kubectl get pods -n kd-service-selects-pod-template-hash -l app=web -L pod-template-hash"
+        }
+      ],
+      "fix": "Remove pod-template-hash from the Service's selector and select the pods by the labels their template gives them (app=web)."
+    }
+  ],
+  "checked": {
+    "pods": 2,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

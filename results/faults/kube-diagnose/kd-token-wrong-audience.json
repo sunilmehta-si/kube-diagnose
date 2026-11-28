@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-token-wrong-audience"
   ],
-  "collectedAt": "2026-11-26 05:56 UTC",
+  "collectedAt": "2026-11-28 13:22 UTC",
   "findings": [
     {
       "rule": "KD316",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-token-wrong-audience",
-            "name": "sync-895975bd6-srsnw"
+            "name": "sync-895975bd6-q92fz"
           },
-          "what": "container sync exited with code 1 (Error), restarted 7 times",
-          "command": "kubectl get pod sync-895975bd6-srsnw -n kd-token-wrong-audience -o jsonpath='{.status.containerStatuses[?(@.name==\"sync\")].lastState.terminated}'"
+          "what": "container sync exited with code 1 (Error), restarted 8 times",
+          "command": "kubectl get pod sync-895975bd6-q92fz -n kd-token-wrong-audience -o jsonpath='{.status.containerStatuses[?(@.name==\"sync\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-token-wrong-audience",
-            "name": "sync-895975bd6-srsnw"
+            "name": "sync-895975bd6-q92fz"
           },
           "what": "last lines of container sync's log (run that exited)",
           "detail": "listing pods\nwget: note: TLS certificate validation not implemented\nwget: server returned error: HTTP/1.1 401 Unauthorized",
-          "command": "kubectl logs sync-895975bd6-srsnw -n kd-token-wrong-audience -c sync --tail=20 --previous"
+          "command": "kubectl logs sync-895975bd6-q92fz -n kd-token-wrong-audience -c sync --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-token-wrong-audience",
-            "name": "sync-895975bd6-srsnw"
+            "name": "sync-895975bd6-q92fz"
           },
           "what": "volume vault-token projects a ServiceAccount token for audience vault at /var/run/secrets/tokens/vault-token",
-          "command": "kubectl get pod sync-895975bd6-srsnw -n kd-token-wrong-audience -o jsonpath='{.spec.volumes[?(@.name==\"vault-token\")].projected.sources}'"
+          "command": "kubectl get pod sync-895975bd6-q92fz -n kd-token-wrong-audience -o jsonpath='{.spec.volumes[?(@.name==\"vault-token\")].projected.sources}'"
         }
       ],
       "fix": "Call the API server with a token for its own audience: the default one at /var/run/secrets/kubernetes.io/serviceaccount/token (automounted unless turned off), or a projected token with no audience. Keep the vault token for vault.",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-token-wrong-audience",
-          "name": "sync-895975bd6-srsnw"
+          "name": "sync-895975bd6-q92fz"
         }
       ]
     }

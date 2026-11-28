@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-sidecar-startup-probe",
-              "Masked": "Xj0/d3o2VHdZcEJ5MkpXcDAwTVNPSHVJ"
+              "Masked": "dGt5NWRoOnQ9ZX1BODF1SzhKQSZ1aDt2"
             },
             {
               "Unmasked": "web",
-              "Masked": "XWtw"
+              "Masked": "S3dl"
             }
           ]
         },
@@ -28,11 +28,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-sidecar-startup-probe",
-              "Masked": "TDViPGJtRUdCSVFBXS9ZfCQ5bkUidGM0"
+              "Masked": "Uy1WJiFVUWNwJlA8WStfemRhcnZSS1Vf"
             },
             {
               "Unmasked": "web",
-              "Masked": "TXdm"
+              "Masked": "Unov"
             }
           ]
         }
@@ -42,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-sidecar-startup-probe/web-6cf79ccb5b-wgtkp",
+      "name": "kd-sidecar-startup-probe/web-6cf79ccb5b-7l4rk",
       "error": [
         {
-          "Text": "the last termination reason is Error container=proxy pod=web-6cf79ccb5b-wgtkp",
+          "Text": "the last termination reason is Error container=proxy pod=web-6cf79ccb5b-7l4rk",
           "KubernetesDoc": "",
           "Sensitive": []
         }

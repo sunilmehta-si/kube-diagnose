@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-requires-limits",
-              "Masked": "JnFAKFd6JHAsakhzNDkxXUJCMCplJGck"
+              "Masked": "QHsra100eyRGP01yeU12JEJ1Si07VFJJ"
             },
             {
               "Unmasked": "web",
-              "Masked": "VzAl"
+              "Masked": "TEI0"
             }
           ]
         },
@@ -28,17 +28,30 @@
           "Sensitive": [
             {
               "Unmasked": "kd-quota-requires-limits",
-              "Masked": "Rz0ycWcmeiZXbV4oNG0pQDIrZzY1ZT9S"
+              "Masked": "Z3dvQjwmPltDVWN4MkdPM0kyTWVFT1Rh"
             },
             {
               "Unmasked": "web",
-              "Masked": "TF5I"
+              "Masked": "VGRw"
             }
           ]
         }
       ],
       "details": "",
       "parentObject": ""
+    },
+    {
+      "kind": "ReplicaSet",
+      "name": "kd-quota-requires-limits/web-6d754df847",
+      "error": [
+        {
+          "Text": "pods \"web-6d754df847-sxhxs\" is forbidden: failed quota: compute: must specify limits.memory for: web",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
     },
     {
       "kind": "ConfigMap",
@@ -52,19 +65,6 @@
       ],
       "details": "",
       "parentObject": ""
-    },
-    {
-      "kind": "ReplicaSet",
-      "name": "kd-quota-requires-limits/web-6d754df847",
-      "error": [
-        {
-          "Text": "pods \"web-6d754df847-8g68g\" is forbidden: failed quota: compute: must specify limits.memory for: web",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "Deployment/web"
     }
   ]
 }

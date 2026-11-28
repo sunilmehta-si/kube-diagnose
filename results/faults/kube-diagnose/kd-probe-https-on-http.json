@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-probe-https-on-http"
   ],
-  "collectedAt": "2026-11-26 05:52 UTC",
+  "collectedAt": "2026-11-28 13:15 UTC",
   "findings": [
     {
       "rule": "KD202",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-https-on-http",
-            "name": "web-5d98948766-wkq82"
+            "name": "web-5d98948766-9gwz6"
           },
-          "what": "event Unhealthy (125 times)",
-          "detail": "Readiness probe failed: Get \"https://10.244.0.129:8080/\": http: server gave HTTP response to HTTPS client",
-          "command": "kubectl get events -n kd-probe-https-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=web-5d98948766-wkq82"
+          "what": "event Unhealthy (187 times)",
+          "detail": "Readiness probe failed: Get \"https://10.244.0.141:8080/\": http: server gave HTTP response to HTTPS client",
+          "command": "kubectl get events -n kd-probe-https-on-http --field-selector involvedObject.kind=Pod,involvedObject.name=web-5d98948766-9gwz6"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-probe-https-on-http",
-            "name": "web-5d98948766-wkq82"
+            "name": "web-5d98948766-9gwz6"
           },
           "what": "container web's readiness probe",
-          "command": "kubectl get pod web-5d98948766-wkq82 -n kd-probe-https-on-http -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
+          "command": "kubectl get pod web-5d98948766-9gwz6 -n kd-probe-https-on-http -o jsonpath='{.spec.containers[?(@.name==\"web\")].readinessProbe}'"
         }
       ],
       "fix": "Set the probe's httpGet.scheme to HTTP, the default, or serve TLS on that port if the probe should use HTTPS.",
@@ -42,7 +42,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-probe-https-on-http",
-          "name": "web-5d98948766-wkq82"
+          "name": "web-5d98948766-9gwz6"
         }
       ]
     }

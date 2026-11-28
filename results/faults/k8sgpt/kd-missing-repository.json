@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-missing-repository",
-              "Masked": "VVUhNFtPQjc+ai4zJzg9amRXbVNA"
+              "Masked": "I1Vub3hTXnNzVSdbQ2N4UUxSLzQx"
             },
             {
               "Unmasked": "web",
-              "Masked": "OSkx"
+              "Masked": "bUxh"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-missing-repository/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-ffc979654\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-missing-repository",
+              "Masked": "TiVfYjk+UUhqUTYmQnMmM0Q5QSdq"
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "e1Nj"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-missing-repository/web-ffc979654-4vjqx",
+      "name": "kd-missing-repository/web-ffc979654-vwt85",
       "error": [
         {
           "Text": "Back-off pulling image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": ErrImagePull: failed to pull and unpack image \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to resolve reference \"ghcr.io/sunilmehta-si/kube-diagnose-missing:1.0.0\": failed to authorize: failed to fetch anonymous token: unexpected status from GET request to https://ghcr.io/token?scope=repository%3Asunilmehta-si%2Fkube-diagnose-missing%3Apull\u0026service=ghcr.io: 403 Forbidden",

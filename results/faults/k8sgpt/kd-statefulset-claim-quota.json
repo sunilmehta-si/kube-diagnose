@@ -5,6 +5,19 @@
   "problems": 3,
   "results": [
     {
+      "kind": "ConfigMap",
+      "name": "kd-statefulset-claim-quota/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
       "kind": "Service",
       "name": "kd-statefulset-claim-quota/db",
       "error": [
@@ -14,26 +27,13 @@
           "Sensitive": [
             {
               "Unmasked": "app",
-              "Masked": "NVgk"
+              "Masked": "K29J"
             },
             {
               "Unmasked": "db",
-              "Masked": "Z3k="
+              "Masked": "I18="
             }
           ]
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "ConfigMap",
-      "name": "kd-statefulset-claim-quota/kube-root-ca.crt",
-      "error": [
-        {
-          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
-          "KubernetesDoc": "",
-          "Sensitive": []
         }
       ],
       "details": "",

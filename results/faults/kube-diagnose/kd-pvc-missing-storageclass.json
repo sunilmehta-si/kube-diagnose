@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-pvc-missing-storageclass"
   ],
-  "collectedAt": "2026-11-26 05:53 UTC",
+  "collectedAt": "2026-11-28 13:16 UTC",
   "findings": [
     {
       "rule": "KD150",
@@ -49,7 +49,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-pvc-missing-storageclass",
-          "name": "web-689b97894-n5b9v"
+          "name": "web-689b97894-kzf7r"
         }
       ]
     }

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-docker-socket-on-containerd"
   ],
-  "collectedAt": "2026-11-26 05:46 UTC",
+  "collectedAt": "2026-11-28 13:06 UTC",
   "findings": [
     {
       "rule": "KD135",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-docker-socket-on-containerd",
-            "name": "image-builder-86979f57d7-mcd55"
+            "name": "image-builder-86979f57d7-l427f"
           },
-          "what": "event FailedMount (10 times)",
+          "what": "event FailedMount (11 times)",
           "detail": "MountVolume.SetUp failed for volume \"docker\" : hostPath type check failed, /var/run/docker.sock is not a socket file, unable to determine its type: path \"/var/run/docker.sock\" does not exist",
-          "command": "kubectl get events -n kd-docker-socket-on-containerd --field-selector involvedObject.kind=Pod,involvedObject.name=image-builder-86979f57d7-mcd55"
+          "command": "kubectl get events -n kd-docker-socket-on-containerd --field-selector involvedObject.kind=Pod,involvedObject.name=image-builder-86979f57d7-l427f"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-docker-socket-on-containerd",
-            "name": "image-builder-86979f57d7-mcd55"
+            "name": "image-builder-86979f57d7-l427f"
           },
           "what": "volume docker",
-          "command": "kubectl get pod image-builder-86979f57d7-mcd55 -n kd-docker-socket-on-containerd -o jsonpath='{.spec.volumes[?(@.name==\"docker\")]}'"
+          "command": "kubectl get pod image-builder-86979f57d7-l427f -n kd-docker-socket-on-containerd -o jsonpath='{.spec.volumes[?(@.name==\"docker\")]}'"
         },
         {
           "object": {
@@ -50,7 +50,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-docker-socket-on-containerd",
-          "name": "image-builder-86979f57d7-mcd55"
+          "name": "image-builder-86979f57d7-l427f"
         }
       ]
     }

@@ -1,0 +1,48 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-gateway-route-to-deployment"
+  ],
+  "collectedAt": "2026-11-28 13:08 UTC",
+  "findings": [
+    {
+      "rule": "KD378",
+      "title": "Route sends traffic to a workload, not a Service",
+      "severity": "critical",
+      "object": {
+        "kind": "HTTPRoute",
+        "namespace": "kd-gateway-route-to-deployment",
+        "name": "shop"
+      },
+      "cause": "HTTPRoute shop sends the requests of rule 1 to Deployment storefront, and a route sends traffic to Services, not to Deployments: the controller cannot resolve the reference (InvalidKind) and answers those requests with an error (HTTP 500); Service storefront selects Deployment storefront's pods",
+      "evidence": [
+        {
+          "object": {
+            "kind": "HTTPRoute",
+            "namespace": "kd-gateway-route-to-deployment",
+            "name": "shop"
+          },
+          "what": "HTTPRoute backendRefs",
+          "command": "kubectl get httproute shop -n kd-gateway-route-to-deployment -o jsonpath='{.spec.rules[*].backendRefs}'"
+        },
+        {
+          "object": {
+            "kind": "Service",
+            "namespace": "kd-gateway-route-to-deployment",
+            "name": "storefront"
+          },
+          "what": "Service storefront selects Deployment storefront's pods",
+          "command": "kubectl get service storefront -n kd-gateway-route-to-deployment -o jsonpath='{.spec.selector}'"
+        }
+      ],
+      "fix": "Send the rule to Service storefront, which selects Deployment storefront's pods: set the backendRef's name to storefront and remove kind (and group), which default to Service."
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

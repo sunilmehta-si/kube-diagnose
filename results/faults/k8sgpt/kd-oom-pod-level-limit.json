@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-oom-pod-level-limit/indexer",
+      "error": [
+        {
+          "Text": "Deployment kd-oom-pod-level-limit/indexer has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-oom-pod-level-limit",
+              "Masked": "UTw1R1oxa1Utell4c3N0dCU0KnVVKA=="
+            },
+            {
+              "Unmasked": "indexer",
+              "Masked": "eV1KTiJwdA=="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-oom-pod-level-limit/indexer-695d56ddf9-8bfxg",
+      "error": [
+        {
+          "Text": "the last termination reason is OOMKilled container=indexer pod=indexer-695d56ddf9-8bfxg",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/indexer"
+    }
+  ]
+}

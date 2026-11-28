@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-job-active-deadline"
   ],
-  "collectedAt": "2026-11-26 05:49 UTC",
+  "collectedAt": "2026-11-28 13:11 UTC",
   "findings": [
     {
       "rule": "KD180",

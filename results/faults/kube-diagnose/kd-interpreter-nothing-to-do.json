@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-interpreter-nothing-to-do"
+  ],
+  "collectedAt": "2026-11-28 13:11 UTC",
+  "findings": [
+    {
+      "rule": "KD315",
+      "title": "Container runs a shell or interpreter with nothing to do",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-interpreter-nothing-to-do",
+        "name": "etl"
+      },
+      "cause": "container etl exits with code 0 as soon as it starts: it sets no command, and image python's default command is an interpreter (python3), and an interpreter given no program, no terminal and no input reads its program from that input, finds it empty and exits at once, and the kubelet restarts it; Deployment etl has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-interpreter-nothing-to-do",
+            "name": "etl-55577b9db-xwq9s"
+          },
+          "what": "container etl exited with code 0 (Completed), restarted 7 times",
+          "command": "kubectl get pod etl-55577b9db-xwq9s -n kd-interpreter-nothing-to-do -o jsonpath='{.status.containerStatuses[?(@.name==\"etl\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-interpreter-nothing-to-do",
+            "name": "etl-55577b9db-xwq9s"
+          },
+          "what": "container etl's image, command and args",
+          "command": "kubectl get pod etl-55577b9db-xwq9s -n kd-interpreter-nothing-to-do -o jsonpath='{.spec.containers[?(@.name==\"etl\")].image}{\" \"}{.spec.containers[?(@.name==\"etl\")].command}{\" \"}{.spec.containers[?(@.name==\"etl\")].args}'"
+        }
+      ],
+      "fix": "Give the container its program, the script the image copies in, as its command or args (python3 app.py); to keep it alive for debugging, run sleep infinity, and use kubectl debug or kubectl run -it for an interactive session.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-interpreter-nothing-to-do",
+          "name": "etl-55577b9db-xwq9s"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

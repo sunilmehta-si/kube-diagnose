@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 1,
+  "problems": 2,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-init-never-finishes",
-              "Masked": "ZWhpcFhEbUFDe09OL3lbdWxmY2M8SQ=="
+              "Masked": "R1h5QVVWQCtfQTBAT2JQIntAViF3Zg=="
             },
             {
               "Unmasked": "web",
-              "Masked": "Zj0k"
+              "Masked": "aENj"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-init-never-finishes/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-658bdbddd\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-init-never-finishes",
+              "Masked": "WlN6Nmg8Pl8+cWNkKXV4UEBSJGI2TA=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "Rj1y"
             }
           ]
         }

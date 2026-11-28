@@ -1,0 +1,19 @@
+{
+  "namespace": "kd-job-managed-by-missing-controller",
+  "description": "Job train has spec.managedBy batch.example.com/scheduler, copied from a cluster that runs that scheduler; Kubernetes' Job controller leaves it alone and nothing here runs it, so it never starts.",
+  "rule": "KD298",
+  "object": "Job/train",
+  "keywords": [
+    [
+      "managedBy"
+    ],
+    [
+      "batch.example.com/scheduler"
+    ],
+    [
+      "no pods",
+      "not started",
+      "has not started"
+    ]
+  ]
+}

@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Deployment",
+      "name": "kd-arg-trailing-newline/web",
+      "error": [
+        {
+          "Text": "Deployment kd-arg-trailing-newline/web has 1 replicas but 0 are available with status running",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-arg-trailing-newline",
+              "Masked": "ezQ5P3M+biwpdXJMLWZzJlhtRVNJNlQ="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "IzR4"
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-arg-trailing-newline/web-d76f578b5-lv7gk",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=web pod=web-d76f578b5-lv7gk",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "Deployment/web"
+    }
+  ]
+}

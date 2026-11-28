@@ -1,0 +1,21 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "ConfigMap",
+      "name": "kd-gateway-backend-tls-ca-missing/auth-ca",
+      "error": [
+        {
+          "Text": "ConfigMap auth-ca is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

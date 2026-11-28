@@ -1,0 +1,61 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-pod-fqdn-too-long"
+  ],
+  "collectedAt": "2026-11-28 13:15 UTC",
+  "findings": [
+    {
+      "rule": "KD239",
+      "title": "Pod's FQDN is too long to be its hostname",
+      "severity": "critical",
+      "object": {
+        "kind": "StatefulSet",
+        "namespace": "kd-pod-fqdn-too-long",
+        "name": "reporting-analytics-worker"
+      },
+      "cause": "the pod sets setHostnameAsFQDN, so the kubelet makes its full name reporting-analytics-worker-0.reporting-analytics.kd-pod-fqdn-too-long.svc.cluster.local (hostname, subdomain, namespace and cluster domain) the hostname, and at 87 characters it is longer than the 64 a Linux hostname may have, so the sandbox is never created; StatefulSet reporting-analytics-worker has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pod-fqdn-too-long",
+            "name": "reporting-analytics-worker-0"
+          },
+          "what": "event FailedCreatePodSandBox (46 times)",
+          "detail": "Failed to create pod sandbox: failed to construct FQDN from pod hostname and cluster domain, FQDN reporting-analytics-worker-0.reporting-analytics.kd-pod-fqdn-too-long.svc.cluster.local is too long (64 characters is the max, 87 characters requested)",
+          "command": "kubectl get events -n kd-pod-fqdn-too-long --field-selector involvedObject.kind=Pod,involvedObject.name=reporting-analytics-worker-0"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-pod-fqdn-too-long",
+            "name": "reporting-analytics-worker-0"
+          },
+          "what": "the pod's hostname, subdomain and setHostnameAsFQDN",
+          "command": "kubectl get pod reporting-analytics-worker-0 -n kd-pod-fqdn-too-long -o jsonpath='{.spec.hostname}{\" \"}{.spec.subdomain}{\" \"}{.spec.setHostnameAsFQDN}'"
+        }
+      ],
+      "fix": "Shorten the names that make up the FQDN to 64 characters or fewer (a StatefulSet's name and serviceName give its pods their hostname and subdomain, and the namespace counts too), or drop setHostnameAsFQDN: the pod's FQDN still resolves in DNS, and only the hostname inside the container is short.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-pod-fqdn-too-long",
+          "name": "reporting-analytics-worker-0"
+        },
+        {
+          "kind": "Service",
+          "namespace": "kd-pod-fqdn-too-long",
+          "name": "reporting-analytics"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 1,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

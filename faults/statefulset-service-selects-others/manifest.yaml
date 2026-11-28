@@ -1,0 +1,43 @@
+# StatefulSet db's governing Service db is headless but selects app=database, while the StatefulSet's pods carry app=db, so the pods get no DNS names and db-0.db does not resolve for their peers.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-statefulset-service-selects-others
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: db
+  namespace: kd-statefulset-service-selects-others
+spec:
+  clusterIP: None
+  # Written for the chart's old labels: the StatefulSet's pods are labelled app: db.
+  selector:
+    app: database
+  ports:
+    - port: 8080
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: db
+  namespace: kd-statefulset-service-selects-others
+spec:
+  serviceName: db
+  replicas: 2
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      containers:
+        - name: db
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8080", "-h", "/tmp"]
+          ports:
+            - containerPort: 8080

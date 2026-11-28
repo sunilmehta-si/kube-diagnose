@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-arg-trailing-newline",
+  "description": "Deployment web passes its config path as an args item written as a YAML literal block (- |), which keeps a newline at its end, so cat looks for /etc/app/app.conf with a line break in its name and the container exits.",
+  "rule": "KD238",
+  "object": "Deployment/web",
+  "keywords": [
+    [
+      "newline"
+    ],
+    [
+      "/etc/app/app.conf"
+    ],
+    [
+      "YAML",
+      "block"
+    ]
+  ]
+}

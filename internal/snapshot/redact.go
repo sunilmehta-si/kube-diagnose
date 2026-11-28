@@ -309,6 +309,20 @@ func (r *redactor) collect(s *Snapshot) {
 			}
 		}
 	}
+	for _, x := range s.LocalQueues {
+		r.addName("lq", x.Metadata.Name)
+		r.addName("cq", x.Spec.ClusterQueue)
+	}
+	for _, x := range s.BackendTLSPolicies {
+		r.addName("btls", x.Metadata.Name)
+		for _, t := range x.Spec.TargetRefs {
+			r.addName("svc", t.Name)
+		}
+		for _, c := range x.Spec.Validation.CACertificateRefs {
+			r.addName("cm", c.Name)
+		}
+		r.addHost(x.Spec.Validation.Hostname)
+	}
 	for _, x := range s.ReferenceGrants {
 		r.addName("refgrant", x.Metadata.Name)
 		for _, f := range x.Spec.From {
@@ -430,6 +444,18 @@ func (r *redactor) collect(s *Snapshot) {
 		for n := range r.names {
 			if suffix, ok := strings.CutPrefix(n, prefix); ok && pseudo != "" && reRunSuffix.MatchString(suffix) {
 				r.names[n] = pseudo + "-" + suffix
+			}
+		}
+	}
+	// A pod's hostAliases name hosts. One that starts with a name the snapshot holds (a Service: db, or
+	// db.shop.svc.cluster.local) is left to the text pass, which gives it that name's pseudonym, so KD317 still matches
+	// it to its Service; any other is a machine outside the cluster, named label by label.
+	for _, p := range s.Pods {
+		for _, a := range p.Spec.HostAliases {
+			for _, h := range a.Hostnames {
+				if _, ok := r.names[strings.Split(h, ".")[0]]; !ok {
+					r.addHost(h)
+				}
 			}
 		}
 	}

@@ -1,0 +1,28 @@
+# Deployment web runs image localhost/kube-diagnose-missing/web:dev, built with podman on a workstation, which names local builds localhost/; on the node, localhost is the node itself, where no registry answers.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-image-localhost-registry
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: kd-image-localhost-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      containers:
+        # podman build -t kube-diagnose-missing/web:dev names the image localhost/kube-diagnose-missing/web:dev; it was never pushed.
+        - name: web
+          image: localhost/kube-diagnose-missing/web:dev
+          ports:
+            - containerPort: 8080

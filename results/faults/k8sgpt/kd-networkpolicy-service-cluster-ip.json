@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-networkpolicy-service-cluster-ip",
-              "Masked": "bUlZOihyIVZRcXF0aFlISXAmLy9AVUNGXjZ4MHBpKCVFU1I="
+              "Masked": "a2kxYkhLRWRpLXYsZkhSdFp8KyY0YSFtQD1vLj50LFluWyo="
             },
             {
               "Unmasked": "client",
-              "Masked": "M2E2dmdX"
+              "Masked": "ZmN0eUg1"
             }
           ]
         }
@@ -28,10 +28,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-networkpolicy-service-cluster-ip/client-5858c98f74-79n5z",
+      "name": "kd-networkpolicy-service-cluster-ip/client-5858c98f74-fhr9s",
       "error": [
         {
-          "Text": "the last termination reason is Error container=client pod=client-5858c98f74-79n5z",
+          "Text": "the last termination reason is Error container=client pod=client-5858c98f74-fhr9s",
           "KubernetesDoc": "",
           "Sensitive": []
         }

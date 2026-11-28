@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-readiness-failing"
   ],
-  "collectedAt": "2026-11-26 05:54 UTC",
+  "collectedAt": "2026-11-28 13:17 UTC",
   "findings": [
     {
       "rule": "KD120",
@@ -21,20 +21,20 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-6jbzw"
+            "name": "web-ff6bfb896-7w8jw"
           },
-          "what": "event Unhealthy (205 times)",
+          "what": "event Unhealthy (308 times)",
           "detail": "Readiness probe failed: HTTP probe failed with statuscode: 404",
-          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-6jbzw"
+          "command": "kubectl get events -n kd-readiness-failing --field-selector involvedObject.kind=Pod,involvedObject.name=web-ff6bfb896-7w8jw"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-readiness-failing",
-            "name": "web-ff6bfb896-6jbzw"
+            "name": "web-ff6bfb896-7w8jw"
           },
           "what": "container web is running but not ready",
-          "command": "kubectl get pod web-ff6bfb896-6jbzw -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
+          "command": "kubectl get pod web-ff6bfb896-7w8jw -n kd-readiness-failing -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].ready}'"
         }
       ],
       "fix": "Set the probe's path to one the app serves (its health endpoint), or add that endpoint to the app.",
@@ -42,12 +42,12 @@
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-6jbzw"
+          "name": "web-ff6bfb896-7w8jw"
         },
         {
           "kind": "Pod",
           "namespace": "kd-readiness-failing",
-          "name": "web-ff6bfb896-zxsmv"
+          "name": "web-ff6bfb896-p246g"
         },
         {
           "kind": "Service",

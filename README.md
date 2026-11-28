@@ -8,7 +8,7 @@ that shows it to you. It never changes anything: every kubectl command it runs i
 
 ```text
 $ kubectl diagnose -n kd-liveness-wrong-port
-kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-26 05:50 UTC
+kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2026-11-28 13:12 UTC
 1 problem: 1 critical.
 
 1. CRITICAL  Liveness probe kills the container  KD112
@@ -17,15 +17,15 @@ kube-diagnose · context kind-kd-faults · namespace kd-liveness-wrong-port · 2
           port 8080), so the kubelet restarts it (7 restarts); Deployment web has 0 of 1 replicas
           ready
    Evidence:
-     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-56ch2: event Unhealthy (8 times)
-         │ Liveness probe failed: Get "http://10.244.0.82:9090/": dial tcp 10.244.0.82:9090: connect: connection refused
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-56ch2
-     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-56ch2: event Killing (6 times)
+     [1] Pod kd-liveness-wrong-port/web-67fbcb44db-zz8dp: event Unhealthy (8 times)
+         │ Liveness probe failed: Get "http://10.244.0.89:9090/": dial tcp 10.244.0.89:9090: connect: connection refused
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-zz8dp
+     [2] Pod kd-liveness-wrong-port/web-67fbcb44db-zz8dp: event Killing (6 times)
          │ Container web failed liveness probe, will be restarted
-         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-56ch2
+         $ kubectl get events -n kd-liveness-wrong-port --field-selector involvedObject.kind=Pod,involvedObject.name=web-67fbcb44db-zz8dp
    Fix: Point the probe at a port and path the app serves, or give it a startupProbe or longer
         initialDelaySeconds if it starts slowly.
-   Affects: Pod web-67fbcb44db-56ch2
+   Affects: Pod web-67fbcb44db-zz8dp
 ```
 
 That is a real run: the [fault suite](#the-fault-suite)'s recording of a Deployment whose liveness probe checks the
@@ -45,17 +45,18 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
   that refuses anything but `get`, `logs`, `version` and two `config` reads, and the tests hold every command the
   tool prints as evidence to the same allowlist. Secrets are read as key names only, through a kubectl template, so
   their values never reach the process.
-- **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 229 ways on
+- **Measured against real broken clusters.** The [fault suite](#the-fault-suite) breaks a kind cluster in 247 ways on
   every push and scores kube-diagnose, k8sgpt and HolmesGPT by the same test.
 
-It knows 228 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
+It knows 238 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
 no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or of the
-wrong type, commands written as one string, a flag and its value written as one argument, flags written under command
+wrong type, images named for registry localhost, which on a node is the node itself, commands written as one string, a flag and its value written as one argument, flags written under command
 where args is meant, scripts whose interpreter the image does not have or that were saved with Windows line endings,
 commands using a $(VARIABLE) the container does not define or the shell's $VARIABLE or an operator such as && with no
 shell, env values that refer to a variable defined after them, volumes mounted over the command, Localhost seccomp
-profiles the node does not have, AppArmor profiles it has not loaded, base images run with no command, whose shell exits
-at once, memory limits without a unit (memory: 512 is bytes), RuntimeClasses whose handler the node's runtime lacks,
+profiles the node does not have, AppArmor profiles it has not loaded, base and language images run with no command,
+whose shell or interpreter (python3, node) exits at once, working directories that are a file in the image, values that
+kept a YAML block's final newline, memory limits without a unit (memory: 512 is bytes), RuntimeClasses whose handler the node's runtime lacks,
 crashes (with the exit code explained and the log line that reads like the error quoted, and traced to the Service the
 app could not resolve or reach, the localhost address it used for a Service in another pod, the port the Service does
 not expose, the Service whose ready pods do not listen on the port it targets, the service link variable that replaced
@@ -68,12 +69,13 @@ ServiceAccount lacks, the Role that grants the resource in another API group, un
 or the subresource (pods/log) or only by resourceNames for a list, the permission granted in another namespace or by a
 RoleBinding for a cluster-wide request or to another ServiceAccount than the pod's, the RoleBinding that names a Role or
 a ServiceAccount that does not exist (or a Role bound as a ClusterRole), the IP address it was given in place of the
-Service's name, the optional key or pod label whose absence left a variable unset, the file its init container wrote
+Service's name or the hostAliases line that sends the Service's name to an old address, the optional key or pod label
+whose absence left a variable unset, the envFrom key written db-host for the DB_HOST it reads, the file its init container wrote
 where it mounts the volume elsewhere, the key file whose mode lets others read it, the user ID its image's /etc/passwd
 lacks, the ConfigMap mounted as a directory where it reads a file, the /dev/shm it filled (the runtime's 64 MiB), the
 API server's 401 for a projected token minted for another audience, the StatefulSet peers it could not resolve because
 their Service publishes ready pods only, or the token automounting turned off), out-of-memory kills (a memory-backed
-emptyDir, a LimitRange's default limit and the app's own memory setting above the limit among them), probes on the wrong
+emptyDir, a LimitRange's default limit, a pod-level limit and the app's own memory setting above the limit among them), probes on the wrong
 port or over TCP to a UDP port, speaking HTTPS to plain HTTP, checking a host other than the pod, refused because the
 app listens on localhost only, gRPC probes on a port that does not speak gRPC or lacks the health service, liveness
 probes that kill the app before it has started, sidecars whose startup probe holds back the containers after them,
@@ -82,7 +84,7 @@ initialDelaySeconds, naming a port the container does not have or running a comm
 written as a single string (a failed HTTP probe's status, 404 or 401 say, is explained), init containers that never
 finish (sidecars are told apart, and one that waits for its own pod's Service is named), readiness gates nobody sets,
 failing lifecycle hooks, runAsNonRoot with a root image, writes to a read-only root filesystem, missing ConfigMaps,
-Secrets and keys, subPaths that name a key the volume does not have, pods whose device claims (dynamic resource
+Secrets and keys (with the key of another case or spelling the object has), subPaths that name a key the volume does not have, pods whose device claims (dynamic resource
 allocation) name a ResourceClaim, template or DeviceClass that does not exist or is being deleted, ask for more devices
 than a node has, for devices no driver offers, that other claims hold or that their selectors match none of, share a
 claim allocated on another node, or wait on a node with no plugin for the driver, pods resized in place beyond what
@@ -92,14 +94,15 @@ more minDomains than the nodes form, pod affinity to pods that do not exist, nod
 RuntimeClass's nodeSelector no node has, host port, volume zone, scheduling gate, missing scheduler or ReadWriteOncePod
 claim another pod holds that stops them), pods the kubelet rejects for a sysctl it forbids or a resource the node lacks,
 or, when spec.nodeName skips the scheduler, for the node's labels or a host port another pod holds, pods for another
-operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network plugin cannot set up, hostPath
+operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network plugin cannot set up or whose
+FQDN is too long to be their hostname, DNS settings that are more than a resolver reads, hostPath
 volumes the node does not have (the Docker socket on a containerd node among them), pods bound by nodeName to a node
 that does not exist or past the scheduler their claim waits for, pods stuck terminating, volumes still attached to
 another node, claims for StorageClasses that do not exist, access modes they cannot provide or a named volume they
 cannot bind to, claims that no hand-made PersistentVolume fits (too small, other access modes, taken, or Released),
 claims that have lost their volume or carry a selector their provisioner refuses, claims deleted while pods still use
 them, Services and Ingresses that send traffic nowhere (a Service selecting a Deployment's own labels, not its pods',
-among them), Services with no selector and no endpoints (or an EndpointSlice missing the label that links it), headless
+or the pod-template-hash of an earlier rollout, among them), Services with no selector and no endpoints (or an EndpointSlice missing the label that links it), headless
 Services that map a port nothing maps, Service ports whose protocol the pods do not serve, Services that also select
 another workload's pods, pod subdomains no headless Service serves, ExternalName Services set to an IP address,
 Ingresses that claim one host and path for different Services, Ingress TLS Secrets that are missing, Ingress hosts their
@@ -107,12 +110,13 @@ TLS does not cover or paths written as patterns their pathType compares as text,
 a Service or port that does not exist or to another namespace that grants them nothing, are attached to no Gateway, to
 one or a listener that does not exist, to listeners that do not admit them or serve none of their hostnames, tie with an
 older route for a hostname and path, give every backend weight 0 or write a path as a pattern (/api/*) that PathPrefix
-compares as text, Gateways whose GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that
-never get an address, StatefulSets without their headless Service, NetworkPolicies that shut a Service off, let DNS out
+compares as text, or name a Deployment in place of its Service, BackendTLSPolicies whose CA ConfigMap or target Service
+does not exist, Gateways whose GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that
+never get an address, StatefulSets without their headless Service or whose headless Service selects other pods, NetworkPolicies that shut a Service off, let DNS out
 only to kube-dns pods of their own namespace, cut pods off from the API server, allow the Service's port where the pods'
 port is meant, allow a Service's cluster IP by ipBlock, allow a port name the pods do not declare, select no pods or
 select namespaces by a label none has, exhausted quotas, quotas on a limit the pods do not set, a LimitRange default
-below the container's request, LimitRange, PriorityClass, RuntimeClass, ServiceAccount, Pod Security, webhook and
+below the container's request, LimitRange (of a StatefulSet's claims too), PriorityClass, RuntimeClass, ServiceAccount, Pod Security, webhook and
 ValidatingAdmissionPolicy rejections, system-critical priority outside kube-system, admission webhooks that cannot be
 reached, Deployments whose progress deadline is shorter than their pods take to become available, Deployments left
 paused or holding ready pods unavailable with a long minReadySeconds, HPAs that cannot scale, name their target with an
@@ -121,7 +125,8 @@ PodDisruptionBudgets that block drains, select nothing or overlap, evictions (an
 them), failed Jobs and CronJobs (a podFailurePolicy that failed the Job at once and a Job cut off by its
 activeDeadlineSeconds are named), replicas sharing a ReadWriteOnce claim, CronJobs that skip runs, are suspended,
 replace each run before it finishes pile up runs, are scheduled for a date that never comes or miss every start for a
-startingDeadlineSeconds too short, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy,
+startingDeadlineSeconds too short, Jobs left by spec.managedBy to a controller that never runs them or queued for Kueue
+where it is not installed or their LocalQueue does not exist, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy,
 or a StatefulSet partition, leaves a template change on no pod, CronJobs whose failed runs are deleted at once, Jobs
 with parallelism 0 or held open by a sidecar that never exits, and nodes that are not ready.
 
@@ -158,21 +163,22 @@ It needs permission to `get` and `list` pods, events, Services, EndpointSlices, 
 HorizontalPodAutoscalers, PodDisruptionBudgets, claims, NetworkPolicies, ResourceQuotas, ServiceAccounts, Roles,
 RoleBindings, ConfigMaps and Secrets in the namespace, nodes, StorageClasses, IngressClasses, RuntimeClasses,
 PersistentVolumes, namespaces (their names and labels) and ClusterRoles (their names) in the cluster, and to read pod
-logs. Where the cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes and ReferenceGrants in
-the namespace and GatewayClasses in the cluster; a cluster without it is no gap. Where it serves dynamic resource
+logs. Where the cluster serves the Gateway API, it also reads Gateways, HTTPRoutes, GRPCRoutes, ReferenceGrants and
+BackendTLSPolicies in the namespace and GatewayClasses in the cluster; a cluster without it is no gap. Where it serves dynamic resource
 allocation (resource.k8s.io), it reads ResourceClaims and ResourceClaimTemplates in the namespace and DeviceClasses and
-ResourceSlices in the cluster, keeping of each slice its driver, nodes and device names. With less, it diagnoses from
+ResourceSlices in the cluster, keeping of each slice its driver, nodes and device names. It reads Kueue's LocalQueues
+in the namespace, and notes when the cluster does not serve Kueue at all. With less, it diagnoses from
 the rest and lists what it could not read.
 
 A snapshot holds object names, labels, event messages and log lines (never Secret or ConfigMap values) and is
 written readable by you only; treat it like the cluster data it came from. To share one in an issue, record it with
-`--redact`: names, label values, image repositories (but Docker Hub's official base images, such as busybox or
-ubuntu) and IP addresses become pseudonyms, the context name and the logs are dropped, and the redacted snapshot still diagnoses to the same causes (crash causes that only a log line
+`--redact`: names, label values, image repositories (but Docker Hub's official base and language images, such as busybox,
+ubuntu or python) and IP addresses become pseudonyms, the context name and the logs are dropped, and the redacted snapshot still diagnoses to the same causes (crash causes that only a log line
 shows are lost with the logs).
 
 ## The fault suite
 
-[`faults/`](faults) holds 229 broken namespaces and one healthy one. Each broken one is a manifest that breaks it in a
+[`faults/`](faults) holds 247 broken namespaces and one healthy one. Each broken one is a manifest that breaks it in a
 known way (an image tag that does not exist, a liveness probe on the wrong port, a Service selector that matches no
 pod, a claim for a StorageClass that does not exist, a quota that is used up, an image built for another CPU
 architecture, and more) and an `expect.json` with the words that name its root cause. On every push,
@@ -192,24 +198,25 @@ count as false alarms. The workflow's summary shows the table for each run; `hac
 machine with Docker and Go, on its own kind cluster, and `cmd/faultsuite` refuses any kubeconfig context that is not
 kind-*.
 
-The run committed in [`results/faults`](results/faults) ([run 45763138488](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/45763138488),
-26 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
+The run committed in [`results/faults`](results/faults) ([run 46147236217](https://github.com/sunilmehta-si/kube-diagnose/actions/runs/46147236217),
+28 November 2026, Kubernetes v1.37.0 on kind v0.33.0, k8sgpt v0.4.41):
 
 | Tool | Named the root cause | In its first finding | False alarms on the healthy namespace | Other findings on the faults |
 |---|---|---|---|---|
-| kube-diagnose | 229 of 229 (exact rule and object: 229) | 229 | 0 | 0 |
-| k8sgpt | 37 of 229 | 10 | 0 | 368 |
+| kube-diagnose | 247 of 247 (exact rule and object: 247) | 247 | 0 | 0 |
+| k8sgpt | 36 of 247 | 7 | 0 | 407 |
 | holmesgpt | not run | | | |
 
 | Scenario | Fault | kube-diagnose | k8sgpt | holmesgpt |
 |---|---|---|---|---|
-| admission-policy-denies | ValidatingAdmissionPolicy kd-faults-require-team-label, bound to the namespace, denies every pod without a team label, and the web pods have none, so none is created. | ✅ | ✅ | – |
+| admission-policy-denies | ValidatingAdmissionPolicy kd-faults-require-team-label, bound to the namespace, denies every pod without a team label, and the web pods have none, so none is created. | ✅ | ☑️ | – |
 | app-listens-on-localhost | A web server is started with -p 127.0.0.1:8080, as on a laptop; in a pod that address is reachable only from the pod itself, so the kubelet's readiness probe is refused and the pod never becomes ready. | ✅ | ❌ | – |
 | apparmor-profile-missing | The pod runs under the Localhost AppArmor profile k8s-kd-faults-hardened, which no node has loaded, so its container cannot be created. | ✅ | ❌ | – |
+| arg-trailing-newline | Deployment web passes its config path as an args item written as a YAML literal block (- |), which keeps a newline at its end, so cat looks for /etc/app/app.conf with a line break in its name and the container exits. | ✅ | ❌ | – |
 | bad-image-tag | A Deployment's image tag does not exist. | ✅ | ☑️ | – |
 | cache-size-above-limit | The cache is configured with CACHE_SIZE_MB=128 and fills it at start, and its memory limit is 64Mi, so it is OOMKilled every time. | ✅ | ❌ | – |
 | capability-dropped | A container drops ALL capabilities, as the restricted Pod Security standard asks, but its start script chowns a cache directory; root without CAP_CHOWN is refused, so the container exits at every start. | ✅ | ❌ | – |
-| command-not-found | The container's command is not in the image. | ✅ | ☑️ | – |
+| command-not-found | The container's command is not in the image. | ✅ | ❌ | – |
 | command-one-string | A Deployment's command is one string, "sleep 3600", so the runtime looks for an executable with that whole name and cannot start the container. | ✅ | ❌ | – |
 | command-shell-operator-no-shell | A command is written as a list, echo starting && sleep 3600, with no shell: && is one more argument to echo, which prints it and exits, so sleep never runs and the container restarts forever. | ✅ | ❌ | – |
 | command-shell-var-no-shell | A Deployment runs ["sleep", "$SLEEP_SECONDS"] with SLEEP_SECONDS in its env; there is no shell to expand $SLEEP_SECONDS, so sleep gets the literal text and exits. | ✅ | ❌ | – |
@@ -233,6 +240,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | deployment-paused | A Deployment was created paused and never resumed, so it has no ReplicaSet and no pods, and nothing reports an error. | ✅ | ❌ | – |
 | device-plugin-missing | A Deployment's pods request an extended resource that no node advertises, because no device plugin provides it, so they stay Pending. | ✅ | ❌ | – |
 | dns-missing-service | An app calls a Service named payments that does not exist; the lookup fails and it exits. | ✅ | ❌ | – |
+| dns-search-line-too-long | Deployment web lists 32 search domains in its dnsConfig, one per team, and with the cluster's own they are more than a resolver reads, so the kubelet drops the last and short names in those domains no longer resolve. | ✅ | ❌ | – |
 | dnspolicy-default | A pod sets dnsPolicy Default, so it resolves with the node's DNS, cannot find the api Service, and exits. | ✅ | ❌ | – |
 | dnspolicy-none | An app sets dnsPolicy None with a public nameserver and its company's search domain, to reach outside names; with None its resolv.conf has only those, so the payments Service does not resolve and the app exits. | ✅ | ❌ | – |
 | docker-socket-on-containerd | The pod mounts /var/run/docker.sock as a hostPath of type Socket, and kind's node runs containerd, not Docker, so the socket does not exist and the pod stays in ContainerCreating. | ✅ | ❌ | – |
@@ -249,12 +257,15 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | emptydir-size-limit | A container writes 20 MiB into an emptyDir with a 10 MiB sizeLimit, so the kubelet evicts its pods. | ✅ | ❌ | – |
 | endpointslice-unlabelled | A Service without a selector points at an outside database through an EndpointSlice written by hand, which lacks the kubernetes.io/service-name label; nothing links the slice to the Service, so the Service has no endpoints. | ✅ | ❌ | – |
 | env-var-defined-later | A container's API_URL is built from $(API_HOST), but API_HOST is defined below it in the env list; the kubelet expands only variables defined earlier, so the app gets the literal text and fails to resolve it. | ✅ | ❌ | – |
-| ephemeral-storage-limit | A container writes 50 MiB to its local disk with a 10 MiB ephemeral-storage limit and is evicted. | ✅ | ✅ | – |
+| envfrom-key-case | ConfigMap api-config holds db-host and db-port, and the api loads it with envFrom; envFrom keeps each key's name, so the container has db-host and no DB_HOST, and the api exits because DB_HOST is not set. | ✅ | ❌ | – |
+| ephemeral-storage-limit | A container writes 50 MiB to its local disk with a 10 MiB ephemeral-storage limit and is evicted. | ✅ | ☑️ | – |
 | exec-format-error | The image is built for arm64 and the node is amd64 (CI's runners are amd64). | ✅ | ❌ | – |
 | externalname-ip | An ExternalName Service points at an IP address, which cluster DNS turns into a CNAME that resolves to nothing. | ✅ | ❌ | – |
 | externalname-unresolved | An app reaches its database through an ExternalName Service, db, that points at orders-db.invalid; the name does not resolve, so the CNAME cluster DNS answers with leads nowhere and the app exits. | ✅ | ❌ | – |
 | flag-value-one-arg | A Deployment passes "--port 8080" as one item of args, so the server receives the flag and its value as a single argument, does not know a flag by that name, and exits. | ✅ | ❌ | – |
 | flags-in-command | A Deployment puts its server flags under command, not args: command replaces the image entrypoint, so the runtime looks for a program named --port=8080 and the container never starts. | ✅ | ❌ | – |
+| gateway-backend-tls-ca-missing | BackendTLSPolicy auth-tls checks Service auth's certificate against the CA in ConfigMap auth-ca, which holds it under ca.pem, not ca.crt, so the reference is invalid and requests through a Gateway to auth fail. | ✅ | ❌ | – |
+| gateway-backend-tls-target-missing | BackendTLSPolicy payments-tls targets Service payments-svc, and the Service is named payments, so the policy applies to nothing and a Gateway would connect to payments without TLS. | ✅ | ❌ | – |
 | gateway-class-missing | Gateway public names GatewayClass nginx, and the cluster has no such class, so no controller takes it. | ✅ | ❌ | – |
 | gateway-hostname-mismatch | HTTPRoute shop serves shop.example.com, and the Gateway listener serves *.store.example.com only. | ✅ | ❌ | – |
 | gateway-listener-missing | HTTPRoute shop attaches to listener https of Gateway public, which has an http listener only. | ✅ | ❌ | – |
@@ -265,10 +276,12 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | gateway-route-path-pattern | HTTPRoute shop matches path /api/* with type PathPrefix, which compares it as text, so no request under /api matches. | ✅ | ❌ | – |
 | gateway-route-port | HTTPRoute shop sends traffic to port 8080 of Service storefront, the container port, and the Service exposes port 80. | ✅ | ❌ | – |
 | gateway-route-service-missing | HTTPRoute shop sends traffic to Service storefront-v2, and the Service is called storefront. | ✅ | ❌ | – |
+| gateway-route-to-deployment | HTTPRoute shop sends its requests to Deployment storefront (group apps), not to Service storefront in front of it; a route sends traffic only to Services, so the Gateway answers with an error. | ✅ | ❌ | – |
 | gateway-route-zero-weights | HTTPRoute shop sends its traffic to storefront and storefront-v2, both with weight 0, so the Gateway answers every request with a 500. | ✅ | ❌ | – |
 | gateway-tls-secret-missing | The https listener of Gateway public terminates TLS with Secret shop-tls, which does not exist. | ✅ | ❌ | – |
 | headless-port-remap | A headless Service (clusterIP: None) maps port 80 to targetPort 8080 for web servers on 8080; with no proxy to map it, clients that dial peers:80 reach the pods on port 80 and are refused. | ✅ | ❌ | – |
 | healthy | Control: a working Deployment and Service. Every finding here is a false alarm. | ✅ quiet | ✅ quiet | – |
+| hostalias-stale-service-ip | The api reaches the database by the name db, but its pod's hostAliases pin db to 10.96.255.250, the Service's address before it was created again; /etc/hosts is read before DNS, so the connection goes nowhere and the api exits. | ✅ | ❌ | – |
 | hostnetwork-dns | A pod on the host network keeps the default dnsPolicy, so it resolves with the node's DNS, cannot find the api Service, and exits. | ✅ | ❌ | – |
 | hostnetwork-port-taken | The node agent runs on the host network and listens on 10250, which the kubelet holds on every node, so the bind fails and it exits. | ✅ | ❌ | – |
 | hostpath-missing | A DaemonSet mounts a hostPath of type Directory that the nodes do not have, so its pods stay in ContainerCreating. | ✅ | ☑️ | – |
@@ -278,6 +291,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | hpa-target-old-apiversion | The HPA's scaleTargetRef names Deployment web in apiVersion extensions/v1beta1, which the API has not served since Kubernetes 1.16, so the HPA cannot get the Deployment's scale and scales nothing. | ✅ | ❌ | – |
 | hpa-target-scaled-to-zero | A Deployment under an HPA was scaled to 0 replicas; the HPA leaves a workload at zero alone, so it never comes back up, and the only sign is a condition on the HPA. | ✅ | ❌ | – |
 | hpa-two-on-one-workload | Two HPAs scale the same Deployment, one on CPU and one on memory; the HPA controller does not act on pods that more than one HPA controls, so neither scales it. | ✅ | ❌ | – |
+| image-localhost-registry | Deployment web runs image localhost/kube-diagnose-missing/web:dev, built with podman on a workstation, which names local builds localhost/; on the node, localhost is the node itself, where no registry answers. | ✅ | ❌ | – |
 | image-never-pull | A Deployment's image is not on the node and its imagePullPolicy is Never, so the kubelet will not pull it. | ✅ | ☑️ | – |
 | image-wrong-platform | A Deployment's image is published only for arm64, and the node is amd64, so there is no build to pull. | ✅ | ☑️ | – |
 | ingress-class-missing | An Ingress asks for an IngressClass that does not exist, so no controller serves it. | ✅ | ✅ | – |
@@ -293,12 +307,16 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | init-never-finishes | An init container waits for a database Service that does not exist, so the app never starts and nothing reports an error. | ✅ | ❌ | – |
 | init-waits-for-own-service | An init container waits until Service web answers, but the only pods behind that Service are this Deployment's own, which cannot serve until the init container exits: each waits for the other and the workload never starts. | ✅ | ❌ | – |
 | insufficient-cpu | A pod requests more CPU than any node has. | ✅ | ☑️ | – |
+| interpreter-nothing-to-do | Deployment etl runs the python image with no command, meant to come from the chart's values, which left it empty; the image's default is python3, which with no program, terminal or input exits 0 at once, and the kubelet restarts it. | ✅ | ❌ | – |
 | job-active-deadline | A Job has activeDeadlineSeconds: 30 and its work takes longer, so the Job controller ends its running pod at 30 seconds and fails the Job; no pod is left and nothing crashed. | ✅ | ☑️ | – |
 | job-backoff | A Job's container fails until the Job hits its backoff limit. | ✅ | ❌ | – |
+| job-managed-by-missing-controller | Job train has spec.managedBy batch.example.com/scheduler, copied from a cluster that runs that scheduler; Kubernetes' Job controller leaves it alone and nothing here runs it, so it never starts. | ✅ | ❌ | – |
 | job-parallelism-zero | A Job sets parallelism 0, so it starts no pods and never completes, and nothing reports an error. | ✅ | ❌ | – |
 | job-pod-failure-policy | A migration Job allows six retries, but its podFailurePolicy fails the Job on exit code 3, which the migrator returns when its lock table is busy; the first busy lock fails the whole Job at once, without a retry. | ✅ | ❌ | – |
 | job-sidecar-keeps-running | A Job's pod runs its work next to a proxy declared as an ordinary container; the work exits 0 but the proxy keeps running, so the pod never succeeds and the Job never completes. | ✅ | ❌ | – |
 | job-suspended | A Job was created suspended and never resumed, so it runs no pods and reports no error. | ✅ | ✅ | – |
+| kueue-not-installed | Job train is created suspended with label kueue.x-k8s.io/queue-name: team-a, as Kueue's docs say, on a cluster where Kueue is not installed, so nothing ever admits or unsuspends it. | ✅ | ❌ | – |
+| limitrange-claim-too-small | The namespace's LimitRange sets a 1Gi minimum per PersistentVolumeClaim, and StatefulSet db's volumeClaimTemplates ask for 100Mi, so the claim of db-0 is refused and the pod is never created. | ✅ | ❌ | – |
 | limitrange-default-below-request | A container requests 256Mi of memory and sets no limit; the namespace LimitRange gives it a default limit of 128Mi, below the request, so the API server calls every pod invalid and none is created. | ✅ | ❌ | – |
 | limitrange-default-memory-oom | The namespace's LimitRange gives every container a default memory limit of 16Mi, and a worker that sets no limit of its own needs more, so it is OOMKilled again and again. | ✅ | ❌ | – |
 | limitrange-default-request | The namespace's LimitRange gives every container a default cpu request of 64, which no node has, and the Deployment sets no request of its own. | ✅ | ❌ | – |
@@ -333,6 +351,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | nodename-out-of-cpu | A Job pins its pod with nodeName to the cluster's node and asks for 1000 CPUs; the scheduler is bypassed, so the kubelet itself rejects each pod with OutOfcpu until the Job gives up. | ✅ | ❌ | – |
 | nodeselector-node-gone | The pods are pinned with nodeSelector kubernetes.io/hostname to node kd-faults-worker-old, which does not exist, so the scheduler places them on no node. | ✅ | ❌ | – |
 | nonroot-writes-image-path | A pod runs as user 1000 and its start command creates /www in the image, where only root may write, so the container exits with permission denied. | ✅ | ❌ | – |
+| oom-pod-level-limit | The indexer pod sets a 64Mi memory limit for the whole pod (spec.resources) and none on its containers; the indexer grows past it and is OOMKilled again and again. | ✅ | ❌ | – |
 | oomkilled | A container uses more memory than its limit. | ✅ | ☑️ | – |
 | optional-envfrom-missing | The api takes its variables with envFrom from ConfigMap api-env, marked optional, and the ConfigMap is named app-env, so no variable is set and the api exits saying API_URL is not set. | ✅ | ❌ | – |
 | optional-secret-key-missing | DATABASE_URL comes from key url of Secret db-credentials, marked optional, and the Secret holds the value under uri, so the variable is left unset and the api exits. | ✅ | ❌ | – |
@@ -342,6 +361,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | pod-active-deadline | A Job's pod template sets activeDeadlineSeconds: 10 for work that takes a minute; the kubelet stops each attempt at 10 seconds (DeadlineExceeded) until the Job gives up. | ✅ | ❌ | – |
 | pod-affinity-no-match | The web pods require podAffinity to pods labelled app=cache, and the cache pods are labelled app=redis, so no node qualifies and the web pods stay Pending. | ✅ | ❌ | – |
 | pod-anti-affinity | Two replicas require different nodes (pod anti-affinity) on a one-node cluster, so the second is never scheduled. | ✅ | ☑️ | – |
+| pod-fqdn-too-long | StatefulSet reporting-analytics-worker sets setHostnameAsFQDN, and its pods' full names (pod, serviceName reporting-analytics, namespace, cluster domain) run past 64 characters, so the kubelet cannot make them the hostname and no pod starts. | ✅ | ❌ | – |
 | pod-os-mismatch | A log agent's Pod sets spec.os.name: windows and no nodeSelector; the scheduler does not compare spec.os with nodes, so it lands on the Linux node, and the kubelet rejects it with PodOSNotSupported. | ✅ | ❌ | – |
 | pod-security-restricted | The namespace enforces the restricted Pod Security level and the pods do not meet it. | ✅ | ☑️ | – |
 | port-in-use | A sidecar listens on the same port as the app in the same pod, so it exits with address in use. | ✅ | ❌ | – |
@@ -367,7 +387,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | pvc-lost | A claim copied from another cluster still carries its volumeName and bind annotation, and no such PersistentVolume exists here, so the claim is Lost and the database that mounts it is never scheduled. | ✅ | ❌ | – |
 | pvc-missing-storageclass | A claim asks for a StorageClass that does not exist, and the pod waits for it. | ✅ | ☑️ | – |
 | pvc-selector-dynamic | Claim data has a selector, tier=fast, and asks StorageClass standard, whose provisioner does not provision for a claim with a selector, so the claim stays Pending. | ✅ | ❌ | – |
-| quota-exceeded | A ResourceQuota allows one pod and the Deployment wants three. | ✅ | ✅ | – |
+| quota-exceeded | A ResourceQuota allows one pod and the Deployment wants three. | ✅ | ☑️ | – |
 | quota-requires-limits | A ResourceQuota limits limits.memory in the namespace and a Deployment sets requests only, so the API server refuses its pods for having no memory limit, though the quota is unused. | ✅ | ☑️ | – |
 | rbac-all-namespaces | Role pod-reader, bound by a RoleBinding, lets the app list and watch pods in its own namespace, and the app watches the pods of all namespaces, a request at the cluster scope that only a ClusterRoleBinding grants. | ✅ | ❌ | – |
 | rbac-clusterrole-rolebinding | ClusterRole node-reader, which allows reading nodes, is bound with a RoleBinding, which grants its rules only within the namespace; nodes belong to no namespace, so the API server refuses the tool. | ✅ | ❌ | – |
@@ -380,7 +400,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | rbac-wrong-api-group | Role deployment-reader grants get, list and watch on deployments in the core group "", but Deployments are in API group apps, so the rule never matches and the API server refuses the watcher. | ✅ | ❌ | – |
 | readiness-failing | The readiness probe asks for a path the server does not have, so the pods never get traffic. | ✅ | ☑️ | – |
 | readiness-gate-unset | A Deployment's pods have a readiness gate that no controller in the cluster sets, so they run with every container ready but never become Ready, and their Service has no endpoints. | ✅ | ❌ | – |
-| readiness-initial-delay | A web server is up in a second, but its readiness probe waits initialDelaySeconds: 900 before its first check, set for a slow start; the pod stays not ready and gets no traffic for fifteen minutes after every start. | ✅ | ❌ | – |
+| readiness-initial-delay | A web server is up in a second, but its readiness probe waits initialDelaySeconds: 3600 before its first check, set for a slow start; the pod stays not ready and gets no traffic for an hour after every start. | ✅ | ❌ | – |
 | readiness-probe-timeout | The readiness probe runs a health check that takes about three seconds, and it gives up after its default timeoutSeconds of 1, so the pod never becomes ready. | ✅ | ☑️ | – |
 | readonly-root-filesystem | A container with a read-only root filesystem creates a directory in it at start and exits. | ✅ | ❌ | – |
 | resize-infeasible | A Job resizes the running batch pod in place to 64 CPUs, more than its node has, and the API server refuses the resize, so the Job fails. | ✅ | ❌ | – |
@@ -399,6 +419,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | script-interpreter-missing | A start script from a ConfigMap begins with #!/bin/bash, and the image has only sh, so the kernel cannot run the script though the file is there. | ✅ | ❌ | – |
 | script-not-executable | A container runs a script from a ConfigMap volume that sets no defaultMode, so the file is 0644 and the runtime cannot execute it. | ✅ | ❌ | – |
 | seccomp-profile-missing | A Deployment hardens its container with a Localhost seccomp profile, profiles/kd-hardened.json, that was never installed on the node, so containerd cannot create the container. | ✅ | ☑️ | – |
+| secret-key-case | Deployment api reads key DB_PASSWORD from Secret db, written the way the variable is named; the Secret, made with --from-file, has key db-password, so the container is never created. | ✅ | ❌ | – |
 | secret-key-mode-open | The deploy key comes from a Secret volume with no defaultMode, so the file is 0644, and the app refuses a private key others may read. | ✅ | ❌ | – |
 | secret-mode-unreadable | A container that runs as user 1000 reads a Secret volume mounted with defaultMode 0400, so its files are readable by root only and it exits. | ✅ | ❌ | – |
 | service-ip-hardcoded | The api connects to the database at 10.96.0.201, set in DB_HOST, and Service db has another cluster IP, so the connection fails and the api exits. | ✅ | ❌ | – |
@@ -411,6 +432,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | service-selector-mismatch | A Service selects app=web while its pods are labelled app=webapp. | ✅ | ✅ | – |
 | service-selects-deployment-labels | Service api selects app=api, the labels on Deployment api itself, while its pods carry app=api-server, so the Service selects no pod. | ✅ | ❌ | – |
 | service-selects-other-workload | A queue worker shares the label app=shop with the web server, and the Service selects on that label alone with a numeric targetPort; the worker's pod becomes an endpoint too, so a share of requests reach a pod that serves nothing on 8080. | ✅ | ❌ | – |
+| service-selects-pod-template-hash | Service web selects app=web and pod-template-hash=5d9f7c6b8d, copied from a pod of an earlier rollout; the pods of the current ReplicaSet carry another hash, so the Service selects no pod. | ✅ | ❌ | – |
 | service-target-port-not-listening | A server listens on 8080 while its pod spec declares port 80 and its Service targets 80; with no readiness probe the pod is Ready, so the Service forwards clients to a port where nothing listens and they are refused. | ✅ | ❌ | – |
 | service-wrong-target-port | A Service sends traffic to port 80, but the container listens on 8080. | ✅ | ❌ | – |
 | shell-nothing-to-do | The toolbox Deployment runs busybox with no command; its default is sh, which with no terminal exits 0 at once, so the pod restarts for ever. | ✅ | ❌ | – |
@@ -424,6 +446,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | statefulset-ondelete | A Job raises the cache size in StatefulSet cache, whose updateStrategy is OnDelete, so both pods keep the old setting until someone deletes them. | ✅ | ❌ | – |
 | statefulset-partition | A Job raises the cache size in StatefulSet cache, whose rolling update has partition 2, left from a canary, so neither of its two pods gets the change. | ✅ | ❌ | – |
 | statefulset-peer-dns | Each quorum member finds its peers by name before it becomes ready, and headless Service quorum publishes ready pods only, so no member ever resolves another. | ✅ | ❌ | – |
+| statefulset-service-selects-others | StatefulSet db's governing Service db is headless but selects app=database, while the StatefulSet's pods carry app=db, so the pods get no DNS names and db-0.db does not resolve for their peers. | ✅ | ❌ | – |
 | subdomain-no-headless-service | An Indexed Job's two workers set subdomain: workers and look each other up as train-0.workers and train-1.workers, but there is no headless Service named workers, so the names never resolve and each worker exits. | ✅ | ❌ | – |
 | subpath-key-missing | A container mounts config.yaml from its ConfigMap with subPath, but the ConfigMap's key is config.yml; the kubelet makes an empty directory in its place, and the app exits reading it. | ✅ | ❌ | – |
 | subpath-onto-file | A container mounts a ConfigMap key over /etc/group with subPath, but the key is not in the ConfigMap; the kubelet makes a directory in its place, and the runtime cannot mount a directory onto the image's file. | ✅ | ❌ | – |
@@ -433,6 +456,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | volume-hides-command | A scratch volume is mounted at /bin, the directory that holds the container's command; the empty volume replaces everything the image has there, so /bin/sleep no longer exists and the container cannot start. | ✅ | ❌ | – |
 | volume-mounted-read-only | A container writes to a volume its mount sets readOnly: true, so it exits with read-only file system. | ✅ | ❌ | – |
 | volume-permission-denied | A container that runs as user 1000 writes to a hostPath directory the kubelet created for root, so it exits with permission denied. | ✅ | ❌ | – |
+| workdir-is-a-file | Deployment report sets workingDir to /bin/busybox, the program, not the directory that holds it; the runtime cannot create a working directory where the image has a file, so the container never starts. | ✅ | ❌ | – |
 
 ✅ named the root cause in its first finding · ☑️ named it, but not first · ❌ did not name it · ⚠️ N: N false alarms · – not run
 
@@ -496,8 +520,9 @@ The 20 added for 0.14.0 were named first, with the exact rule and object, on the
 runs as default while its permission is bound to another ServiceAccount had the right rule and object without the word
 serviceAccountName, because the API server writes default into a pod that names no ServiceAccount, and the cause had
 looked for the omission in the pod's own spec; it says now that a pod whose template names none runs as default. The
-Gateway API scenarios (twelve, with 0.15.0's two) run with the API's CRDs installed and no controller, as the rules judge what the objects name;
-k8sgpt's Gateway analyzers are not among its defaults, and it reported nothing for any of them.
+Gateway API scenarios (fifteen, with 0.15.0's two and 0.17.0's three) run with the API's CRDs installed and no controller, as the rules judge what the objects name;
+k8sgpt's Gateway analyzers are not among its defaults, and it reported nothing for any of them but the two backend TLS
+policies, where it said only that their CA ConfigMap is not used by any pods: a policy reads it, not a pod.
 The 18 added for 0.15.0 were named first, with the exact rule and object, on their first run. Two of them had first
 stopped a run before any scenario was scored: their manifests still held a route from the template they were made from,
 which kubectl refused, and the suite's test now fails on such a placeholder. The eight device-claim scenarios run with
@@ -517,6 +542,12 @@ for the runs it deleted; KD297 reads each failed run from the Job's own BackoffL
 Job, and redaction keeps a run named for its CronJob. And the API server now refuses an in-place resize the node cannot
 hold outright, so the pod is never left with a pending one; KD247 explains the refusal in the client that asked. Before
 that, the resize scenario's own Job lacked get on pods/resize, which kube-diagnose named (KD307).
+The 18 added for 0.17.0 caught two things on their first run. The non-root container given a working directory under
+/root started: runc enters the working directory as root before it switches to the container's user, so that fault
+cannot happen on a node, and the scenario is now the one that does, a workingDir that is a file in the image, whose
+runc message KD237 had not read. And the readiness probe that waits fifteen minutes had passed by the time the suite,
+which now takes longer, reached it; kube-diagnose rightly named the Deployment's rollout deadline instead, and the probe
+waits an hour now.
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.
 

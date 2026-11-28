@@ -1,0 +1,43 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 2,
+  "results": [
+    {
+      "kind": "Job",
+      "name": "kd-kueue-not-installed/train",
+      "error": [
+        {
+          "Text": "Job train is suspended",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-kueue-not-installed",
+              "Masked": "LW5zfXBjdG12e0A1UGtobEhbOCY4XQ=="
+            },
+            {
+              "Unmasked": "train",
+              "Masked": "KDNDT3c="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    },
+    {
+      "kind": "ConfigMap",
+      "name": "kd-kueue-not-installed/kube-root-ca.crt",
+      "error": [
+        {
+          "Text": "ConfigMap kube-root-ca.crt is not used by any pods in the namespace",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

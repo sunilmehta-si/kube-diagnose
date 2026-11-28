@@ -1,0 +1,55 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-oom-pod-level-limit"
+  ],
+  "collectedAt": "2026-11-28 13:14 UTC",
+  "findings": [
+    {
+      "rule": "KD111",
+      "title": "Container runs out of memory",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-oom-pod-level-limit",
+        "name": "indexer"
+      },
+      "cause": "container indexer is killed for memory (OOMKilled) under the pod's own 64Mi memory limit (spec.resources.limits.memory): it sets no limit of its own, and that limit is shared by all 2 of the pod's containers; Deployment indexer has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-oom-pod-level-limit",
+            "name": "indexer-695d56ddf9-8bfxg"
+          },
+          "what": "container indexer exited with code 137 (OOMKilled), restarted 7 times",
+          "command": "kubectl get pod indexer-695d56ddf9-8bfxg -n kd-oom-pod-level-limit -o jsonpath='{.status.containerStatuses[?(@.name==\"indexer\")].lastState.terminated}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-oom-pod-level-limit",
+            "name": "indexer-695d56ddf9-8bfxg"
+          },
+          "what": "the pod has memory limit 64Mi, and container indexer has none",
+          "command": "kubectl get pod indexer-695d56ddf9-8bfxg -n kd-oom-pod-level-limit -o jsonpath='{.spec.resources}{\" \"}{.spec.containers[?(@.name==\"indexer\")].resources}'"
+        }
+      ],
+      "fix": "Raise the pod-level memory limit (spec.resources.limits.memory, now 64Mi) to what all the pod's containers use together at peak, or give indexer a limit of its own inside it so that one container's growth is told apart.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-oom-pod-level-limit",
+          "name": "indexer-695d56ddf9-8bfxg"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

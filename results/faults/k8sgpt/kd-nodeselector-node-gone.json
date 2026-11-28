@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-nodeselector-node-gone",
-              "Masked": "RzkyfDtYM05RYl5FRSU1Ti08WFY6OVQ+JQ=="
+              "Masked": "JS9lbFQ8S0MyPkJmW15bTzhpY2VNak0vUg=="
             },
             {
               "Unmasked": "web",
-              "Masked": "cktI"
+              "Masked": "YVJZ"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-nodeselector-node-gone/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-9755df678\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nodeselector-node-gone",
+              "Masked": "WixoVzZyY2V1SDVzXWhfImNwa0tiRj8/KQ=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "YT1O"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-nodeselector-node-gone/web-9755df678-q7hzj",
+      "name": "kd-nodeselector-node-gone/web-9755df678-n8t4l",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 node(s) didn't match Pod's node affinity/selector. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

@@ -1,0 +1,42 @@
+# Deployment api reads key DB_PASSWORD from Secret db, written the way the variable is named; the Secret, made with --from-file, has key db-password, so the container is never created.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-secret-key-case
+
+---
+# Made with kubectl create secret generic db --from-file=db-password=./db-password.txt: the key is the file's name.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: db
+  namespace: kd-secret-key-case
+stringData:
+  db-password: kd-faults-not-a-real-password
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: kd-secret-key-case
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      containers:
+        - name: api
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["sleep", "3600"]
+          env:
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: db
+                  key: DB_PASSWORD

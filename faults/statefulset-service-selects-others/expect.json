@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-statefulset-service-selects-others",
+  "description": "StatefulSet db's governing Service db is headless but selects app=database, while the StatefulSet's pods carry app=db, so the pods get no DNS names and db-0.db does not resolve for their peers.",
+  "rule": "KD182",
+  "object": "StatefulSet/db",
+  "keywords": [
+    [
+      "headless"
+    ],
+    [
+      "app=database"
+    ],
+    [
+      "does not resolve"
+    ]
+  ]
+}

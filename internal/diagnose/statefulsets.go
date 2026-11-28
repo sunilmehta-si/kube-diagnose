@@ -32,6 +32,9 @@ func statefulSetFindings(ix *index) []Finding {
 		} else {
 			svc := serviceByName(ix, ns, svcName)
 			if svc.Spec.ClusterIP == "None" || svc.Spec.ClusterIP == "" {
+				if f := headlessSelectsOthers(w, svc, pod, ev); f != nil {
+					out = append(out, *f)
+				}
 				continue
 			}
 			ev = append(ev, Evidence{Object: svcRef, What: fmt.Sprintf("Service %s has clusterIP %s", svcName, svc.Spec.ClusterIP), Command: cmdGet("service", ns, svcName, "{.spec.clusterIP}")})
@@ -42,6 +45,25 @@ func statefulSetFindings(ix *index) []Finding {
 			Cause: cause, Evidence: ev, Fix: fix})
 	}
 	return out
+}
+
+// headlessSelectsOthers finds a StatefulSet whose governing Service is headless but selects other pods than the
+// StatefulSet's: the DNS records of a headless Service come from the pods it selects, so web-0.web.shop.svc exists
+// only for a pod the selector matches, and the StatefulSet's pods get none.
+func headlessSelectsOthers(w kube.Workload, svc kube.Service, pod string, ev []Evidence) *Finding {
+	labels := w.Spec.Template.Metadata.Labels
+	if len(svc.Spec.Selector) == 0 || len(labels) == 0 || kube.MatchesMap(svc.Spec.Selector, labels) {
+		return nil
+	}
+	ns, name, sel, have := w.Metadata.Namespace, w.Metadata.Name, kube.FormatMap(svc.Spec.Selector), kube.FormatMap(labels)
+	ev = append(ev, Evidence{Object: svc.Ref(), What: fmt.Sprintf("Service %s is headless and selects pods with %s", svc.Metadata.Name, sel),
+		Command: cmdGet("service", ns, svc.Metadata.Name, `{.spec.clusterIP}{" "}{.spec.selector}`)},
+		Evidence{Object: w.Ref(), What: fmt.Sprintf("StatefulSet %s's pods carry %s", name, have),
+			Command: cmdGet("statefulset", ns, name, "{.spec.template.metadata.labels}")})
+	return &Finding{Rule: "KD182", Title: "StatefulSet's governing Service is missing or not headless", Severity: Warning, Object: w.Ref(),
+		Cause:    fmt.Sprintf("StatefulSet %s's governing Service %s is headless, but it selects pods with %s and the StatefulSet's pods carry %s; a headless Service's DNS records come from the pods it selects, so the StatefulSet's pods have no DNS names (%s does not resolve)", name, svc.Metadata.Name, sel, have, pod),
+		Evidence: ev,
+		Fix:      fmt.Sprintf("Change Service %s's selector to the StatefulSet's pod labels (%s), or give it its own headless Service.", svc.Metadata.Name, have)}
 }
 
 func serviceByName(ix *index, ns, name string) kube.Service {

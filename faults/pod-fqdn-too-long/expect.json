@@ -1,0 +1,18 @@
+{
+  "namespace": "kd-pod-fqdn-too-long",
+  "description": "StatefulSet reporting-analytics-worker sets setHostnameAsFQDN, and its pods' full names (pod, serviceName reporting-analytics, namespace, cluster domain) run past 64 characters, so the kubelet cannot make them the hostname and no pod starts.",
+  "rule": "KD239",
+  "object": "StatefulSet/reporting-analytics-worker",
+  "keywords": [
+    [
+      "setHostnameAsFQDN"
+    ],
+    [
+      "64"
+    ],
+    [
+      "FQDN",
+      "full name"
+    ]
+  ]
+}

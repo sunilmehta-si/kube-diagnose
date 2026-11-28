@@ -86,6 +86,13 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	// to zero is often deliberate (KEDA does it); it is worth saying only when an Ingress still sends traffic here.
 	var zero []kube.Workload
 	for _, w := range ix.s.Workloads {
+		// A StatefulSet's governing Service that selects other pods is said under the StatefulSet (KD182), whose
+		// pods lose their DNS names.
+		if w.Kind == "StatefulSet" && w.Metadata.Namespace == ns && w.Spec.ServiceName == svc.Metadata.Name && svc.Spec.ClusterIP == "None" {
+			return nil
+		}
+	}
+	for _, w := range ix.s.Workloads {
 		if w.Metadata.Namespace == ns && w.Kind != "ReplicaSet" && kube.MatchesMap(svc.Spec.Selector, w.Spec.Template.Metadata.Labels) {
 			if w.Kind == "DaemonSet" || w.Desired() != 0 {
 				return nil
@@ -101,6 +108,9 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 		Command: cmdGet("service", ns, svc.Metadata.Name, "{.spec.selector}")}}
 	cause := fmt.Sprintf("Service %s selects pods with %s, and no pod in namespace %s has those labels", svc.Metadata.Name, sel, ns)
 	fix := "Change the Service's selector to the labels its pods carry, or the pods' labels to match the selector."
+	if f := generatedLabelSelector(ix, svc, sel, cause, ev); f != nil {
+		return f
+	}
 	// The selector matches a workload's own labels, not its pod template's: the labels under metadata are the
 	// Deployment's, and only spec.template.metadata.labels reach its pods.
 	for _, w := range ix.s.Workloads {
@@ -122,6 +132,52 @@ func selectorMatchesNothing(ix *index, svc kube.Service) *Finding {
 	}
 	return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Critical, Object: svc.Ref(), Cause: cause,
 		Evidence: ev, Fix: fix}
+}
+
+// generatedLabels are the labels a controller puts on the pods it creates, with the controller that does. Their
+// values change with each rollout (pod-template-hash, controller-revision-hash) or each run (controller-uid).
+var generatedLabels = map[string]string{"pod-template-hash": "the Deployment controller, one value per ReplicaSet",
+	"controller-revision-hash": "the StatefulSet or DaemonSet controller, one value per revision",
+	"controller-uid":           "the Job controller, one value per Job", "batch.kubernetes.io/controller-uid": "the Job controller, one value per Job"}
+
+// generatedLabelSelector finds a Service whose selector, copied from a running pod (kubectl get pod --show-labels),
+// kept a label a controller generates: it matched the pods of one rollout, and after the next one it matches none.
+func generatedLabelSelector(ix *index, svc kube.Service, sel, cause string, ev []Evidence) *Finding {
+	ns, rest := svc.Metadata.Namespace, map[string]string{}
+	key := ""
+	for k, v := range svc.Spec.Selector {
+		if _, ok := generatedLabels[k]; ok {
+			if key == "" || k < key {
+				key = k
+			}
+			continue
+		}
+		rest[k] = v
+	}
+	if key == "" || len(rest) == 0 {
+		return nil
+	}
+	now := map[string]bool{}
+	for _, p := range ix.s.Pods {
+		if p.Metadata.Namespace == ns && kube.MatchesMap(rest, p.Metadata.Labels) && p.Metadata.Labels[key] != "" {
+			now[p.Metadata.Labels[key]] = true
+		}
+	}
+	if len(now) == 0 {
+		return nil
+	}
+	var values []string
+	for v := range now {
+		values = append(values, key+"="+v)
+	}
+	sort.Strings(values)
+	others := kube.FormatMap(rest)
+	ev = append(ev, Evidence{Object: kube.Ref{Kind: "Pod", Namespace: ns, Name: "*"}, What: fmt.Sprintf("pods with %s carry %s", others, strings.Join(values, ", ")),
+		Command: fmt.Sprintf("kubectl get pods -n %s -l %s -L %s", ns, others, key)})
+	cause += fmt.Sprintf(": %s is a label %s puts on the pods it creates, and it changes with each rollout, so a selector copied from a pod matches only that rollout's pods; the pods now carry %s",
+		key+"="+svc.Spec.Selector[key], generatedLabels[key], strings.Join(values, ", "))
+	fix := fmt.Sprintf("Remove %s from the Service's selector and select the pods by the labels their template gives them (%s).", key, others)
+	return &Finding{Rule: "KD160", Title: "Service selects no pods", Severity: Critical, Object: svc.Ref(), Cause: cause, Evidence: ev, Fix: fix}
 }
 
 // lbPendingAfter is how long a LoadBalancer Service may wait for its address before it is reported.

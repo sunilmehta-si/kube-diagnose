@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-gateway-route-to-deployment",
+  "description": "HTTPRoute shop sends its requests to Deployment storefront (group apps), not to Service storefront in front of it; a route sends traffic only to Services, so the Gateway answers with an error.",
+  "rule": "KD378",
+  "object": "HTTPRoute/shop",
+  "keywords": [
+    [
+      "Deployment storefront"
+    ],
+    [
+      "Service"
+    ],
+    [
+      "InvalidKind"
+    ]
+  ]
+}

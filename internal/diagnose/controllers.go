@@ -17,7 +17,7 @@ var (
 	reQuotaMust     = regexp.MustCompile(`failed quota: ([^:]+): must specify (.+)$`)
 	reReqAboveLimit = regexp.MustCompile(`spec\.(initContainers|containers)\[(\d+)\]\.resources\.requests: Invalid value: "([^"]+)": must be less than or equal to (\S+) limit of (\S+)`)
 	reCreateClaim   = regexp.MustCompile(`^[Cc]reate Claim (\S+) for Pod \S+ in StatefulSet \S+ failed`)
-	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
+	reLimitRange    = regexp.MustCompile(`(?:maximum|minimum) (?:cpu|memory|ephemeral-storage|storage) usage per (?:Container|Pod|PersistentVolumeClaim) is [^,\]]+, but (?:limit|request) is [^,\]]+|(?:cpu|memory|ephemeral-storage) max limit to request ratio per Container is [^,\]]+, but provided ratio is [^,\]]+`)
 	rePriorityClass = regexp.MustCompile(`no PriorityClass with name (\S+) was found`)
 	reRuntimeClass  = regexp.MustCompile(`RuntimeClass "([^"]+)" not found`)
 	reSA            = regexp.MustCompile(`serviceaccount "([^"]+)" not found`)
@@ -123,6 +123,10 @@ func failedCreate(ix *index, src, owner kube.Ref, e kube.Event) Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "LimitRange", Namespace: ns, Name: "*"},
 			What: "the namespace's LimitRanges", Command: "kubectl get limitranges -n " + ns + " -o yaml"})
 		f.Fix = "Set the containers' requests and limits inside the LimitRange's minimum and maximum, or change the LimitRange."
+		if claim != "" {
+			f.Cause = fmt.Sprintf("%s cannot create PersistentVolumeClaim %s from its volumeClaimTemplates, so the pod that mounts it is never created: a LimitRange in %s rejects the claim (%s)", owner, claim, ns, strings.Join(m, "; "))
+			f.Fix = "Ask for storage within the LimitRange's PersistentVolumeClaim minimum and maximum in the volumeClaimTemplates (they cannot be edited in place: delete the StatefulSet with --cascade=orphan, which keeps its pods, and apply it again), or change the LimitRange."
+		}
 	case rePriorityClass.MatchString(msg):
 		pc := rePriorityClass.FindStringSubmatch(msg)[1]
 		f.Rule, f.Title = "KD175", "PriorityClass does not exist"
@@ -204,6 +208,8 @@ func rolloutFindings(ix *index, explained map[kube.Ref]bool) []Finding {
 		if f := suspendedJob(ix, j); f != nil && !explained[j.Ref()] {
 			out = append(out, *f)
 		} else if f := noParallelism(ix, j); f != nil && !explained[j.Ref()] {
+			out = append(out, *f)
+		} else if f := managedElsewhere(ix, j); f != nil && !explained[j.Ref()] {
 			out = append(out, *f)
 		}
 	}
@@ -296,8 +302,55 @@ func suspendedJob(ix *index, j kube.Job) *Finding {
 		f.Evidence = append(f.Evidence, Evidence{Object: kube.Ref{Kind: "Workload", Namespace: ns, Name: "*"}, What: "Kueue's Workloads in the namespace, with their admission status",
 			Command: "kubectl get workloads.kueue.x-k8s.io -n " + ns})
 		f.Fix = fmt.Sprintf("Read the Job's Workload (its QuotaReserved and Admitted conditions say why it waits): the ClusterQueue behind LocalQueue %s has no quota left for its flavor, or the LocalQueue does not exist. Do not unsuspend it by hand: Kueue would suspend it again.", q)
+		switch {
+		case ix.s.KueueAPI == "absent":
+			f.Severity = Critical
+			f.Cause = fmt.Sprintf("Job %s has waited %s, suspended, for Kueue to admit it from LocalQueue %s, and this cluster does not serve Kueue's API (kueue.x-k8s.io): Kueue is not installed, so nothing will ever unsuspend the Job", name, held, q)
+			f.Evidence = []Evidence{ev[0], {Object: kube.Ref{Kind: "LocalQueue", Namespace: ns, Name: q}, What: "the cluster has no resource type localqueues.kueue.x-k8s.io",
+				Command: "kubectl get localqueues.kueue.x-k8s.io -n " + ns}}
+			f.Fix = fmt.Sprintf("Install Kueue and create LocalQueue %s, or, to run the Job without it, recreate it without the kueue.x-k8s.io/queue-name label and with suspend: false.", q)
+		case ix.s.KueueAPI == "served" && !localQueueExists(ix, ns, q):
+			f.Severity = Critical
+			f.Cause = fmt.Sprintf("Job %s has waited %s, suspended, for Kueue to admit it from LocalQueue %s, and namespace %s has no LocalQueue %s, so Kueue never admits it", name, held, q, ns, q)
+			f.Evidence = []Evidence{ev[0], {Object: kube.Ref{Kind: "LocalQueue", Namespace: ns, Name: "*"}, What: "the LocalQueues of namespace " + ns,
+				Command: "kubectl get localqueues.kueue.x-k8s.io -n " + ns}}
+			f.Fix = fmt.Sprintf("Set the Job's kueue.x-k8s.io/queue-name label to a LocalQueue of namespace %s (a new Job: the label cannot be changed while Kueue manages it), or create LocalQueue %s pointing at a ClusterQueue.", ns, q)
+		}
 	}
 	return f
+}
+
+// managedElsewhere finds a Job whose spec.managedBy hands it to another controller than Kubernetes' Job controller,
+// and that has not started: the Job controller creates no pods for it and writes no status, and the controller it
+// names has done nothing either (it is not installed, or does not take this Job). MultiKueue is the common case: it
+// runs the Job on a worker cluster and copies the status back.
+func managedElsewhere(ix *index, j kube.Job) *Finding {
+	by := j.Spec.ManagedBy
+	if by == "" || by == "kubernetes.io/job-controller" || j.Status.StartTime != nil || j.Status.Active+j.Status.Succeeded+j.Status.Failed > 0 ||
+		len(j.Status.Conditions) > 0 || ix.s.CollectedAt.Sub(j.Metadata.CreationTimestamp) < suspendedAfter {
+		return nil
+	}
+	ns, name := j.Metadata.Namespace, j.Metadata.Name
+	age := ix.s.CollectedAt.Sub(j.Metadata.CreationTimestamp).Round(time.Minute)
+	cause := fmt.Sprintf("Job %s has spec.managedBy %s, so Kubernetes' Job controller leaves it alone and creates no pods; in %s that controller has not started it either (the Job has no status), so it is not running here or does not take this Job", name, by, age)
+	fix := fmt.Sprintf("Run the controller that %s names, or create the Job without spec.managedBy so Kubernetes' Job controller runs it (the field cannot be changed on an existing Job: delete and recreate it).", by)
+	if by == "kueue.x-k8s.io/multikueue" {
+		cause = fmt.Sprintf("Job %s has spec.managedBy kueue.x-k8s.io/multikueue, so Kubernetes' Job controller leaves it to MultiKueue, which runs it on a worker cluster and copies the status back; in %s it has not started (the Job has no status): MultiKueue has not dispatched it, or no worker cluster has admitted it", name, age)
+		fix = "Read the Job's Workload and the MultiKueueCluster objects on this (manager) cluster: a worker that cannot be reached, or no quota on any worker, keeps the Job here. Remove spec.managedBy only to run the Job on this cluster."
+	}
+	return &Finding{Rule: "KD298", Title: "Job is left to another controller, which has not run it", Severity: Warning, Object: j.Ref(), Cause: cause,
+		Evidence: []Evidence{{Object: j.Ref(), What: fmt.Sprintf("Job %s has spec.managedBy %s and no status after %s", name, by, age),
+			Command: cmdGet("job", ns, name, `{.spec.managedBy}{" "}{.status}`)}},
+		Fix: fix}
+}
+
+func localQueueExists(ix *index, ns, name string) bool {
+	for _, q := range ix.s.LocalQueues {
+		if q.Metadata.Namespace == ns && q.Metadata.Name == name {
+			return true
+		}
+	}
+	return false
 }
 
 // noParallelism finds a Job with parallelism 0 that has not finished: it starts no pods, so it never completes, and

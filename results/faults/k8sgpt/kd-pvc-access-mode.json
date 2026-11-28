@@ -14,11 +14,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-access-mode",
-              "Masked": "I292L2wiSD04aEY0L2d0bnVi"
+              "Masked": "SER1SnsxMSlAOT1jPUg3TkFq"
             },
             {
               "Unmasked": "web",
-              "Masked": "Jmkq"
+              "Masked": "I0Jp"
             }
           ]
         },
@@ -28,11 +28,11 @@
           "Sensitive": [
             {
               "Unmasked": "kd-pvc-access-mode",
-              "Masked": "RDttaVlCOnFrbzJuUEprREVB"
+              "Masked": "c2wiKWc8QmR7VHhGaTFSKmpV"
             },
             {
               "Unmasked": "web",
-              "Masked": "RXtA"
+              "Masked": "UTU4"
             }
           ]
         }

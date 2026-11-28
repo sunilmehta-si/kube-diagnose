@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-rollout-deadline-short"
   ],
-  "collectedAt": "2026-11-26 05:54 UTC",
+  "collectedAt": "2026-11-28 13:18 UTC",
   "findings": [
     {
       "rule": "KD295",

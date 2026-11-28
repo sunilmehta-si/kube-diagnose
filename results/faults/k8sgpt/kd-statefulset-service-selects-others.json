@@ -1,0 +1,30 @@
+{
+  "provider": "",
+  "errors": null,
+  "status": "ProblemDetected",
+  "problems": 1,
+  "results": [
+    {
+      "kind": "Service",
+      "name": "kd-statefulset-service-selects-others/db",
+      "error": [
+        {
+          "Text": "Service has no endpoints, expected label app=database",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "app",
+              "Masked": "Nmty"
+            },
+            {
+              "Unmasked": "database",
+              "Masked": "MXN3JCpeLlc="
+            }
+          ]
+        }
+      ],
+      "details": "",
+      "parentObject": ""
+    }
+  ]
+}

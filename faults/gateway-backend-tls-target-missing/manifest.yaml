@@ -1,0 +1,73 @@
+# BackendTLSPolicy payments-tls targets Service payments-svc, and the Service is named payments, so the policy applies to nothing and a Gateway would connect to payments without TLS.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kd-gateway-backend-tls-target-missing
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payments
+  namespace: kd-gateway-backend-tls-target-missing
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payments
+  template:
+    metadata:
+      labels:
+        app: payments
+    spec:
+      containers:
+        - name: payments
+          image: docker.io/library/busybox:1.37.0@sha256:a7dbc319b1438115a207e11930dc4bb3e643dcb3ec0bdd694bb36cd8fad289ec
+          command: ["httpd", "-f", "-p", "8443", "-h", "/tmp"]
+          ports:
+            - containerPort: 8443
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payments
+  namespace: kd-gateway-backend-tls-target-missing
+spec:
+  selector:
+    app: payments
+  ports:
+    - name: https
+      port: 443
+      targetPort: 8443
+
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payments-ca
+  namespace: kd-gateway-backend-tls-target-missing
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    MIIBdDCCARmgAwIBAgIUa2QtZmF1bHRzLWNhLW5vdC1yZWFsMAoGCCqGSM49BAMC
+    -----END CERTIFICATE-----
+
+---
+# Written from the chart's naming convention (<name>-svc); this Service is named payments.
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: payments-tls
+  namespace: kd-gateway-backend-tls-target-missing
+spec:
+  targetRefs:
+    - group: ""
+      kind: Service
+      name: payments-svc
+  validation:
+    caCertificateRefs:
+      - group: ""
+        kind: ConfigMap
+        name: payments-ca
+    hostname: payments.internal.example.com

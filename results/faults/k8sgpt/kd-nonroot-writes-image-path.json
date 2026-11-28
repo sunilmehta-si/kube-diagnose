@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-nonroot-writes-image-path",
-              "Masked": "SXRyJjt9JmVVaXgkPlQpeFotTCUwO0A0bEAwRg=="
+              "Masked": "PCgseUBafStwKiQ0Q3hDazonTmlSUThWYlg1dg=="
             },
             {
               "Unmasked": "web",
-              "Masked": "MD4x"
+              "Masked": "WUQi"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-nonroot-writes-image-path/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-8cbd88466\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-nonroot-writes-image-path",
+              "Masked": "eFVSKlEpRzAlbkhDTHRXPjklV1k3aWYxRGYmJg=="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "RCRL"
             }
           ]
         }
@@ -28,10 +42,10 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-nonroot-writes-image-path/web-8cbd88466-2t426",
+      "name": "kd-nonroot-writes-image-path/web-8cbd88466-rfjq8",
       "error": [
         {
-          "Text": "the last termination reason is Error container=web pod=web-8cbd88466-2t426",
+          "Text": "the last termination reason is Error container=web pod=web-8cbd88466-rfjq8",
           "KubernetesDoc": "",
           "Sensitive": []
         }

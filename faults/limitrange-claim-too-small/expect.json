@@ -1,0 +1,17 @@
+{
+  "namespace": "kd-limitrange-claim-too-small",
+  "description": "The namespace's LimitRange sets a 1Gi minimum per PersistentVolumeClaim, and StatefulSet db's volumeClaimTemplates ask for 100Mi, so the claim of db-0 is refused and the pod is never created.",
+  "rule": "KD174",
+  "object": "StatefulSet/db",
+  "keywords": [
+    [
+      "LimitRange"
+    ],
+    [
+      "PersistentVolumeClaim"
+    ],
+    [
+      "1Gi"
+    ]
+  ]
+}

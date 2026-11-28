@@ -5,32 +5,6 @@
   "problems": 4,
   "results": [
     {
-      "kind": "Service",
-      "name": "kd-statefulset-peer-dns/quorum",
-      "error": [
-        {
-          "Text": "Service has not ready endpoints, pods: [Pod/quorum-0 Pod/quorum-1 Pod/quorum-2], expected 3",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": ""
-    },
-    {
-      "kind": "Pod",
-      "name": "kd-statefulset-peer-dns/quorum-0",
-      "error": [
-        {
-          "Text": "the last termination reason is Error container=member pod=quorum-0",
-          "KubernetesDoc": "",
-          "Sensitive": []
-        }
-      ],
-      "details": "",
-      "parentObject": "StatefulSet/quorum"
-    },
-    {
       "kind": "Pod",
       "name": "kd-statefulset-peer-dns/quorum-1",
       "error": [
@@ -55,6 +29,32 @@
       ],
       "details": "",
       "parentObject": "StatefulSet/quorum"
+    },
+    {
+      "kind": "Pod",
+      "name": "kd-statefulset-peer-dns/quorum-0",
+      "error": [
+        {
+          "Text": "the last termination reason is Error container=member pod=quorum-0",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": "StatefulSet/quorum"
+    },
+    {
+      "kind": "Service",
+      "name": "kd-statefulset-peer-dns/quorum",
+      "error": [
+        {
+          "Text": "Service has not ready endpoints, pods: [Pod/quorum-2 Pod/quorum-0 Pod/quorum-1], expected 3",
+          "KubernetesDoc": "",
+          "Sensitive": []
+        }
+      ],
+      "details": "",
+      "parentObject": ""
     }
   ]
 }

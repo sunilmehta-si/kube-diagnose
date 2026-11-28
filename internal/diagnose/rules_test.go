@@ -279,6 +279,21 @@ func TestMissingSecretKey(t *testing.T) {
 	if !strings.Contains(f.Evidence[1].What, "keys pass, user, not password") {
 		t.Errorf("evidence %+v", f.Evidence)
 	}
+	if strings.Contains(f.Cause, "differs only") {
+		t.Errorf("pass is not password: %s", f.Cause)
+	}
+	// The key the pod reads, written the environment variable's way; the Secret's key in the file's way.
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = "couldn't find key DB_PASSWORD in Secret shop/db"
+	s.Secrets = []kube.KeySet{keys("shop", "db", "db-password", "db-user")}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD132", "Pod shop/web", "reads key DB_PASSWORD from Secret db", "it has db-password, which differs only in case and separators")
+	if !strings.Contains(f.Fix, "Read key db-password") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = "couldn't find key db_password in Secret shop/db"
+	expect(t, only(t, Diagnose(s)), "KD132", "Pod shop/web", "it has db-password, which differs only in its separators")
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = "couldn't find key db-pasword in Secret shop/db"
+	expect(t, only(t, Diagnose(s)), "KD132", "Pod shop/web", "it has db-password, which differs only in spelling")
 }
 
 func TestMissingConfigMapVolume(t *testing.T) {
@@ -472,6 +487,14 @@ func TestQuotaStopsAStatefulSetsClaim(t *testing.T) {
 	// Kubernetes 1.37 writes the event with a capital: "Create Claim ...". The claim is named all the same.
 	s.Events[0].Message = "C" + s.Events[0].Message[1:]
 	expect(t, only(t, Diagnose(s)), "KD170", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates")
+
+	// A LimitRange's PersistentVolumeClaim minimum rejects the claim in the same place.
+	s.Events[0].Message = `Create Claim data-db-0 for Pod db-0 in StatefulSet db failed error: persistentvolumeclaims "data-db-0" is forbidden: minimum storage usage per PersistentVolumeClaim is 1Gi, but request is 100Mi`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD174", "StatefulSet shop/db", "cannot create PersistentVolumeClaim data-db-0 from its volumeClaimTemplates", "minimum storage usage per PersistentVolumeClaim is 1Gi, but request is 100Mi")
+	if !strings.Contains(f.Fix, "--cascade=orphan") {
+		t.Errorf("%s: %s", f.Title, f.Fix)
+	}
 }
 
 func TestServiceAccountMissing(t *testing.T) {
@@ -1240,6 +1263,11 @@ func TestStatefulSetGoverningService(t *testing.T) {
 	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is not headless (it has clusterIP 10.96.4.20)")
 
 	s.Services[0].Spec.ClusterIP, s.Services[0].Spec.Ports[0].Port = "None", 8080 // headless, so its port is the pods' port
+	s.Services[0].Spec.Selector = map[string]string{"app": "database"}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 0)}
+	expect(t, only(t, Diagnose(s)), "KD182", "StatefulSet shop/db", "is headless, but it selects pods with app=database and the StatefulSet's pods carry app=web", "db-0.db-headless.shop.svc does not resolve")
+	s.Services[0].Spec.Selector = map[string]string{"app": "web"}
+	s.EndpointSlices = []kube.EndpointSlice{slice("db-headless", 1)}
 	if r := Diagnose(s); len(r.Findings) != 0 {
 		t.Errorf("a headless governing Service: %+v", r.Findings)
 	}
@@ -1816,6 +1844,19 @@ func TestSuspendedJob(t *testing.T) {
 	if f.Severity != Warning || !strings.Contains(f.Fix, "Do not unsuspend it by hand") {
 		t.Errorf("%s %s", f.Severity, f.Fix)
 	}
+
+	// No Kueue on the cluster, or no such LocalQueue: it never runs.
+	s.KueueAPI = "absent"
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD187", "Job shop/train", "this cluster does not serve Kueue's API (kueue.x-k8s.io): Kueue is not installed, so nothing will ever unsuspend the Job")
+	if f.Severity != Critical {
+		t.Errorf("severity %s", f.Severity)
+	}
+	s.KueueAPI = "served"
+	s.LocalQueues = []kube.LocalQueue{{Metadata: kube.ObjectMeta{Name: "team-b", Namespace: "shop"}}}
+	expect(t, only(t, Diagnose(s)), "KD187", "Job shop/train", "namespace shop has no LocalQueue team-a, so Kueue never admits it")
+	s.LocalQueues[0].Metadata.Name = "team-a"
+	expect(t, only(t, Diagnose(s)), "KD187", "Job shop/train", "waited 20m0s for Kueue to admit it from LocalQueue team-a")
 
 	s.Jobs[0].Status.Conditions[0].LastTransitionTime = t0.Add(-30 * time.Second)
 	if r := Diagnose(s); len(r.Findings) != 0 {
@@ -5754,7 +5795,7 @@ func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
 	crashed(&p, 0, "Completed", 5)
 	s.Pods = []kube.Pod{p}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD315", "Deployment shop/toolbox", "exits with code 0 as soon as it starts: it sets no command, and image ubuntu's default command is a shell")
+	expect(t, f, "KD315", "Deployment shop/toolbox", "exits with code 0 as soon as it starts: it sets no command, and image ubuntu's default command is a shell (bash)")
 	if !strings.Contains(f.Fix, "sleep infinity") {
 		t.Errorf("fix: %s", f.Fix)
 	}
@@ -5765,6 +5806,26 @@ func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
 	for _, f := range Diagnose(s).Findings {
 		if f.Rule == "KD315" {
 			t.Errorf("script: %s", f.Cause)
+		}
+	}
+	// An interpreter is the same: python's image runs python3, which reads its program from an empty input.
+	s.Pods[0].Spec.Containers[0].Image, s.Pods[0].Spec.Containers[0].Command, s.Pods[0].Spec.Containers[0].Args = "python:3.14-slim", nil, nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD315", "Deployment shop/toolbox", "image python's default command is an interpreter (python3)", "reads its program from that input")
+	if !strings.Contains(f.Fix, "python3 app.py") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Pods[0].Spec.Containers[0].Image, s.Pods[0].Spec.Containers[0].Command = "registry.example.com/api:1", []string{"node"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD315", "Deployment shop/toolbox", "its command is the interpreter node with no program to run")
+	if !strings.Contains(f.Fix, "node server.js") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// With its program, it is not this.
+	s.Pods[0].Spec.Containers[0].Args = []string{"server.js"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD315" {
+			t.Errorf("program: %s", f.Cause)
 		}
 	}
 }
@@ -5969,5 +6030,359 @@ func TestSystemCriticalPriorityIsNotAllowedInTheNamespace(t *testing.T) {
 	expect(t, f, "KD380", "Deployment shop/agent", "they use PriorityClass system-node-critical", "only in a namespace with a ResourceQuota that names that class, as kube-system has; shop has none")
 	if !strings.Contains(f.Fix, "copied from a kube-system manifest") || !strings.Contains(f.Fix, "scopeSelector names PriorityClass system-node-critical") {
 		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestServiceSelectsAnOldPodTemplateHash(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 2, 2)
+	a, b := pod("web-rs-a", "web"), pod("web-rs-b", "web")
+	for _, p := range []*kube.Pod{&a, &b} {
+		p.Metadata.Labels = map[string]string{"app": "web", "pod-template-hash": "7c4b9d5f6"}
+	}
+	s.Pods = []kube.Pod{a, b}
+	s.Services = []kube.Service{service("web", map[string]string{"app": "web", "pod-template-hash": "5d9f7c6b8d"}, port(8080))}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD160", "Service shop/web", "pod-template-hash=5d9f7c6b8d is a label the Deployment controller", "changes with each rollout", "the pods now carry pod-template-hash=7c4b9d5f6")
+	if !strings.Contains(f.Fix, "Remove pod-template-hash") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A selector of generated labels alone is not this: nothing else to select the pods by.
+	s.Services[0].Spec.Selector = map[string]string{"pod-template-hash": "5d9f7c6b8d"}
+	for _, f := range Diagnose(s).Findings {
+		if strings.Contains(f.Cause, "changes with each rollout") {
+			t.Errorf("generated label only: %s", f.Cause)
+		}
+	}
+}
+
+func TestJobManagedByAnotherController(t *testing.T) {
+	s := snap()
+	var j kube.Job
+	j.Metadata = kube.ObjectMeta{Name: "train", Namespace: "shop", CreationTimestamp: t0.Add(-10 * time.Minute)}
+	j.Spec.ManagedBy = "batch.example.com/scheduler"
+	s.Jobs = []kube.Job{j}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD298", "Job shop/train", "spec.managedBy batch.example.com/scheduler", "creates no pods", "in 10m0s that controller has not started it")
+	s.Jobs[0].Spec.ManagedBy = "kueue.x-k8s.io/multikueue"
+	expect(t, only(t, Diagnose(s)), "KD298", "Job shop/train", "MultiKueue, which runs it on a worker cluster")
+	// Started by the controller it names, the Job controller's own name, or just created: nothing to say.
+	started := t0.Add(-9 * time.Minute)
+	s.Jobs[0].Status.StartTime = &started
+	s.Jobs[0].Status.Active = 1
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("started: %+v", r.Findings)
+	}
+	s.Jobs[0].Status.StartTime, s.Jobs[0].Status.Active = nil, 0
+	s.Jobs[0].Spec.ManagedBy = "kubernetes.io/job-controller"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("the Job controller: %+v", r.Findings)
+	}
+	s.Jobs[0].Spec.ManagedBy = "batch.example.com/scheduler"
+	s.Jobs[0].Metadata.CreationTimestamp = t0.Add(-30 * time.Second)
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("just created: %+v", r.Findings)
+	}
+}
+
+func TestContainerCannotEnterItsWorkingDirectory(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	uid := int64(10001)
+	p.Spec.SecurityContext = &kube.PodSecurityContext{RunAsUser: &uid}
+	p.Spec.Containers[0].WorkingDir = "/root/app"
+	waiting(&p, "RunContainerError", `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: chdir to cwd ("/root/app") set in config.json failed: permission denied`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD237", "Deployment shop/web", "neither the runtime, as root, nor user 10001 may enter its working directory /root/app (its workingDir) (permission denied)", "squashes root")
+	// A file where a directory should be; the kubelet's escaped form of the message reads the same.
+	s.Pods[0].Spec.SecurityContext, s.Pods[0].Spec.Containers[0].WorkingDir = nil, ""
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = `error during container init: chdir to cwd (\"/app/server\") set in config.json failed: not a directory`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD237", "Deployment shop/web", "working directory /app/server (the image's WORKDIR) is a file in the image")
+	if !strings.Contains(f.Fix, "/app,") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// What runc reports for a workingDir that is a file: it creates a missing working directory first, and that fails.
+	s.Pods[0].Spec.Containers[0].WorkingDir = "/bin/busybox"
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = `failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: mkdir /bin/busybox: not a directory: unknown`
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD237", "Deployment shop/web", "working directory /bin/busybox (its workingDir) is a file in the image, not a directory")
+	if !strings.Contains(f.Fix, "/bin,") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A file on the way to it.
+	s.Pods[0].Spec.Containers[0].WorkingDir = "/bin/busybox/reports"
+	s.Pods[0].Status.ContainerStatuses[0].State.Waiting.Message = `error during container init: mkdir /bin/busybox: not a directory: unknown`
+	expect(t, only(t, Diagnose(s)), "KD237", "Deployment shop/web", "working directory /bin/busybox/reports (its workingDir) is under /bin/busybox, which is a file in the image")
+	// The same error for a path that is not the working directory is some other mkdir, not this rule's.
+	s.Pods[0].Spec.Containers[0].WorkingDir = "/srv"
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD237" {
+			t.Errorf("KD237 for a mkdir off the working directory: %s", f.Cause)
+		}
+	}
+}
+
+func TestOOMKilledUnderThePodLevelLimit(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers = append(p.Spec.Containers, kube.Container{Name: "proxy", Image: "registry.example.com/proxy:2"})
+	p.Spec.Resources = &kube.Resources{Limits: map[string]string{"memory": "64Mi", "cpu": "1"}}
+	crashed(&p, 137, "OOMKilled", 4)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD111", "Deployment shop/web", "under the pod's own 64Mi memory limit (spec.resources.limits.memory)", "shared by all 2 of the pod's containers")
+	if !strings.Contains(f.Fix, "pod-level memory limit") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// The container's own limit is the one it hit.
+	s.Pods[0].Spec.Containers[0].Resources.Limits = map[string]string{"memory": "32Mi"}
+	expect(t, only(t, Diagnose(s)), "KD111", "Deployment shop/web", "uses more than its 32Mi memory limit")
+}
+
+func backendTLS(name, target, ca string) kube.BackendTLSPolicy {
+	var b kube.BackendTLSPolicy
+	b.Metadata = kube.ObjectMeta{Name: name, Namespace: "shop"}
+	b.Spec.TargetRefs = append(b.Spec.TargetRefs, struct {
+		Group       string `json:"group"`
+		Kind        string `json:"kind"`
+		Name        string `json:"name"`
+		SectionName string `json:"sectionName,omitempty"`
+	}{"", "Service", target, ""})
+	b.Spec.Validation.CACertificateRefs = append(b.Spec.Validation.CACertificateRefs, struct {
+		Group string `json:"group"`
+		Kind  string `json:"kind"`
+		Name  string `json:"name"`
+	}{"", "ConfigMap", ca})
+	b.Spec.Validation.Hostname = target + ".shop.svc"
+	return b
+}
+
+func TestBackendTLSPolicyCACertificate(t *testing.T) {
+	s := snap()
+	s.Services = []kube.Service{service("auth", nil, port(8443))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("auth", 1)}
+	s.BackendTLSPolicies = []kube.BackendTLSPolicy{backendTLS("auth-tls", "auth", "auth-ca")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD376", "BackendTLSPolicy shop/auth-tls", "Service auth against the CA bundle in ConfigMap auth-ca, and there is no ConfigMap auth-ca in namespace shop", "fail with a 5xx error")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "auth-ca", "ca.pem")}
+	expect(t, only(t, Diagnose(s)), "KD376", "BackendTLSPolicy shop/auth-tls", "ConfigMap auth-ca has keys ca.pem, and the CA bundle must be under key ca.crt")
+	s.ConfigMaps = []kube.KeySet{keys("shop", "auth-ca", "ca.crt")}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a good CA ConfigMap: %+v", r.Findings)
+	}
+	// ConfigMaps not read: nothing to say.
+	s.ConfigMaps = nil
+	s.Gaps = []snapshot.Gap{{Resource: "configmaps"}}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("configmaps not read: %+v", r.Findings)
+	}
+}
+
+func TestBackendTLSPolicyTarget(t *testing.T) {
+	s := snap()
+	s.Services = []kube.Service{service("auth", nil, port(8443))}
+	s.EndpointSlices = []kube.EndpointSlice{slice("auth", 1)}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "auth-ca", "ca.crt")}
+	s.BackendTLSPolicies = []kube.BackendTLSPolicy{backendTLS("auth-tls", "auth-svc", "auth-ca")}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD377", "BackendTLSPolicy shop/auth-tls", "targets Service auth-svc, and there is no Service auth-svc in namespace shop (there is a Service auth)", "connects without TLS")
+	if !strings.Contains(f.Fix, "Service auth,") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.BackendTLSPolicies[0].Spec.TargetRefs[0].Name, s.BackendTLSPolicies[0].Spec.TargetRefs[0].SectionName = "auth", "https"
+	s.Services[0].Spec.Ports[0].Name = "web"
+	expect(t, only(t, Diagnose(s)), "KD377", "BackendTLSPolicy shop/auth-tls", "targets Service auth (port https), and Service auth has no port named https (its ports are named web)")
+	s.Services[0].Spec.Ports[0].Name = "https"
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("a good target: %+v", r.Findings)
+	}
+}
+
+func TestRouteSendsTrafficToADeployment(t *testing.T) {
+	s := gatewaySnapshot()
+	deployment(s, "storefront", 1, 1)
+	s.Routes[0].Spec.Rules[0].BackendRefs[0] = kube.BackendRef{Group: "apps", Kind: "Deployment", Name: "storefront"}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD378", "HTTPRoute shop/shop", "sends the requests of rule 1 to Deployment storefront", "InvalidKind", "Service web selects Deployment storefront's pods")
+	if !strings.Contains(f.Fix, "Send the rule to Service web,") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// Another group's kind is an implementation's or an extension's backend: nothing to say.
+	s.Routes[0].Spec.Rules[0].BackendRefs[0] = kube.BackendRef{Group: "inference.networking.k8s.io", Kind: "InferencePool", Name: "llama"}
+	if r := Diagnose(s); len(r.Findings) != 0 {
+		t.Errorf("InferencePool: %+v", r.Findings)
+	}
+}
+
+func TestImageFromALocalhostRegistry(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].Image = "localhost/shop/web:dev"
+	waiting(&p, "ErrImagePull", `failed to pull and unpack image "localhost/shop/web:dev": failed to resolve reference "localhost/shop/web:dev": failed to do request: Head "https://localhost/v2/shop/web/manifests/dev": dial tcp [::1]:443: connect: connection refused`)
+	s.Pods = []kube.Pod{p}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD103", "Deployment shop/web", "names registry localhost, and on node node-1 that is the node itself", "podman and buildah name local builds localhost/")
+	if !strings.Contains(f.Fix, "kind load docker-image") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// A registry on a port of localhost, as kind's local-registry recipe names it.
+	s.Pods[0].Spec.Containers[0].Image = "localhost:5001/web:dev"
+	expect(t, only(t, Diagnose(s)), "KD103", "Deployment shop/web", "names registry localhost:5001")
+	// Any other unreachable registry keeps the general cause.
+	s.Pods[0].Spec.Containers[0].Image = "registry.corp.internal/web:dev"
+	expect(t, only(t, Diagnose(s)), "KD103", "Deployment shop/web", "the node cannot reach the registry for image registry.corp.internal/web:dev")
+	if registry("localhost/web") != "localhost" || registry("library/busybox") != "docker.io" {
+		t.Errorf("registry: %s %s", registry("localhost/web"), registry("library/busybox"))
+	}
+}
+
+func TestValueEndsWithANewlineFromAYAMLBlock(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 0)
+	p := pod("web-rs-a", "web")
+	p.Spec.Containers[0].Command = []string{"sh", "-c", "cat \"$0\" > /dev/null && exec httpd -f -p 8080\n"}
+	p.Spec.Containers[0].Args = []string{"/etc/app/app.conf\n"}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"cat: can't open '/etc/app/app.conf", "': No such file or directory"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD238", "Deployment shop/web", `its args item "/etc/app/app.conf\n" ends with a newline, which a YAML literal block (|) keeps`, "cat: can't open '/etc/app/app.conf")
+	// An environment variable, quoted by the program that read it.
+	s.Pods[0].Spec.Containers[0].Args = nil
+	s.Pods[0].Spec.Containers[0].Env = []kube.EnvVar{{Name: "API_URL", Value: "http://api.shop.svc:8080\n"}}
+	s.Logs[0].Lines = []string{`parse "http://api.shop.svc:8080`, `": net/url: invalid control character in URL`}
+	expect(t, only(t, Diagnose(s)), "KD238", "Deployment shop/web", `its env API_URL value "http://api.shop.svc:8080\n"`)
+	// A script that ends with a newline, and a log that does not quote the value: not this.
+	s.Pods[0].Spec.Containers[0].Env = nil
+	s.Logs[0].Lines = []string{"httpd: bind: Address in use"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD238" {
+			t.Errorf("script: %s", f.Cause)
+		}
+	}
+}
+
+func TestPodFQDNTooLongToBeItsHostname(t *testing.T) {
+	s := snap()
+	p := pod("reporting-analytics-worker-0", "")
+	p.Metadata.OwnerReferences = []kube.OwnerReference{{Kind: "StatefulSet", Name: "reporting-analytics-worker", Controller: yes()}}
+	p.Status.Phase = "Pending"
+	waiting(&p, "ContainerCreating", "")
+	s.Pods = []kube.Pod{p}
+	fqdn := "reporting-analytics-worker-0.reporting-analytics.shop.svc.cluster.local"
+	s.Events = []kube.Event{event("Pod", p.Metadata.Name, "FailedCreatePodSandBox", fmt.Sprintf("Failed to create pod sandbox: failed to construct FQDN from pod hostname and cluster domain, FQDN %s is too long (64 characters is the max, %d characters requested)", fqdn, len(fqdn)), 0)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD239", "StatefulSet shop/reporting-analytics-worker", "makes its full name "+fqdn, fmt.Sprintf("at %d characters it is longer than the 64", len(fqdn)))
+	if !strings.Contains(f.Fix, "drop setHostnameAsFQDN") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+}
+
+func TestDNSSearchLineCutShort(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	p := pod("web-rs-a", "web")
+	var searches []string
+	for i := 1; i <= 32; i++ {
+		searches = append(searches, fmt.Sprintf("team%d.corp.example.com", i))
+	}
+	p.Spec.DNSConfig = &struct {
+		Nameservers []string `json:"nameservers,omitempty"`
+		Searches    []string `json:"searches,omitempty"`
+	}{Searches: searches}
+	s.Pods = []kube.Pod{p}
+	applied := append([]string{"shop.svc.cluster.local", "svc.cluster.local", "cluster.local"}, searches[:29]...)
+	e := event("Pod", "web-rs-a", "DNSConfigForming", "Search Line limits were exceeded, some search paths have been omitted, the applied search line is: "+strings.Join(applied, " "), 0)
+	s.Events = []kube.Event{e}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD379", "Deployment shop/web", "more than the 32 search domains a resolver reads, so it kept the first 32", "dropped team30.corp.example.com, team31.corp.example.com, team32.corp.example.com of the pod's dnsConfig", "short name")
+	if f.Severity != Warning {
+		t.Errorf("severity %s", f.Severity)
+	}
+	// Only the node's domains dropped.
+	s.Pods[0].Spec.DNSConfig = nil
+	expect(t, only(t, Diagnose(s)), "KD379", "Deployment shop/web", "the search domains it dropped are the node's")
+}
+
+func TestHostAliasesSendAServiceNameElsewhere(t *testing.T) {
+	s := snap()
+	deployment(s, "web", 1, 1)
+	p := pod("web-rs-a", "web")
+	p.Spec.HostAliases = append(p.Spec.HostAliases, struct {
+		IP        string   `json:"ip"`
+		Hostnames []string `json:"hostnames,omitempty"`
+	}{"10.96.255.250", []string{"db"}})
+	db := service("db", map[string]string{"app": "db"}, port(8080))
+	db.Spec.ClusterIP = "10.96.37.4"
+	d := pod("db-0", "")
+	d.Metadata.Labels = map[string]string{"app": "db"}
+	s.Pods, s.Services, s.EndpointSlices = []kube.Pod{p, d}, []kube.Service{db}, []kube.EndpointSlice{slice("db", 1)}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD317", "Deployment shop/web", "hostAliases write 10.96.255.250 db into its /etc/hosts", "not to Service db's cluster IP 10.96.37.4", "goes nowhere")
+	if !strings.Contains(f.Fix, "Remove db from the pod's hostAliases") {
+		t.Errorf("fix %q", f.Fix)
+	}
+	// A pod's address, as the FQDN: it works until that pod is replaced.
+	s.Pods[0].Spec.HostAliases[0].IP, s.Pods[0].Spec.HostAliases[0].Hostnames = "10.0.0.1", []string{"db.shop.svc.cluster.local"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD317", "Deployment shop/web", "the name db.shop.svc.cluster.local goes to 10.0.0.1", "one of the Service's pods today")
+	// The Service's own address, or a name that is no Service, is fine.
+	for _, a := range [][2]string{{"10.96.37.4", "db"}, {"192.0.2.10", "legacy.corp.example"}, {"192.0.2.10", "cache"}} {
+		s.Pods[0].Spec.HostAliases[0].IP, s.Pods[0].Spec.HostAliases[0].Hostnames = a[0], []string{a[1]}
+		if r := Diagnose(s); len(r.Findings) != 0 {
+			t.Errorf("%v: %s %s", a, r.Findings[0].Rule, r.Findings[0].Cause)
+		}
+	}
+	// A container that exits on the failed connection: its log names the address.
+	s.Pods[0].Spec.HostAliases[0].IP, s.Pods[0].Spec.HostAliases[0].Hostnames = "10.96.255.250", []string{"db"}
+	s.Workloads[0].Status.ReadyReplicas, s.Workloads[1].Status.ReadyReplicas = 0, 0
+	crashed(&s.Pods[0], 1, "Error", 4)
+	s.Logs = []snapshot.Log{{Pod: s.Pods[0].Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to db:5432 (10.96.255.250:5432)", "wget: download timed out"}}}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD317", "Deployment shop/web", "container web exits because its connection to db fails", "goes nowhere", "its log says")
+	// A crash whose log does not name the address is another rule's.
+	s.Logs[0].Lines = []string{"Connecting to cache:6379 (10.96.8.8:6379)", "wget: download timed out"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD317" {
+		t.Errorf("unrelated crash: %s", f.Cause)
+	}
+}
+
+func TestEnvFromKeyNameDiffersFromTheVariable(t *testing.T) {
+	s := snap()
+	deployment(s, "api", 1, 0)
+	p := pod("api-rs-a", "api")
+	p.Spec.Containers[0].EnvFrom = []kube.EnvFromSource{{ConfigMapRef: &kube.NameRef{Name: "api-config"}}}
+	crashed(&p, 1, "Error", 4)
+	s.Pods = []kube.Pod{p}
+	s.ConfigMaps = []kube.KeySet{keys("shop", "api-config", "db-host", "db-port")}
+	s.Logs = []snapshot.Log{{Pod: p.Ref(), Container: "web", Previous: true, Lines: []string{"sh: DB_HOST: DB_HOST is not set"}}}
+	f := only(t, Diagnose(s))
+	expect(t, f, "KD231", "Deployment shop/api", "DB_HOST is unset", "the key is db-host, so the container has db-host and no DB_HOST", "its log says")
+	if !strings.Contains(f.Fix, "Rename key db-host of ConfigMap api-config to DB_HOST") || !strings.Contains(f.Fix, "configMapKeyRef, key db-host") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// camelCase, and a prefix: the variable is the prefix and the key.
+	s.ConfigMaps[0].Keys = []string{"dbHost"}
+	s.Pods[0].Spec.Containers[0].EnvFrom[0].Prefix = "APP_"
+	s.Logs[0].Lines = []string{"fatal: APP_DB_HOST is required"}
+	expect(t, only(t, Diagnose(s)), "KD231", "Deployment shop/api", "the key is dbHost, so the container has APP_dbHost and no APP_DB_HOST")
+	// The key with the right name, or no near one: not this rule.
+	for _, k := range []string{"APP_DB_HOST", "database"} {
+		s.ConfigMaps[0].Keys = []string{k}
+		s.Pods[0].Spec.Containers[0].EnvFrom[0].Prefix = ""
+		if k == "APP_DB_HOST" {
+			s.ConfigMaps[0].Keys = []string{"DB_HOST"}
+			s.Pods[0].Spec.Containers[0].EnvFrom[0].Prefix = "APP_"
+		}
+		for _, f := range Diagnose(s).Findings {
+			if f.Rule == "KD231" {
+				t.Errorf("%s: %s", k, f.Cause)
+			}
+		}
 	}
 }

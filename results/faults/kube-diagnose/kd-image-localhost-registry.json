@@ -1,0 +1,57 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-image-localhost-registry"
+  ],
+  "collectedAt": "2026-11-28 13:09 UTC",
+  "findings": [
+    {
+      "rule": "KD103",
+      "title": "Registry cannot be reached",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-image-localhost-registry",
+        "name": "web"
+      },
+      "cause": "image localhost/kube-diagnose-missing/web:dev names registry localhost, and on node kd-faults-control-plane that is the node itself, where no registry answers: the image was built on a workstation (podman and buildah name local builds localhost/...) or pushed to a registry there, and the node cannot reach either; Deployment web has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-image-localhost-registry",
+            "name": "web-74f5b6db6d-kzkw7"
+          },
+          "what": "container web is waiting: ImagePullBackOff",
+          "detail": "Back-off pulling image \"localhost/kube-diagnose-missing/web:dev\": ErrImagePull: failed to pull and unpack image \"localhost/kube-diagnose-missing/web:dev\": failed to resolve reference \"localhost/kube-diagnose-missing/web:dev\": failed to do request: Head \"https://localhost/v2/kube-diagnose-missing/web/manifests/dev\": dial tcp [::1]:443: connect: connection refused",
+          "command": "kubectl get pod web-74f5b6db6d-kzkw7 -n kd-image-localhost-registry -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.waiting}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-image-localhost-registry",
+            "name": "web-74f5b6db6d-kzkw7"
+          },
+          "what": "event Failed (5 times)",
+          "detail": "Failed to pull image \"localhost/kube-diagnose-missing/web:dev\": failed to pull and unpack image \"localhost/kube-diagnose-missing/web:dev\": failed to resolve reference \"localhost/kube-diagnose-missing/web:dev\": failed to do request: Head \"https://localhost/v2/kube-diagnose-missing/web/manifests/dev\": dial tcp [::1]:443: connect: connection refused",
+          "command": "kubectl get events -n kd-image-localhost-registry --field-selector involvedObject.kind=Pod,involvedObject.name=web-74f5b6db6d-kzkw7"
+        }
+      ],
+      "fix": "Push the image to a registry the nodes can reach and use that name, or load it onto the nodes (kind load docker-image, minikube image load) and set imagePullPolicy: IfNotPresent so the kubelet does not pull it.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-image-localhost-registry",
+          "name": "web-74f5b6db6d-kzkw7"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

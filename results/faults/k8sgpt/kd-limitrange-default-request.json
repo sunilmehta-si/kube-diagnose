@@ -2,7 +2,7 @@
   "provider": "",
   "errors": null,
   "status": "ProblemDetected",
-  "problems": 2,
+  "problems": 3,
   "results": [
     {
       "kind": "Deployment",
@@ -14,11 +14,25 @@
           "Sensitive": [
             {
               "Unmasked": "kd-limitrange-default-request",
-              "Masked": "bDJEeV9qdnl9dE5LbypubiYuaGdKfWlzLGttZ1Q="
+              "Masked": "eltCJWx0MnJnV2o/IntQIk1PWG9VdEB9WEtqNEs="
             },
             {
               "Unmasked": "web",
-              "Masked": "eW0p"
+              "Masked": "Iisw"
+            }
+          ]
+        },
+        {
+          "Text": "Deployment kd-limitrange-default-request/web has condition Progressing=False, reason ProgressDeadlineExceeded: ReplicaSet \"web-54b9bbc47f\" has timed out progressing.",
+          "KubernetesDoc": "",
+          "Sensitive": [
+            {
+              "Unmasked": "kd-limitrange-default-request",
+              "Masked": "WWNXTE1HWVM9Im5sdDQhZmIoMVN1T31XYXtHd0M="
+            },
+            {
+              "Unmasked": "web",
+              "Masked": "KUtr"
             }
           ]
         }
@@ -28,7 +42,7 @@
     },
     {
       "kind": "Pod",
-      "name": "kd-limitrange-default-request/web-54b9bbc47f-x6j44",
+      "name": "kd-limitrange-default-request/web-54b9bbc47f-cr5wv",
       "error": [
         {
           "Text": "0/1 nodes are available: 1 Insufficient cpu. preemption: 0/1 nodes are available: 1 Preemption is not helpful for scheduling.",

@@ -1,0 +1,56 @@
+{
+  "context": "kind-kd-faults",
+  "serverVersion": "v1.37.0",
+  "namespaces": [
+    "kd-workdir-is-a-file"
+  ],
+  "collectedAt": "2026-11-28 13:22 UTC",
+  "findings": [
+    {
+      "rule": "KD237",
+      "title": "Container cannot enter its working directory",
+      "severity": "critical",
+      "object": {
+        "kind": "Deployment",
+        "namespace": "kd-workdir-is-a-file",
+        "name": "report"
+      },
+      "cause": "container report cannot start: its working directory /bin/busybox (its workingDir) is a file in the image, not a directory (not a directory); Deployment report has 0 of 1 replicas ready",
+      "evidence": [
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-workdir-is-a-file",
+            "name": "report-66db69c88b-2qncv"
+          },
+          "what": "container report did not start",
+          "detail": "failed to create containerd task: failed to create shim task: OCI runtime create failed: runc create failed: unable to start container process: error during container init: mkdir /bin/busybox: not a directory",
+          "command": "kubectl get pod report-66db69c88b-2qncv -n kd-workdir-is-a-file -o jsonpath='{.status.containerStatuses[?(@.name==\"report\")].state}'"
+        },
+        {
+          "object": {
+            "kind": "Pod",
+            "namespace": "kd-workdir-is-a-file",
+            "name": "report-66db69c88b-2qncv"
+          },
+          "what": "container report's workingDir and user",
+          "command": "kubectl get pod report-66db69c88b-2qncv -n kd-workdir-is-a-file -o jsonpath='{.spec.containers[?(@.name==\"report\")].workingDir}{\" \"}{.spec.securityContext}{\" \"}{.spec.containers[?(@.name==\"report\")].securityContext}'"
+        }
+      ],
+      "fix": "Set workingDir to a directory: the one that holds the file, /bin, or another the image has.",
+      "affects": [
+        {
+          "kind": "Pod",
+          "namespace": "kd-workdir-is-a-file",
+          "name": "report-66db69c88b-2qncv"
+        }
+      ]
+    }
+  ],
+  "checked": {
+    "pods": 1,
+    "services": 0,
+    "persistentVolumeClaims": 0,
+    "nodes": 1
+  }
+}

@@ -4,7 +4,7 @@
   "namespaces": [
     "kd-capability-dropped"
   ],
-  "collectedAt": "2026-11-26 05:45 UTC",
+  "collectedAt": "2026-11-28 13:03 UTC",
   "findings": [
     {
       "rule": "KD219",
@@ -21,29 +21,29 @@
           "object": {
             "kind": "Pod",
             "namespace": "kd-capability-dropped",
-            "name": "web-5cb88d7c4b-crsjk"
+            "name": "web-5cb88d7c4b-4w9hc"
           },
           "what": "container web exited with code 1 (Error), restarted 5 times",
-          "command": "kubectl get pod web-5cb88d7c4b-crsjk -n kd-capability-dropped -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].state.terminated}'"
+          "command": "kubectl get pod web-5cb88d7c4b-4w9hc -n kd-capability-dropped -o jsonpath='{.status.containerStatuses[?(@.name==\"web\")].lastState.terminated}'"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-capability-dropped",
-            "name": "web-5cb88d7c4b-crsjk"
+            "name": "web-5cb88d7c4b-4w9hc"
           },
-          "what": "last lines of container web's log (current run)",
+          "what": "last lines of container web's log (run that exited)",
           "detail": "chown: /var/cache/app: Operation not permitted\nchown: /var/cache/app: Operation not permitted",
-          "command": "kubectl logs web-5cb88d7c4b-crsjk -n kd-capability-dropped -c web --tail=20"
+          "command": "kubectl logs web-5cb88d7c4b-4w9hc -n kd-capability-dropped -c web --tail=20 --previous"
         },
         {
           "object": {
             "kind": "Pod",
             "namespace": "kd-capability-dropped",
-            "name": "web-5cb88d7c4b-crsjk"
+            "name": "web-5cb88d7c4b-4w9hc"
           },
           "what": "container web's securityContext drops ALL capabilities",
-          "command": "kubectl get pod web-5cb88d7c4b-crsjk -n kd-capability-dropped -o jsonpath='{.spec.containers[?(@.name==\"web\")].securityContext.capabilities}'"
+          "command": "kubectl get pod web-5cb88d7c4b-4w9hc -n kd-capability-dropped -o jsonpath='{.spec.containers[?(@.name==\"web\")].securityContext.capabilities}'"
         }
       ],
       "fix": "Add CHOWN under securityContext.capabilities.add, keeping drop: [ALL], or change the image or its start script so it no longer needs it (ownership and modes can be set when the image is built, or by fsGroup for volumes).",
@@ -51,7 +51,7 @@
         {
           "kind": "Pod",
           "namespace": "kd-capability-dropped",
-          "name": "web-5cb88d7c4b-crsjk"
+          "name": "web-5cb88d7c4b-4w9hc"
         }
       ]
     }
