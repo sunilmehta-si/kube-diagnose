@@ -5795,7 +5795,7 @@ func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
 	crashed(&p, 0, "Completed", 5)
 	s.Pods = []kube.Pod{p}
 	f := only(t, Diagnose(s))
-	expect(t, f, "KD315", "Deployment shop/toolbox", "exits with code 0 as soon as it starts: it sets no command, and image ubuntu's default command is a shell")
+	expect(t, f, "KD315", "Deployment shop/toolbox", "exits with code 0 as soon as it starts: it sets no command, and image ubuntu's default command is a shell (bash)")
 	if !strings.Contains(f.Fix, "sleep infinity") {
 		t.Errorf("fix: %s", f.Fix)
 	}
@@ -5806,6 +5806,26 @@ func TestContainerRunsAShellWithNothingToDo(t *testing.T) {
 	for _, f := range Diagnose(s).Findings {
 		if f.Rule == "KD315" {
 			t.Errorf("script: %s", f.Cause)
+		}
+	}
+	// An interpreter is the same: python's image runs python3, which reads its program from an empty input.
+	s.Pods[0].Spec.Containers[0].Image, s.Pods[0].Spec.Containers[0].Command, s.Pods[0].Spec.Containers[0].Args = "python:3.14-slim", nil, nil
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD315", "Deployment shop/toolbox", "image python's default command is an interpreter (python3)", "reads its program from that input")
+	if !strings.Contains(f.Fix, "python3 app.py") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	s.Pods[0].Spec.Containers[0].Image, s.Pods[0].Spec.Containers[0].Command = "registry.example.com/api:1", []string{"node"}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD315", "Deployment shop/toolbox", "its command is the interpreter node with no program to run")
+	if !strings.Contains(f.Fix, "node server.js") {
+		t.Errorf("fix: %s", f.Fix)
+	}
+	// With its program, it is not this.
+	s.Pods[0].Spec.Containers[0].Args = []string{"server.js"}
+	for _, f := range Diagnose(s).Findings {
+		if f.Rule == "KD315" {
+			t.Errorf("program: %s", f.Cause)
 		}
 	}
 }

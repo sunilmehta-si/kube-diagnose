@@ -1445,10 +1445,14 @@ type ResourceSlice struct {
 	} `json:"spec"`
 }
 
-// BaseImages are the official images whose default command is a shell: busybox's and alpine's sh, the
-// distributions' bash. Their names are public, so redaction keeps them.
-var BaseImages = map[string]bool{"busybox": true, "alpine": true, "ubuntu": true, "debian": true, "centos": true, "fedora": true,
-	"rockylinux": true, "almalinux": true, "amazonlinux": true, "archlinux": true, "oraclelinux": true, "photon": true}
+// BaseImages are the official images whose default command reads a script from its input: busybox's and alpine's
+// sh, the distributions' bash, and the language images' interpreters (python's python3, node's node, ruby's irb). Run
+// with no command, no terminal and no input, each reads end of input at once and exits 0. Their names are public, so
+// redaction keeps them.
+var BaseImages = map[string]string{"busybox": "sh", "alpine": "sh", "ubuntu": "bash", "debian": "bash", "centos": "bash",
+	"fedora": "bash", "rockylinux": "bash", "almalinux": "bash", "amazonlinux": "bash", "archlinux": "bash",
+	"oraclelinux": "bash", "photon": "bash",
+	"python": "python3", "pypy": "pypy3", "node": "node", "ruby": "irb", "php": "php -a"}
 
 // OfficialBaseImage returns the base image a repository names, when it is one of Docker Hub's official base images
 // (busybox, docker.io/library/busybox), and "" otherwise.
@@ -1456,7 +1460,7 @@ func OfficialBaseImage(repo string) string {
 	for _, p := range []string{"docker.io/library/", "index.docker.io/library/", "library/"} {
 		repo = strings.TrimPrefix(repo, p)
 	}
-	if BaseImages[repo] {
+	if BaseImages[repo] != "" {
 		return repo
 	}
 	return ""
