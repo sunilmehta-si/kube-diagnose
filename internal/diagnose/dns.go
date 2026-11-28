@@ -651,13 +651,29 @@ func aliasedService(ns, host string) (svcNS, svc string) {
 
 // hostAliasService finds a pod whose hostAliases pin a Service's name to an address that is not the Service's:
 // /etc/hosts is read before DNS, so the name never reaches the Service. It is a line left from before the Service
-// was recreated (with a new cluster IP), or a pod's address copied in, which is gone when that pod is replaced.
-func hostAliasService(ix *index, p kube.Pod) *problem {
+// was recreated (with a new cluster IP), or a pod's address copied in, which is gone when that pod is replaced. For a
+// running pod the spec says it; for a container that exits, its log must show a failed connection and the alias's
+// address (busybox's wget prints "Connecting to db:5432 (10.96.255.250:5432)", then "download timed out").
+func hostAliasService(ix *index, p kube.Pod, cs *kube.ContainerStatus, lines []string, ev ...Evidence) *problem {
 	if !ix.read("services") {
 		return nil
 	}
+	failed := ""
+	if cs != nil {
+		for i := len(lines) - 1; i >= 0 && failed == ""; i-- {
+			if reConnFailure.MatchString(lines[i]) {
+				failed = lines[i]
+			}
+		}
+		if failed == "" {
+			return nil
+		}
+	}
 	for _, a := range p.Spec.HostAliases {
 		for _, h := range a.Hostnames {
+			if cs != nil && !mentions(lines, a.IP) {
+				continue
+			}
 			ns, name := aliasedService(p.Metadata.Namespace, h)
 			var svc *kube.Service
 			for i := range ix.s.Services {
@@ -684,11 +700,16 @@ func hostAliasService(ix *index, p kube.Pod) *problem {
 			} else {
 				cause += fmt.Sprintf(": no pod of the Service has that address, so every connection to %s goes nowhere", h)
 			}
-			return newProblem(p, "", "KD317", "Pod's hostAliases send a Service's name to another address", Critical, cause, "hostalias|"+h,
-				fmt.Sprintf("Remove %s from the pod's hostAliases, so that it resolves through cluster DNS to Service %s; hostAliases are for names DNS cannot answer.", h, name),
-				Evidence{Object: p.Ref(), What: "the pod's hostAliases", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.hostAliases}`)},
+			container := ""
+			if cs != nil {
+				container = cs.Name
+				cause = fmt.Sprintf("container %s exits because its connection to %s fails: %s; its log says: %q", cs.Name, h, cause, clip(failed, 200))
+			}
+			ev = append(ev, Evidence{Object: p.Ref(), What: "the pod's hostAliases", Command: cmdGet("pod", p.Metadata.Namespace, p.Metadata.Name, `{.spec.hostAliases}`)},
 				Evidence{Object: kube.Ref{Kind: "Service", Namespace: ns, Name: name}, What: fmt.Sprintf("Service %s's cluster IP: %s", name, svc.Spec.ClusterIP),
 					Command: cmdGet("service", ns, name, `{.spec.clusterIP}`)})
+			return newProblem(p, container, "KD317", "Pod's hostAliases send a Service's name to another address", Critical, cause, "hostalias|"+h,
+				fmt.Sprintf("Remove %s from the pod's hostAliases, so that it resolves through cluster DNS to Service %s; hostAliases are for names DNS cannot answer.", h, name), ev...)
 		}
 	}
 	return nil

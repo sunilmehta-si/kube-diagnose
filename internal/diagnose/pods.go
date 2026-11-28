@@ -120,7 +120,7 @@ func podProblem(ix *index, p kube.Pod) *problem {
 		if pr := subdomainProblem(ix, p, nil, nil, nil); pr != nil {
 			return pr
 		}
-		if pr := hostAliasService(ix, p); pr != nil {
+		if pr := hostAliasService(ix, p, nil, nil); pr != nil {
 			return pr
 		}
 		if pr := dnsLimits(ix, p); pr != nil {
@@ -1331,6 +1331,9 @@ func crash(ix *index, p kube.Pod, cs kube.ContainerStatus) *problem {
 		return pr
 	}
 	if pr := dnsBlocked(ix, p, cs, log.Lines, ev); pr != nil {
+		return pr
+	}
+	if pr := hostAliasService(ix, p, &cs, log.Lines, ev...); pr != nil {
 		return pr
 	}
 	if pr := localhostForService(ix, p, cs, log.Lines, ev); pr != nil {

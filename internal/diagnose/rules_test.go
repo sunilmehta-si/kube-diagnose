@@ -6338,4 +6338,16 @@ func TestHostAliasesSendAServiceNameElsewhere(t *testing.T) {
 			t.Errorf("%v: %s %s", a, r.Findings[0].Rule, r.Findings[0].Cause)
 		}
 	}
+	// A container that exits on the failed connection: its log names the address.
+	s.Pods[0].Spec.HostAliases[0].IP, s.Pods[0].Spec.HostAliases[0].Hostnames = "10.96.255.250", []string{"db"}
+	s.Workloads[0].Status.ReadyReplicas, s.Workloads[1].Status.ReadyReplicas = 0, 0
+	crashed(&s.Pods[0], 1, "Error", 4)
+	s.Logs = []snapshot.Log{{Pod: s.Pods[0].Ref(), Container: "web", Previous: true, Lines: []string{"Connecting to db:5432 (10.96.255.250:5432)", "wget: download timed out"}}}
+	f = only(t, Diagnose(s))
+	expect(t, f, "KD317", "Deployment shop/web", "container web exits because its connection to db fails", "goes nowhere", "its log says")
+	// A crash whose log does not name the address is another rule's.
+	s.Logs[0].Lines = []string{"Connecting to cache:6379 (10.96.8.8:6379)", "wget: download timed out"}
+	if f := only(t, Diagnose(s)); f.Rule == "KD317" {
+		t.Errorf("unrelated crash: %s", f.Cause)
+	}
 }
