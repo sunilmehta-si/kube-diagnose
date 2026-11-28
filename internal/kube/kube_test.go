@@ -169,3 +169,17 @@ func TestPodMountsAndUser(t *testing.T) {
 		t.Errorf("RunAsUser(side) = %d, %v; want the pod's 1000", u, ok)
 	}
 }
+
+func TestOfficialBaseImage(t *testing.T) {
+	for repo, want := range map[string]string{"busybox": "busybox", "docker.io/library/ubuntu": "ubuntu", "library/python": "python",
+		"docker.io/library/node": "node", "registry.example.com/python": "", "ghcr.io/acme/busybox": "", "nginx": ""} {
+		if got := OfficialBaseImage(repo); got != want {
+			t.Errorf("OfficialBaseImage(%q) = %q; want %q", repo, got, want)
+		}
+	}
+	for base, run := range BaseImages {
+		if run == "" {
+			t.Errorf("%s has no default command", base)
+		}
+	}
+}

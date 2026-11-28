@@ -167,8 +167,8 @@ the rest and lists what it could not read.
 
 A snapshot holds object names, labels, event messages and log lines (never Secret or ConfigMap values) and is
 written readable by you only; treat it like the cluster data it came from. To share one in an issue, record it with
-`--redact`: names, label values, image repositories (but Docker Hub's official base images, such as busybox or
-ubuntu) and IP addresses become pseudonyms, the context name and the logs are dropped, and the redacted snapshot still diagnoses to the same causes (crash causes that only a log line
+`--redact`: names, label values, image repositories (but Docker Hub's official base and language images, such as busybox,
+ubuntu or python) and IP addresses become pseudonyms, the context name and the logs are dropped, and the redacted snapshot still diagnoses to the same causes (crash causes that only a log line
 shows are lost with the logs).
 
 ## The fault suite
