@@ -50,12 +50,13 @@ wrong port, on kind ([`testdata/faults`](testdata/faults)). A test keeps this bl
 
 It knows 238 rules ([docs/rules.md](docs/rules.md)): images that do not exist, cannot be pulled, are rate-limited, have
 no build for the node's platform or are not on the node with pull policy Never, pull secrets that are missing or of the
-wrong type, commands written as one string, a flag and its value written as one argument, flags written under command
+wrong type, images named for registry localhost, which on a node is the node itself, commands written as one string, a flag and its value written as one argument, flags written under command
 where args is meant, scripts whose interpreter the image does not have or that were saved with Windows line endings,
 commands using a $(VARIABLE) the container does not define or the shell's $VARIABLE or an operator such as && with no
 shell, env values that refer to a variable defined after them, volumes mounted over the command, Localhost seccomp
-profiles the node does not have, AppArmor profiles it has not loaded, base images run with no command, whose shell exits
-at once, memory limits without a unit (memory: 512 is bytes), RuntimeClasses whose handler the node's runtime lacks,
+profiles the node does not have, AppArmor profiles it has not loaded, base and language images run with no command,
+whose shell or interpreter (python3, node) exits at once, working directories that are a file in the image, values that
+kept a YAML block's final newline, memory limits without a unit (memory: 512 is bytes), RuntimeClasses whose handler the node's runtime lacks,
 crashes (with the exit code explained and the log line that reads like the error quoted, and traced to the Service the
 app could not resolve or reach, the localhost address it used for a Service in another pod, the port the Service does
 not expose, the Service whose ready pods do not listen on the port it targets, the service link variable that replaced
@@ -68,12 +69,13 @@ ServiceAccount lacks, the Role that grants the resource in another API group, un
 or the subresource (pods/log) or only by resourceNames for a list, the permission granted in another namespace or by a
 RoleBinding for a cluster-wide request or to another ServiceAccount than the pod's, the RoleBinding that names a Role or
 a ServiceAccount that does not exist (or a Role bound as a ClusterRole), the IP address it was given in place of the
-Service's name, the optional key or pod label whose absence left a variable unset, the file its init container wrote
+Service's name or the hostAliases line that sends the Service's name to an old address, the optional key or pod label
+whose absence left a variable unset, the envFrom key written db-host for the DB_HOST it reads, the file its init container wrote
 where it mounts the volume elsewhere, the key file whose mode lets others read it, the user ID its image's /etc/passwd
 lacks, the ConfigMap mounted as a directory where it reads a file, the /dev/shm it filled (the runtime's 64 MiB), the
 API server's 401 for a projected token minted for another audience, the StatefulSet peers it could not resolve because
 their Service publishes ready pods only, or the token automounting turned off), out-of-memory kills (a memory-backed
-emptyDir, a LimitRange's default limit and the app's own memory setting above the limit among them), probes on the wrong
+emptyDir, a LimitRange's default limit, a pod-level limit and the app's own memory setting above the limit among them), probes on the wrong
 port or over TCP to a UDP port, speaking HTTPS to plain HTTP, checking a host other than the pod, refused because the
 app listens on localhost only, gRPC probes on a port that does not speak gRPC or lacks the health service, liveness
 probes that kill the app before it has started, sidecars whose startup probe holds back the containers after them,
@@ -82,7 +84,7 @@ initialDelaySeconds, naming a port the container does not have or running a comm
 written as a single string (a failed HTTP probe's status, 404 or 401 say, is explained), init containers that never
 finish (sidecars are told apart, and one that waits for its own pod's Service is named), readiness gates nobody sets,
 failing lifecycle hooks, runAsNonRoot with a root image, writes to a read-only root filesystem, missing ConfigMaps,
-Secrets and keys, subPaths that name a key the volume does not have, pods whose device claims (dynamic resource
+Secrets and keys (with the key of another case or spelling the object has), subPaths that name a key the volume does not have, pods whose device claims (dynamic resource
 allocation) name a ResourceClaim, template or DeviceClass that does not exist or is being deleted, ask for more devices
 than a node has, for devices no driver offers, that other claims hold or that their selectors match none of, share a
 claim allocated on another node, or wait on a node with no plugin for the driver, pods resized in place beyond what
@@ -92,14 +94,15 @@ more minDomains than the nodes form, pod affinity to pods that do not exist, nod
 RuntimeClass's nodeSelector no node has, host port, volume zone, scheduling gate, missing scheduler or ReadWriteOncePod
 claim another pod holds that stops them), pods the kubelet rejects for a sysctl it forbids or a resource the node lacks,
 or, when spec.nodeName skips the scheduler, for the node's labels or a host port another pod holds, pods for another
-operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network plugin cannot set up, hostPath
+operating system, pods stopped at their activeDeadlineSeconds, pod sandboxes the network plugin cannot set up or whose
+FQDN is too long to be their hostname, DNS settings that are more than a resolver reads, hostPath
 volumes the node does not have (the Docker socket on a containerd node among them), pods bound by nodeName to a node
 that does not exist or past the scheduler their claim waits for, pods stuck terminating, volumes still attached to
 another node, claims for StorageClasses that do not exist, access modes they cannot provide or a named volume they
 cannot bind to, claims that no hand-made PersistentVolume fits (too small, other access modes, taken, or Released),
 claims that have lost their volume or carry a selector their provisioner refuses, claims deleted while pods still use
 them, Services and Ingresses that send traffic nowhere (a Service selecting a Deployment's own labels, not its pods',
-among them), Services with no selector and no endpoints (or an EndpointSlice missing the label that links it), headless
+or the pod-template-hash of an earlier rollout, among them), Services with no selector and no endpoints (or an EndpointSlice missing the label that links it), headless
 Services that map a port nothing maps, Service ports whose protocol the pods do not serve, Services that also select
 another workload's pods, pod subdomains no headless Service serves, ExternalName Services set to an IP address,
 Ingresses that claim one host and path for different Services, Ingress TLS Secrets that are missing, Ingress hosts their
@@ -107,12 +110,13 @@ TLS does not cover or paths written as patterns their pathType compares as text,
 a Service or port that does not exist or to another namespace that grants them nothing, are attached to no Gateway, to
 one or a listener that does not exist, to listeners that do not admit them or serve none of their hostnames, tie with an
 older route for a hostname and path, give every backend weight 0 or write a path as a pattern (/api/*) that PathPrefix
-compares as text, Gateways whose GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that
-never get an address, StatefulSets without their headless Service, NetworkPolicies that shut a Service off, let DNS out
+compares as text, or name a Deployment in place of its Service, BackendTLSPolicies whose CA ConfigMap or target Service
+does not exist, Gateways whose GatewayClass or listener certificate Secret does not exist, LoadBalancer Services that
+never get an address, StatefulSets without their headless Service or whose headless Service selects other pods, NetworkPolicies that shut a Service off, let DNS out
 only to kube-dns pods of their own namespace, cut pods off from the API server, allow the Service's port where the pods'
 port is meant, allow a Service's cluster IP by ipBlock, allow a port name the pods do not declare, select no pods or
 select namespaces by a label none has, exhausted quotas, quotas on a limit the pods do not set, a LimitRange default
-below the container's request, LimitRange, PriorityClass, RuntimeClass, ServiceAccount, Pod Security, webhook and
+below the container's request, LimitRange (of a StatefulSet's claims too), PriorityClass, RuntimeClass, ServiceAccount, Pod Security, webhook and
 ValidatingAdmissionPolicy rejections, system-critical priority outside kube-system, admission webhooks that cannot be
 reached, Deployments whose progress deadline is shorter than their pods take to become available, Deployments left
 paused or holding ready pods unavailable with a long minReadySeconds, HPAs that cannot scale, name their target with an
@@ -121,7 +125,8 @@ PodDisruptionBudgets that block drains, select nothing or overlap, evictions (an
 them), failed Jobs and CronJobs (a podFailurePolicy that failed the Job at once and a Job cut off by its
 activeDeadlineSeconds are named), replicas sharing a ReadWriteOnce claim, CronJobs that skip runs, are suspended,
 replace each run before it finishes pile up runs, are scheduled for a date that never comes or miss every start for a
-startingDeadlineSeconds too short, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy,
+startingDeadlineSeconds too short, Jobs left by spec.managedBy to a controller that never runs them or queued for Kueue
+where it is not installed or their LocalQueue does not exist, DaemonSets that match no node, StatefulSets and DaemonSets whose OnDelete strategy,
 or a StatefulSet partition, leaves a template change on no pod, CronJobs whose failed runs are deleted at once, Jobs
 with parallelism 0 or held open by a sidecar that never exits, and nodes that are not ready.
 
