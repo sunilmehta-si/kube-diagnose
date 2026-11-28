@@ -542,6 +542,12 @@ for the runs it deleted; KD297 reads each failed run from the Job's own BackoffL
 Job, and redaction keeps a run named for its CronJob. And the API server now refuses an in-place resize the node cannot
 hold outright, so the pod is never left with a pending one; KD247 explains the refusal in the client that asked. Before
 that, the resize scenario's own Job lacked get on pods/resize, which kube-diagnose named (KD307).
+The 18 added for 0.17.0 caught two things on their first run. The non-root container given a working directory under
+/root started: runc enters the working directory as root before it switches to the container's user, so that fault
+cannot happen on a node, and the scenario is now the one that does, a workingDir that is a file in the image, whose
+runc message KD237 had not read. And the readiness probe that waits fifteen minutes had passed by the time the suite,
+which now takes longer, reached it; kube-diagnose rightly named the Deployment's rollout deadline instead, and the probe
+waits an hour now.
 Each recorded namespace is also in [`testdata/faults`](testdata/faults), and `make
 test` replays all of them through the current code.
 
