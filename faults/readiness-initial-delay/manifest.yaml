@@ -1,4 +1,4 @@
-# A web server is up in a second, but its readiness probe waits initialDelaySeconds: 900 before its first check, set for a slow start; the pod stays not ready and gets no traffic for fifteen minutes after every start.
+# A web server is up in a second, but its readiness probe waits initialDelaySeconds: 3600 before its first check, set for a slow start; the pod stays not ready and gets no traffic for an hour after every start.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -31,4 +31,4 @@ spec:
             httpGet:
               path: /
               port: 8080
-            initialDelaySeconds: 900
+            initialDelaySeconds: 3600

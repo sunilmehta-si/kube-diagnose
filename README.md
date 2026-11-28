@@ -381,7 +381,7 @@ The run committed in [`results/faults`](results/faults) ([run 45763138488](https
 | rbac-wrong-api-group | Role deployment-reader grants get, list and watch on deployments in the core group "", but Deployments are in API group apps, so the rule never matches and the API server refuses the watcher. | ✅ | ❌ | – |
 | readiness-failing | The readiness probe asks for a path the server does not have, so the pods never get traffic. | ✅ | ☑️ | – |
 | readiness-gate-unset | A Deployment's pods have a readiness gate that no controller in the cluster sets, so they run with every container ready but never become Ready, and their Service has no endpoints. | ✅ | ❌ | – |
-| readiness-initial-delay | A web server is up in a second, but its readiness probe waits initialDelaySeconds: 900 before its first check, set for a slow start; the pod stays not ready and gets no traffic for fifteen minutes after every start. | ✅ | ❌ | – |
+| readiness-initial-delay | A web server is up in a second, but its readiness probe waits initialDelaySeconds: 3600 before its first check, set for a slow start; the pod stays not ready and gets no traffic for an hour after every start. | ✅ | ❌ | – |
 | readiness-probe-timeout | The readiness probe runs a health check that takes about three seconds, and it gives up after its default timeoutSeconds of 1, so the pod never becomes ready. | ✅ | ☑️ | – |
 | readonly-root-filesystem | A container with a read-only root filesystem creates a directory in it at start and exits. | ✅ | ❌ | – |
 | resize-infeasible | A Job resizes the running batch pod in place to 64 CPUs, more than its node has, and the API server refuses the resize, so the Job fails. | ✅ | ❌ | – |
